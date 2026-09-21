@@ -2,7 +2,9 @@
    upstream main window.  Kept out of the upstream .cpp files so that those
    only carry one-line hooks (each marked "// EDU:"). */
 
+#include <QLabel>
 #include <QPlainTextEdit>
+#include <QStatusBar>
 #include <QTextEdit>
 
 #include "edu/core/edu_decoder.h"
@@ -39,6 +41,16 @@ void SpimView::eduSetupPanels() {
 
   eduInspector = new EduInspector(this);
   addDockWidget(Qt::LeftDockWidgetArea, eduInspector);
+  // Shown only while a setting that changes how files are assembled or run
+  // differs from QtSpim's defaults.
+  eduModeBadge = new QLabel(this);
+  eduModeBadge->setObjectName("EduModeBadge");
+  eduModeBadge->setStyleSheet(
+      "QLabel { background: #ffe082; color: black; border-radius: 3px;"
+      " padding: 1px 8px; font-weight: bold; }");
+  statusBar()->addPermanentWidget(eduModeBadge);
+  eduModeBadge->hide();
+
   eduInspectorSubject = EduNoSubject;
   connect(ui->IntRegView, SIGNAL(registerSelectionChanged()), this,
           SLOT(eduRegisterSelected()));
@@ -203,9 +215,36 @@ void SpimView::eduUpdateInspector() {
                              index.parent().data().toString());
 }
 
+// These settings are saved and survive a restart.  With Bare Machine on, a
+// pseudo instruction such as "li" is a syntax error, and a student who left
+// it on looks for the mistake in the program.  The defaults are QtSpim's
+// (state.cpp): not bare, pseudo instructions accepted, no delay slots.
+void SpimView::eduUpdateModeBadge() {
+  QStringList modes;
+  if (bare_machine) modes << "Bare Machine";
+  if (!accept_pseudo_insts) modes << "Pseudo instructions off";
+  if (delayed_branches) modes << "Delayed branches";
+  if (delayed_loads) modes << "Delayed loads";
+  const QString dot = QString(" ") + QChar(0x00b7) + QString(" ");  // middle dot
+  eduModeBadge->setText(modes.join(dot));
+  eduModeBadge->setToolTip(
+      modes.isEmpty()
+          ? QString()
+          : QString("Simulator > Settings differs from the defaults.%1")
+                .arg(bare_machine || !accept_pseudo_insts
+                         ? "\nPseudo instructions (li, la, move, ...) are "
+                           "syntax errors in this mode."
+                         : ""));
+  eduModeBadge->setVisible(!modes.isEmpty());
+}
+
 // DisplayTextSegments(): settings that upstream baked into its HTML are
 // pushed into the model and view instead.
 void SpimView::eduRefreshTextPanel() {
+  // Every place that changes the machine settings (start-up, command-line
+  // flags, the Settings dialog) redraws the text segment next.
+  eduUpdateModeBadge();
+
   QPalette palette = ui->TextSegView->palette();
   palette.setColor(QPalette::Base, st_textWinBackgroundColor);
   palette.setColor(QPalette::Text, st_textWinFontColor);

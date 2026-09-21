@@ -61,6 +61,7 @@ class EduDataModel;
 class EduInspector;
 class EduRegisterModel;
 class EduTextModel;
+class QLabel;
 class QPlainTextEdit;
 class QTextEdit;
 
@@ -103,6 +104,7 @@ class SpimView : public QMainWindow {
   EduInspector* eduInspector;
   void eduSetupPanels();
   void eduTileInspector();
+  void eduUpdateModeBadge();  // status bar: settings that change assembling
   void eduBeginRunCommand();       // a Step/Run/Continue is about to start
   void eduResetRegisterChanges();  // Reinitialize / Load / Clear Registers
   void eduRefreshRegisterPanel();
@@ -209,6 +211,7 @@ class SpimView : public QMainWindow {
   QTextEdit* eduTextLog;         // EDU: same for the Text window, filled on demand
   void eduFillTextLog();
   QPlainTextEdit* eduDataLog;    // EDU: and for the Data window
+  QLabel* eduModeBadge;          // EDU: status bar, see eduUpdateModeBadge()
   QString eduLoadedSymbols;      // EDU: print_symbols() text of every file loaded
   void eduFillDataLog();
   enum { EduNoSubject, EduRegisterSubject, EduInstructionSubject,
