@@ -10,4 +10,4 @@
 
 TEMPLATE = subdirs
 
-SUBDIRS = edu_core
+SUBDIRS = edu_core edu_oracle
