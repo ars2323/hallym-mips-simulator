@@ -174,8 +174,8 @@ QString EduInspector::text() const {
 }
 
 void EduInspector::showNothing() {
-  setText("Select a register or an instruction\n"
-          "to see its bits.");
+  setText("Select a register, an instruction or a\n"
+          "memory word to see its bits.");
 }
 
 QString EduInspector::registerText(const edu::RegisterRef& reg, quint32 value,
@@ -211,6 +211,10 @@ QString EduInspector::registerText(const edu::RegisterRef& reg, quint32 value,
 void EduInspector::showRegister(const edu::RegisterRef& reg, quint32 value,
                                 bool changed, const QString& groupTitle) {
   setText(registerText(reg, value, changed, groupTitle));
+}
+
+void EduInspector::showMemory(const QStringList& lines) {
+  setText(lines.join("\n"));
 }
 
 void EduInspector::showInstruction(const QStringList& lines,

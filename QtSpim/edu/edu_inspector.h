@@ -1,8 +1,8 @@
 /* QtSpim-Edu: the inspector dock (PLAN "공통: 인스펙터 패널").
 
    One dock, below the register dock, whose content depends on what is
-   selected: a register (PLAN R2) or an instruction (PLAN R3); memory words
-   follow in stage 6.
+   selected: a register (PLAN R2), an instruction (PLAN R3) or a memory word
+   (PLAN R5).
 
    All numbers come from edu/core/ (edu_format.h, edu_instruction_text.h);
    this class only shows them.
@@ -41,6 +41,9 @@ class EduInspector : public QDockWidget {
   // The lines of edu::instructionDetailLines() (fixed pitch) and of
   // edu::instructionNoteLines() (prose: proportional font, word wrap).
   void showInstruction(const QStringList& lines, const QStringList& notes);
+
+  // The lines of edu::memoryDetailLines().
+  void showMemory(const QStringList& lines);
 
   void setPanelFont(const QFont& font);
 
