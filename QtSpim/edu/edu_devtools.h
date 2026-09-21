@@ -18,6 +18,16 @@
 
        QtSpimEdu --local-codec ISO-8859-1 --load "/tmp/한글/prog.s" ...
 
+   --load and --reload go through the REAL menu actions (File > Load File,
+   File > Reinitialize and Load File): the action is triggered, the file
+   dialog it opens is answered, and SpimView::file_LoadFile() does the rest,
+   exactly as for a user.  They may be repeated and run in command-line
+   order.  (Until stage 6 --load handed the file to main.cpp as a command-
+   line argument, which skips file_LoadFile() altogether; a bug there could
+   not have been seen.  That way in still exists as --load-cmdline, because
+   the log goldens were captured through it and because "QtSpimEdu prog.s" is
+   something users do as well.)
+
    --capture/--out may be repeated; each --capture must be followed by its
    --out.  --dump takes a stream name and a file, and may also be repeated.
    Any of --capture/--dump switches the program into this mode: it runs the
@@ -103,7 +113,7 @@ class EduDevtools : public QObject {
   explicit EduDevtools(QObject* parent = 0);
 
   // Consumes the options this class understands and returns the remaining
-  // arguments for the normal command line parser.  A --load file is
+  // arguments for the normal command line parser.  A --load-cmdline file is
   // appended as a trailing positional argument so that it is loaded by the
   // same path as a file named on the command line.  Sets *ok to false and
   // writes to stderr if an option is malformed.
@@ -158,6 +168,8 @@ class EduDevtools : public QObject {
   quint32 selectInstruction_;  // Text panel row to select before capturing
   bool expandEnvironment_;
   bool expandKernelData_;
+  QStringList menuLoads_;    // "L<path>" / "R<path>", in command-line order
+  QString pendingMenuFile_;  // what the next file dialog should pick
   QString raisePanel_;     // dock to bring to the front of its tab group
   QStringList setMemory_;  // "addr=value" words written after running
   QStringList goTos_;  // Data panel Go to inputs, applied after running

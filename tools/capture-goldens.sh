@@ -25,7 +25,7 @@ fixed_env=(env -i QT_QPA_PLATFORM=offscreen HOME=/nonexistent
 while IFS='|' read -r name program args stream; do
   case "$name" in ''|'#'*) continue ;; esac
   if [ -n "${ONLY:-}" ] && [[ "$name" != $ONLY ]]; then continue; fi
-  "${fixed_env[@]}" timeout 300 "$app" --load "$repo/$program" $args \
+  "${fixed_env[@]}" timeout 300 "$app" --load-cmdline "$repo/$program" $args \
     --dump "$stream" "$repo/tests/golden/$name.txt" >/dev/null 2>&1
   echo "captured tests/golden/$name.txt"
 done <"$repo/tests/golden/cases.txt"

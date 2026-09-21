@@ -51,8 +51,11 @@ run() {  # run LOGFILE ARGS...
 }
 
 echo "== 1. system encoding cannot carry the path (pretend ISO-8859-1)"
+# --load-cmdline: with the pretended encoding Qt's own file dialog cannot see
+# the Korean directory either, so the menu route (--load) cannot get as far
+# as our check here.  Both routes call the same edu::confirmPathLoadable().
 run "$out/warn.stdout" --local-codec ISO-8859-1 --dialog-shots "$out/shots" \
-    --load "$korean_dir/helloworld.s" --run \
+    --load-cmdline "$korean_dir/helloworld.s" --run \
     --dump console "$out/warn.console" --dump log "$out/warn.log"
 
 if grep -q "cannot be passed to the simulator" "$out/warn.stdout"; then

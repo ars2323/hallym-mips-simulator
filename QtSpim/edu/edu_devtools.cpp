@@ -8,9 +8,11 @@
 #include <QDockWidget>
 #include <QElapsedTimer>
 #include <QFile>
+#include <QFileDialog>
 #include <QFileInfo>
 #include <QLabel>
 #include <QLayout>
+#include <QLineEdit>
 #include <QMessageBox>
 #include <QMouseEvent>
 #include <QPixmap>
@@ -70,7 +72,13 @@ EduDevtools::EduDevtools(QObject* parent)
 QString EduDevtools::usage() {
   return QString(
       "QtSpim-Edu development options (CONFIG+=edu_devtools builds only):\n"
-      "  --load <file.s>        assembly file to load\n"
+      "  --load <file.s>        File > Load File: the real menu action and its\n"
+      "                         file dialog, as a user does it (repeatable,\n"
+      "                         in command-line order together with --reload)\n"
+      "  --reload <file.s>      File > Reinitialize and Load File, likewise\n"
+      "  --load-cmdline <file.s>  pass the file as a command-line argument\n"
+      "                         instead (upstream's other way in: main.cpp\n"
+      "                         assembles it before the window is up)\n"
       "  --steps <n>            single-step n times after loading\n"
       "  --run                  run to completion instead of stepping\n"
       "  --capture <panel>      panel to capture; repeatable, each one\n"
@@ -252,6 +260,18 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
       continue;
     }
 
+    if (arg == "--load" || arg == "--reload") {
+      if (i + 1 >= args.size()) {
+        err() << arg << " needs a file\n" << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      menuLoads_ << (arg == "--reload" ? QString("R") : QString("L")) +
+                        QFileInfo(args.at(i + 1)).absoluteFilePath();
+      i += 1;
+      continue;
+    }
+
     if (arg == "--raise") {
       if (i + 1 >= args.size()) {
         err() << "--raise needs a panel name\n" << Qt::flush;
@@ -334,7 +354,7 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
       continue;
     }
 
-    if (arg == "--load" || arg == "--steps" || arg == "--capture" ||
+    if (arg == "--load-cmdline" || arg == "--steps" || arg == "--capture" ||
         arg == "--out") {
       if (i + 1 >= args.size()) {
         err() << arg << " needs a value\n" << usage() << Qt::flush;
@@ -344,7 +364,7 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
       const QString value = args.at(i + 1);
       i += 1;
 
-      if (arg == "--load") {
+      if (arg == "--load-cmdline") {
         loadFile = value;
       } else if (arg == "--steps") {
         bool parsed = false;
@@ -516,7 +536,32 @@ void EduDevtools::dismissBlockingDialog() {
   }
 
   QWidget* modal = QApplication::activeModalWidget();
+
   if (modal == 0) {
+    return;
+  }
+
+  // --menu-load / --menu-reload: the file dialog the menu slot opened.  (A
+  // Qt dialog: a development run has no platform theme to offer a native
+  // one.  Acting before it is the active modal widget would return no file.)
+  QFileDialog* files = qobject_cast<QFileDialog*>(modal);
+  if (files != 0) {
+    if (pendingMenuFile_.isEmpty()) {
+      return;  // already answered; its queued accept() is on the way
+    }
+    const QString file = pendingMenuFile_;
+    pendingMenuFile_.clear();
+    // Type the path into the dialog's own line edit.  (selectFile() leaves
+    // the line edit alone once it has the focus, which depends on timing.)
+    QLineEdit* name = files->findChild<QLineEdit*>("fileNameEdit");
+    if (name == 0) {
+      err() << "the file dialog has no fileNameEdit\n" << Qt::flush;
+      status_ = 2;
+      files->reject();
+      return;
+    }
+    name->setText(file);
+    QMetaObject::invokeMethod(files, "accept", Qt::QueuedConnection);
     return;
   }
 
@@ -586,6 +631,27 @@ void EduDevtools::run() {
     window_->ui->action_Reg_DisplayDecimal->trigger();
   } else if (regBase_ == 16) {
     window_->ui->action_Reg_DisplayHex->trigger();
+  }
+
+  // The menu actions themselves, file dialog included: what a user does.
+  for (int i = 0; i < menuLoads_.size(); i += 1) {
+    const bool reload = menuLoads_.at(i).startsWith('R');
+    pendingMenuFile_ = menuLoads_.at(i).mid(1);
+    out() << (reload ? "menu: Reinitialize and Load File " : "menu: Load File ")
+          << pendingMenuFile_ << "\n" << Qt::flush;
+    (reload ? window_->ui->action_File_Reload : window_->ui->action_File_Load)
+        ->trigger();
+    if (!pendingMenuFile_.isEmpty()) {
+      err() << "the file dialog never came up\n" << Qt::flush;
+      pendingMenuFile_.clear();
+      status_ = 2;
+    }
+    settle();
+    int instructions = 0;
+    for (mem_addr a = TEXT_BOT; a < text_top; a += 4) {
+      instructions += read_mem_inst(a) != NULL ? 1 : 0;
+    }
+    out() << "user text: " << instructions << " instructions\n" << Qt::flush;
   }
 
   for (int i = 0; i < triggers_.size(); i += 1) {

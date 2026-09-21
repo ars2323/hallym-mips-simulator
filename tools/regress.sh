@@ -270,7 +270,7 @@ else
              XDG_CONFIG_HOME=/nonexistent/config)
   while IFS='|' read -r name program args stream; do
     case "$name" in ''|'#'*) continue ;; esac
-    "${fixed_env[@]}" timeout 300 "$app" --load "$repo/$program" $args \
+    "${fixed_env[@]}" timeout 300 "$app" --load-cmdline "$repo/$program" $args \
       --dump "$stream" "$scratch/$name.txt" >"$scratch/$name.gui.log" 2>&1 || true
     if [ ! -f "$scratch/$name.txt" ]; then
       fail "$name: no log text produced"; head -20 "$scratch/$name.gui.log"
