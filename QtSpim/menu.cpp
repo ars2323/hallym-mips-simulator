@@ -132,9 +132,7 @@ void SpimView::file_SaveLogFile() {
       QTextStream outFile(&file);
 
       if (slf->RegsCheckBox->isChecked()) {
-        outFile << ui->IntRegDockWidget
-                       ->findChild<regTextEdit*>("IntRegTextEdit")
-                       ->toPlainText();
+        outFile << intRegistersLogText();  // EDU: was the widget directly
         outFile << "\n\n";
       }
       if (slf->TextCheckBox->isChecked()) {
@@ -175,8 +173,7 @@ void SpimView::file_Print() {
 
     if (printDialog.exec() == QDialog::Accepted) {
       if (pwd->RegsCheckBox->isChecked()) {
-        ui->IntRegDockWidget->findChild<regTextEdit*>("IntRegTextEdit")
-            ->print(&printer);
+        printIntRegisters(&printer);  // EDU: was the widget directly
       }
       if (pwd->TextCheckBox->isChecked()) {
         ui->TextSegDockWidget->findChild<textTextEdit*>("TextSegmentTextEdit")

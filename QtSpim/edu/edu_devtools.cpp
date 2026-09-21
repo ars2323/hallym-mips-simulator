@@ -40,6 +40,7 @@ QTextStream& out() {
 EduDevtools::EduDevtools(QObject* parent)
     : QObject(parent),
       runToCompletion_(false),
+      regBase_(0),
       steps_(0),
       window_(0),
       dialogTimer_(0),
@@ -56,11 +57,13 @@ QString EduDevtools::usage() {
       "                         must be followed by --out\n"
       "  --out <file.png>       where to write the preceding --capture\n"
       "  --dump <stream> <file> write a text stream; repeatable\n"
+      "  --reg-base <2|10|16>   choose Registers > Binary/Decimal/Hex\n"
       "  --local-codec <name>   pretend the system text encoding is <name>\n"
       "  --dialog-shots <dir>   save a PNG of every dialog answered\n"
       "\n"
       "  panels:  intregs fpregs text data console log window about\n"
-      "  streams: console log regs\n");
+      "  streams: console log regs intregs-log\n"
+      "           (intregs-log = what Save Log File writes for Int Regs)\n");
 }
 
 QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
@@ -88,13 +91,29 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
       dump.out = args.at(i + 2);
       i += 2;
       if (dump.stream != "console" && dump.stream != "log" &&
-          dump.stream != "regs") {
+          dump.stream != "regs" && dump.stream != "intregs-log") {
         err() << "unknown dump stream: " << dump.stream << "\n"
               << usage() << Qt::flush;
         *ok = false;
         return rest;
       }
       dumps_.append(dump);
+      continue;
+    }
+
+    if (arg == "--reg-base") {
+      if (i + 1 >= args.size()) {
+        err() << "--reg-base needs 2, 10 or 16\n" << usage() << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      regBase_ = args.at(i + 1).toInt();
+      if (regBase_ != 2 && regBase_ != 10 && regBase_ != 16) {
+        err() << "--reg-base needs 2, 10 or 16\n" << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      i += 1;
       continue;
     }
 
@@ -253,6 +272,8 @@ bool EduDevtools::writeDump(const Dump& dump) {
     text = window_->SpimConsole->toPlainText();
   } else if (dump.stream == "log") {
     text = window_->ui->centralWidget->toPlainText();
+  } else if (dump.stream == "intregs-log") {
+    text = window_->intRegistersLogText();
   } else {
     text = registerDump();
   }
@@ -333,6 +354,14 @@ void EduDevtools::run() {
   // (menu.cpp initializePCAndStack), which would silently make the
   // screenshot show a second run.  The status bar is the only public
   // indication of that state.
+  if (regBase_ == 2) {
+    window_->ui->action_Reg_DisplayBinary->trigger();
+  } else if (regBase_ == 10) {
+    window_->ui->action_Reg_DisplayDecimal->trigger();
+  } else if (regBase_ == 16) {
+    window_->ui->action_Reg_DisplayHex->trigger();
+  }
+
   if (runToCompletion_) {
     window_->sim_Run();
   }

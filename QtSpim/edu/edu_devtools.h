@@ -23,6 +23,9 @@
    Any of --capture/--dump switches the program into this mode: it runs the
    script, writes the files and exits without waiting for the user.
 
+   --reg-base <2|10|16> picks the Registers menu entry for that base before
+   anything is captured, through the menu action itself.
+
    --local-codec replaces the codec QString::toLocal8Bit() uses, so that the
    "path cannot be passed to the simulator" warning (edu/edu_path_check.h)
    can be exercised on a UTF-8 Linux box, where it would otherwise never
@@ -113,6 +116,7 @@ class EduDevtools : public QObject {
   QList<Capture> captures_;
   QList<Dump> dumps_;
   bool runToCompletion_;
+  int regBase_;  // 0 = leave alone, else 2/10/16 via the Registers menu
   int steps_;
   SpimView* window_;
   QString modalOut_;

@@ -10,7 +10,7 @@
 #     -k  keep the worktree and the outputs instead of deleting them
 #     -j  parallelism for make                 (default nproc)
 #
-# Three checks, in increasing cost:
+# Four checks, in increasing cost (4 is described next to its code):
 #
 #   1. CPU/ is byte-identical to the tag.  The whole project rests on the
 #      simulator core being untouched; git can prove that outright.
@@ -233,6 +233,39 @@ else
     else
       fail "$name console output differs:"
       head -40 "$scratch/$name.console.diff"
+    fi
+  done
+fi
+
+# ------------------------------------------------- 4. Save Log File output
+
+note
+note "== 4. Save Log File output for Int Regs vs upstream rendering (goldens)"
+golden="$repo/tests/golden"
+if [ ! -x "$app" ] || [ "$(strings "$app" | grep -c -F -- 'intregs-log' || true)" -eq 0 ]; then
+  note "SKIP  $app missing or not built with CONFIG+=edu_devtools"
+else
+  export XDG_CONFIG_HOME="$scratch/config-log"
+  mkdir -p "$XDG_CONFIG_HOME"
+  # name|arguments  -- see tests/golden/README.md
+  log_cases=(
+    "intregs-load|"
+    "intregs-step1|--steps 1"
+    "intregs-run|--run"
+    "intregs-run-base2|--reg-base 2 --run"
+    "intregs-run-base10|--reg-base 10 --run"
+  )
+  for entry in "${log_cases[@]}"; do
+    IFS='|' read -r name args <<<"$entry"
+    QT_QPA_PLATFORM=offscreen timeout 120 "$app" --load "$repo/helloworld.s" $args \
+      --dump intregs-log "$scratch/$name.txt" >"$scratch/$name.gui.log" 2>&1 || true
+    if [ ! -f "$scratch/$name.txt" ]; then
+      fail "$name: no log text produced"; head -20 "$scratch/$name.gui.log"
+    elif cmp -s "$golden/$name.txt" "$scratch/$name.txt"; then
+      pass "$name.txt is byte-identical"
+    else
+      fail "$name.txt differs from the golden:"
+      diff -u "$golden/$name.txt" "$scratch/$name.txt" | head -20
     fi
   done
 fi

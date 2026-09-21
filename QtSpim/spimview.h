@@ -35,6 +35,7 @@
 #define SPIMVIEW_H
 
 #include <QMainWindow>
+#include <QPrinter>
 #include <QSettings>
 #include <QList>
 #include <QString>
@@ -77,6 +78,12 @@ class SpimView : public QMainWindow {
 
   void DisplayIntRegisters();
   void DisplayFPRegisters();
+
+  // EDU: what "Save Log File" writes and "Print" prints for the integer
+  // registers.  One seam for both, so the output can be held byte-identical
+  // to the upstream rendering (tools/regress.sh compares it to goldens).
+  QString intRegistersLogText();
+  void printIntRegisters(QPrinter* printer);
   void DisplayTextSegments(bool force);
   void DisplayDataSegments(bool force);
   void UpdateDataDisplay();

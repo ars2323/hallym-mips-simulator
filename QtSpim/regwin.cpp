@@ -100,6 +100,17 @@ QString SpimView::formatIntRegister(int regNum, int value, char* name,
                    formatInt(value), changed);
 }
 
+// EDU: see spimview.h.  For now the source is the upstream widget itself.
+QString SpimView::intRegistersLogText() {
+  return ui->IntRegDockWidget->findChild<regTextEdit*>("IntRegTextEdit")
+      ->toPlainText();
+}
+
+void SpimView::printIntRegisters(QPrinter* printer) {
+  ui->IntRegDockWidget->findChild<regTextEdit*>("IntRegTextEdit")
+      ->print(printer);
+}
+
 void SpimView::CaptureIntRegisters() {
   int i;
   for (i = 0; i < R_LENGTH; i++) {
