@@ -1,0 +1,87 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+
+<head>
+<title>SPIM MIPS Simulator</title>
+<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type"/>
+<link href="style.css" rel="stylesheet" type="text/css"/>
+
+</head>
+
+<body>
+
+<h1>SPIM: A MIPS32 Simulator</h1>
+<center>
+<p>James Larus<br/>
+<a href="mailto:spim@larusstone.org">spim@larusstone.org</a></p>
+<p>&nbsp;</p>
+</center>
+<div class="rightNav">
+	<h3>Contents</h3>
+	<ul>
+		<li><a href="older.html">Older Versions of SPIM</a></li>
+		<li><a href="further.html">Further Information</a></li>
+		<li><a href="changes.html">Changes to SPIM</a></li>
+		<li><a href="#copyright">Copyright</a></li>
+	</ul>
+</div>
+<div class="middle">
+<p>
+<em>Spim</em> is a self-contained simulator that runs MIPS32 programs. It reads and executes assembly language programs written for this processor. <em>Spim</em> also provides a simple debugger and minimal set of operating system services. <i>Spim</i> does <span class="ul">not</span> execute binary (compiled) programs.
+</p>
+<p>
+<em>Spim</em> implements almost the entire MIPS32 assembler-extended instruction set. (It omits most floating point comparisons and rounding modes and the memory system page tables.) The MIPS architecture has several variants that differ in various ways (e.g., the MIPS64 architecture supports 64-bit integers and addresses), which means that <em>Spim</em> will not run programs for all MIPS processors.
+</p>
+<p>
+<em>Spim</em> implements both a terminal and windows interfaces. On Microsoft Windows, Linux, and Mac OS X, the <em>spim</em> program offers a simple terminal interface and the <i>QtSpim</i> program provides the windowing interface. The <a href="older.html">older programs <em>xspim</em> and <em>PCSpim</em></a> provide native window interfaces for these systems as well.
+</p>
+<p>
+	<em>Spim</em> comes with complete source code and documentation.
+</p>
+<p><em>Spim</em> is no longer supported. The code has been stable for many years, with a few occasional bugs. But, as I reach retirement, it is clear to me that <em>Spim</em> should retire as well. Feel free to fork a copy and fix the bugs yourself! </p>
+<p class="emphasize">
+	<a href="https://sourceforge.net/projects/spimsimulator/files">
+	<strong>Download SPIM</strong></a></p>
+</div>
+<hr />
+
+<h2>QtSpim</h2>
+<p>The newest version of <em>Spim</em> is called <i>QtSpim</i>, and unlike all of the other version, it runs on Microsoft Windows, Mac OS X, <span class="ul">and</span> Linux&#8212;the same source code and the same user interface on all three platforms! <i>QtSpim</i> is the version of <em>Spim</em> that currently being maintaned. The other versions are still available, but are no longer maintained or updated.
+</p>
+<p>
+A compiled, immediately installable version of <i>QtSpim</i> is available for Microsoft Windows, Mac OS X, and Linux can be downloaded from: <a href="https://sourceforge.net/projects/spimsimulator/files/"> https://sourceforge.net/projects/spimsimulator/files/</a>. <a href="https://sourceforge.net/p/spimsimulator/code/HEAD/tree/">Full source code</a> is also available (to compile <i>QtSpim</i>, you need <a href="http://qt-project.org/downloads">the Qt framework</a>, a very nice cross-platform UI framework that can be downloaded from <a href="http://qt-project.org/downloads">http://qt-project.org/downloads</a>).
+</p>
+<p>
+
+<hr /><h2>Copyright</h2>
+<p>
+<em>Spim</em> is copyrighted by James Larus and distributed under a BSD license.
+</p>
+<p>Copyright (c) 1990-2023, James R. Larus. All rights reserved.</p>
+<p>Redistribution and use in source and binary forms, with or without modification, 
+are permitted provided that the following conditions are met:</p>
+<ul>
+	<li>Redistributions of source code must retain the above copyright notice, this 
+	list of conditions and the following disclaimer.</li>
+	<li>Redistributions in binary form must reproduce the above copyright notice, 
+	this list of conditions and the following disclaimer in the documentation and/or 
+	other materials provided with the distribution.</li>
+	<li>Neither the name of the James R. Larus nor the names of its contributors may 
+be used to endorse or promote products derived from this software without specific 
+prior written permission.</li>
+</ul>
+<p>THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS &quot;AS IS&quot; AND 
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES 
+OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT 
+SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT 
+OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, 
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF 
+THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</p>
+<p>The DOS and Windows ports were done by David A. Carley and are copyrighted 
+in part by Morgan Kaufmann Publishers.</p>
+
+</body>
+
+</html>
