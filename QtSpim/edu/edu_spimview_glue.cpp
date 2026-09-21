@@ -12,6 +12,7 @@
 #include "edu/edu_data_model.h"
 #include "edu/edu_data_view.h"
 #include "edu/edu_inspector.h"
+#include "edu/edu_loader.h"
 #include "edu/edu_register_model.h"
 #include "edu/edu_register_view.h"
 #include "edu/edu_text_model.h"
@@ -221,9 +222,23 @@ void SpimView::eduRefreshTextPanel() {
   eduCollectLabels();
 }
 
-// Labels by address for the Data panel (ARCHITECTURE 15.2).  Two sources:
-// what print_symbols() lists (only global labels survive the end of a file)
-// and the labels instructions refer to, which is how a local "msg" is found.
+// What File > Load File and the command line call in place of the core's
+// read_assembly_file(): the same, plus the file's labels (edu/edu_loader.h).
+bool SpimView::eduLoadAssemblyFile(const QString& file) {
+  QString listing;
+  const bool opened = eduReadAssemblyFile(file.toLocal8Bit().data(), &listing);
+  eduLoadedSymbols += listing;
+  return opened;
+}
+
+void SpimView::eduForgetLoadedLabels() { eduLoadedSymbols.clear(); }
+
+// Labels by address for the Data panel (ARCHITECTURE 15.2).  Three sources:
+//   - print_symbols() as of the end of each file we loaded, local labels
+//     included (eduLoadAssemblyFile());
+//   - print_symbols() now: the global labels, the exception handler's too
+//     (the core loads that file itself, so its locals are not in the first);
+//   - the labels instructions refer to, which covers the handler's locals.
 void SpimView::eduCollectLabels() {
   edu::LabelMap labels;
 
@@ -231,7 +246,8 @@ void SpimView::eduCollectLabels() {
   eduOutputCapture = &listing;
   print_symbols();
   eduOutputCapture = NULL;
-  const QList<edu::Symbol> symbols = edu::parseSymbolListing(listing);
+  const QList<edu::Symbol> symbols =
+      edu::parseSymbolListing(eduLoadedSymbols + listing);
   for (int i = 0; i < symbols.size(); i += 1) {
     labels.add(symbols.at(i).name, symbols.at(i).address);
   }

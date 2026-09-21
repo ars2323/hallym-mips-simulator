@@ -59,7 +59,18 @@ void fatal_error(char* fmt, ...) {
   std::abort();
 }
 
-void write_output(port, char*, ...) {}
+// Swallowed, except while a test (or edu_loader.cpp) captures message_out,
+// as the GUI's write_output() does.
+QString* eduOutputCapture = NULL;
+
+void write_output(port fp, char* fmt, ...) {
+  if (eduOutputCapture != NULL && fp.i == message_out.i) {
+    va_list args;
+    va_start(args, fmt);
+    eduOutputCapture->append(formatted(fmt, args));
+    va_end(args);
+  }
+}
 void read_input(char* str, int n) {
   if (n > 0) {
     str[0] = '\0';

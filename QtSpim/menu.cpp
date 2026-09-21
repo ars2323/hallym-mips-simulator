@@ -83,7 +83,9 @@ void SpimView::file_LoadFile() {
     if (!edu::confirmPathLoadable(this, file)) {
       return;
     }
-    read_assembly_file(file.toLocal8Bit().data());
+    // EDU: read_assembly_file() with the file's labels kept; see
+    // edu/edu_loader.h.
+    eduLoadAssemblyFile(file);
     st_recentFiles.removeAll(file);
     st_recentFiles.prepend(file);
     rebuildRecentFilesMenu();

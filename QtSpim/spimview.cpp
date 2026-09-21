@@ -193,6 +193,7 @@ QString SpimView::windowFormattingStart(QFont font, QColor fontColor,
 QString SpimView::windowFormattingEnd() { return "</span>"; }
 
 void SpimView::InitializeWorld() {
+  eduForgetLoadedLabels();  // EDU: initialize_world() clears the symbol table
   if (st_loadExceptionHandler) {
     // EDU: a custom handler path the core could not open falls back to the
     // built-in handler, just as a missing file does below.

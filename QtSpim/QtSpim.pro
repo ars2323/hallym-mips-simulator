@@ -65,6 +65,7 @@ SOURCES += main.cpp\
         edu/core/edu_memory_text.cpp\
         edu/edu_data_model.cpp\
         edu/edu_data_view.cpp\
+        edu/edu_loader.cpp\
         edu/edu_register_model.cpp\
         edu/edu_register_view.cpp\
         edu/edu_inspector.cpp\
@@ -104,6 +105,7 @@ HEADERS  += spimview.h\
         edu/core/edu_memory_text.h\
         edu/edu_data_model.h\
         edu/edu_data_view.h\
+        edu/edu_loader.h\
         edu/edu_register_model.h\
         edu/edu_register_view.h\
         edu/edu_inspector.h\

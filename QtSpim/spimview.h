@@ -117,6 +117,8 @@ class SpimView : public QMainWindow {
   void eduRefreshDataPanel();     // rows, base, segments, font, colours
   bool eduDataPointersMoved();    // $sp/$fp/$gp differ from what is shown
   void eduCollectLabels();        // after the text segment changed (a load)
+  bool eduLoadAssemblyFile(const QString& file);  // read_assembly_file() + labels
+  void eduForgetLoadedLabels();   // the symbol table was cleared
   void eduNoteStackInitialized(); // right after the core's initialize_stack()
 
   void DisplayTextSegments(bool force);
@@ -205,6 +207,7 @@ class SpimView : public QMainWindow {
   QTextEdit* eduTextLog;         // EDU: same for the Text window, filled on demand
   void eduFillTextLog();
   QPlainTextEdit* eduDataLog;    // EDU: and for the Data window
+  QString eduLoadedSymbols;      // EDU: print_symbols() text of every file loaded
   void eduFillDataLog();
   enum { EduNoSubject, EduRegisterSubject, EduInstructionSubject,
          EduMemorySubject };
@@ -338,7 +341,6 @@ class SpimView : public QMainWindow {
 };
 
 extern SpimView* Window;
-extern QString* eduOutputCapture;  // EDU: see write_output() in spim_support.cpp
 extern QApplication* App;
 
 // Format SPIM abstractions for display

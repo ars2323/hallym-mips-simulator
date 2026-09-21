@@ -35,6 +35,7 @@
 
 #include "spimview.h"
 #include "ui_spimview.h"
+#include "edu/edu_loader.h"  // EDU: eduOutputCapture
 
 #include <QChar>
 

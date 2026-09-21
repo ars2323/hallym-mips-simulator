@@ -103,7 +103,9 @@ int main(int argc, char* argv[]) {
       if (!edu::confirmPathLoadable(&win, fileNames[i])) {
         continue;
       }
-      read_assembly_file(fileNames[i].toLocal8Bit().data());
+      // EDU: read_assembly_file() with the file's labels kept; see
+      // edu/edu_loader.h.
+      win.eduLoadAssemblyFile(fileNames[i]);
     }
   }
 

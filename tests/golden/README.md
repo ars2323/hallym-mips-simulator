@@ -42,3 +42,13 @@ commit).  They include the whole stack, environment strings and all (the
 pinned three variables): the Data panel folds that area on screen, but a saved
 log has always contained it and still does.  `data-sample-*` use
 `tests/samples/data-stack.s`, which writes to `.data` and keeps a stack frame.
+
+`syntaxerror-*.txt` hold the state after a file that stops assembling at a
+syntax error half way (`tests/samples/syntax-error-midfile.s`): text, data,
+the message log, and registers/log after Run.  They were captured from the
+`stage-6` build, the last one that loads files with the core's own
+`read_assembly_file()`; since then the GUI uses its line-for-line mirror
+(`QtSpim/edu/edu_loader.cpp`), which has to reproduce them byte for byte.
+All cases are run from the repository root with a relative program path, so
+that the path inside an assembler message does not depend on the checkout.
+
