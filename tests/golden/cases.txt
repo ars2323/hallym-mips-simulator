@@ -12,3 +12,14 @@ text-nocomments|helloworld.s|--trigger action_Text_DisplayComments --redisplay|t
 text-novalue|helloworld.s|--trigger action_Text_DisplayInstructionValue --redisplay|text-log
 text-breakpoint|helloworld.s|--breakpoint 00400024|text-log
 text-ttcore|Tests/tt.core.s||text-log
+data-load|helloworld.s||data-log
+data-run|helloworld.s|--run|data-log
+data-run-base2|helloworld.s|--trigger action_Data_DisplayBinary --run|data-log
+data-run-base10|helloworld.s|--trigger action_Data_DisplayDecimal --run|data-log
+data-nouser|helloworld.s|--trigger action_Data_DisplayUserData|data-log
+data-nostack|helloworld.s|--trigger action_Data_DisplayUserStack|data-log
+data-nokernel|helloworld.s|--trigger action_Data_DisplayKernelData|data-log
+data-sample-steps12|tests/samples/data-stack.s|--steps 12|data-log
+data-sample-run|tests/samples/data-stack.s|--run|data-log
+data-sample-run-base10|tests/samples/data-stack.s|--trigger action_Data_DisplayDecimal --run|data-log
+data-ttcore-steps300|Tests/tt.core.s|--steps 300|data-log

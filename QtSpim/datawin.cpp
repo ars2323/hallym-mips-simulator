@@ -69,6 +69,19 @@ void SpimView::DisplayDataSegments(bool force) {
   data_modified = false;
 }
 
+// EDU: what Save Log File writes and Print prints for the data segments; see
+// spimview.h.  For now the source is the upstream widget itself.
+QString SpimView::dataSegmentLogText() {
+  return ui->DataSegDockWidget
+      ->findChild<dataTextEdit*>("DataSegmentTextEdit")
+      ->toPlainText();
+}
+
+void SpimView::printDataSegment(QPrinter* printer) {
+  ui->DataSegDockWidget->findChild<dataTextEdit*>("DataSegmentTextEdit")
+      ->print(printer);
+}
+
 QString SpimView::formatUserDataSeg() {
   if (st_showUserDataSegment) {
     return formatSegLabel("User data segment", DATA_BOT, data_top) %

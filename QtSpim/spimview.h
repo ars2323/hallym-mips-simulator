@@ -93,6 +93,8 @@ class SpimView : public QMainWindow {
   void printIntRegisters(QPrinter* printer);
   QString textSegmentLogText();  // EDU: same seam for the Text window
   void printTextSegment(QPrinter* printer);
+  QString dataSegmentLogText();  // EDU: and for the Data window
+  void printDataSegment(QPrinter* printer);
 
   // EDU: register panel and inspector; implemented in
   // edu/edu_spimview_glue.cpp.

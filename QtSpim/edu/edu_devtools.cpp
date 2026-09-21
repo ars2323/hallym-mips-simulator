@@ -89,8 +89,8 @@ QString EduDevtools::usage() {
       "\n"
       "  panels:  intregs fpregs text data console log window about\n"
       "           inspector\n"
-      "  streams: console log regs intregs-log text-log\n"
-      "           (intregs-log = what Save Log File writes for Int Regs)\n");
+      "  streams: console log regs intregs-log text-log data-log\n"
+      "           (*-log = what Save Log File writes for that window)\n");
 }
 
 QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
@@ -151,7 +151,7 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
       i += 2;
       if (dump.stream != "console" && dump.stream != "log" &&
           dump.stream != "regs" && dump.stream != "intregs-log" &&
-          dump.stream != "text-log") {
+          dump.stream != "text-log" && dump.stream != "data-log") {
         err() << "unknown dump stream: " << dump.stream << "\n"
               << usage() << Qt::flush;
         *ok = false;
@@ -409,6 +409,8 @@ bool EduDevtools::writeDump(const Dump& dump) {
     text = window_->intRegistersLogText();
   } else if (dump.stream == "text-log") {
     text = window_->textSegmentLogText();
+  } else if (dump.stream == "data-log") {
+    text = window_->dataSegmentLogText();
   } else {
     text = registerDump();
   }
