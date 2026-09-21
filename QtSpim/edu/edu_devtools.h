@@ -33,6 +33,10 @@
    fills the inspector as a click would; --expand-kernel opens the kernel
    segment first.
 
+   --goto <text> types into the Data panel's Go to box (address, label or
+   $register); --select-memory <hexaddr> is the same for a plain address.
+   --expand-env and --expand-kernel-data open the Data panel's folds.
+
    --set-register <name>=<hex> writes a register the way the Change Value
    dialog does once the user has typed a value (same model call), after the
    run/steps; repeatable.  Used to check that user edits are not highlighted.
@@ -152,6 +156,11 @@ class EduDevtools : public QObject {
   bool expandKernel_;
   bool hasSelectInstruction_;
   quint32 selectInstruction_;  // Text panel row to select before capturing
+  bool expandEnvironment_;
+  bool expandKernelData_;
+  QString raisePanel_;     // dock to bring to the front of its tab group
+  QStringList setMemory_;  // "addr=value" words written after running
+  QStringList goTos_;  // Data panel Go to inputs, applied after running
   QSize windowSize_;        // invalid = leave the window alone
   QStringList setRegisters_;  // "name=value" edits applied after running
   QStringList triggers_;      // QAction object names to trigger first

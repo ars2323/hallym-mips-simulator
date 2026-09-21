@@ -30,6 +30,8 @@
 #include "edu/core/edu_format.h"
 #include "edu/edu_inspector.h"
 #include "edu/edu_register_model.h"
+#include "edu/edu_data_model.h"
+#include "edu/edu_data_view.h"
 #include "edu/edu_register_view.h"
 #include "edu/edu_text_model.h"
 #include "edu/edu_text_view.h"
@@ -55,6 +57,8 @@ EduDevtools::EduDevtools(QObject* parent)
       expandKernel_(false),
       hasSelectInstruction_(false),
       selectInstruction_(0),
+      expandEnvironment_(false),
+      expandKernelData_(false),
       reportTime_(false),
       redisplay_(false),
       steps_(0),
@@ -78,6 +82,13 @@ QString EduDevtools::usage() {
       "  --select-instruction <hexaddr>  select a Text panel row (same)\n"
       "  --expand-kernel        open the Text panel's kernel segment\n"
       "  --click-bp <hexaddr>   click that row's BP cell (repeatable)\n"
+      "  --goto <text>          type into the Data panel's Go to box\n"
+      "  --select-memory <hexaddr>  select that word in the Data panel\n"
+      "  --set-memory <hexaddr>=<hexvalue>  write a word as Change Memory\n"
+      "                         Contents does\n"
+      "  --raise <panel>        bring that dock's tab to the front\n"
+      "  --expand-env           unfold the stack's argv/environment area\n"
+      "  --expand-kernel-data   unfold the Data panel's kernel segment\n"
       "  --set-register <r>=<hex> edit a register as the user would; repeatable\n"
       "  --trigger <action>     trigger a menu action by object name; repeatable\n"
       "  --redisplay            force a full redraw after the triggers\n"
@@ -214,6 +225,51 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
       }
       clickBreakpoints_ << address;
       i += 1;
+      continue;
+    }
+
+    if (arg == "--goto" || arg == "--select-memory") {
+      if (i + 1 >= args.size()) {
+        err() << arg << " needs a value\n" << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      // --select-memory takes a bare hex address; Go To reads "0x..." as one.
+      goTos_ << (arg == "--goto" ? args.at(i + 1)
+                                 : QString("0x") + args.at(i + 1));
+      i += 1;
+      continue;
+    }
+
+    if (arg == "--set-memory") {
+      if (i + 1 >= args.size() || !args.at(i + 1).contains('=')) {
+        err() << "--set-memory needs <hexaddr>=<hexvalue>\n" << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      setMemory_ << args.at(i + 1);
+      i += 1;
+      continue;
+    }
+
+    if (arg == "--raise") {
+      if (i + 1 >= args.size()) {
+        err() << "--raise needs a panel name\n" << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      raisePanel_ = args.at(i + 1);
+      i += 1;
+      continue;
+    }
+
+    if (arg == "--expand-env") {
+      expandEnvironment_ = true;
+      continue;
+    }
+
+    if (arg == "--expand-kernel-data") {
+      expandKernelData_ = true;
       continue;
     }
 
@@ -628,6 +684,41 @@ void EduDevtools::run() {
     } else {
       err() << "no instruction shown at 0x"
             << QString::number(selectInstruction_, 16) << "\n" << Qt::flush;
+      status_ = 2;
+    }
+  }
+
+  if (!raisePanel_.isEmpty()) {
+    QWidget* panel = panelWidget(raisePanel_);
+    if (panel != 0) {
+      panel->show();
+      panel->raise();
+    } else {
+      err() << "unknown panel: " << raisePanel_ << "\n" << Qt::flush;
+      status_ = 2;
+    }
+  }
+  if (expandEnvironment_) {
+    window_->eduDataModel->setEnvironmentExpanded(true);
+  }
+  if (expandKernelData_) {
+    window_->eduDataModel->setSegmentExpanded(EduDataModel::KernelData, true);
+  }
+  for (int i = 0; i < setMemory_.size(); i += 1) {
+    bool okAddress = false;
+    bool okValue = false;
+    const quint32 address = setMemory_.at(i).section('=', 0, 0).toUInt(&okAddress, 16);
+    const quint32 value = setMemory_.at(i).section('=', 1).toUInt(&okValue, 16);
+    if (okAddress && okValue) {
+      window_->ui->DataSegPanel->view()->writeWord(address, value);
+    } else {
+      err() << "bad --set-memory: " << setMemory_.at(i) << "\n" << Qt::flush;
+      status_ = 2;
+    }
+  }
+  for (int i = 0; i < goTos_.size(); i += 1) {
+    if (!window_->ui->DataSegPanel->goTo(goTos_.at(i))) {
+      err() << "Go to failed: " << goTos_.at(i) << "\n" << Qt::flush;
       status_ = 2;
     }
   }
