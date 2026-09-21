@@ -23,6 +23,13 @@
    Any of --capture/--dump switches the program into this mode: it runs the
    script, writes the files and exits without waiting for the user.
 
+   --select-register <name> selects that row of the register panel (any
+   spelling edu::findRegister() accepts), which fills the inspector.
+
+   --set-register <name>=<hex> writes a register the way the Change Value
+   dialog does once the user has typed a value (same model call), after the
+   run/steps; repeatable.  Used to check that user edits are not highlighted.
+
    --reg-base <2|10|16> picks the Registers menu entry for that base before
    anything is captured, through the menu action itself.
 
@@ -117,6 +124,8 @@ class EduDevtools : public QObject {
   QList<Dump> dumps_;
   bool runToCompletion_;
   int regBase_;  // 0 = leave alone, else 2/10/16 via the Registers menu
+  QString selectRegister_;  // register to select before capturing
+  QStringList setRegisters_;  // "name=value" edits applied after running
   int steps_;
   SpimView* window_;
   QString modalOut_;

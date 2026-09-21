@@ -23,6 +23,11 @@
 #include "spimview.h"
 #include "ui_spimview.h"
 
+#include "edu/core/edu_format.h"
+#include "edu/edu_inspector.h"
+#include "edu/edu_register_model.h"
+#include "edu/edu_register_view.h"
+
 namespace {
 
 QTextStream& err() {
@@ -57,11 +62,14 @@ QString EduDevtools::usage() {
       "                         must be followed by --out\n"
       "  --out <file.png>       where to write the preceding --capture\n"
       "  --dump <stream> <file> write a text stream; repeatable\n"
+      "  --select-register <r>  select a register row (fills the inspector)\n"
+      "  --set-register <r>=<hex> edit a register as the user would; repeatable\n"
       "  --reg-base <2|10|16>   choose Registers > Binary/Decimal/Hex\n"
       "  --local-codec <name>   pretend the system text encoding is <name>\n"
       "  --dialog-shots <dir>   save a PNG of every dialog answered\n"
       "\n"
       "  panels:  intregs fpregs text data console log window about\n"
+      "           inspector\n"
       "  streams: console log regs intregs-log\n"
       "           (intregs-log = what Save Log File writes for Int Regs)\n");
 }
@@ -98,6 +106,28 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
         return rest;
       }
       dumps_.append(dump);
+      continue;
+    }
+
+    if (arg == "--set-register") {
+      if (i + 1 >= args.size() || !args.at(i + 1).contains('=')) {
+        err() << "--set-register needs <name>=<hex value>\n" << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      setRegisters_ << args.at(i + 1);
+      i += 1;
+      continue;
+    }
+
+    if (arg == "--select-register") {
+      if (i + 1 >= args.size()) {
+        err() << "--select-register needs a register name\n" << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      selectRegister_ = args.at(i + 1);
+      i += 1;
       continue;
     }
 
@@ -233,6 +263,7 @@ QWidget* EduDevtools::panelWidget(const QString& name) const {
   if (name == "text") return ui->TextSegDockWidget;
   if (name == "data") return ui->DataSegDockWidget;
   if (name == "log") return ui->centralWidget;
+  if (name == "inspector") return window_->eduInspector;
   if (name == "console") return window_->SpimConsole;
   if (name == "window") return window_;
   return 0;
@@ -374,6 +405,32 @@ void EduDevtools::run() {
       break;
     }
     window_->sim_SingleStep();
+  }
+
+  for (int i = 0; i < setRegisters_.size(); i += 1) {
+    const QString name = setRegisters_.at(i).section('=', 0, 0);
+    const QString text = setRegisters_.at(i).section('=', 1);
+    edu::RegisterRef reg;
+    quint32 value = 0;
+    if (edu::findRegister(name, &reg) && edu::parseValue32(text, 16, &value)) {
+      window_->eduRegisterModel->writeRegister(reg, value);
+      window_->DisplayIntRegisters();
+      window_->DisplayFPRegisters();
+    } else {
+      err() << "bad --set-register: " << setRegisters_.at(i) << "\n"
+            << Qt::flush;
+      status_ = 2;
+    }
+  }
+
+  if (!selectRegister_.isEmpty()) {
+    edu::RegisterRef reg;
+    if (edu::findRegister(selectRegister_, &reg)) {
+      window_->ui->IntRegView->selectRegister(reg);
+    } else {
+      err() << "unknown register: " << selectRegister_ << "\n" << Qt::flush;
+      status_ = 2;
+    }
   }
 
   // Stop before the captures: the About box below is a modal dialog this

@@ -55,8 +55,8 @@ if [ -z "$out" ]; then
 fi
 mkdir -p "$out"
 
-args=(--load "$file" --steps "$steps")
-for panel in intregs fpregs text data log console window about; do
+args=(--load "$file" --steps "$steps" --select-register pc)
+for panel in intregs inspector fpregs text data log console window about; do
   args+=(--capture "$panel" --out "$out/$panel.png")
 done
 
