@@ -144,6 +144,7 @@ QString joinRow(const QList<Column>& columns, QString Column::*member) {
 }  // namespace
 
 QStringList instructionDetailLines(const DecodedInstruction& d,
+                                   quint32 address,
                                    const QString& disassembly,
                                    const QString& destinationLabel,
                                    BranchConvention convention) {
@@ -172,7 +173,7 @@ QStringList instructionDetailLines(const DecodedInstruction& d,
 
   QStringList lines;
   lines << what + QString(gap, QLatin1Char(' ')) + type;
-  lines << hex32(d.word);
+  lines << hex32(d.word) + QString("  at ") + hex32(address);
   lines << joinRow(columns, &Column::range);
   lines << joinRow(columns, &Column::bits);
   lines << joinRow(columns, &Column::name);
@@ -185,18 +186,18 @@ QStringList instructionDetailLines(const DecodedInstruction& d,
                                     ? QString()
                                     : QString(" [") + destinationLabel + QString("]"));
     if (d.kind == DecodedInstruction::Jump) {
-      lines << QString::fromUtf8("Destination = (PC & 0xf0000000) | (target×4) = ") + where;
+      lines << QString::fromUtf8("Dest = (PC & 0xf0000000) | (target×4)");
+      lines << QString("     = ") + where;
     } else if (convention == MipsDelaySlot) {
-      lines << QString::fromUtf8("Destination = PC + 4 + (offset×4) = ") + where;
+      lines << QString::fromUtf8("Dest = PC + 4 + (offset×4) = ") + where;
     } else {
-      lines << QString::fromUtf8("Destination = PC + (offset×4) = ") + where;
+      lines << QString::fromUtf8("Dest = PC + (offset×4) = ") + where;
       lines << QString::fromUtf8(
           "SPIM 기본 모드는 지연 분기가 없어 PC 기준으로 인코딩합니다. "
           "교재의 MIPS(PC+4 기준)와 offset 값이 1 다릅니다.");
-      lines << QString::fromUtf8(
-          "SPIM's default mode has no delayed branches and encodes the "
-          "offset from PC; textbook MIPS counts from PC+4, so its offset "
-          "differs by 1.");
+      lines << QString(
+          "SPIM's default mode has no delayed branches and encodes from PC. "
+          "Textbook MIPS encodes from PC+4, so its offset is 1 less.");
     }
   }
   return lines;

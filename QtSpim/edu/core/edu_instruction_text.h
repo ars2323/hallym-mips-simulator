@@ -1,7 +1,7 @@
 /* QtSpim-Edu: the inspector's text for one instruction (PLAN R3).
 
        lw $4, 0($29)                     I-type
-       0x8fa40000
+       0x8fa40000  at 0x00400024
        31  26 25-21 20-16 15             0
        100011 11101 00100 0000000000000000
        opcode rs    rt    immediate
@@ -32,11 +32,13 @@ namespace edu {
 
 enum { kInstructionTextColumns = 44 };
 
-// `decoded` should come from decode(word, pc, convention) so that a branch
-// or jump carries its destination.  `disassembly` is the core's text for the
+// `decoded` should come from decode(word, address, convention) so that a
+// branch or jump carries its destination; `address` is where the instruction
+// sits (the "PC" of the destination formula).  `disassembly` is the core's text for the
 // instruction ("lw $4, 0($29)"); `destinationLabel` is the label the source
 // named, or empty.
 QStringList instructionDetailLines(const DecodedInstruction& decoded,
+                                   quint32 address,
                                    const QString& disassembly,
                                    const QString& destinationLabel,
                                    BranchConvention convention);

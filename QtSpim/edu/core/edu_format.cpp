@@ -4,8 +4,10 @@
 
 namespace edu {
 
-QString hex32(quint32 value) {
-  return QString("0x") + QString::number(value, 16).rightJustified(8, '0');
+QString hex32(quint32 value) { return QString("0x") + hex32Digits(value); }
+
+QString hex32Digits(quint32 value) {
+  return QString::number(value, 16).rightJustified(8, '0');
 }
 
 QString signedDec32(quint32 value) {

@@ -16,6 +16,7 @@ QObject* createTestFormat();        // tst_format.cpp
 QObject* createTestRegisters();     // tst_registers.cpp
 QObject* createTestDecoder();       // tst_decoder.cpp
 QObject* createTestInstructionText();  // tst_instruction_text.cpp
+QObject* createTestSourceText();    // tst_source_text.cpp
 
 typedef QObject* (*TestFactory)();
 
@@ -26,6 +27,7 @@ static const TestFactory kTests[] = {
     createTestRegisters,
     createTestDecoder,
     createTestInstructionText,
+    createTestSourceText,
 };
 
 int main(int argc, char* argv[]) {

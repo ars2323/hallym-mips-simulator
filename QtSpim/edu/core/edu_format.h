@@ -17,6 +17,10 @@ namespace edu {
 // "0x0040000c": always 0x + 8 lower-case digits.
 QString hex32(quint32 value);
 
+// "8fa40000": the same eight digits without the prefix, as the Text and Data
+// windows have always shown addresses and words.
+QString hex32Digits(quint32 value);
+
 // Two's-complement signed / plain unsigned decimal, no padding.
 QString signedDec32(quint32 value);
 QString unsignedDec32(quint32 value);

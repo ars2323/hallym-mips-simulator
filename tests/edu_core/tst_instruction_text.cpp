@@ -21,7 +21,7 @@ class TestInstructionText : public QObject {
 
 static QStringList detail(quint32 word, quint32 pc, const char* disassembly,
                           const char* label, edu::BranchConvention convention) {
-  return edu::instructionDetailLines(edu::decode(word, pc, convention),
+  return edu::instructionDetailLines(edu::decode(word, pc, convention), pc,
                                      QString::fromLatin1(disassembly),
                                      QString::fromLatin1(label), convention);
 }
@@ -32,7 +32,7 @@ void TestInstructionText::planExampleLw() {
       detail(0x8fa40000u, 0x00400000u, "lw $4, 0($29)", "", edu::SpimNoDelaySlot);
   QCOMPARE(lines.join("\n"),
            QString("lw $4, 0($29)                         I-type\n"
-                   "0x8fa40000\n"
+                   "0x8fa40000  at 0x00400000\n"
                    "31  26 25-21 20-16 15             0\n"
                    "100011 11101 00100 0000000000000000\n"
                    "opcode rs    rt    immediate\n"
@@ -57,7 +57,7 @@ void TestInstructionText::branchInDefaultMode() {
   QCOMPARE(lines.at(5), QString("5      1     0     2"));
   QCOMPARE(lines.at(6), QString("bne    $at   $zero x4=8"));
   QCOMPARE(lines.at(7),
-           QString::fromUtf8("Destination = PC + (offset×4) = 0x00400038 [target]"));
+           QString::fromUtf8("Dest = PC + (offset×4) = 0x00400038 [target]"));
   QVERIFY(lines.at(8).startsWith(QString::fromUtf8("SPIM 기본 모드는")));
   QVERIFY(lines.at(9).startsWith(QString("SPIM's default mode")));
 }
@@ -69,25 +69,24 @@ void TestInstructionText::branchWithDelayedBranches() {
   QCOMPARE(lines.at(5), QString("5      1     0     -2"));
   QCOMPARE(lines.at(6), QString("bne    $at   $zero x4=-8"));
   QCOMPARE(lines.at(7),
-           QString::fromUtf8("Destination = PC + 4 + (offset×4) = 0x0040002c"));
+           QString::fromUtf8("Dest = PC + 4 + (offset×4) = 0x0040002c"));
 }
 
 void TestInstructionText::jumpResolvedAndUnresolved() {
   QStringList lines = detail(0x0c100009u, 0x00400014u, "jal 0x00400024 [main]",
                              "main", edu::SpimNoDelaySlot);
-  QCOMPARE(lines.size(), 8);
+  QCOMPARE(lines.size(), 9);
   QCOMPARE(lines.at(3), QString("000011 00000100000000000000001001"));
   QCOMPARE(lines.at(4), QString("opcode target"));
   QCOMPARE(lines.at(5), QString("3      1048585"));
   QCOMPARE(lines.at(6), QString("jal    x4=0x00400024"));
-  QCOMPARE(lines.at(7),
-           QString::fromUtf8("Destination = (PC & 0xf0000000) | (target×4) = "
-                             "0x00400024 [main]"));
+  QCOMPARE(lines.at(7), QString::fromUtf8("Dest = (PC & 0xf0000000) | (target×4)"));
+  QCOMPARE(lines.at(8), QString("     = 0x00400024 [main]"));
 
   // Nothing loaded yet: jal 0x00000000 [main]
   lines = detail(0x0c000000u, 0x00400014u, "jal 0x00000000 [main]", "main",
                  edu::SpimNoDelaySlot);
-  QVERIFY(lines.at(7).endsWith("= 0x00000000 [main]"));
+  QCOMPARE(lines.at(8), QString("     = 0x00000000 [main]"));
 }
 
 void TestInstructionText::coprocessorFormats() {
@@ -112,7 +111,7 @@ void TestInstructionText::unknownWord() {
   const QStringList lines = detail(0xfc000000u, 0, "", "", edu::SpimNoDelaySlot);
   QVERIFY(lines.at(0).startsWith("(not an instruction SPIM implements)"));
   QVERIFY(lines.at(0).endsWith("I-type"));
-  QCOMPARE(lines.at(1), QString("0xfc000000"));
+  QCOMPARE(lines.at(1), QString("0xfc000000  at 0x00000000"));
   QCOMPARE(lines.size(), 7);
 }
 
@@ -124,7 +123,7 @@ void TestInstructionText::tableFitsTheInspector() {
                            0x1420fffeu, 0xffffffffu, 0x0bffffffu, 0x03e0f809u};
   for (unsigned i = 0; i < sizeof(words) / sizeof(words[0]); i += 1) {
     const QStringList lines = edu::instructionDetailLines(
-        edu::decode(words[i], 0x00400000u, edu::MipsDelaySlot),
+        edu::decode(words[i], 0x00400000u, edu::MipsDelaySlot), 0x00400000u,
         QString("x"), QString(), edu::MipsDelaySlot);
     for (int row = 1; row < 7; row += 1) {
       QVERIFY2(lines.at(row).size() <= edu::kInstructionTextColumns,

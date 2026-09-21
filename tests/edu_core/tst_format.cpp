@@ -14,6 +14,7 @@ class TestFormat : public QObject {
   void values();
   void rulerLinesUpWithGroupedBinary();
   void inBaseFollowsTheMenu();
+  void bareHexDigits();
   void parse_data();
   void parse();
   void parseLeavesValueAloneOnFailure();
@@ -94,6 +95,12 @@ void TestFormat::rulerLinesUpWithGroupedBinary() {
     QCOMPARE(ruler.mid(5 * i, 5).trimmed(), label);
     QCOMPARE(ruler.mid(5 * i, label.size()), label);
   }
+}
+
+void TestFormat::bareHexDigits() {
+  QCOMPARE(edu::hex32Digits(0x00400000u), QString("00400000"));
+  QCOMPARE(edu::hex32Digits(0xffffffffu), QString("ffffffff"));
+  QCOMPARE(edu::hex32Digits(0), QString("00000000"));
 }
 
 void TestFormat::inBaseFollowsTheMenu() {
