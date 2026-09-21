@@ -6,6 +6,7 @@
 #include <QApplication>
 #include <QDir>
 #include <QDockWidget>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
 #include <QLayout>
@@ -47,6 +48,8 @@ EduDevtools::EduDevtools(QObject* parent)
     : QObject(parent),
       runToCompletion_(false),
       regBase_(0),
+      reportTime_(false),
+      redisplay_(false),
       steps_(0),
       window_(0),
       dialogTimer_(0),
@@ -66,13 +69,17 @@ QString EduDevtools::usage() {
       "  --window-size <W>x<H>  resize the main window first\n"
       "  --select-register <r>  select a register row (fills the inspector)\n"
       "  --set-register <r>=<hex> edit a register as the user would; repeatable\n"
+      "  --trigger <action>     trigger a menu action by object name; repeatable\n"
+      "  --redisplay            force a full redraw after the triggers\n"
+      "  --breakpoint <hexaddr> set a breakpoint; repeatable\n"
+      "  --time                 report the duration of the run/step phase\n"
       "  --reg-base <2|10|16>   choose Registers > Binary/Decimal/Hex\n"
       "  --local-codec <name>   pretend the system text encoding is <name>\n"
       "  --dialog-shots <dir>   save a PNG of every dialog answered\n"
       "\n"
       "  panels:  intregs fpregs text data console log window about\n"
       "           inspector\n"
-      "  streams: console log regs intregs-log\n"
+      "  streams: console log regs intregs-log text-log\n"
       "           (intregs-log = what Save Log File writes for Int Regs)\n");
 }
 
@@ -83,6 +90,38 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
 
   for (int i = 0; i < args.size(); i += 1) {
     const QString& arg = args.at(i);
+
+    if (arg == "--redisplay") {
+      redisplay_ = true;
+      continue;
+    }
+
+    if (arg == "--time") {
+      reportTime_ = true;
+      continue;
+    }
+
+    if (arg == "--trigger" || arg == "--breakpoint") {
+      if (i + 1 >= args.size()) {
+        err() << arg << " needs a value\n" << usage() << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      if (arg == "--trigger") {
+        triggers_ << args.at(i + 1);
+      } else {
+        bool parsed = false;
+        const quint32 address = args.at(i + 1).toUInt(&parsed, 16);
+        if (!parsed) {
+          err() << "--breakpoint needs a hex address\n" << Qt::flush;
+          *ok = false;
+          return rest;
+        }
+        breakpoints_ << address;
+      }
+      i += 1;
+      continue;
+    }
 
     if (arg == "--run") {
       runToCompletion_ = true;
@@ -101,7 +140,8 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
       dump.out = args.at(i + 2);
       i += 2;
       if (dump.stream != "console" && dump.stream != "log" &&
-          dump.stream != "regs" && dump.stream != "intregs-log") {
+          dump.stream != "regs" && dump.stream != "intregs-log" &&
+          dump.stream != "text-log") {
         err() << "unknown dump stream: " << dump.stream << "\n"
               << usage() << Qt::flush;
         *ok = false;
@@ -321,6 +361,8 @@ bool EduDevtools::writeDump(const Dump& dump) {
     text = window_->ui->centralWidget->toPlainText();
   } else if (dump.stream == "intregs-log") {
     text = window_->intRegistersLogText();
+  } else if (dump.stream == "text-log") {
+    text = window_->textSegmentLogText();
   } else {
     text = registerDump();
   }
@@ -419,6 +461,27 @@ void EduDevtools::run() {
     window_->ui->action_Reg_DisplayHex->trigger();
   }
 
+  for (int i = 0; i < triggers_.size(); i += 1) {
+    QAction* action = window_->findChild<QAction*>(triggers_.at(i));
+    if (action == 0) {
+      err() << "no action named " << triggers_.at(i) << "\n" << Qt::flush;
+      status_ = 2;
+    } else {
+      action->trigger();
+    }
+  }
+  for (int i = 0; i < breakpoints_.size(); i += 1) {
+    add_breakpoint(breakpoints_.at(i));
+  }
+  if (!breakpoints_.isEmpty() || redisplay_) {
+    window_->DisplayTextSegments(true);
+    window_->UpdateDataDisplay();
+  }
+  settle();
+
+  QElapsedTimer stopwatch;
+  stopwatch.start();
+
   if (runToCompletion_) {
     window_->sim_Run();
   }
@@ -457,6 +520,12 @@ void EduDevtools::run() {
       err() << "unknown register: " << selectRegister_ << "\n" << Qt::flush;
       status_ = 2;
     }
+  }
+
+  if (reportTime_) {
+    out() << "elapsed_ms " << stopwatch.elapsed() << " (run="
+          << (runToCompletion_ ? 1 : 0) << " steps=" << steps_ << ")\n"
+          << Qt::flush;
   }
 
   // Stop before the captures: the About box below is a modal dialog this

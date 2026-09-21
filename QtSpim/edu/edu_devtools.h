@@ -33,6 +33,20 @@
    dialog does once the user has typed a value (same model call), after the
    run/steps; repeatable.  Used to check that user edits are not highlighted.
 
+   --trigger <action> triggers a menu action by its object name (for example
+   action_Text_DisplayKernelText) before anything runs; repeatable.
+
+   --redisplay forces a full redraw of all panels after the triggers, as
+   closing the Settings dialog does.  Upstream's Text Segment toggles do not
+   redraw by themselves (their "changed" test is inverted), so without this
+   a triggered toggle would not show in an upstream-rendered capture.
+
+   --breakpoint <hex address> sets a breakpoint through the core and redraws
+   the text segment; repeatable.
+
+   --time prints how long the --steps / --run phase took, display updates
+   included, for comparing builds.
+
    --reg-base <2|10|16> picks the Registers menu entry for that base before
    anything is captured, through the menu action itself.
 
@@ -131,6 +145,10 @@ class EduDevtools : public QObject {
   QString selectRegister_;  // register to select before capturing
   QSize windowSize_;        // invalid = leave the window alone
   QStringList setRegisters_;  // "name=value" edits applied after running
+  QStringList triggers_;      // QAction object names to trigger first
+  QList<quint32> breakpoints_;
+  bool reportTime_;
+  bool redisplay_;
   int steps_;
   SpimView* window_;
   QString modalOut_;

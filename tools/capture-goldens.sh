@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 #
-# Regenerate tests/golden/intregs-*.txt from a CONFIG+=edu_devtools build.
+# Regenerate tests/golden/*.txt (cases in tests/golden/cases.txt) from a
+# CONFIG+=edu_devtools build.  ONLY limits it to names matching a glob.
 #
-#   tools/capture-goldens.sh [-b BUILD_DIR]
+#   [ONLY='text-*'] tools/capture-goldens.sh [-b BUILD_DIR]
 #
 # ONLY meaningful on a build whose Save Log File output is known to be
 # upstream's -- the committed goldens came from the commit before the
@@ -21,16 +22,10 @@ done
 app="$build/QtSpimEdu"
 fixed_env=(env -i QT_QPA_PLATFORM=offscreen HOME=/nonexistent
            XDG_CONFIG_HOME=/nonexistent/config)
-cases=(
-  "intregs-load|"
-  "intregs-step1|--steps 1"
-  "intregs-run|--run"
-  "intregs-run-base2|--reg-base 2 --run"
-  "intregs-run-base10|--reg-base 10 --run"
-)
-for entry in "${cases[@]}"; do
-  IFS='|' read -r name args <<<"$entry"
-  "${fixed_env[@]}" timeout 120 "$app" --load "$repo/helloworld.s" $args \
-    --dump intregs-log "$repo/tests/golden/$name.txt" >/dev/null 2>&1
+while IFS='|' read -r name program args stream; do
+  case "$name" in ''|'#'*) continue ;; esac
+  if [ -n "${ONLY:-}" ] && [[ "$name" != $ONLY ]]; then continue; fi
+  "${fixed_env[@]}" timeout 300 "$app" --load "$repo/$program" $args \
+    --dump "$stream" "$repo/tests/golden/$name.txt" >/dev/null 2>&1
   echo "captured tests/golden/$name.txt"
-done
+done <"$repo/tests/golden/cases.txt"

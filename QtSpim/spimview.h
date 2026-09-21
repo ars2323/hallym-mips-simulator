@@ -89,6 +89,8 @@ class SpimView : public QMainWindow {
   // to the upstream rendering (tools/regress.sh compares it to goldens).
   QString intRegistersLogText();
   void printIntRegisters(QPrinter* printer);
+  QString textSegmentLogText();  // EDU: same seam for the Text window
+  void printTextSegment(QPrinter* printer);
 
   // EDU: register panel and inspector; implemented in
   // edu/edu_spimview_glue.cpp.

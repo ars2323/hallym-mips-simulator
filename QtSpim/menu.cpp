@@ -140,9 +140,7 @@ void SpimView::file_SaveLogFile() {
         outFile << "\n\n";
       }
       if (slf->TextCheckBox->isChecked()) {
-        outFile << ui->TextSegDockWidget
-                       ->findChild<textTextEdit*>("TextSegmentTextEdit")
-                       ->toPlainText();
+        outFile << textSegmentLogText();  // EDU: was the widget directly
         outFile << "\n\n";
       }
       if (slf->DataCheckBox->isChecked()) {
@@ -180,8 +178,7 @@ void SpimView::file_Print() {
         printIntRegisters(&printer);  // EDU: was the widget directly
       }
       if (pwd->TextCheckBox->isChecked()) {
-        ui->TextSegDockWidget->findChild<textTextEdit*>("TextSegmentTextEdit")
-            ->print(&printer);
+        printTextSegment(&printer);  // EDU: was the widget directly
       }
       if (pwd->DataCheckBox->isChecked()) {
         ui->DataSegDockWidget->findChild<dataTextEdit*>("DataSegmentTextEdit")

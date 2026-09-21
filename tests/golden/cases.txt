@@ -1,0 +1,14 @@
+# name|program|arguments|stream    (shared by capture-goldens.sh and regress.sh)
+intregs-load|helloworld.s||intregs-log
+intregs-step1|helloworld.s|--steps 1|intregs-log
+intregs-run|helloworld.s|--run|intregs-log
+intregs-run-base2|helloworld.s|--reg-base 2 --run|intregs-log
+intregs-run-base10|helloworld.s|--reg-base 10 --run|intregs-log
+text-load|helloworld.s||text-log
+text-step3|helloworld.s|--steps 3|text-log
+text-nokernel|helloworld.s|--trigger action_Text_DisplayKernelText --redisplay|text-log
+text-nouser|helloworld.s|--trigger action_Text_DisplayUserText --redisplay|text-log
+text-nocomments|helloworld.s|--trigger action_Text_DisplayComments --redisplay|text-log
+text-novalue|helloworld.s|--trigger action_Text_DisplayInstructionValue --redisplay|text-log
+text-breakpoint|helloworld.s|--breakpoint 00400024|text-log
+text-ttcore|Tests/tt.core.s||text-log

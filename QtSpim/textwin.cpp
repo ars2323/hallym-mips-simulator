@@ -60,6 +60,19 @@ void SpimView::DisplayTextSegments(bool force) {
   text_modified = false;
 }
 
+// EDU: what Save Log File writes and Print prints for the text segment; see
+// spimview.h.  For now the source is the upstream widget itself.
+QString SpimView::textSegmentLogText() {
+  return ui->TextSegDockWidget
+      ->findChild<textTextEdit*>("TextSegmentTextEdit")
+      ->toPlainText();
+}
+
+void SpimView::printTextSegment(QPrinter* printer) {
+  ui->TextSegDockWidget->findChild<textTextEdit*>("TextSegmentTextEdit")
+      ->print(printer);
+}
+
 QString SpimView::formatUserTextSeg() {
   if (st_showUserTextSegment) {
     return formatSegLabel("User Text Segment", TEXT_BOT, text_top) %

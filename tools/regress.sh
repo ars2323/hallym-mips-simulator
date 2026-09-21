@@ -258,9 +258,9 @@ fi
 # ------------------------------------------------- 4. Save Log File output
 
 note
-note "== 4. Save Log File output for Int Regs vs upstream rendering (goldens)"
+note "== 4. Save Log File output vs upstream rendering (goldens)"
 golden="$repo/tests/golden"
-if [ ! -x "$app" ] || [ "$(strings "$app" | grep -c -F -- 'intregs-log' || true)" -eq 0 ]; then
+if [ ! -x "$app" ] || [ "$(strings "$app" | grep -c -F -- 'text-log' || true)" -eq 0 ]; then
   note "SKIP  $app missing or not built with CONFIG+=edu_devtools"
 else
   # SPIM copies the process environment onto the simulated stack, so $sp,
@@ -268,18 +268,10 @@ else
   # environment (tools/capture-goldens.sh); nothing else may leak in.
   fixed_env=(env -i QT_QPA_PLATFORM=offscreen HOME=/nonexistent
              XDG_CONFIG_HOME=/nonexistent/config)
-  # name|arguments  -- see tests/golden/README.md
-  log_cases=(
-    "intregs-load|"
-    "intregs-step1|--steps 1"
-    "intregs-run|--run"
-    "intregs-run-base2|--reg-base 2 --run"
-    "intregs-run-base10|--reg-base 10 --run"
-  )
-  for entry in "${log_cases[@]}"; do
-    IFS='|' read -r name args <<<"$entry"
-    "${fixed_env[@]}" timeout 120 "$app" --load "$repo/helloworld.s" $args \
-      --dump intregs-log "$scratch/$name.txt" >"$scratch/$name.gui.log" 2>&1 || true
+  while IFS='|' read -r name program args stream; do
+    case "$name" in ''|'#'*) continue ;; esac
+    "${fixed_env[@]}" timeout 300 "$app" --load "$repo/$program" $args \
+      --dump "$stream" "$scratch/$name.txt" >"$scratch/$name.gui.log" 2>&1 || true
     if [ ! -f "$scratch/$name.txt" ]; then
       fail "$name: no log text produced"; head -20 "$scratch/$name.gui.log"
     elif cmp -s "$golden/$name.txt" "$scratch/$name.txt"; then
@@ -288,7 +280,7 @@ else
       fail "$name.txt differs from the golden:"
       diff -u "$golden/$name.txt" "$scratch/$name.txt" | head -20
     fi
-  done
+  done <"$golden/cases.txt"
 fi
 
 note
