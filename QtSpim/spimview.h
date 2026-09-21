@@ -64,6 +64,7 @@ class EduInspector;
 class EduRegisterModel;
 class EduTextModel;
 class QLabel;
+class QMenu;
 class QPlainTextEdit;
 class QTextEdit;
 
@@ -117,6 +118,8 @@ class SpimView : public QMainWindow {
   void eduEditorFileLoaded(const QString& file); // File > Load File, command line
   bool eduCollectError(const QString& message);  // true = taken, show no box
   QString eduAssembleFile;                       // set for file_LoadFile()
+  QMenu* eduEditorRecentMenu;                    // Editor > Open Recent
+  void eduRebuildEditorRecentMenu();
   void eduBeginRunCommand();       // a Step/Run/Continue is about to start
   void eduResetRegisterChanges();  // Reinitialize / Load / Clear Registers
   void eduRefreshRegisterPanel();
@@ -364,6 +367,8 @@ class SpimView : public QMainWindow {
   void eduEditorOpen();
   void eduEditorSave();
   void eduEditorSaveAs();
+  void eduEditorOpenRecent();
+  void eduEditorFileChanged();
 
 };
 

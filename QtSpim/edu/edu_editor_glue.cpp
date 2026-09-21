@@ -4,9 +4,10 @@
 
 #include <QAction>
 #include <QFileInfo>
+#include <QDir>
 #include <QLabel>
-#include <QMessageBox>
-#include <QPushButton>
+#include <QMenu>
+#include <QMenuBar>
 #include <QStatusBar>
 #include <QToolBar>
 
@@ -23,12 +24,12 @@ void SpimView::eduSetupEditor() {
   eduEditor = new EduEditorDock(this);
   addDockWidget(Qt::TopDockWidgetArea, eduEditor);
 
-  // File menu, above upstream's entries.  Upstream has three shortcuts in
-  // all (F5 Run, Shift-F5 Stop, F10 Single Step), so the usual editor keys
-  // are free.
-  QAction* first = ui->menu_File->actions().isEmpty()
-                       ? 0
-                       : ui->menu_File->actions().first();
+  // An Editor menu between File and Simulator; upstream's File menu stays as
+  // it is.  Upstream has three shortcuts in all (F5 Run, Shift-F5 Stop, F10
+  // Single Step), so the usual editor keys are free.
+  QMenu* menu = new QMenu("&Editor", this);
+  menu->setObjectName("menu_Edu_Editor");
+  menuBar()->insertMenu(ui->menu_Simulator->menuAction(), menu);
   struct {
     const char* name;
     const char* text;
@@ -36,7 +37,7 @@ void SpimView::eduSetupEditor() {
     const char* slot;
   } const entries[] = {
       {"action_Edu_New", "&New", QKeySequence(QKeySequence::New), SLOT(eduEditorNew())},
-      {"action_Edu_Open", "&Open in Editor...", QKeySequence(QKeySequence::Open), SLOT(eduEditorOpen())},
+      {"action_Edu_Open", "&Open...", QKeySequence(QKeySequence::Open), SLOT(eduEditorOpen())},
       {"action_Edu_Save", "&Save", QKeySequence(QKeySequence::Save), SLOT(eduEditorSave())},
       {"action_Edu_SaveAs", "Save &As...", QKeySequence("Ctrl+Shift+S"), SLOT(eduEditorSaveAs())},
   };
@@ -45,9 +46,17 @@ void SpimView::eduSetupEditor() {
     action->setObjectName(entries[i].name);
     action->setShortcut(entries[i].keys);
     connect(action, SIGNAL(triggered(bool)), this, entries[i].slot);
-    ui->menu_File->insertAction(first, action);
+    menu->addAction(action);
+    if (i == 1) {
+      // The editor's own recent files.  Not upstream's File > Recent Files:
+      // that list's first entry is argv[0] of the next run (initStack()),
+      // so merely opening a file must not change it.
+      eduEditorRecentMenu = menu->addMenu("Open &Recent");
+      eduEditorRecentMenu->setObjectName("menu_Edu_EditorRecent");
+    }
   }
-  ui->menu_File->insertSeparator(first);
+  eduRebuildEditorRecentMenu();
+  connect(eduEditor, SIGNAL(fileChanged()), this, SLOT(eduEditorFileChanged()));
 
   // Simulator > Assemble, and a tool bar button in front of Run.  F3: free
   // upstream, and what MARS users already press.
@@ -57,6 +66,8 @@ void SpimView::eduSetupEditor() {
   assemble->setToolTip("Save the editor's file, reinitialize the simulator "
                        "and load the file (F3)");
   connect(assemble, SIGNAL(triggered(bool)), this, SLOT(eduAssemble()));
+  menu->addSeparator();
+  menu->addAction(assemble);
   ui->menu_Simulator->insertAction(ui->menu_Simulator->actions().value(0), assemble);
   ui->menu_Simulator->insertSeparator(ui->menu_Simulator->actions().value(1));
   ui->toolBar->insertAction(ui->action_Sim_Run, assemble);
@@ -83,6 +94,47 @@ void SpimView::eduTileEditor() {
   eduEditor->show();
   tabifyDockWidget(ui->TextSegDockWidget, eduEditor);
   eduEditor->raise();
+}
+
+// Editor > Open Recent: files the editor opened or saved, newest first,
+// kept in the settings under Editor/RecentFiles.
+void SpimView::eduEditorFileChanged() {
+  const QString path = eduEditor->filePath();
+  if (path.isEmpty()) {
+    return;
+  }
+  QStringList recent = settings.value("Editor/RecentFiles").toStringList();
+  if (!recent.isEmpty() && recent.first() == path) {
+    return;
+  }
+  recent.removeAll(path);
+  recent.prepend(path);
+  while (recent.size() > 8) {
+    recent.removeLast();
+  }
+  settings.setValue("Editor/RecentFiles", recent);
+  eduRebuildEditorRecentMenu();
+}
+
+void SpimView::eduRebuildEditorRecentMenu() {
+  eduEditorRecentMenu->clear();
+  const QStringList recent = settings.value("Editor/RecentFiles").toStringList();
+  for (int i = 0; i < recent.size(); i += 1) {
+    QAction* action = eduEditorRecentMenu->addAction(
+        QDir::toNativeSeparators(recent.at(i)));
+    action->setData(recent.at(i));
+    connect(action, SIGNAL(triggered(bool)), this, SLOT(eduEditorOpenRecent()));
+  }
+  eduEditorRecentMenu->setEnabled(!recent.isEmpty());
+}
+
+void SpimView::eduEditorOpenRecent() {
+  QAction* action = qobject_cast<QAction*>(sender());
+  if (action != 0 && eduEditor->openFile(action->data().toString())) {
+    eduEditor->show();
+    eduEditor->raise();
+    eduEditor->editor()->setFocus();
+  }
 }
 
 bool SpimView::eduEditorMaybeSave() { return eduEditor->maybeSave(); }
@@ -143,25 +195,10 @@ void SpimView::eduAssemble() {
   eduEditor->show();
   eduEditor->raise();
   // The core reads files, so there has to be one, and it has to be current.
-  if (eduEditor->filePath().isEmpty()) {
-    if (!eduEditor->saveAs()) {
-      return;
-    }
-  } else if (eduEditor->isModified()) {
-    QMessageBox box(this);
-    box.setObjectName("EduAssembleSaveQuestion");
-    box.setIcon(QMessageBox::Question);
-    box.setWindowTitle("Assemble");
-    box.setText(QString("%1 has unsaved changes.")
-                    .arg(QFileInfo(eduEditor->filePath()).fileName()));
-    box.setInformativeText("The simulator assembles the file on disk.");
-    QPushButton* save = box.addButton("Save and assemble", QMessageBox::AcceptRole);
-    box.addButton(QMessageBox::Cancel);
-    box.setDefaultButton(save);
-    box.exec();
-    if (box.clickedButton() != save || !eduEditor->save()) {
-      return;
-    }
+  // Saved without asking (a new file has to be given a name first).
+  if ((eduEditor->filePath().isEmpty() || eduEditor->isModified()) &&
+      !eduEditor->save()) {
+    return;
   }
 
   eduCollectedErrors.clear();
@@ -179,6 +216,7 @@ void SpimView::eduAssemble() {
 
   if (messages.isEmpty()) {
     eduAssembleBadge->hide();
+    statusBar()->showMessage("Saved and assembled", 5000);
     ui->TextSegDockWidget->show();
     ui->TextSegDockWidget->raise();
   } else {
