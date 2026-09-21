@@ -24,6 +24,7 @@
 #include <QThread>
 #include <QTimer>
 #include <QWidget>
+#include <QWindow>
 
 // spimview.h already pulls in the core headers used here (str_stream from
 // CPU/string-stream.h, format_registers from CPU/spim-utils.h). Those
@@ -55,6 +56,12 @@ QTextStream& out() {
 }
 
 }  // namespace
+
+// What QTest::keyClick() calls (qtestkeyboard.h); exported by QtGui.
+Q_GUI_EXPORT void qt_handleKeyEvent(QWindow* window, QEvent::Type type, int key,
+                                    Qt::KeyboardModifiers modifiers,
+                                    const QString& text, bool autorep,
+                                    ushort count);
 
 EduDevtools::EduDevtools(QObject* parent)
     : QObject(parent),
@@ -103,6 +110,10 @@ QString EduDevtools::usage() {
       "  --set-memory <hexaddr>=<hexvalue>  write a word as Change Memory\n"
       "                         Contents does\n"
       "  --editor-open <file>   open a file in the editor (no dialog)\n"
+      "  --editor-key <ctrl+s|f3>  a real key press in the editor (shortcut path)\n"
+      "  --editor-click-banner  click the \"Source changed\" strip on the Text panel\n"
+      "  --editor-report        print the editor's file, modified flag, whether the\n"
+      "                         strip shows, which tab is in front, the status text\n"
       "  --editor-goto-line <n> move the cursor there (and centre it)\n"
       "  --editor-type <text>   type text at the cursor (\\n = new line)\n"
       "  --editor-save          Editor > Save and Assemble (same as --assemble)\n"
@@ -316,7 +327,7 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
     }
 
     if (arg == "--editor-open" || arg == "--editor-type" ||
-        arg == "--editor-goto-line" ||
+        arg == "--editor-goto-line" || arg == "--editor-key" ||
         arg == "--editor-save-as" || arg == "--editor-rewrite-on-disk") {
       if (i + 1 >= args.size()) {
         err() << arg << " needs a value\n" << Qt::flush;
@@ -327,8 +338,10 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
       i += 1;
       continue;
     }
-    if (arg == "--editor-save" || arg == "--assemble") {
-      editorSteps_ << (arg == "--assemble" ? QString("assemble=") : QString("save="));
+    if (arg == "--editor-save" || arg == "--assemble" ||
+        arg == "--editor-report" || arg == "--editor-click-banner") {
+      editorSteps_ << (arg == "--assemble" ? QString("assemble=")
+                                           : arg.mid(9) + QString("="));
       continue;
     }
 
@@ -774,6 +787,51 @@ void EduDevtools::run() {
         QApplication::processEvents(QEventLoop::AllEvents, 20);
         QThread::msleep(10);
       }
+    } else if (step == "key") {
+      // As QTest::keyClick() does it: through the window system interface,
+      // which is the only route on which shortcuts are looked up.
+      window_->activateWindow();
+      QApplication::setActiveWindow(window_);
+      dock->editor()->setFocus();
+      settle();
+      const bool save = value.toLower() == "ctrl+s";
+      const int key = save ? Qt::Key_S : Qt::Key_F3;
+      const Qt::KeyboardModifiers mods = save ? Qt::ControlModifier : Qt::NoModifier;
+      qt_handleKeyEvent(window_->windowHandle(), QEvent::KeyPress, key, mods,
+                        QString(), false, 1);
+      qt_handleKeyEvent(window_->windowHandle(), QEvent::KeyRelease, key, mods,
+                        QString(), false, 1);
+      settle();
+      out() << "key " << value << ": " << dock->errorCount() << " error(s)\n"
+            << Qt::flush;
+    } else if (step == "click-banner") {
+      QAbstractButton* banner =
+          window_->ui->TextSegDockWidget->findChild<QAbstractButton*>("EduStaleBanner");
+      if (banner != 0 && !banner->isHidden()) {
+        banner->click();
+      } else {
+        err() << "the strip is not showing\n" << Qt::flush;
+        status_ = 2;
+      }
+    } else if (step == "report") {
+      const QAbstractButton* banner =
+          window_->ui->TextSegDockWidget->findChild<QAbstractButton*>("EduStaleBanner");
+      const QLabel* badge = window_->findChild<QLabel*>("EduAssembleBadge");
+      // isVisible() is true for every tab of a dock group; the tab in front
+      // is the one with something to paint.
+      const QString front =
+          !window_->ui->TextSegView->visibleRegion().isEmpty()
+              ? QString("Text")
+              : (!dock->editor()->visibleRegion().isEmpty() ? QString("Editor")
+                                                            : QString("other"));
+      out() << "editor: file=" << QFileInfo(dock->filePath()).fileName()
+            << " modified=" << (dock->isModified() ? 1 : 0)
+            << " banner=" << (banner != 0 && !banner->isHidden() ? 1 : 0)
+            << " front=" << front << " errors=" << dock->errorCount()
+            << " status=\"" << window_->statusBar()->currentMessage() << "\""
+            << " badge=\""
+            << (badge != 0 && !badge->isHidden() ? badge->text() : QString())
+            << "\"\n" << Qt::flush;
     } else if (step == "assemble") {
       window_->findChild<QAction*>("action_Edu_Assemble")->trigger();
       out() << "assemble: " << dock->errorCount() << " error(s)\n" << Qt::flush;
