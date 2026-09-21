@@ -365,7 +365,6 @@ class SpimView : public QMainWindow {
   void eduAssemble();
   void eduEditorNew();
   void eduEditorOpen();
-  void eduEditorSave();
   void eduEditorSaveAs();
   void eduEditorOpenRecent();
   void eduEditorFileChanged();

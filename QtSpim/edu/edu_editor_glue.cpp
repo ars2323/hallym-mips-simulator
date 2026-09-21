@@ -38,8 +38,6 @@ void SpimView::eduSetupEditor() {
   } const entries[] = {
       {"action_Edu_New", "&New", QKeySequence(QKeySequence::New), SLOT(eduEditorNew())},
       {"action_Edu_Open", "&Open...", QKeySequence(QKeySequence::Open), SLOT(eduEditorOpen())},
-      {"action_Edu_Save", "&Save", QKeySequence(QKeySequence::Save), SLOT(eduEditorSave())},
-      {"action_Edu_SaveAs", "Save &As...", QKeySequence("Ctrl+Shift+S"), SLOT(eduEditorSaveAs())},
   };
   for (unsigned i = 0; i < sizeof(entries) / sizeof(entries[0]); i += 1) {
     QAction* action = new QAction(entries[i].text, this);
@@ -58,16 +56,25 @@ void SpimView::eduSetupEditor() {
   eduRebuildEditorRecentMenu();
   connect(eduEditor, SIGNAL(fileChanged()), this, SLOT(eduEditorFileChanged()));
 
-  // Simulator > Assemble, and a tool bar button in front of Run.  F3: free
-  // upstream, and what MARS users already press.
-  QAction* assemble = new QAction("&Assemble", this);
+  // Saving IS assembling (PLAN decision "저장 = 어셈블"): one action, reached
+  // by Ctrl+S, by F3 (free upstream, and what MARS users press) and by the
+  // tool bar button.  There is no save that leaves the simulator behind.
+  QAction* assemble = new QAction("&Save and Assemble", this);
   assemble->setObjectName("action_Edu_Assemble");
-  assemble->setShortcut(QKeySequence("F3"));
+  assemble->setShortcuts(QList<QKeySequence>()
+                         << QKeySequence(QKeySequence::Save) << QKeySequence("F3"));
+  assemble->setIconText("Assemble");  // the tool bar button's caption
   assemble->setToolTip("Save the editor's file, reinitialize the simulator "
-                       "and load the file (F3)");
+                       "and load the file (Ctrl+S, F3)");
   connect(assemble, SIGNAL(triggered(bool)), this, SLOT(eduAssemble()));
-  menu->addSeparator();
   menu->addAction(assemble);
+
+  QAction* saveAs = new QAction("Save &As and Assemble...", this);
+  saveAs->setObjectName("action_Edu_SaveAs");
+  saveAs->setShortcut(QKeySequence("Ctrl+Shift+S"));
+  connect(saveAs, SIGNAL(triggered(bool)), this, SLOT(eduEditorSaveAs()));
+  menu->addAction(saveAs);
+
   ui->menu_Simulator->insertAction(ui->menu_Simulator->actions().value(0), assemble);
   ui->menu_Simulator->insertSeparator(ui->menu_Simulator->actions().value(1));
   ui->toolBar->insertAction(ui->action_Sim_Run, assemble);
@@ -155,9 +162,12 @@ void SpimView::eduEditorOpen() {
   }
 }
 
-void SpimView::eduEditorSave() { eduEditor->save(); }
-
-void SpimView::eduEditorSaveAs() { eduEditor->saveAs(); }
+// Save As is "save under a new name, then assemble that".
+void SpimView::eduEditorSaveAs() {
+  if (eduEditor->saveAs()) {
+    eduAssemble();
+  }
+}
 
 // A file the simulator loaded by upstream's own routes (File > Load File,
 // Reinitialize and Load File, the recent files, the command line) is also
@@ -220,9 +230,14 @@ void SpimView::eduAssemble() {
     ui->TextSegDockWidget->show();
     ui->TextSegDockWidget->raise();
   } else {
-    eduAssembleBadge->setText(messages.size() == 1
-                                  ? QString("1 error")
-                                  : QString("%1 errors").arg(messages.size()));
+    // The file is saved (the student's work is safe), but what ran before is
+    // gone: Assemble reinitializes first, exactly as upstream's Reinitialize
+    // and Load File does.  Say so.
+    eduAssembleBadge->setText(
+        QString("Assemble failed ") + QChar(0x2014) +
+        (messages.size() == 1 ? QString(" 1 error")
+                              : QString(" %1 errors").arg(messages.size())) +
+        QString(". Simulator was reset."));
     eduAssembleBadge->show();
     eduEditor->raise();
   }

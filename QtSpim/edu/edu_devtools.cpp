@@ -105,8 +105,9 @@ QString EduDevtools::usage() {
       "  --editor-open <file>   open a file in the editor (no dialog)\n"
       "  --editor-goto-line <n> move the cursor there (and centre it)\n"
       "  --editor-type <text>   type text at the cursor (\\n = new line)\n"
-      "  --editor-save          File > Save\n"
-      "  --editor-save-as <file>  File > Save As, through its dialog\n"
+      "  --editor-save          Editor > Save and Assemble (same as --assemble)\n"
+      "  --editor-save-as <file>  Editor > Save As and Assemble, through its\n"
+      "                         dialog\n"
       "  --editor-rewrite-on-disk <text>  another program rewrites the file\n"
       "  --assemble             Simulator > Assemble (the real action)\n"
       "                         editor steps run in command-line order, after\n"
@@ -755,8 +756,8 @@ void EduDevtools::run() {
       QString text = value;
       text.replace("\\n", "\n");
       dock->editor()->insertPlainText(text);
-    } else if (step == "save") {
-      window_->findChild<QAction*>("action_Edu_Save")->trigger();
+    } else if (step == "save") {  // saving is assembling
+      window_->findChild<QAction*>("action_Edu_Assemble")->trigger();
     } else if (step == "save-as") {
       pendingMenuFile_ = QFileInfo(value).absoluteFilePath();
       window_->findChild<QAction*>("action_Edu_SaveAs")->trigger();
