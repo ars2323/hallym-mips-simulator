@@ -14,6 +14,7 @@ QObject* createTestVersion();       // tst_version.cpp
 QObject* createTestPathEncoding();  // tst_path_encoding.cpp
 QObject* createTestFormat();        // tst_format.cpp
 QObject* createTestRegisters();     // tst_registers.cpp
+QObject* createTestDecoder();       // tst_decoder.cpp
 
 typedef QObject* (*TestFactory)();
 
@@ -22,6 +23,7 @@ static const TestFactory kTests[] = {
     createTestPathEncoding,
     createTestFormat,
     createTestRegisters,
+    createTestDecoder,
 };
 
 int main(int argc, char* argv[]) {
