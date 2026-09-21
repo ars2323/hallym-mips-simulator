@@ -31,6 +31,14 @@ QString memoryValueText(quint32 value, MemoryUnit unit, int base);
 // Widest text memoryValueText() can produce, for column sizing.
 int memoryValueWidth(MemoryUnit unit, int base);
 
+// "+0", "+4", "+8", "+C": a byte offset inside a 16-byte line, as the column
+// headers and the Labels column name it (one upper-case hex digit).
+QString lineOffsetName(quint32 offset);
+
+// "msg" for offset 0, otherwise "msg+2": a label or register that points
+// `offset` bytes into a word.
+QString nameWithOffset(const QString& name, quint32 offset);
+
 // Bytes as characters: printable ASCII as itself, everything else '.'.
 QString asciiText(const quint8* bytes, int count);
 

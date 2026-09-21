@@ -44,6 +44,14 @@ int memoryValueWidth(MemoryUnit unit, int base) {
   return bits / 4;
 }
 
+QString lineOffsetName(quint32 offset) {
+  return QString("+") + QString::number(offset & 15u, 16).toUpper();
+}
+
+QString nameWithOffset(const QString& name, quint32 offset) {
+  return offset == 0 ? name : name + QString("+") + QString::number(offset);
+}
+
 QString asciiText(const quint8* bytes, int count) {
   QString text;
   for (int i = 0; i < count; i += 1) {

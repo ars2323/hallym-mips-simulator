@@ -13,6 +13,7 @@ class TestMemoryText : public QObject {
   void values_data();
   void values();
   void widthsCoverTheExtremes();
+  void offsets();
   void ascii();
   void detailLines();
   void goTo();
@@ -67,6 +68,15 @@ void TestMemoryText::widthsCoverTheExtremes() {
       }
     }
   }
+}
+
+void TestMemoryText::offsets() {
+  QCOMPARE(edu::lineOffsetName(0), QString("+0"));
+  QCOMPARE(edu::lineOffsetName(4), QString("+4"));
+  QCOMPARE(edu::lineOffsetName(12), QString("+C"));
+  QCOMPARE(edu::lineOffsetName(0x10010025u - 0x10010020u), QString("+5"));
+  QCOMPARE(edu::nameWithOffset("msg", 0), QString("msg"));
+  QCOMPARE(edu::nameWithOffset("$t0", 3), QString("$t0+3"));
 }
 
 void TestMemoryText::ascii() {
