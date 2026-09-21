@@ -971,7 +971,7 @@ Kernel data `K_DATA_BOT..k_data_top` (`CPU/mem.h:67-105`).
 `Tests/*.s` 전부 + 샘플을 Makefile의 플래그와 GUI 기본 모드 양쪽에서, 코어 로더와 복제 로더로 각각 읽은 뒤
 명령어(코어의 `format_an_inst` 줄), 0이 아닌 데이터 워드, 세그먼트 경계, 에러 메시지 목록, 로드 후 심볼 테이블을 비교한다.
 같은 테스트가 **소스에 정의된 라벨 수 = 캡처된 라벨 수**도 확인한다(syntax error로 파싱이 멈춘 파일은 그 줄까지만 센다 — 에러 줄의 라벨은 등록된 뒤다).
-GUI 수준에서는 골든 31개(로드 직후 포함)와 `syntaxerror-*` 골든 5개(파일 중간 syntax error: 텍스트·데이터·메시지 로그·Run 후 레지스터·로그 — `stage-6` 빌드, 즉 코어 로더로 캡처),
+GUI 수준에서는 기존 골든 26개(로드 직후 포함)와 새 `syntaxerror-*` 골든 5개(파일 중간 syntax error: 텍스트·데이터·메시지 로그·Run 후 레지스터·로그 — `stage-6` 빌드, 즉 코어 로더로 캡처),
 `tools/check-menu-load.sh --compare-vanilla`가 같다.
 
 ### 15.3 argv/환경변수 접기 — 경계의 근거
