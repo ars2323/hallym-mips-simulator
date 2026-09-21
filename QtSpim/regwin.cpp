@@ -47,12 +47,12 @@
 //
 
 void SpimView::DisplayIntRegisters() {
-  regTextEdit* te =
-      ui->IntRegDockWidget->findChild<regTextEdit*>("IntRegTextEdit");
-  te->isIntRegs = true;
+  // EDU: the visible panel is now a tree view fed by eduRegisterModel.  The
+  // HTML below is still built exactly as upstream built it, but goes into
+  // the hidden eduIntRegLog, which is what Save Log File and Print read.
+  QPlainTextEdit* te = eduIntRegLog;
   QString windowContents = windowFormattingStart(
       st_regWinFont, st_regWinFontColor, st_regWinBackgroundColor);
-  int scrollPosition = te->verticalScrollBar()->value();
 
   windowContents += formatSpecialIntRegister(PC, "PC", PC != oldPC);
   windowContents += formatSpecialIntRegister(CP0_EPC, "EPC", CP0_EPC != oldEPC);
@@ -81,8 +81,8 @@ void SpimView::DisplayIntRegisters() {
                                        QString::number(st_regDisplayBase) +
                                        QString("] "));
 
-  te->verticalScrollBar()->setValue(scrollPosition);
   CaptureIntRegisters();
+  eduRefreshRegisterPanel();  // EDU
 }
 
 QString SpimView::formatSpecialIntRegister(int value, char* name,
@@ -100,15 +100,11 @@ QString SpimView::formatIntRegister(int regNum, int value, char* name,
                    formatInt(value), changed);
 }
 
-// EDU: see spimview.h.  For now the source is the upstream widget itself.
-QString SpimView::intRegistersLogText() {
-  return ui->IntRegDockWidget->findChild<regTextEdit*>("IntRegTextEdit")
-      ->toPlainText();
-}
+// EDU: see spimview.h.  eduIntRegLog holds upstream's rendering.
+QString SpimView::intRegistersLogText() { return eduIntRegLog->toPlainText(); }
 
 void SpimView::printIntRegisters(QPrinter* printer) {
-  ui->IntRegDockWidget->findChild<regTextEdit*>("IntRegTextEdit")
-      ->print(printer);
+  eduIntRegLog->print(printer);
 }
 
 void SpimView::CaptureIntRegisters() {

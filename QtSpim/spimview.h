@@ -56,6 +56,11 @@ namespace Ui {
 class SpimView;
 }
 
+// EDU: new panels (QtSpim/edu/).
+class EduInspector;
+class EduRegisterModel;
+class QPlainTextEdit;
+
 class SpimView : public QMainWindow {
   Q_OBJECT
 
@@ -84,6 +89,17 @@ class SpimView : public QMainWindow {
   // to the upstream rendering (tools/regress.sh compares it to goldens).
   QString intRegistersLogText();
   void printIntRegisters(QPrinter* printer);
+
+  // EDU: register panel and inspector; implemented in
+  // edu/edu_spimview_glue.cpp.
+  EduRegisterModel* eduRegisterModel;
+  EduInspector* eduInspector;
+  void eduSetupPanels();
+  void eduTileInspector();
+  void eduBeginRunCommand();       // a Step/Run/Continue is about to start
+  void eduResetRegisterChanges();  // Reinitialize / Load / Clear Registers
+  void eduRefreshRegisterPanel();
+
   void DisplayTextSegments(bool force);
   void DisplayDataSegments(bool force);
   void UpdateDataDisplay();
@@ -166,6 +182,8 @@ class SpimView : public QMainWindow {
   // Value in register at previous call on displayIntRegister, so changed values
   // can be highlighted.
   //
+  QPlainTextEdit* eduIntRegLog;  // EDU: hidden; source of log/print text
+
   reg_word oldR[R_LENGTH];
   mem_addr oldPC;
   reg_word oldEPC;
@@ -285,6 +303,8 @@ class SpimView : public QMainWindow {
   void continueBreakpoint();
   void singleStepBreakpoint();
   void abortBreakpoint();
+
+  void eduUpdateInspector();  // EDU
 };
 
 extern SpimView* Window;

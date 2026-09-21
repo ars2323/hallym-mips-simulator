@@ -53,6 +53,12 @@ LEXSOURCES  = ../CPU/scanner.l
 SOURCES += main.cpp\
         edu/core/edu_path_encoding.cpp\
         edu/edu_path_check.cpp\
+        edu/core/edu_format.cpp\
+        edu/core/edu_registers.cpp\
+        edu/edu_register_model.cpp\
+        edu/edu_register_view.cpp\
+        edu/edu_inspector.cpp\
+        edu/edu_spimview_glue.cpp\
         spimview.cpp\
         menu.cpp\
         regwin.cpp\
@@ -76,6 +82,11 @@ HEADERS  += spimview.h\
         edu/edu_version.h\
         edu/core/edu_path_encoding.h\
         edu/edu_path_check.h\
+        edu/core/edu_format.h\
+        edu/core/edu_registers.h\
+        edu/edu_register_model.h\
+        edu/edu_register_view.h\
+        edu/edu_inspector.h\
         regtextedit.h\
         texttextedit.h\
         datatextedit.h\

@@ -53,6 +53,7 @@ SpimView::SpimView(QWidget *parent)
   //
   ui->setupUi(this);
   setWindowTitle(EDU_APP_NAME);  // EDU: spimview.ui still says "QtSpim"
+  eduSetupPanels();              // EDU: register tree, inspector dock
   SpimConsole = new Console(0);
 
   stdExceptionHandler = QString("<<SPIM Exception Handler>>");
@@ -176,9 +177,8 @@ void SpimView::wireCommands() {
                    SIGNAL(triggered(bool)), ui->TextSegmentTextEdit,
                    SLOT(clearBreakpoint()));
 
-  QObject::connect(ui->IntRegTextEdit->action_Context_ChangeValue,
-                   SIGNAL(triggered(bool)), ui->IntRegTextEdit,
-                   SLOT(changeValue()));
+  // EDU: the integer register panel (edu/edu_register_view.h) wires its own
+  // "Change Register Contents" action.
   QObject::connect(ui->FPRegTextEdit->action_Context_ChangeValue,
                    SIGNAL(triggered(bool)), ui->FPRegTextEdit,
                    SLOT(changeValue()));

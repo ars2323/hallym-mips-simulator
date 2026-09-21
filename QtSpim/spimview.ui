@@ -174,18 +174,12 @@
    <attribute name="dockWidgetArea">
     <number>4</number>
    </attribute>
-   <widget class="regTextEdit" name="IntRegTextEdit">
+   <widget class="EduRegisterView" name="IntRegView">
     <property name="minimumSize">
      <size>
       <width>200</width>
-      <height>600</height>
+      <height>300</height>
      </size>
-    </property>
-    <property name="undoRedoEnabled">
-     <bool>false</bool>
-    </property>
-    <property name="readOnly">
-     <bool>true</bool>
     </property>
    </widget>
   </widget>
@@ -575,6 +569,11 @@
  </widget>
  <layoutdefault spacing="6" margin="11"/>
  <customwidgets>
+  <customwidget>
+   <class>EduRegisterView</class>
+   <extends>QTreeView</extends>
+   <header>edu/edu_register_view.h</header>
+  </customwidget>
   <customwidget>
    <class>textTextEdit</class>
    <extends>QWidget</extends>

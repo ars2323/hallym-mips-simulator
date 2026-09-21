@@ -90,6 +90,10 @@ void SpimView::file_LoadFile() {
 
     DisplayTextSegments(true);
     DisplayDataSegments(false);
+    // EDU: a load clears the change highlighting (upstream did not redraw
+    // the registers here; their values are the same, only the colour goes).
+    eduResetRegisterChanges();
+    DisplayIntRegisters();
   }
 }
 
@@ -207,6 +211,7 @@ void SpimView::file_Exit() {
 
 void SpimView::sim_ClearRegisters() {
   initialize_registers();
+  eduResetRegisterChanges();  // EDU: nothing is "changed" after a clear
 
   DisplayIntRegisters();
   DisplayFPRegisters();
@@ -229,16 +234,16 @@ void SpimView::sim_ReinitializeSimulator() {
   CaptureIntRegisters();
   CaptureSFPRegisters();
   CaptureDFPRegisters();
+  eduResetRegisterChanges();  // EDU: nor after a reinitialize
 
   DisplayTextSegments(true);
   UpdateDataDisplay();
 
   // Scroll to top of windows
   //
+  ui->IntRegView->scrollToTop();  // EDU: was IntRegTextEdit's scroll bar
   regTextEdit* rte =
-      ui->IntRegDockWidget->findChild<regTextEdit*>("IntRegTextEdit");
-  rte->verticalScrollBar()->setValue(rte->verticalScrollBar()->minimum());
-  rte = ui->FPRegDockWidget->findChild<regTextEdit*>("FPRegTextEdit");
+      ui->FPRegDockWidget->findChild<regTextEdit*>("FPRegTextEdit");
   rte->verticalScrollBar()->setValue(rte->verticalScrollBar()->minimum());
   textTextEdit* tte =
       ui->TextSegDockWidget->findChild<textTextEdit*>("TextSegmentTextEdit");
@@ -270,6 +275,7 @@ void SpimView::sim_SetRunParameters() {
 }
 
 void SpimView::sim_Run() {
+  eduBeginRunCommand();  // EDU: snapshot for change highlighting
   initializePCAndStack();
 
   force_break = false;
@@ -295,6 +301,7 @@ void SpimView::sim_Stop() {
 }
 
 void SpimView::sim_SingleStep() {
+  eduBeginRunCommand();  // EDU: snapshot for change highlighting
   initializePCAndStack();
 
   force_break = false;
@@ -382,6 +389,7 @@ void SpimView::executeProgram(mem_addr pc, int steps, bool display,
 }
 
 void SpimView::continueBreakpoint() {
+  eduBeginRunCommand();  // EDU: snapshot for change highlighting
   bool continuable;
   run_program(PC, 1, false, true,
               &continuable);  // Execute instruction replaced by breakpoint
@@ -391,6 +399,7 @@ void SpimView::continueBreakpoint() {
 }
 
 void SpimView::singleStepBreakpoint() {
+  eduBeginRunCommand();  // EDU: snapshot for change highlighting
   bool continuable;
   run_program(PC, 1, false, true,
               &continuable);  // Execute instruction replaced by breakpoint
@@ -709,6 +718,7 @@ void SpimView::win_Tile() {
 
   ui->IntRegDockWidget->setFloating(false);
   ui->FPRegDockWidget->setFloating(false);
+  eduTileInspector();  // EDU: below the register docks, before they are tabbed
   tabifyDockWidget(ui->FPRegDockWidget, ui->IntRegDockWidget);
   ui->TextSegDockWidget->setFloating(false);
   ui->DataSegDockWidget->setFloating(false);
