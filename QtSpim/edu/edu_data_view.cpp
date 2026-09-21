@@ -260,6 +260,16 @@ void EduDataView::onDoubleClicked(const QModelIndex& index) {
   }
 }
 
+void EduDataView::setUnit(edu::MemoryUnit unit) {
+  const QList<QAction*> actions = unitGroup_->actions();
+  for (int i = 0; i < actions.size(); i += 1) {
+    if (actions.at(i)->data().toInt() == int(unit)) {
+      actions.at(i)->setChecked(true);  // no triggered(): apply it here
+      onUnitAction(actions.at(i));
+    }
+  }
+}
+
 void EduDataView::onUnitAction(QAction* action) {
   if (model_ != 0) {
     model_->setUnit(edu::MemoryUnit(action->data().toInt()));

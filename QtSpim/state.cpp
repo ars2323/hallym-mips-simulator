@@ -105,6 +105,8 @@ void SpimView::readSettings() {
       settings.value("DataSegmentDisplayBase", 16).toInt();
   st_dataSegmentDisplayBase =
       setCheckedDataSegmentDisplayBase(st_dataSegmentDisplayBase);
+  // EDU: Words / Half words / Bytes (4 / 2 / 1)
+  eduSetDataUnit(settings.value("EduDisplayUnit", 4).toInt());
 
   ui->action_Win_DataSegment->setChecked(!ui->DataSegDockWidget->isHidden());
   settings.endGroup();
@@ -174,6 +176,7 @@ void SpimView::writeSettings(bool omitWindowState) {
   settings.setValue("ShowUserStackSeg", st_showUserStackSegment);
   settings.setValue("ShowKernelDataSeg", st_showKernelDataSegment);
   settings.setValue("DataSegmentDisplayBase", st_dataSegmentDisplayBase);
+  settings.setValue("EduDisplayUnit", eduDataUnit());  // EDU
   settings.endGroup();
 
   settings.beginGroup("FileMenu");

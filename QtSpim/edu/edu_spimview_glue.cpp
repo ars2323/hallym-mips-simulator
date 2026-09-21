@@ -273,6 +273,14 @@ void SpimView::eduNoteStackInitialized() {
   eduDataModel->setEnvironmentStart(quint32(R[REG_A2]));
 }
 
+// Words / Half words / Bytes is kept in the settings (state.cpp).
+int SpimView::eduDataUnit() { return int(eduDataModel->unit()); }
+
+void SpimView::eduSetDataUnit(int bytes) {
+  ui->DataSegPanel->view()->setUnit(
+      bytes == 1 ? edu::ByteUnit : (bytes == 2 ? edu::HalfUnit : edu::WordUnit));
+}
+
 bool SpimView::eduDataPointersMoved() {
   return eduDataModel->markedRegistersDiffer();
 }

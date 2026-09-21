@@ -116,6 +116,8 @@ class SpimView : public QMainWindow {
   EduDataModel* eduDataModel;
   void eduRefreshDataPanel();     // rows, base, segments, font, colours
   bool eduDataPointersMoved();    // $sp/$fp/$gp differ from what is shown
+  int eduDataUnit();              // 4 / 2 / 1, for the settings file
+  void eduSetDataUnit(int bytes);
   void eduCollectLabels();        // after the text segment changed (a load)
   bool eduLoadAssemblyFile(const QString& file);  // read_assembly_file() + labels
   void eduForgetLoadedLabels();   // the symbol table was cleared

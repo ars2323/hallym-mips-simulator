@@ -45,6 +45,7 @@ class EduDataView : public QTableView {
   // Words / Half words / Bytes; owned here, also put into the Data Segment
   // menu by the main window.
   QList<QAction*> unitActions() const;
+  void setUnit(edu::MemoryUnit unit);  // checks the matching action too
 
  signals:
   void memorySelectionChanged();  // the user picked a cell
