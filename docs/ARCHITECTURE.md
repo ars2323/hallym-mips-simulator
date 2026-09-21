@@ -672,6 +672,14 @@ DisplayIntRegisters()  QtSpim/regwin.cpp
       → EduInspector (레지스터 도크 아래 도크)
 ```
 
+**배치**: Int Regs·FP Regs·Inspector는 원본의 위쪽 도크 줄이 아니라 **왼쪽 도크 영역**에 있다
+(`eduTileInspector()`). 원본이 이미 `setCorner()`로 왼쪽 두 모서리를 왼쪽 영역에 주기 때문에
+(`QtSpim/spimview.cpp`의 생성자), 왼쪽 도크는 메시지 로그 옆으로 창 전체 높이를 쓴다.
+이유는 산수다: 1080줄 화면에서 위쪽 줄에 남는 높이는 어떤 행 높이로도 33행 정도인데 목록은
+47행(그룹 8 + 레지스터 39, 원본은 텍스트 41줄)이다. 행 높이는 폰트 줄 높이 − 3px(델리게이트),
+인스펙터는 내용 6줄에 맞춘 고정 높이다. 저장된 창 상태는 버전 2로 올려 예전 배치가 복원되지 않게 했다
+(`QtSpim/state.cpp`).
+
 | 파일 | 역할 |
 |---|---|
 | `edu/core/edu_format.*` | 32비트 값 ↔ 문자열. 위젯은 여기만 부른다 |
@@ -693,3 +701,29 @@ DisplayIntRegisters()  QtSpim/regwin.cpp
 **로그 저장 동일성**은 구조로 보장한다: 새 코드가 로그 텍스트를 "다시 만드는" 것이 아니라 원본 HTML
 빌더의 출력을 그대로 숨은 위젯에 넣어 `toPlainText()`/`print()`를 부른다. `tests/golden/`과
 `regress.sh` 4번 검사는 그 구조가 깨지지 않았는지를 확인한다.
+
+---
+
+## 12. 원본과 의도적으로 다른 동작
+
+"GUI만 바꾼다"가 원칙이지만, 아래는 **알고서 원본과 다르게 한 것**이다. 단계가 진행되면 여기에 누적한다.
+8단계 학생용 안내문("무엇이 표준 QtSpim과 다른가")의 재료다. 시뮬레이션 결과에 영향을 주는 항목은 없다.
+
+| # | 무엇이 다른가 | 원본 | 이유 | 단계 · 위치 |
+|---|---|---|---|---|
+| 1 | 실행 파일 이름 `QtSpimEdu` | `QtSpim` | 표준 QtSpim과 같은 PC에 나란히 설치·실행 | 1 · `QtSpim/QtSpim.pro` `TARGET` |
+| 2 | 설정 저장소 `QtSpim-Edu`/`QtSpimEdu` | `LarusStone`/`QtSpim` | 두 프로그램의 도크 배치가 달라, 저장소를 공유하면 서로의 창 상태를 복원해 망가뜨린다 | 1 · `edu/edu_version.h`, `main.cpp`, `spimview.cpp` |
+| 3 | 창 제목·About에 수정본 표기 | "QtSpim" | 어느 프로그램인지 구분. 원 저작권·BSD·LGPL 고지는 그대로 | 1 · `menu.cpp` `help_AboutSPIM` |
+| 4 | 헬프를 **실행 파일 폴더의 `help/`에서 먼저** 찾는다 | 설치 경로 3곳만 | 배포물은 자기 안에서 완결돼야 한다. 남의 설치 폴더에 의존하면 그쪽이 삭제·갱신될 때 조용히 깨진다 | 2 · `menu.cpp` `help_ViewHelp` |
+| 5 | 로컬 8비트 인코딩으로 표현 못 하는 경로는 **경고 후 로드를 건너뛴다** | `fopen`이 `???` 경로로 실패 → "Cannot open file" | 원인을 알려 주는 편이 낫고, 진행해도 어차피 실패해 에러가 두 번 뜬다. 근본 해결은 `CPU/` 수정이라 하지 않는다 | 2 · `edu/edu_path_check.*` |
+| 6 | 경고 창의 인코딩 이름을 `GetACP()`로 얻는다 (포크 내 유일한 Win32 호출) | — | Qt는 Windows 로캘 코덱을 "System"이라고만 한다 | 2 · `edu/core/edu_path_encoding.cpp` |
+| 7 | Change Value를 **취소하면 아무 일도 없다** | 취소해도 "Bad … value" 경고 | 원본의 버그 | 3 · `edu/edu_register_view.cpp` |
+| 8 | Change Value의 **값 범위 검사가 플랫폼과 무관**: 10진 −2147483648…4294967295, hex/bin 32비트. 넘으면 에러 | `toLong()`/`toULong()` — Windows(32비트 `long`)와 Linux(64비트)가 다르고, Linux에서는 넘는 값을 말없이 자른다 | 같은 입력에 같은 결과 | 3 · `edu/core/edu_format.cpp` `parseValue32` |
+| 9 | 레지스터 **변경 강조 기준**: 실행 명령(Step/Run/Continue) 시작 시점 대비. Reinitialize/Load/Clear에서 초기화, 사용자가 넣은 값은 강조 안 함 | 직전 화면 갱신 대비 | Run 뒤에 "무엇이 바뀌었나"가 보이게 | 3 · `edu/edu_register_model.*` |
+| 10 | Int Regs가 그룹 트리 + 열(Name / No. / 선택 진법 / Decimal), 값은 `0x` + 8자리 | 한 줄씩 `R8  [t0] = 0` | PLAN R1·R2. **로그 저장·인쇄 출력은 원본 그대로** | 3 · `edu/edu_register_view.*` |
+| 11 | 레지스터 도크와 인스펙터가 **왼쪽 도크 영역**(창 전체 높이), 세로 탭 | 위쪽 도크 줄, 메시지 로그가 창 전체 폭 | 47행이 1080줄 화면에 스크롤 없이 들어가려면 필요(§11) | 3 · `edu/edu_spimview_glue.cpp` |
+| 12 | Window 메뉴에 Inspector 항목, 새 Inspector 도크 | 없음 | PLAN 공통 인스펙터 | 3 · `edu/edu_inspector.*` |
+| 13 | 저장된 창 배치 버전 2 (이전 빌드가 저장한 배치는 한 번 무시) | 버전 1 | 11번 배치가 예전 저장 상태로 되돌아가지 않게 | 3 · `QtSpim/state.cpp` |
+
+**다르지 않은 것** (확인된 것만): 시뮬레이터 코어 전체(`CPU/` 바이트 동일, `tools/regress.sh` 1·2·3번),
+Save Log File의 Int Regs 출력(4번), FP Regs 탭, Text·Data 패널(5·6단계 전까지), 메뉴·단축키·설정 다이얼로그.
