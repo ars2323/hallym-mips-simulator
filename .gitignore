@@ -1,0 +1,19 @@
+# shadow build
+/build/
+
+# in-source build 대비
+QtSpim/Makefile*
+QtSpim/*.o
+QtSpim/moc_*
+QtSpim/ui_*.h
+QtSpim/qrc_*.cpp
+QtSpim/.qmake.stash
+QtSpim/QtSpim
+QtSpim/parser_yacc.*
+QtSpim/lex.scanner.*
+QtSpim/*.output
+
+# 편집기
+*.swp
+.vscode/
+*.user
