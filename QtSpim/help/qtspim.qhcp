@@ -13,13 +13,13 @@
              <text language="en">QtSpim is a self-contained simulator that will run a MIPS32 assembly program and display the processor's registers and memory.</text>
          </aboutMenuText>
      </assistant>
+     <!-- EDU: the <generate> block was removed so that nothing is written into
+          the source tree.  qtspim.qch is built into the shadow-build directory
+          by the buildcompressedhelp rule in QtSpim.pro, and QtSpim.pro copies a
+          rewritten version of this file next to it before running the help
+          collection generator.  Do not run qhelpgenerator on this file in
+          place; use "make" in the build directory. -->
      <docFiles>
-         <generate>
-             <file>
-                 <input>qtspim.qhp</input>
-                 <output>qtspim.qch</output>
-             </file>
-         </generate>
          <register>
              <file>qtspim.qch</file>
          </register>

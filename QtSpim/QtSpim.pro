@@ -106,6 +106,16 @@ QMAKE_LEXFLAGS      = -I -8 --outfile=lex.scanner.c
 
 # Help file
 #
+# EDU: everything below is generated into the shadow-build directory only.
+# The vanilla rule ran qcollectiongenerator with its working directory set to
+# ../QtSpim/help, which made it write qtspim.qch and qtspim.qhc back into the
+# source tree.  qhelpgenerator resolves <applicationIcon> and <register><file>
+# relative to the .qhcp itself, so instead of moving the generator we move the
+# .qhcp: a copy with an absolute icon path is written into the build tree next
+# to the generated qtspim.qch, and the generator is pointed at that copy.  The
+# resulting .qhc registers the documentation as plain "qtspim.qch" (no partial
+# paths), so the help files stay relocatable at install time.
+#
 HELP_PROJ           = help/qtspim.qhp
 buildcompressedhelp.name    = Build compressed help
 buildcompressedhelp.input   = HELP_PROJ
@@ -113,16 +123,25 @@ buildcompressedhelp.output  = help/${QMAKE_FILE_BASE}.qch
 buildcompressedhelp.commands= qhelpgenerator ${QMAKE_FILE_IN} -o ${QMAKE_FILE_OUT}
 buildcompressedhelp.CONFIG  = no_link recursive
 
-# qcollectiongenerator must be run in the directory containing the project file, otherwise it
-# puts partial paths in the .qhc file, which make it impossible to install the help files in
-# other directories.
+# EDU: build-tree copy of the collection project.  Written at qmake time so the
+# relative <applicationIcon> path of the original still resolves.  Re-running
+# qmake is required after editing help/qtspim.qhcp; QMAKE_INTERNAL_INCLUDED_FILES
+# makes make do that automatically.
 #
+HELP_COL_SRC        = $$PWD/help/qtspim.qhcp
+HELP_COL_GEN        = $$OUT_PWD/help/qtspim.qhcp
+QMAKE_INTERNAL_INCLUDED_FILES += $$HELP_COL_SRC
+mkpath($$OUT_PWD/help)
+HELP_COL_TEXT       = $$cat($$HELP_COL_SRC, blob)
+HELP_COL_TEXT       = $$replace(HELP_COL_TEXT, "\\.\\./windows_images/", "$$PWD/windows_images/")
+write_file($$HELP_COL_GEN, HELP_COL_TEXT)|error("Cannot write $$HELP_COL_GEN")
+
 HELP_COL_PROJ       = help/qtspim.qhcp
 buildhelpcollection.name    = Build help collection
 buildhelpcollection.input   = HELP_COL_PROJ
 buildhelpcollection.output  = help/${QMAKE_FILE_BASE}.qhc
-linux|macx:buildhelpcollection.commands= bash -c '\"pushd ${QMAKE_FILE_PATH}; qcollectiongenerator ${QMAKE_FILE_BASE}.qhcp; popd; $(COPY) ${QMAKE_FILE_PATH}/${QMAKE_FILE_BASE}.qhc ${QMAKE_FILE_OUT};\"'
-win32:buildhelpcollection.commands= sh -c '\"pushd ${QMAKE_FILE_PATH} ; qcollectiongenerator ${QMAKE_FILE_BASE}.qhcp ; popd ; $(COPY) ${QMAKE_FILE_PATH}/${QMAKE_FILE_BASE}.qhc ${QMAKE_FILE_OUT}\"'
+buildhelpcollection.commands= qhelpgenerator help/${QMAKE_FILE_BASE}.qhcp -o ${QMAKE_FILE_OUT}
+buildhelpcollection.depends = help/qtspim.qch
 buildhelpcollection.CONFIG  = no_link recursive
 
 QMAKE_EXTRA_COMPILERS       += buildcompressedhelp buildhelpcollection
