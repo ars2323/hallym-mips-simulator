@@ -1,0 +1,151 @@
+# QtSpim-Edu continuous integration.
+#
+# linux:   the development platform.  Builds the release configuration and
+#          the CONFIG+=edu_devtools one, runs the unit tests, the regression
+#          check against the vanilla-9.1.24 tag, the Korean-path warning
+#          check, and captures the panels for review.
+# windows: the deployment platform.  Qt 5.15.2 / MSVC 2019 (v142) build,
+#          unit tests, and the self-contained zip that students get.
+#
+# Warnings in our own code fail the linux job; warnings from CPU/ and from
+# generated parser/scanner sources are upstream's and are ignored.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['stage-*', 'v*']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  linux:
+    name: Linux (Qt 5.15.3, gcc 11)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # tools/regress.sh needs the vanilla-9.1.24 tag
+
+      - name: Install Qt 5.15 and build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            qtbase5-dev qt5-qmake qttools5-dev-tools libqt5help5 bison flex
+
+      - name: Build (release configuration)
+        run: |
+          mkdir -p build-release && cd build-release
+          qmake ../QtSpim/QtSpim.pro
+          make -j"$(nproc)" 2>&1 | tee build.log
+          test -x QtSpimEdu
+
+      - name: Build (development configuration, CONFIG+=edu_devtools)
+        run: |
+          mkdir -p build && cd build
+          qmake CONFIG+=edu_devtools ../QtSpim/QtSpim.pro
+          make -j"$(nproc)" 2>&1 | tee build.log
+          test -x QtSpimEdu
+
+      - name: No warnings in our code
+        run: |
+          # Anything not from CPU/ or from bison/flex/moc/uic/rcc output is ours.
+          if grep -h 'warning:' build-release/build.log build/build.log \
+               | grep -vE '(^|/)CPU/|parser_yacc|scanner_lex|lex\.scanner|moc_|qrc_|ui_' ; then
+            echo "::error::compiler warnings in our sources (see above)"
+            exit 1
+          fi
+          echo "no warnings outside CPU/ and generated sources"
+
+      - name: Source tree still clean after building
+        run: |
+          git status --porcelain
+          test -z "$(git status --porcelain)"
+
+      - name: Unit tests
+        run: |
+          mkdir -p build-tests && cd build-tests
+          qmake ../tests/tests.pro
+          make -j"$(nproc)"
+          make check
+
+      - name: Regression against vanilla-9.1.24
+        run: tools/regress.sh
+
+      - name: Korean path warning (end to end)
+        run: tools/check-path-warning.sh -o "$RUNNER_TEMP/pathcheck"
+
+      - name: Screenshots of every panel
+        run: tools/capture-panels.sh -o "$RUNNER_TEMP/screenshots"
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-screenshots
+          path: |
+            ${{ runner.temp }}/screenshots/*.png
+            ${{ runner.temp }}/pathcheck/shots/*.png
+          if-no-files-found: error
+
+  windows:
+    name: Windows (Qt 5.15.2, MSVC 2019)
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt 5.15.2 (msvc2019_64)
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '5.15.2'
+          arch: 'win64_msvc2019_64'
+          cache: true
+
+      - name: MSVC 2019 toolset (v142) environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+          toolset: '14.29'
+
+      - name: Install winflexbison
+        run: choco install winflexbison3 --no-progress -y
+
+      - name: Tool versions
+        shell: cmd
+        run: |
+          qmake -v
+          win_bison --version
+          win_flex --version
+          cl 2>&1 | findstr /C:"Version"
+
+      - name: Build
+        shell: cmd
+        run: |
+          mkdir build && cd build
+          qmake "CONFIG+=release" "CONFIG-=debug_and_release" ..\QtSpim\QtSpim.pro
+          if errorlevel 1 exit /b 1
+          nmake
+          if errorlevel 1 exit /b 1
+          dir /s /b QtSpimEdu.exe help\qtspim.qch help\qtspim.qhc
+
+      - name: Unit tests
+        shell: cmd
+        run: |
+          mkdir build-tests && cd build-tests
+          qmake "CONFIG+=release" "CONFIG-=debug_and_release" ..\tests\tests.pro
+          if errorlevel 1 exit /b 1
+          nmake
+          if errorlevel 1 exit /b 1
+          nmake check
+          if errorlevel 1 exit /b 1
+
+      - name: Package zip
+        shell: pwsh
+        run: tools/package-windows.ps1 -BuildDir build -OutDir dist
+
+      - name: Upload zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: QtSpimEdu-windows
+          path: dist/*.zip
+          if-no-files-found: error
