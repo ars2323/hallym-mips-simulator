@@ -724,9 +724,19 @@ DisplayIntRegisters()  QtSpim/regwin.cpp
 | 11 | 레지스터 도크와 인스펙터가 **왼쪽 도크 영역**(창 전체 높이), 세로 탭 | 위쪽 도크 줄, 메시지 로그가 창 전체 폭 | 47행이 1080줄 화면에 스크롤 없이 들어가려면 필요(§11) | 3 · `edu/edu_spimview_glue.cpp` |
 | 12 | Window 메뉴에 Inspector 항목, 새 Inspector 도크 | 없음 | PLAN 공통 인스펙터 | 3 · `edu/edu_inspector.*` |
 | 13 | 저장된 창 배치 버전 2 (이전 빌드가 저장한 배치는 한 번 무시) | 버전 1 | 11번 배치가 예전 저장 상태로 되돌아가지 않게 | 3 · `QtSpim/state.cpp` |
+| 14 | Text 패널이 표(BP / Address / Code / Type / Instruction / Source). pseudo 확장은 배경 띠, 타입 배지, 소스 줄은 회색 | 한 줄씩 `[00400000] 8fa40000  lw $4, 0($29) ; 183: …` | PLAN R3. **로그 저장·인쇄 출력은 원본 그대로**(§14.4) | 5 · `edu/edu_text_model.*`, `edu/edu_text_view.*` |
+| 15 | Kernel Text Segment는 **접힌 한 줄**로 시작. 머리 행 클릭으로 펼침/접음, PC가 커널에 들어가면 자동으로 펼침 | 항상 전부 표시 | 학생 코드가 먼저 보이게 | 5 · `edu_text_model.cpp` `setCurrentPc` |
+| 16 | Text Segment 메뉴의 네 토글(User/Kernel/Comments/Instruction Value)이 **즉시 반영** | 메뉴를 바꿔도 화면은 그대로, 다음 전체 갱신(Load·Reinitialize 등) 때 반영 — `changed` 판정이 뒤집혀 있다(`menu.cpp` `text_Display*`) | 원본의 버그 | 5 · `menu.cpp` (`// EDU:` 4곳) |
+| 17 | 위 16번 때문에 **토글 직후 저장한 로그**는 현재 메뉴 상태를 따른다 | 화면에 남아 있던 옛 내용이 저장됨 | 로그는 저장 시점에 원본 HTML 빌더로 새로 만든다 | 5 · `textwin.cpp` `eduFillTextLog` |
+| 18 | 브레이크포인트가 걸린 줄이 **화면에서는 정상 표시**(빨간 점 + 원래 명령어) | 전체 갱신 후에는 `N [x0040002] x3402000   ori …`처럼 깨진다(§2의 버그: 코어가 앞에 `*`를 붙이는데 고정 오프셋으로 자름) | 화면은 고치고, **로그 출력은 원본과 같게 깨진 채로** 둔다(바이트 동일 원칙, 골든 `text-breakpoint.txt`) | 5 · `edu_text_model.cpp` `disassemblyOf` |
+| 19 | BP 열 클릭으로 브레이크포인트 토글. 우클릭 메뉴는 Copy / Set Breakpoint / Clear Breakpoint (해당 없는 쪽은 비활성) | 우클릭 메뉴만, 표준 텍스트 메뉴(Copy, Select All) + Set/Clear 항상 활성 | PLAN 5단계 | 5 · `edu_text_view.cpp` |
+| 20 | 단계 실행 시 선택(커서)은 움직이지 않는다. PC 줄은 cyan 강조 + 보이도록 스크롤만 | PC 줄로 텍스트 커서도 이동 | 선택은 인스펙터의 대상이라 사용자가 고른 채로 둔다 | 5 · `edu_spimview_glue.cpp` `eduHighlightInstruction` |
+| 21 | 인스펙터 높이가 내용에 따라 6~16줄. 폭은 44자(3단계 42자) | 6줄 고정 | 명령어 필드 표 + 분기 안내문. FI 형식(`bc1t`)의 표가 44자 | 5 · `edu/edu_inspector.*` |
+| 22 | 소스 줄이 UTF-8이 아니면 CP949로 해석해 표시 | UTF-8로만 해석(한글 CP949 주석이 깨짐) | 학생 파일에 흔하다. 코어가 가진 바이트는 그대로 | 5 · `edu/core/edu_source_text.*` |
 
 **다르지 않은 것** (확인된 것만): 시뮬레이터 코어 전체(`CPU/` 바이트 동일, `tools/regress.sh` 1·2·3번),
-Save Log File의 Int Regs 출력(4번), FP Regs 탭, Text·Data 패널(5·6단계 전까지), 메뉴·단축키·설정 다이얼로그.
+Save Log File의 Int Regs·Text 출력(4번 — 17·18번의 경우 포함해 골든과 바이트 동일), 브레이크포인트 다이얼로그(Continue / Single Step / Abort),
+FP Regs 탭, Data 패널(6단계 전까지), 메뉴·단축키·설정 다이얼로그.
 
 ---
 
@@ -815,3 +825,80 @@ C 라이브러리마다 다를 수 있다. 오라클 테스트는 이 경우를 
 
 손으로 계산한 경계값(최대/최소 imm, 음수 분기, 미해결 `jal 0x00000000`, nop, 모르는 opcode, 모듈로 2^32)은
 `tests/edu_core/tst_decoder.cpp`.
+
+---
+
+## 14. 5단계 이후의 Text 패널
+
+### 14.1 구조
+
+```
+TextSegDockWidget
+└─ EduTextView : QTableView      (spimview.ui에서 textTextEdit 자리에)   edu/edu_text_view.*
+     └─ EduTextModel             평평한 표. 머리 행 2개 + 명령어 행          edu/edu_text_model.*
+SpimView::eduTextLog : QTextEdit (숨김)  로그 저장·인쇄 때만 채움             textwin.cpp eduFillTextLog
+```
+
+원본 `textTextEdit` 클래스는 `textwin.cpp`에 그대로 남아 있지만 더는 쓰이지 않는다(원본 파일 수정 최소화).
+
+| 열 | 출처 |
+|---|---|
+| BP | `inst_is_breakpoint(addr)` — 칠할 때마다 묻는다(캐시 없음) |
+| Address | 행의 주소, `edu::hex32Digits` |
+| Code | `ENCODING(inst)`, `edu::hex32Digits` |
+| Type | `edu::formatOf(word)` — 워드만으로(§13.1) |
+| Instruction | **코어의 `format_an_inst()` 문자열**에서 주소·워드·주석을 뺀 부분. `inst_decode()`는 쓰지 않는다(§13.4) |
+| Source | `SOURCE(inst)` ("줄번호: 원문"), `edu::decodeSourceBytes` |
+
+`format_an_inst()` 출력에서 디스어셈블 부분을 떼는 방법(`disassemblyOf`): 주석은 항상 줄 끝의 `"; " + SOURCE(inst)`
+(`CPU/inst.cpp:713`)이므로 **길이로** 잘라낸다 — 원본처럼 첫 `;`를 찾지 않는다. 앞쪽은 탭까지가 주소, 그 뒤 12자가 워드.
+
+브레이크포인트가 걸린 주소는 메모리에 `break`가 들어 있다(§2). 모델은 코어의 `format_an_inst()`와 같은 방법으로
+(`CPU/inst.cpp:575-581`) `delete_breakpoint` → `read_mem_inst` → `add_breakpoint`로 원래 명령어를 읽는다.
+이 과정이 `text_modified`를 세우지만 `DisplayTextSegments()` 끝에서 원본과 똑같이 `false`로 되돌린다.
+
+### 14.2 갱신 — 원본과 같은 지점, 더 싼 비용
+
+| 계기 | 원본 | 지금 |
+|---|---|---|
+| `DisplayTextSegments(force)` / `text_modified` (Load, Reinitialize, 브레이크포인트 설정·통과 뒤의 `UpdateDataDisplay`) | HTML 전체 재생성 + `insertHtml` | `EduTextModel::rebuild()` — 같은 루프(`read_mem_inst` + `format_an_inst`), HTML 파싱 없음. 선택 행과 스크롤 위치는 주소로 복원 |
+| `highlightInstruction(PC)` (매 스텝, Run은 10만 명령마다) | 문서 전체를 정규식으로 검색 + ExtraSelection | `setCurrentPc()`: 해시로 행을 찾아 **두 행만** `dataChanged` |
+| 브레이크포인트 설정/해제 | 그 줄에 HTML 조각 삽입/삭제 | 그 행의 BP 칸만 `dataChanged` |
+
+측정(offscreen, 3회, ms — `--time`; 스텝마다 레지스터·Data 패널 갱신 포함):
+
+| 시나리오 | 원본 렌더링(af7c4ae) | 5단계 |
+|---|---|---|
+| `tt.core.s` 단일 스텝 500회 | 1213 · 1221 · 1219 | 562 · 570 · 565 |
+| `tt.core.s` 브레이크포인트 1개 + 스텝 60회 | 173 · 173 · 171 | 121 · 122 · 122 |
+| 600만 명령 루프 Run | 1551 · 1550 · 1547 | 1545 · 1541 · 1544 |
+| `tt.fpu.bare.s` Run | 11 · 10 · 11 | 8 · 9 · 8 |
+| `tt.core.s` 시작+로드+종료(벽시계) | 377 · 375 · 379 | 129 · 128 · 130 |
+
+### 14.3 pseudo 확장 묶음
+
+`SOURCE(inst) != NULL`인 행이 소스 한 줄의 시작이고, 뒤따르는 `SOURCE == NULL` 행들이 그 확장이다(§3.4).
+두 개 이상으로 확장된 줄에만 배경 띠를 주고(노랑/파랑 교대 — 이웃한 묶음이 구분되게), 한 명령어짜리 줄은 그대로 둔다.
+띠 색은 설정의 Text 창 배경색에 섞어서 만든다(설정의 글꼴·색이 그대로 적용된다).
+
+### 14.4 로그 저장·인쇄
+
+`SpimView::textSegmentLogText()` / `printTextSegment()`가 유일한 출구다. 원본의 HTML 빌더
+(`formatUserTextSeg` · `formatKernelTextSeg` · `formatInstructions` — 수정 없음)로 만든 HTML을 숨은 `QTextEdit`에
+`insertHtml`하고 `toPlainText()` / `print()` 한다. 화면 위젯이 하던 일과 같아서 출력이 바이트 단위로 같다.
+커널 세그먼트가 화면에서 접혀 있어도 로그에는 원본처럼 전부 들어간다.
+`tools/regress.sh` 4번이 `tests/golden/text-*.txt` 8개(토글 4종, 브레이크포인트, 스텝 후, `tt.core.s`)와 비교한다.
+
+### 14.5 인스펙터의 명령어 상세
+
+`edu::instructionDetailLines()`(`edu/core/edu_instruction_text.*`, 단위 테스트 `tst_instruction_text.cpp`)가 줄을 만들고
+인스펙터는 보여 주기만 한다. 필드마다 한 열: 비트 범위 / 2진수 / 필드 이름 / 값 / 의미(레지스터 `$이름`, opcode·funct의 명령 이름,
+분기 offset의 `x4=`). 값과 의미를 PLAN의 예시처럼 한 줄에 같이 쓰면 FR 형식이 51자가 되어 **두 줄로 나눴다**.
+
+- 분기 규칙은 실행 시점의 `delayed_branches`로 고른다(§13.2).
+- 목적지 라벨은 `EXPR(inst)->symbol->name`. 분기의 `EXPR(inst)->offset`은 `-pc`라는 내부 값이라
+  (`CPU/sym-tbl.cpp:251`) 표시하지 않는다. 심볼이 정의되지 않았으면(`SYMBOL_IS_DEFINED`가 거짓) `[main: undefined]`.
+- 관찰: `Tests/tt.alu.bare.s`는 1601행 `ctc3 $2 $3`의 syntax error에서 파싱이 끝나, 그 뒤(1805행 `fail:` 포함)가
+  어셈블되지 않는다. 그래서 `fail`은 미정의, 모든 `bne … fail`의 offset은 0이다. 코어 동작이라 원본도 같다
+  (콘솔 출력은 vanilla와 일치 — `tools/regress.sh` 3번).
+
