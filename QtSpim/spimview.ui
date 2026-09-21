@@ -237,14 +237,7 @@
    <attribute name="dockWidgetArea">
     <number>4</number>
    </attribute>
-   <widget class="dataTextEdit" name="DataSegmentTextEdit">
-    <property name="undoRedoEnabled" stdset="0">
-     <bool>false</bool>
-    </property>
-    <property name="readOnly" stdset="0">
-     <bool>true</bool>
-    </property>
-   </widget>
+   <widget class="EduDataPanel" name="DataSegPanel"/>
   </widget>
   <widget class="QToolBar" name="toolBar">
    <property name="windowTitle">
@@ -574,9 +567,9 @@
    <header>edu/edu_text_view.h</header>
   </customwidget>
   <customwidget>
-   <class>dataTextEdit</class>
+   <class>EduDataPanel</class>
    <extends>QWidget</extends>
-   <header>datatextedit.h</header>
+   <header>edu/edu_data_view.h</header>
   </customwidget>
  </customwidgets>
  <resources>

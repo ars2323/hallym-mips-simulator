@@ -134,6 +134,13 @@ void write_output(port fp, char *fmt, ...) {
   qvsnprintf(buf, BIG_BUF_SIZE, fmt, args);
   va_end(args);
 
+  // EDU: print_symbols() can only write here; the Data panel reads the
+  // labels from what it writes (edu/edu_spimview_glue.cpp).
+  if (eduOutputCapture != NULL && fp.i == message_out.i) {
+    eduOutputCapture->append(QString::fromLocal8Bit(buf));
+    return;
+  }
+
   if (fp.i == message_out.i) {
     Window->WriteOutput(buf);
   } else if (fp.i == console_out.i) {

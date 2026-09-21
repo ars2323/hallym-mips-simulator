@@ -57,6 +57,7 @@ class SpimView;
 }
 
 // EDU: new panels (QtSpim/edu/).
+class EduDataModel;
 class EduInspector;
 class EduRegisterModel;
 class EduTextModel;
@@ -110,6 +111,13 @@ class SpimView : public QMainWindow {
   EduTextModel* eduTextModel;
   void eduRefreshTextPanel();                // rows, columns, font, colours
   void eduHighlightInstruction(mem_addr pc);
+
+  // EDU: Data panel (edu/edu_data_model.h, edu/edu_data_view.h).
+  EduDataModel* eduDataModel;
+  void eduRefreshDataPanel();     // rows, base, segments, font, colours
+  bool eduDataPointersMoved();    // $sp/$fp/$gp differ from what is shown
+  void eduCollectLabels();        // after the text segment changed (a load)
+  void eduNoteStackInitialized(); // right after the core's initialize_stack()
 
   void DisplayTextSegments(bool force);
   void DisplayDataSegments(bool force);
@@ -196,7 +204,10 @@ class SpimView : public QMainWindow {
   QPlainTextEdit* eduIntRegLog;  // EDU: hidden; source of log/print text
   QTextEdit* eduTextLog;         // EDU: same for the Text window, filled on demand
   void eduFillTextLog();
-  enum { EduNoSubject, EduRegisterSubject, EduInstructionSubject };
+  QPlainTextEdit* eduDataLog;    // EDU: and for the Data window
+  void eduFillDataLog();
+  enum { EduNoSubject, EduRegisterSubject, EduInstructionSubject,
+         EduMemorySubject };
   int eduInspectorSubject;       // EDU: what the inspector is showing
 
   reg_word oldR[R_LENGTH];
@@ -322,10 +333,12 @@ class SpimView : public QMainWindow {
   void eduUpdateInspector();  // EDU
   void eduRegisterSelected();
   void eduInstructionSelected();
+  void eduMemorySelected();
 
 };
 
 extern SpimView* Window;
+extern QString* eduOutputCapture;  // EDU: see write_output() in spim_support.cpp
 extern QApplication* App;
 
 // Format SPIM abstractions for display

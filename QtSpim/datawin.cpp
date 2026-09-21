@@ -33,6 +33,7 @@
 
 #include "spimview.h"
 #include "ui_spimview.h"
+#include "datatextedit.h"  // EDU: no longer pulled in by ui_spimview.h
 
 #include <QMessageBox>
 #include <QRegExp>
@@ -51,35 +52,38 @@
 //
 
 void SpimView::DisplayDataSegments(bool force) {
-  if (force || data_modified) {
-    dataTextEdit* te =
-        ui->DataSegDockWidget->findChild<dataTextEdit*>("DataSegmentTextEdit");
-    QString windowContents = windowFormattingStart(
-        st_textWinFont, st_textWinFontColor, st_textWinBackgroundColor);
-    int scrollPosition = te->verticalScrollBar()->value();
-
-    windowContents += formatUserDataSeg() % formatUserStack() %
-                      formatKernelDataSeg() % windowFormattingEnd();
-
-    te->clear();
-    te->appendHtml(windowContents);
-
-    te->verticalScrollBar()->setSliderPosition(scrollPosition);
+  // EDU: upstream redrew only after a memory write.  The panel also marks
+  // where $sp / $fp / $gp point and starts the stack at $sp, so it has to
+  // follow those three registers too.
+  if (force || data_modified || eduDataPointersMoved()) {
+    // EDU: the Data panel is a model/view now; upstream's HTML is only built
+    // when a log is saved or printed (eduFillDataLog()).
+    eduRefreshDataPanel();
   }
   data_modified = false;
 }
 
 // EDU: what Save Log File writes and Print prints for the data segments; see
-// spimview.h.  For now the source is the upstream widget itself.
+// spimview.h.  The text is upstream's own HTML (the builders below are
+// untouched) put through a QPlainTextEdit that is never shown, exactly as
+// the visible window used to be filled, so the output stays byte-identical.
+void SpimView::eduFillDataLog() {
+  QString windowContents = windowFormattingStart(
+      st_textWinFont, st_textWinFontColor, st_textWinBackgroundColor);
+  windowContents += formatUserDataSeg() % formatUserStack() %
+                    formatKernelDataSeg() % windowFormattingEnd();
+  eduDataLog->clear();
+  eduDataLog->appendHtml(windowContents);
+}
+
 QString SpimView::dataSegmentLogText() {
-  return ui->DataSegDockWidget
-      ->findChild<dataTextEdit*>("DataSegmentTextEdit")
-      ->toPlainText();
+  eduFillDataLog();
+  return eduDataLog->toPlainText();
 }
 
 void SpimView::printDataSegment(QPrinter* printer) {
-  ui->DataSegDockWidget->findChild<dataTextEdit*>("DataSegmentTextEdit")
-      ->print(printer);
+  eduFillDataLog();
+  eduDataLog->print(printer);
 }
 
 QString SpimView::formatUserDataSeg() {

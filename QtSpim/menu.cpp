@@ -240,9 +240,7 @@ void SpimView::sim_ReinitializeSimulator() {
       ui->FPRegDockWidget->findChild<regTextEdit*>("FPRegTextEdit");
   rte->verticalScrollBar()->setValue(rte->verticalScrollBar()->minimum());
   ui->TextSegView->scrollToTop();  // EDU: was TextSegmentTextEdit's scroll bar
-  dataTextEdit* dte =
-      ui->DataSegDockWidget->findChild<dataTextEdit*>("DataSegmentTextEdit");
-  dte->verticalScrollBar()->setValue(dte->verticalScrollBar()->minimum());
+  ui->DataSegPanel->view()->scrollToTop();  // EDU: was DataSegmentTextEdit's
 }
 
 void SpimView::sim_SetRunParameters() {
@@ -317,6 +315,7 @@ void SpimView::initStack() {
   //
   initialize_stack(
       (st_recentFiles[0] + " " + st_commandLine).toLocal8Bit().data());
+  eduNoteStackInitialized();  // EDU: where argv/envp ended up (Data panel)
 }
 
 void SpimView::updateStatus(PROGSTATE status) {

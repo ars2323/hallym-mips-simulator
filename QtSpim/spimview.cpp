@@ -178,9 +178,8 @@ void SpimView::wireCommands() {
   QObject::connect(ui->FPRegTextEdit->action_Context_ChangeValue,
                    SIGNAL(triggered(bool)), ui->FPRegTextEdit,
                    SLOT(changeValue()));
-  QObject::connect(ui->DataSegmentTextEdit->action_Context_ChangeValue,
-                   SIGNAL(triggered(bool)), ui->DataSegmentTextEdit,
-                   SLOT(changeValue()));
+  // EDU: so does the Data panel (edu/edu_data_view.h), "Change Memory
+  // Contents".
 }
 
 QString SpimView::windowFormattingStart(QFont font, QColor fontColor,
