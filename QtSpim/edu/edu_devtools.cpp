@@ -103,6 +103,7 @@ QString EduDevtools::usage() {
       "  --set-memory <hexaddr>=<hexvalue>  write a word as Change Memory\n"
       "                         Contents does\n"
       "  --editor-open <file>   open a file in the editor (no dialog)\n"
+      "  --editor-goto-line <n> move the cursor there (and centre it)\n"
       "  --editor-type <text>   type text at the cursor (\\n = new line)\n"
       "  --editor-save          File > Save\n"
       "  --editor-save-as <file>  File > Save As, through its dialog\n"
@@ -314,6 +315,7 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
     }
 
     if (arg == "--editor-open" || arg == "--editor-type" ||
+        arg == "--editor-goto-line" ||
         arg == "--editor-save-as" || arg == "--editor-rewrite-on-disk") {
       if (i + 1 >= args.size()) {
         err() << arg << " needs a value\n" << Qt::flush;
@@ -761,6 +763,8 @@ void EduDevtools::run() {
         err() << "editor could not open " << value << "\n" << Qt::flush;
         status_ = 2;
       }
+    } else if (step == "goto-line") {
+      dock->editor()->goToLine(value.toInt());
     } else if (step == "type") {
       QString text = value;
       text.replace("\\n", "\n");

@@ -103,6 +103,18 @@ if [ "$file" = "$repo/helloworld.s" ]; then
     --trigger action_Data_UnitHalves --trigger action_Data_DisplayDecimal
   dshot r5-kernel-edit   --load "$sample" --steps 12 --expand-kernel-data \
     --set-memory 10010104=deadbeef --goto 0x10010104
+
+  # Editor (PLAN R4).
+  eshot() {  # eshot NAME [app options...]
+    local name=$1; shift
+    QT_QPA_PLATFORM=offscreen "$app" "$@" --window-size 1920x1080 \
+      --capture window --out "$out/$name-window.png" \
+      --capture editor --out "$out/$name-editor.png"
+  }
+  eshot r4-start
+  eshot r4-helloworld --editor-open "$file" --editor-goto-line 40
+  eshot r4-errors     --editor-open "$repo/tests/samples/editor-errors.s" --assemble
+  eshot r4-assembled  --editor-open "$file" --assemble
 fi
 
 echo

@@ -79,6 +79,9 @@ jobs:
       - name: Load through the File menu, compared with vanilla
         run: tools/check-menu-load.sh --compare-vanilla
 
+      - name: Editor (round trips, Assemble, error list)
+        run: tools/check-editor.sh
+
       - name: Korean path warning (end to end)
         run: tools/check-path-warning.sh -o "$RUNNER_TEMP/pathcheck"
 
