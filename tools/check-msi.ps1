@@ -150,4 +150,6 @@ if ($Install) {
 }
 
 Write-Host ""
-if ($script:failures -eq 0) { Write-Host "all checks passed" } else { Write-Host "$($script:failures) check(s) failed"; exit 1 }
+if ($script:failures -ne 0) { Write-Host "$($script:failures) check(s) failed"; exit 1 }
+Write-Host "all checks passed"
+exit 0  # not $LASTEXITCODE: "assoc .s" above exits 1 when there is no association
