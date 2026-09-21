@@ -42,6 +42,8 @@
 
 // EDU: fork identity.
 #include "edu/edu_version.h"
+// EDU: warn before passing a path the core cannot open.
+#include "edu/edu_path_check.h"
 
 #include <QStringBuilder>
 #define QT_USE_FAST_CONCATENATION
@@ -76,6 +78,11 @@ void SpimView::file_LoadFile() {
         "Assembly (*.a *.s *.asm);;Text files (*.txt)");
   }
   if (!file.isNull()) {
+    // EDU: toLocal8Bit() below is lossy for characters outside the system
+    // code page; explain instead of letting fopen() fail on "???".
+    if (!edu::confirmPathLoadable(this, file)) {
+      return;
+    }
     read_assembly_file(file.toLocal8Bit().data());
     st_recentFiles.removeAll(file);
     st_recentFiles.prepend(file);

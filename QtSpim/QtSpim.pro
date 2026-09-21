@@ -51,6 +51,8 @@ YACCSOURCES = ../CPU/parser.y
 LEXSOURCES  = ../CPU/scanner.l
 
 SOURCES += main.cpp\
+        edu/core/edu_path_encoding.cpp\
+        edu/edu_path_check.cpp\
         spimview.cpp\
         menu.cpp\
         regwin.cpp\
@@ -72,6 +74,8 @@ SOURCES += main.cpp\
 
 HEADERS  += spimview.h\
         edu/edu_version.h\
+        edu/core/edu_path_encoding.h\
+        edu/edu_path_check.h\
         regtextedit.h\
         texttextedit.h\
         datatextedit.h\

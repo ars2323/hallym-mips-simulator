@@ -16,14 +16,24 @@
 
        QtSpimEdu --load prog.s --run --dump console out.txt
 
+       QtSpimEdu --local-codec ISO-8859-1 --load "/tmp/한글/prog.s" ...
+
    --capture/--out may be repeated; each --capture must be followed by its
    --out.  --dump takes a stream name and a file, and may also be repeated.
    Any of --capture/--dump switches the program into this mode: it runs the
    script, writes the files and exits without waiting for the user.
 
+   --local-codec replaces the codec QString::toLocal8Bit() uses, so that the
+   "path cannot be passed to the simulator" warning (edu/edu_path_check.h)
+   can be exercised on a UTF-8 Linux box, where it would otherwise never
+   trigger.
+
    --run runs the program to completion through the normal Run path instead
    of single-stepping.  Combine with a shell timeout: a test program that
    loops forever will hang here exactly as it would in the GUI.
+
+   --dialog-shots <dir> saves a PNG of every dialog answered this way, so
+   that their appearance can be reviewed.
 
    From the moment this mode is entered until the captures are taken, any
    modal dialog the simulator raises (SPIM reports assembler and run-time
@@ -106,6 +116,7 @@ class EduDevtools : public QObject {
   int steps_;
   SpimView* window_;
   QString modalOut_;
+  QString dialogShotDir_;
   QTimer* dialogTimer_;
   int dismissedDialogs_;
   int status_;

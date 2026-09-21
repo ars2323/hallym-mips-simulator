@@ -4,12 +4,14 @@
 
 #include <QAbstractButton>
 #include <QApplication>
+#include <QDir>
 #include <QDockWidget>
 #include <QFile>
 #include <QFileInfo>
 #include <QMessageBox>
 #include <QPixmap>
 #include <QStatusBar>
+#include <QTextCodec>
 #include <QTextStream>
 #include <QTimer>
 #include <QWidget>
@@ -53,6 +55,8 @@ QString EduDevtools::usage() {
       "                         must be followed by --out\n"
       "  --out <file.png>       where to write the preceding --capture\n"
       "  --dump <stream> <file> write a text stream; repeatable\n"
+      "  --local-codec <name>   pretend the system text encoding is <name>\n"
+      "  --dialog-shots <dir>   save a PNG of every dialog answered\n"
       "\n"
       "  panels:  intregs fpregs text data console log window about\n"
       "  streams: console log regs\n");
@@ -90,6 +94,35 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
         return rest;
       }
       dumps_.append(dump);
+      continue;
+    }
+
+    if (arg == "--dialog-shots") {
+      if (i + 1 >= args.size()) {
+        err() << "--dialog-shots needs a directory\n" << usage() << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      dialogShotDir_ = args.at(i + 1);
+      QDir().mkpath(dialogShotDir_);
+      i += 1;
+      continue;
+    }
+
+    if (arg == "--local-codec") {
+      if (i + 1 >= args.size()) {
+        err() << "--local-codec needs a codec name\n" << usage() << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      QTextCodec* codec = QTextCodec::codecForName(args.at(i + 1).toLatin1());
+      if (codec == 0) {
+        err() << "unknown codec: " << args.at(i + 1) << "\n" << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      QTextCodec::setCodecForLocale(codec);
+      i += 1;
       continue;
     }
 
@@ -250,6 +283,11 @@ void EduDevtools::dismissBlockingDialog() {
   }
 
   dismissedDialogs_ += 1;
+  if (!dialogShotDir_.isEmpty()) {
+    grabToFile(modal, QString("%1/dialog-%2.png")
+                          .arg(dialogShotDir_)
+                          .arg(dismissedDialogs_, 3, 10, QLatin1Char('0')));
+  }
   QMessageBox* box = qobject_cast<QMessageBox*>(modal);
   if (box != 0) {
     out() << "dialog: " << box->text().simplified().left(160) << "\n"

@@ -36,6 +36,8 @@
 
 // EDU: fork identity (name, version, settings store).
 #include "edu/edu_version.h"
+// EDU: warn before passing a path the core cannot open.
+#include "edu/edu_path_check.h"
 
 #ifdef EDU_DEVTOOLS
 // EDU: scripted screenshot mode, development builds only.
@@ -97,6 +99,10 @@ int main(int argc, char* argv[]) {
 
   for (int i = 0; i < fileNames.length(); i++) {
     if (fileNames[i] != "") {
+      // EDU: same check as File > Load; see edu/core/edu_path_encoding.h.
+      if (!edu::confirmPathLoadable(&win, fileNames[i])) {
+        continue;
+      }
       read_assembly_file(fileNames[i].toLocal8Bit().data());
     }
   }

@@ -36,6 +36,8 @@
 
 // EDU: fork identity.
 #include "edu/edu_version.h"
+// EDU: warn before passing a path the core cannot open.
+#include "edu/edu_path_check.h"
 
 #include <QStringBuilder>
 #define QT_USE_FAST_CONCATENATION
@@ -197,6 +199,12 @@ QString SpimView::windowFormattingEnd() { return "</span>"; }
 
 void SpimView::InitializeWorld() {
   if (st_loadExceptionHandler) {
+    // EDU: a custom handler path the core could not open falls back to the
+    // built-in handler, just as a missing file does below.
+    if ((st_exceptionHandlerFileName != stdExceptionHandler) &&
+        !edu::confirmPathLoadable(this, st_exceptionHandlerFileName)) {
+      st_exceptionHandlerFileName = stdExceptionHandler;
+    }
     if ((st_exceptionHandlerFileName != stdExceptionHandler) &&
         !QFile::exists(st_exceptionHandlerFileName)) {
       QMessageBox msgBox;

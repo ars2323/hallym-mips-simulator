@@ -12,8 +12,16 @@ TARGET    = tst_edu_core
 
 INCLUDEPATH += $$PWD/.. $$PWD/../../QtSpim $$PWD/../../CPU
 
-SOURCES += tst_edu_core.cpp \
-           tst_version.cpp
-
-HEADERS += ../testregistry.h \
+# Code under test.
+SOURCES += ../../QtSpim/edu/core/edu_path_encoding.cpp
+HEADERS += ../../QtSpim/edu/core/edu_path_encoding.h \
            ../../QtSpim/edu/edu_version.h
+
+# Tests.
+SOURCES += tst_edu_core.cpp \
+           tst_version.cpp \
+           tst_path_encoding.cpp
+HEADERS += ../testregistry.h
+
+# Test sources contain Korean text in string literals.
+win32-msvc: QMAKE_CXXFLAGS += /utf-8
