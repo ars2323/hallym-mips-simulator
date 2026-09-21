@@ -218,6 +218,14 @@ win32-msvc {
   # names.  lex.prf recognises "flex" in the name and uses the -o form.
   QMAKE_YACC = win_bison
   QMAKE_LEX  = win_flex
+
+  # Qt's MSVC mkspec adds -Zc:strictStrings to release builds, which makes
+  # every "literal" passed to a char* parameter an error.  The SPIM core does
+  # that throughout (error("..."), int_reg_names[], ...), and it is not ours
+  # to change, so the pre-2013 behaviour is restored.
+  QMAKE_CXXFLAGS_RELEASE -= -Zc:strictStrings
+  QMAKE_CXXFLAGS_RELEASE_WITH_DEBUGINFO -= -Zc:strictStrings
+  QMAKE_CXXFLAGS += -Zc:strictStrings-
 }
 
 
