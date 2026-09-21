@@ -398,7 +398,10 @@ QString → 코어(`char*`)로 넘어가는 지점은 **전부 `toLocal8Bit()`**
   MSVC의 `fopen`은 ANSI 경로를 받으므로 **CP949로 표현 가능한 한글 경로는 동작한다.**
   CP949에 없는 문자(일부 한자·이모지·다른 언어 문자)가 경로에 있으면 실패한다.
 - 완전한 해결은 `_wfopen`이 필요하고 그건 `CPU/` 수정이다 → **하지 않는다.**
-  대신 2단계 Windows 확인 항목에 "한글 사용자명 경로에서 .s 로드"를 넣는다(이미 PLAN에 있음).
+  대신 2단계에서 **감지·경고**를 넣었다: `QtSpim/edu/core/edu_path_encoding.*`(코덱 왕복으로 손실 판정, 단위 테스트)와
+  `QtSpim/edu/edu_path_check.*`(경고 대화상자). 위 표의 세 지점(File > Load, 명령줄 파일, 예외 핸들러 경로) 앞에서
+  `edu::confirmPathLoadable()`을 부르고, 손실이 있으면 로드를 건너뛴다.
+  Linux(UTF-8)에서는 절대 안 뜨므로 개발 빌드의 `--local-codec`으로 인코딩을 가장해 검사한다(`tools/check-path-warning.sh`).
 - `initialize_stack`에 넘기는 문자열은 **argv[0]로 프로그램에 들어간다**. 한글 경로면 MIPS 쪽에서
   CP949/UTF-8 바이트열로 보인다. 원본과 같은 동작이므로 건드리지 않는다.
 
@@ -548,6 +551,13 @@ Settings 다이얼로그 내용(`QtSpim/settings.ui`, 처리 `menu.cpp:402-541`)
   - Linux `/usr/lib/qtspim/help/qtspim.qhc` + `/usr/lib/qtspim/bin/assistant`
 - 없으면 "Cannot find QtSpim help file. Check installation." 메시지박스.
 - **따라서 설치하지 않은 개발 빌드에서는 원본도 헬프가 안 열린다.** 0단계 보고 참조.
+- 2단계에서 **네 번째 후보**를 원본 세 후보 **뒤에** 추가했다: `<실행 파일 폴더>/help/qtspim.qhc`,
+  브라우저는 `<실행 파일 폴더>/assistant(.exe)`가 있으면 그것, 없으면 PATH의 `assistant`.
+  원본 후보가 존재하는 환경에서는 동작이 그대로이고, zip을 풀어 실행한 경우와 Linux 개발 빌드
+  (`build/help/qtspim.qhc` + `/usr/bin/assistant`)에서 헬프가 열린다.
+- Windows에서 원본이 `"assistant"`라는 이름만으로 헬프 브라우저를 찾는 이유: `CreateProcess`는
+  **실행 파일이 있는 폴더를 PATH보다 먼저** 뒤진다. 설치 폴더에 `assistant.exe`를 같이 넣는 것으로 충분하다
+  (`bin/release-win:23-24`가 그렇게 한다).
 - 빌드 산출물 `<build>/help/qtspim.qch`, `<build>/help/qtspim.qhc`는 설치 스크립트가 그대로 가져간다
   (`Setup/QtSpim_Win_Deployment/WiX/QtSpim.wxs:205-208`, `bin/release-debian:102-105`).
 
@@ -613,6 +623,10 @@ git diff --stat            # 한 줄 고쳤는데 수백 줄이면 줄바꿈을 
 file -b QtSpim/menu.cpp    # "with CRLF line terminators"가 있어야 한다
 ```
 
+우리 파일(`QtSpim/edu/`, `tests/`)은 LF·UTF-8이고 한글 문자열 리터럴이 있다.
+MSVC는 BOM 없는 UTF-8 소스를 시스템 코드페이지로 읽으므로 `.pro`의 `win32-msvc` 블록이 `/utf-8`을 준다.
+새 `.pro`를 만들면 같은 플래그를 넣을 것(`tests/edu_core/edu_core.pro` 참조).
+
 ### 10.2 코어 헤더 중복 include
 
 §3.9 참조. `spimview.h`를 include했으면 `CPU/*.h`를 다시 include하지 말 것.
@@ -628,4 +642,5 @@ file -b QtSpim/menu.cpp    # "with CRLF line terminators"가 있어야 한다
 | `Setup/QtSpim_Win_Deployment/WiX/QtSpim.wxs:28-32` | `QtSpim.exe`, 시작 메뉴 이름 `QtSpim` |
 | `Setup/QtSpim_Win_Deployment/WiX/QtSpim.wxs:3` | `Product Name='QtSpim'`, `Manufacturer='LarusStone'` |
 
-2단계(Windows CI)와 8단계(MSI)에서 같이 고쳐야 한다. 지금은 손대지 않았다.
+zip 배포(2단계)는 이 스크립트들을 쓰지 않고 `tools/package-windows.ps1`이 따로 만든다.
+`bin/release-win`과 WiX는 MSI 흐름(8단계) 몫으로 남겨 두었고 아직 원본 이름 그대로다.
