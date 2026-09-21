@@ -125,6 +125,13 @@ void SpimView::eduSetupEditor() {
     eduStaleBanners << banner;
   }
 
+  // The file the editor had open last time, if it is still there.  It is
+  // NOT assembled: the simulator starts as upstream's does, and the strip
+  // above says what to press.
+  const QString last = settings.value("Editor/LastFile").toString();
+  if (!last.isEmpty() && QFileInfo(last).isFile() && QFileInfo(last).isReadable()) {
+    eduEditor->openFile(last, false);
+  }
   eduUpdateStaleBanner();
 }
 
@@ -157,6 +164,9 @@ void SpimView::eduTileEditor() {
 void SpimView::eduEditorFileChanged() {
   eduUpdateStaleBanner();
   const QString path = eduEditor->filePath();
+  if (path != settings.value("Editor/LastFile").toString()) {
+    settings.setValue("Editor/LastFile", path);  // reopened at the next start
+  }
   if (path.isEmpty()) {
     return;
   }
