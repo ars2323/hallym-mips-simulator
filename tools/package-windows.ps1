@@ -30,7 +30,12 @@ param(
   [string]$BuildDir = "build",
   [string]$OutDir = "dist",
   [string]$QtBinDir = "",
-  [string]$RedistDir = ""
+  [string]$RedistDir = "",
+  # Folder with QtSpim-Edu-GUIDE-ko.pdf / QtSpim-Edu-GUIDE.pdf (made by
+  # tools/make-guide-pdf.sh; CI hands them over from the Linux job).  The
+  # guides have pictures, so the PDFs are what goes into the zip; without
+  # this the Markdown files are shipped instead.
+  [string]$GuideDir = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -99,16 +104,27 @@ Copy-Item (Join-Path $repo "helloworld.s") $stage
 Copy-Item (Join-Path $repo "README") (Join-Path $stage "README-SPIM.txt")
 Copy-Item (Join-Path $repo "Setup\QtSpim_License.rtf") (Join-Path $stage "QtSpim_License.rtf")
 
-# The student guide, Korean and English.  Markdown reads well enough in
-# Notepad; the PDFs are on the release page.  (UTF-8 with BOM, as below.)
-foreach ($guide in @("GUIDE-ko.md", "GUIDE.md")) {
-  $text = Get-Content (Join-Path $repo "docs\$guide") -Raw -Encoding UTF8
-  [System.IO.File]::WriteAllText((Join-Path $stage $guide), $text,
-                                  (New-Object System.Text.UTF8Encoding $true))
+# The student guide, Korean and English.
+if ($GuideDir) {
+  $guides = @("QtSpim-Edu-GUIDE-ko.pdf", "QtSpim-Edu-GUIDE.pdf")
+  foreach ($guide in $guides) {
+    $pdf = Join-Path $GuideDir $guide
+    if (-not (Test-Path $pdf)) { Fail "$pdf missing" }
+    Copy-Item $pdf $stage
+  }
+} else {
+  # No PDFs at hand (a local build): the Markdown text, without its pictures.
+  $guides = @("GUIDE-ko.md", "GUIDE.md")
+  foreach ($guide in $guides) {
+    $text = Get-Content (Join-Path $repo "docs\$guide") -Raw -Encoding UTF8
+    [System.IO.File]::WriteAllText((Join-Path $stage $guide), $text,
+                                    (New-Object System.Text.UTF8Encoding $true))
+  }
 }
 
 $readme = Get-Content (Join-Path $repo "tools\windows-zip-README.txt") -Raw
 $readme = $readme.Replace("@VERSION@", $version).Replace("@BASE_VERSION@", $baseVersion)
+$readme = $readme.Replace("@GUIDE_KO@", $guides[0]).Replace("@GUIDE_EN@", $guides[1])
 # UTF-8 with BOM so Notepad shows the Korean half correctly.
 [System.IO.File]::WriteAllText((Join-Path $stage "README-QtSpim-Edu.txt"), $readme,
                                 (New-Object System.Text.UTF8Encoding $true))
@@ -119,7 +135,7 @@ $required = @("QtSpimEdu.exe", "assistant.exe", "Qt5Core.dll", "Qt5Gui.dll",
               "platforms\qwindows.dll", "sqldrivers\qsqlite.dll",
               "msvcp140.dll", "vcruntime140.dll",
               "help\qtspim.qch", "help\qtspim.qhc", "helloworld.s",
-              "README-QtSpim-Edu.txt", "GUIDE-ko.md", "GUIDE.md")
+              "README-QtSpim-Edu.txt") + $guides
 $missing = $required | Where-Object { -not (Test-Path (Join-Path $stage $_)) }
 if ($missing) { Fail ("zip would be incomplete, missing: " + ($missing -join ", ")) }
 

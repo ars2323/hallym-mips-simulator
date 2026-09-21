@@ -5,7 +5,7 @@ QtSpim-Edu @VERSION@ for Windows   (based on QtSpim @BASE_VERSION@)
   If "Windows protected your PC" appears: More info -> Run anyway
   (the program is not code-signed).
 
-  How to use it, and what differs from standard QtSpim:  GUIDE.md
+  How to use it, and what differs from standard QtSpim:  @GUIDE_EN@
   The QtSpim manual:  Help > View Help  (assistant.exe in this folder)
 
   The simulator core is the unmodified SPIM @BASE_VERSION@ core: programs run
@@ -19,7 +19,7 @@ QtSpim-Edu @VERSION@ (Windows)   한국어
   됩니다.  "Windows의 PC 보호" 창이 뜨면 "추가 정보" -> "실행"을 누르세요
   (코드 서명이 없어서 나오는 안내입니다).
 
-  사용법과 표준 QtSpim과 다른 점:  GUIDE-ko.md
+  사용법과 표준 QtSpim과 다른 점:  @GUIDE_KO@
   QtSpim 설명서:  Help > View Help  (이 폴더의 assistant.exe)
 
   시뮬레이터 코어는 원본 SPIM @BASE_VERSION@ 그대로라 실행 결과는 표준 QtSpim과

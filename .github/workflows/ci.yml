@@ -113,6 +113,7 @@ jobs:
 
   windows:
     name: Windows (Qt 5.15.2, MSVC 2019)
+    needs: linux        # the guide PDFs that go into the zip are made there
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
@@ -174,9 +175,15 @@ jobs:
           findstr /C:"Totals:" "%RUNNER_TEMP%\unit-tests.log" >nul || (echo no QtTest report in the output & exit /b 1)
           if not "%TEST_EXIT%"=="0" exit /b %TEST_EXIT%
 
+      - name: Guide PDFs from the Linux job
+        uses: actions/download-artifact@v4
+        with:
+          name: guide-pdf
+          path: guide-pdf
+
       - name: Package zip
         shell: pwsh
-        run: tools/package-windows.ps1 -BuildDir build -OutDir dist
+        run: tools/package-windows.ps1 -BuildDir build -OutDir dist -GuideDir guide-pdf
 
       - name: Package MSI (WiX)
         shell: pwsh

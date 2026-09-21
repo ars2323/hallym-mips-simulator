@@ -87,7 +87,7 @@ $clash = $components | Where-Object { $upstreamGuids -contains $_[1].Trim("{}").
 Check (-not $clash) "no component GUID shared with upstream's installer ($($components.Count) components)"
 
 $files = Query "SELECT File, FileName FROM File" 2
-foreach ($needed in @("QtSpimEdu.exe", "assistant.exe", "Qt5Core.dll", "qwindows.dll", "qtspim.qhc", "GUIDE-ko.md")) {
+foreach ($needed in @("QtSpimEdu.exe", "assistant.exe", "Qt5Core.dll", "qwindows.dll", "qtspim.qhc", "GUIDE-ko")) {
   Check ([bool]($files | Where-Object { $_[1] -match [regex]::Escape($needed) })) "contains $needed"
 }
 Check (-not ($files | Where-Object { $_[1] -match '(^|\|)QtSpim\.exe$' })) "does not contain QtSpim.exe"

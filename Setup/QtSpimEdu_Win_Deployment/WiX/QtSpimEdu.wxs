@@ -3,6 +3,7 @@
 
      Built by tools/package-msi.ps1, which passes
        ProductVersion  EDU_VERSION from QtSpim/edu/edu_version.h (MAJOR.MINOR.PATCH)
+       GuideFile       the Korean guide's file name in that folder (PDF in CI)
        StageDir        the staged zip folder; its files are harvested into
                        the component group AppFiles (heat) -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
@@ -39,7 +40,7 @@
                       Target="[INSTALLFOLDER]QtSpimEdu.exe"
                       WorkingDirectory="INSTALLFOLDER" Icon="QtSpimEdu.ico" />
             <Shortcut Id="EduStartMenuGuide" Name="User Guide"
-                      Target="[INSTALLFOLDER]GUIDE-ko.md"
+                      Target="[INSTALLFOLDER]$(var.GuideFile)"
                       WorkingDirectory="INSTALLFOLDER" />
             <RemoveFolder Id="EduProgramMenuDir" On="uninstall" />
             <!-- Key path of the shortcuts.  NOT under Software\QtSpim-Edu,

@@ -37,6 +37,10 @@ $work = Join-Path $OutDir "msi-build"
 if (Test-Path $work) { Remove-Item -Recurse -Force $work }
 New-Item -ItemType Directory -Force -Path $work | Out-Null
 
+$guide = @("QtSpim-Edu-GUIDE-ko.pdf", "GUIDE-ko.md") |
+         Where-Object { Test-Path (Join-Path $stage $_) } | Select-Object -First 1
+if (-not $guide) { Fail "no guide in $stage" }
+
 $wxs = Join-Path $repo "Setup\QtSpimEdu_Win_Deployment\WiX\QtSpimEdu.wxs"
 $icon = Join-Path $repo "Setup\NewIcon.ico"
 $license = Join-Path $repo "Setup\QtSpim_License.rtf"
@@ -48,7 +52,7 @@ $license = Join-Path $repo "Setup\QtSpim_License.rtf"
 if ($LASTEXITCODE -ne 0) { Fail "heat failed" }
 # (candle -arch x64 below makes every component 64-bit.)
 & (Join-Path $wixBin "candle.exe") -nologo -arch x64 `
-    "-dProductVersion=$version" "-dStageDir=$stage" "-dIconFile=$icon" "-dLicenseFile=$license" `
+    "-dProductVersion=$version" "-dStageDir=$stage" "-dIconFile=$icon" "-dLicenseFile=$license" "-dGuideFile=$guide" `
     -out "$work\" $wxs (Join-Path $work "files.wxs")
 if ($LASTEXITCODE -ne 0) { Fail "candle failed" }
 
