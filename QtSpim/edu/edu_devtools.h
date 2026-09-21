@@ -166,6 +166,7 @@ class EduDevtools : public QObject {
   bool expandKernel_;
   bool hasSelectInstruction_;
   quint32 selectInstruction_;  // Text panel row to select before capturing
+  bool saveSettings_;
   bool expandEnvironment_;
   bool expandKernelData_;
   QStringList menuLoads_;    // "L<path>" / "R<path>", in command-line order

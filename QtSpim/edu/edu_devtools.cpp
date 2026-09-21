@@ -4,6 +4,7 @@
 
 #include <QAbstractButton>
 #include <QApplication>
+#include <QCloseEvent>
 #include <QDir>
 #include <QDockWidget>
 #include <QElapsedTimer>
@@ -59,6 +60,7 @@ EduDevtools::EduDevtools(QObject* parent)
       expandKernel_(false),
       hasSelectInstruction_(false),
       selectInstruction_(0),
+      saveSettings_(false),
       expandEnvironment_(false),
       expandKernelData_(false),
       reportTime_(false),
@@ -94,6 +96,8 @@ QString EduDevtools::usage() {
       "  --select-memory <hexaddr>  select that word in the Data panel\n"
       "  --set-memory <hexaddr>=<hexvalue>  write a word as Change Memory\n"
       "                         Contents does\n"
+      "  --save-settings        write the settings file on exit, as closing the\n"
+      "                         window does (the script otherwise leaves none)\n"
       "  --raise <panel>        bring that dock's tab to the front\n"
       "  --expand-env           unfold the stack's argv/environment area\n"
       "  --expand-kernel-data   unfold the Data panel's kernel segment\n"
@@ -280,6 +284,11 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
       }
       raisePanel_ = args.at(i + 1);
       i += 1;
+      continue;
+    }
+
+    if (arg == "--save-settings") {
+      saveSettings_ = true;
       continue;
     }
 
@@ -846,5 +855,10 @@ void EduDevtools::run() {
     }
   }
 
+  if (saveSettings_) {
+    // What closing the window does before it exits (SpimView::closeEvent()).
+    QCloseEvent closing;
+    QApplication::sendEvent(window_, &closing);
+  }
   QApplication::exit(status_);
 }
