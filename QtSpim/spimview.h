@@ -115,6 +115,7 @@ class SpimView : public QMainWindow {
   EduEditorDock* eduEditor;
   void eduSetupEditor();
   void eduTileEditor();
+  void eduEditorAtStartup();
   bool eduEditorMaybeSave();                     // false = the user cancelled
   void eduEditorFileLoaded(const QString& file); // File > Load File, command line
   bool eduCollectError(const QString& message);  // true = taken, show no box

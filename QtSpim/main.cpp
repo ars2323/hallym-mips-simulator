@@ -110,6 +110,8 @@ int main(int argc, char* argv[]) {
     }
   }
 
+  win.eduEditorAtStartup();  // EDU: Editor tab in front unless a file was given
+
   win.DisplayTextSegments(true);
   win.UpdateDataDisplay();
 

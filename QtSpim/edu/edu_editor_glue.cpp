@@ -204,6 +204,17 @@ void SpimView::eduEditorOpenRecent() {
   }
 }
 
+// main.cpp, once the command line's files are loaded.  A restored window
+// layout brings back whichever tab was in front when the program was closed
+// (usually Text, after an assemble); with no program loaded there is nothing
+// in Text or Data to look at, so the editor goes in front -- unless the user
+// has closed it.
+void SpimView::eduEditorAtStartup() {
+  if (!eduProgramLoaded && !eduEditor->isHidden()) {
+    eduEditor->raise();
+  }
+}
+
 bool SpimView::eduEditorMaybeSave() { return eduEditor->maybeSave(); }
 
 void SpimView::eduEditorNew() {
