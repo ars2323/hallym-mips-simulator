@@ -354,7 +354,7 @@ spim: (parser) immediate value (65432) out of range (-32768 .. 32767) on line 41
 ```
 - 1행: `spim: (parser) ` + 메시지 + ` on line ` + **줄 번호** + ` of file ` + **경로**
 - 2행: 탭 + 공백 2개 + 소스 줄 원문
-- 3행: 탭 + 공백 2개 + `prefix_length`개의 공백 + `^` (`CPU/scanner.l:552-555`)
+- 3행: 탭 + 공백 2개 + `prefix_length`개의 공백 + `^` (`CPU/scanner.l:588-591`)
 
 **주의**: 이 `erroneous_line()`은 명령어에 붙는 주석을 만드는 `source_line()`
 (`CPU/scanner.l:687`, 형식 `"줄번호: 원문"`, §3.4)과 **다른 함수다.** 이름이 비슷해 헷갈리기 쉽다.
@@ -569,6 +569,7 @@ Settings 다이얼로그 내용(`QtSpim/settings.ui`, 처리 `menu.cpp:402-541`)
 | ⑩ | (PLAN에 없음) 실행 중 화면 갱신 | Run은 끝난 뒤 한 번만 갱신 | 원본 동작. 바꾸려면 별도 결정 |
 | ⑪ | (PLAN에 없음) 한글 경로 | `toLocal8Bit()` → Windows에서 CP949 표현 가능 범위만 동작 | `CPU/` 수정 없이는 한계. §5 |
 | ⑫ | (PLAN에 없음) 브레이크포인트 | 테이블이 아니라 **메모리를 덮어쓴다** | 새 Text 모델이 원본 명령을 얻는 경로 필요. §3.5 |
+| ⑬ | (PLAN에 없음) 실행 파일명 변경 | `Setup/`·`bin/release-*`가 `QtSpim`/`QtSpim.exe`를 하드코딩 | 2·8단계에서 함께 고쳐야 한다. §10 |
 
 ---
 
@@ -589,3 +590,42 @@ make -f <repo>/spim/Makefile spim \
 $ printf 'load "helloworld.s"\nrun\nprint_all_regs\nquit\n' | ./spim -ef <repo>/CPU/exceptions.s -q
 ```
 명령어 한 줄 보기: `print 0x00400024` (`spim/spim.cpp:657-705`에 명령 목록).
+
+---
+
+## 10. 파일을 고칠 때 주의할 것
+
+### 10.1 줄바꿈
+
+| 디렉터리 | 줄바꿈 |
+|---|---|
+| `QtSpim/*` (`.cpp .h .pro .ui .qrc .qhcp .qhp`) | **CRLF** |
+| `CPU/*` (`CPU/version.h`만 예외로 CRLF) | LF |
+| `QtSpim/macinfo.plist`, `QtSpim/qtspim.rc` | LF |
+
+편집 도구가 무심코 전체를 LF로 바꾸면 한 줄만 고쳐도 파일 전체가 diff에 잡힌다.
+(`QtSpim/QtSpim.pro`를 고치면서 실제로 한 번 저질렀다.)
+Python으로 고칠 때는 `open(..., newline='')`로 읽고 쓴다.
+
+확인:
+```bash
+git diff --stat            # 한 줄 고쳤는데 수백 줄이면 줄바꿈을 망친 것
+file -b QtSpim/menu.cpp    # "with CRLF line terminators"가 있어야 한다
+```
+
+### 10.2 코어 헤더 중복 include
+
+§3.9 참조. `spimview.h`를 include했으면 `CPU/*.h`를 다시 include하지 말 것.
+
+### 10.3 실행 파일명을 바꾼 여파 (미해결)
+
+브랜딩에서 `TARGET`을 `QtSpimEdu`로 바꿨다(`QtSpim/QtSpim.pro`). 배포 스크립트는 아직 원본 이름을 쓴다:
+
+| 파일 | 하드코딩된 이름 |
+|---|---|
+| `bin/release-win:23` | `$RELEASE_DIR/release/QtSpim.exe` |
+| `bin/release-debian:46,63` | `$RELEASE_DIR/QtSpim` |
+| `Setup/QtSpim_Win_Deployment/WiX/QtSpim.wxs:28-32` | `QtSpim.exe`, 시작 메뉴 이름 `QtSpim` |
+| `Setup/QtSpim_Win_Deployment/WiX/QtSpim.wxs:3` | `Product Name='QtSpim'`, `Manufacturer='LarusStone'` |
+
+2단계(Windows CI)와 8단계(MSI)에서 같이 고쳐야 한다. 지금은 손대지 않았다.
