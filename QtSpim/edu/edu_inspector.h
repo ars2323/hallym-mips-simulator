@@ -1,17 +1,24 @@
 /* QtSpim-Edu: the inspector dock (PLAN "공통: 인스펙터 패널").
 
    One dock, below the register dock, whose content depends on what is
-   selected.  Stage 3 knows registers (PLAN R2); instructions and memory
-   words are added in stages 5 and 6.
+   selected: a register (PLAN R2) or an instruction (PLAN R3); memory words
+   follow in stage 6.
 
-   All numbers come from edu/core/edu_format.h; this class only lays them
-   out.
+   All numbers come from edu/core/ (edu_format.h, edu_instruction_text.h);
+   this class only shows them.
+
+   Height: as many lines as the content needs, never fewer than kMinLines
+   (what a register takes, so that selecting registers never moves the
+   register list above) and never more than kMaxLines (beyond that the
+   text scrolls).  Every line the inspector takes is a row the register
+   list loses.
 */
 
 #ifndef EDU_INSPECTOR_H
 #define EDU_INSPECTOR_H
 
 #include <QDockWidget>
+#include <QStringList>
 
 #include "edu/core/edu_registers.h"
 
@@ -23,11 +30,19 @@ class EduInspector : public QDockWidget {
  public:
   explicit EduInspector(QWidget* parent = 0);
 
+  enum { kMinLines = 6, kMaxLines = 16 };
+
   void showNothing();
   void showRegister(const edu::RegisterRef& reg, quint32 value, bool changed,
                     const QString& groupTitle);
 
+  // The lines of edu::instructionDetailLines(); long ones are wrapped.
+  void showInstruction(const QStringList& lines);
+
   void setPanelFont(const QFont& font);
+
+  // How many text lines tall the inspector currently is.
+  int shownLines() const { return shownLines_; }
 
   // The text being shown, for tests and the screenshot harness.
   QString text() const;
@@ -36,9 +51,14 @@ class EduInspector : public QDockWidget {
   static QString registerText(const edu::RegisterRef& reg, quint32 value,
                               bool changed, const QString& groupTitle);
 
+ private slots:
+  void fitHeight();
+
  private:
-  enum { kLines = 6 };  // registerText() produces exactly this many
+  void setText(const QString& text);
+
   QPlainTextEdit* view_;
+  int shownLines_;
 };
 
 #endif  // EDU_INSPECTOR_H

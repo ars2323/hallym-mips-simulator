@@ -2,27 +2,37 @@
 
 #include "edu/edu_inspector.h"
 
+#include <QAbstractTextDocumentLayout>
 #include <QFontDatabase>
 #include <QFontInfo>
 #include <QFontMetrics>
 #include <QPlainTextEdit>
+#include <QTextBlock>
 
 #include "edu/core/edu_format.h"
+#include "edu/core/edu_instruction_text.h"
 
 EduInspector::EduInspector(QWidget* parent)
-    : QDockWidget("Inspector", parent), view_(new QPlainTextEdit(this)) {
+    : QDockWidget("Inspector", parent),
+      view_(new QPlainTextEdit(this)),
+      shownLines_(kMinLines) {
   setObjectName("InspectorDockWidget");  // saveState()/restoreState() key
   setAllowedAreas(Qt::LeftDockWidgetArea | Qt::TopDockWidgetArea |
                   Qt::BottomDockWidgetArea);
 
   view_->setReadOnly(true);
   view_->setUndoRedoEnabled(false);
-  view_->setLineWrapMode(QPlainTextEdit::NoWrap);
+  // Register and instruction tables are narrower than the dock and never
+  // wrap; a branch's destination line and note do.
+  view_->setLineWrapMode(QPlainTextEdit::WidgetWidth);
+  view_->setWordWrapMode(QTextOption::WordWrap);
   view_->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   view_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   view_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
   setPanelFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
   setWidget(view_);
+  connect(view_->document()->documentLayout(),
+          SIGNAL(documentSizeChanged(QSizeF)), this, SLOT(fitHeight()));
 
   showNothing();
 }
@@ -49,24 +59,58 @@ void EduInspector::setPanelFont(const QFont& font) {
   const int chrome = 2 * view_->frameWidth() +
                      int(2 * view_->document()->documentMargin());
 
-  // Wide enough for the longest line (heading, about 40 characters) so that
-  // no horizontal scroll bar ever takes a line of the fixed height.
+  // Wide enough for the widest table row, so that those never wrap.
   view_->setMinimumWidth(
-      metrics.horizontalAdvance(QString(42, QLatin1Char('0'))) + chrome + 8);
+      metrics.horizontalAdvance(
+          QString(edu::kInstructionTextColumns, QLatin1Char('0'))) +
+      chrome + 8);
+  fitHeight();
+}
 
-  // Exactly as tall as its content (kLines lines): the inspector never needs
-  // more, and every pixel it does not take goes to the register list above.
-  // A text line is height() tall; lineSpacing() adds the leading, which is
-  // negative for some fonts (Nimbus Mono: -2) and would clip the last line.
-  view_->setFixedHeight(
-      kLines * qMax(metrics.height(), metrics.lineSpacing()) + chrome + 2);
+// Exactly as tall as its content, within [kMinLines, kMaxLines]: the
+// inspector never needs more, and every pixel it does not take goes to the
+// register list above.  A text line is height() tall; lineSpacing() adds the
+// leading, which is negative for some fonts (Nimbus Mono: -2) and would clip
+// the last line.
+void EduInspector::fitHeight() {
+  const QFontMetrics metrics = view_->fontMetrics();
+  const int lineHeight = qMax(metrics.height(), metrics.lineSpacing());
+
+  // Measured in pixels, block by block: a wrapped line counts, and a line
+  // of Hangul (the branch note) comes from a fallback font that may be
+  // taller than the panel's own.
+  QAbstractTextDocumentLayout* layout = view_->document()->documentLayout();
+  qreal needed = 0;
+  for (QTextBlock block = view_->document()->begin(); block.isValid();
+       block = block.next()) {
+    needed += layout->blockBoundingRect(block).height();
+  }
+  const int content = qBound(kMinLines * lineHeight, int(needed + 0.999),
+                             kMaxLines * lineHeight);
+  view_->setVerticalScrollBarPolicy(needed > kMaxLines * lineHeight
+                                        ? Qt::ScrollBarAsNeeded
+                                        : Qt::ScrollBarAlwaysOff);
+  const int chrome = 2 * view_->frameWidth() +
+                     int(2 * view_->document()->documentMargin());
+  const int height = content + chrome + 2;
+  shownLines_ = (content + lineHeight - 1) / lineHeight;
+  if (view_->minimumHeight() != height || view_->maximumHeight() != height) {
+    view_->setFixedHeight(height);
+  }
+}
+
+void EduInspector::setText(const QString& text) {
+  if (text != view_->toPlainText()) {
+    view_->setPlainText(text);
+  }
+  fitHeight();
 }
 
 QString EduInspector::text() const { return view_->toPlainText(); }
 
 void EduInspector::showNothing() {
-  view_->setPlainText("Select a register to see its value\n"
-                      "in hex, decimal and binary.");
+  setText("Select a register or an instruction\n"
+          "to see its bits.");
 }
 
 QString EduInspector::registerText(const edu::RegisterRef& reg, quint32 value,
@@ -85,8 +129,8 @@ QString EduInspector::registerText(const edu::RegisterRef& reg, quint32 value,
     heading << "changed";  // by the last run command
   }
 
-  // Six lines, no blanks: every line here is a row the register list above
-  // does not get (see kLines).
+  // Six lines (kMinLines), no blanks: every line here is a row the register
+  // list above does not get.
   QStringList lines;
   lines << heading.join(" | ");
   lines << QString("Hex       ") + edu::hex32(value);
@@ -101,5 +145,9 @@ QString EduInspector::registerText(const edu::RegisterRef& reg, quint32 value,
 
 void EduInspector::showRegister(const edu::RegisterRef& reg, quint32 value,
                                 bool changed, const QString& groupTitle) {
-  view_->setPlainText(registerText(reg, value, changed, groupTitle));
+  setText(registerText(reg, value, changed, groupTitle));
+}
+
+void EduInspector::showInstruction(const QStringList& lines) {
+  setText(lines.join("\n"));
 }
