@@ -291,6 +291,14 @@ void     print_symbols();                   //         CPU/sym-tbl.cpp:371
   (`QtSpim/spim_support.cpp:129-141`)이므로, 거기에 캡처 스위치를 달고 `print_symbols()`를 호출해
   주소→라벨 표를 만들면 된다. `CPU/` 불변, `// EDU:` 주석 대상.
 
+> **6단계에서 확인한 제약 — `print_symbols()`만으로는 부족하다.** 코어는 파일 하나를 다 읽으면
+> `flush_local_labels()`로 그 파일의 **로컬(비-`.globl`) 라벨을 해시 테이블에서 뺀다**
+> (`CPU/spim-utils.cpp:184`, `CPU/sym-tbl.cpp:334-355`). 그래서 로드가 끝난 뒤의 `print_symbols()`에는
+> `main`, `__start`, `.extern` 같은 **전역 라벨만** 나온다 — 학생 코드의 `msg:` 같은 `.data` 라벨은 대부분 로컬이다.
+> 라벨 구조체 자체는 해제되지 않고(명령어의 `EXPR(inst)->symbol`이 계속 가리킨다 — `sym-tbl.cpp:350` 주석),
+> 그래서 **명령어가 참조하는 라벨**은 텍스트 세그먼트를 훑어 이름·주소를 얻을 수 있다. Data 패널은 두 출처를 합친다(§15.2).
+> 코드가 한 번도 참조하지 않는 로컬 `.data` 라벨은 `CPU/` 수정 없이는 얻을 방법이 없다.
+
 `label` 구조체는 공개되어 있다(`CPU/sym-tbl.h:34-51`): `name`, `addr`, `global_flag`, `gp_flag`, `const_flag`.
 
 ### 3.8 실행
@@ -517,6 +525,7 @@ Settings 다이얼로그 내용(`QtSpim/settings.ui`, 처리 `menu.cpp:402-541`)
 - 인쇄: `findChild<…>("IntRegTextEdit")->print(&printer)` 등 (`menu.cpp:167-180`)
 
 (3단계 이후 Int Regs는 `SpimView::intRegistersLogText()`/`printIntRegisters()`를 거친다 — §11.)
+(6단계 이후 Data는 `SpimView::dataSegmentLogText()`/`printDataSegment()`를 거친다 — §15.5. 우클릭 메뉴의 진법·Change Memory Contents는 `EduDataView`가 제공한다.)
 (5단계 이후 Text는 `SpimView::textSegmentLogText()`/`printTextSegment()`를 거친다 — §14.4. 우클릭 메뉴의 Set/Clear Breakpoint는 `EduTextView`가 제공한다.)
 
 → **위젯을 `QTreeView`/`QTableView`로 바꾸면 이 두 기능이 그대로는 깨진다.**
@@ -734,10 +743,17 @@ DisplayIntRegisters()  QtSpim/regwin.cpp
 | 20 | 단계 실행 시 선택(커서)은 움직이지 않는다. PC 줄은 cyan 강조 + 보이도록 스크롤만 | PC 줄로 텍스트 커서도 이동 | 선택은 인스펙터의 대상이라 사용자가 고른 채로 둔다 | 5 · `edu_spimview_glue.cpp` `eduHighlightInstruction` |
 | 21 | 인스펙터 높이가 내용에 따라 6~16줄. 폭은 44자(3단계 42자) | 6줄 고정 | 명령어 필드 표 + 분기 안내문. FI 형식(`bc1t`)의 표가 44자 | 5 · `edu/edu_inspector.*` |
 | 22 | 소스 줄이 UTF-8이 아니면 CP949로 해석해 표시 | UTF-8로만 해석(한글 CP949 주석이 깨짐) | 학생 파일에 흔하다. 코어가 가진 바이트는 그대로 | 5 · `edu/core/edu_source_text.*` |
+| 23 | Data 패널이 표(Address / +0 / +4 / +8 / +C / ASCII / Labels). 줄 구성(짧은 첫 줄, 0이 4워드 이상이면 한 줄)은 원본과 같다 | 한 줄씩 `[10010000]    6c6c6548 …    H e l l` | PLAN R5. **로그 저장·인쇄 출력은 원본 그대로**(§15.5) | 6 · `edu/edu_data_model.*`, `edu/edu_data_view.*` |
+| 24 | Address 열은 **줄의 기준 주소**(16의 배수). 줄이 중간에서 시작하면 앞 칸이 빈다 | 첫 워드의 주소(`[7fffff84]`)를 쓰고 값을 왼쪽부터 채움 | 열 제목 +0/+4/+8/+C와 주소가 맞아야 한다 | 6 · `edu_data_model.cpp` `data()` |
+| 25 | 스택 맨 위의 **argv/환경변수 영역은 접힌 한 줄**로 시작(클릭으로 펼침). 세그먼트 머리 행도 접기 가능, Kernel data는 접힌 채 시작 | 항상 전부 표시 | 학생 스크린샷에 사용자명·경로가 나오지 않게(§15.3). 로그·인쇄는 원본대로 전부 | 6 · `edu_data_model.cpp` `buildRows` |
+| 26 | Data 패널은 `$sp`/`$fp`/`$gp`가 **메모리 쓰기 없이 바뀌어도** 다시 그린다 | `data_modified`일 때만 — `$sp`만 바뀐 스텝에서는 User Stack의 시작 주소가 옛 값으로 남는다 | 포인터 마커와 스택 시작이 레지스터를 따라가야 한다 | 6 · `datawin.cpp` `DisplayDataSegments` (`// EDU:`) |
+| 27 | Change Memory Contents: **취소하면 아무 일도 없다**, 값 범위 검사는 플랫폼 무관(7·8번과 같은 규칙). 0이 이어진 줄 안의 주소도 Go to로 찾아가 고칠 수 있다. 더블클릭으로도 열린다 | 취소해도 "Bad … memory value", `toLong()` 범위는 플랫폼마다 다름, `[a]..[b]` 줄에서는 첫 주소만 고칠 수 있음 | 7·8번과 같은 이유 | 6 · `edu_data_view.cpp` `changeValue` |
+| 28 | Data Segment 메뉴·우클릭 메뉴에 Words / Half words / Bytes, 패널 위에 Go to 입력과 `$sp` 버튼 | 없음 | PLAN R5 | 6 · `edu_data_view.cpp` |
+| 29 | `$sp`가 스택 범위 밖(Clear Registers 직후의 0 등)이면 User Stack을 **할당된 스택 전체**로 보여 준다 | `$sp`부터 0x80000000까지를 그대로 훑는다(매핑 안 된 주소를 5억 워드 읽음 — 사실상 멈춤) | 멈추지 않게. 로그 저장은 원본 빌더 그대로라 이 경우 원본처럼 오래 걸린다 | 6 · `edu_data_model.cpp` `segmentBounds` |
 
 **다르지 않은 것** (확인된 것만): 시뮬레이터 코어 전체(`CPU/` 바이트 동일, `tools/regress.sh` 1·2·3번),
-Save Log File의 Int Regs·Text 출력(4번 — 17·18번의 경우 포함해 골든과 바이트 동일), 브레이크포인트 다이얼로그(Continue / Single Step / Abort),
-FP Regs 탭, Data 패널(6단계 전까지), 메뉴·단축키·설정 다이얼로그.
+Save Log File의 Int Regs·Text·Data 출력(4번 — 17·18번의 경우 포함해 골든과 바이트 동일), 브레이크포인트 다이얼로그(Continue / Single Step / Abort),
+FP Regs 탭, 메뉴·단축키·설정 다이얼로그.
 
 ---
 
@@ -902,4 +918,88 @@ SpimView::eduTextLog : QTextEdit (숨김)  로그 저장·인쇄 때만 채움  
 - 관찰: `Tests/tt.alu.bare.s`는 1601행 `ctc3 $2 $3`의 syntax error에서 파싱이 끝나, 그 뒤(1805행 `fail:` 포함)가
   어셈블되지 않는다. 그래서 `fail`은 미정의, 모든 `bne … fail`의 offset은 0이다. 코어 동작이라 원본도 같다
   (콘솔 출력은 vanilla와 일치 — `tools/regress.sh` 3번).
+
+---
+
+## 15. 6단계 이후의 Data 패널
+
+### 15.1 구조
+
+```
+DataSegDockWidget
+└─ EduDataPanel : QWidget        (spimview.ui에서 dataTextEdit 자리에)      edu/edu_data_view.*
+     ├─ Go to [입력] [Go] [$sp]  결과 표시
+     └─ EduDataView : QTableView
+          └─ EduDataModel        평평한 표. 머리 행 + 워드 행 + 0-구간 행 + 접힘 행   edu/edu_data_model.*
+SpimView::eduDataLog : QPlainTextEdit (숨김)  로그 저장·인쇄 때만 채움          datawin.cpp eduFillDataLog
+```
+
+원본 `dataTextEdit` 클래스는 `datawin.cpp`에 그대로 남아 있지만 더는 쓰이지 않는다.
+
+**줄 구성은 원본과 같다** — `edu::layoutMemoryRows()`(`edu/core/edu_memory_rows.*`, 단위 테스트 `tst_memory_rows.cpp`)가
+`SpimView::formatMemoryContents()`(`QtSpim/datawin.cpp`)의 규칙을 그대로 옮긴 것: 16바이트 정렬 줄에 최대 4워드,
+범위가 줄 중간에서 시작하면 짧은 첫 줄, 줄 시작에서 0인 워드가 4개 이상 이어지면 길이와 무관하게 한 행
+(`[10000000]..[1000ffff]  00000000`), 구간이 줄 중간에서 끝나면 그 줄의 나머지는 다시 짧은 줄.
+추가한 것은 하나: **고정(pin)된 줄**은 0-구간 안에 있어도 워드 행으로 보여 준다 — Go to나 값 변경이 그 안의 주소에 닿게 하려는 것.
+
+세그먼트 범위도 원본대로: User data `DATA_BOT..data_top`, User Stack `ROUND_DOWN($sp,4)..STACK_TOP`,
+Kernel data `K_DATA_BOT..k_data_top` (`CPU/mem.h:67-105`).
+
+값은 `refresh()`에서 코어 함수로 읽어 행에 담아 둔다: 워드는 `read_mem_word`, half는 `read_mem_half`, 바이트는
+`read_mem_byte`(`CPU/mem.h:141-143`). **바이트 순서를 계산하지 않는다** — 코어의 메모리 배열은 호스트 엔디언 그대로이고
+(`CPU/spim.h:38-45`: 호스트와 다른 엔디언은 시뮬레이션할 수 없다), 세 함수는 같은 배열의 별칭
+(`data_seg` / `data_seg_h` / `data_seg_b`)을 읽는다. ASCII 열과 Bytes 단위는 `read_mem_byte`를 주소 오름차순으로 읽은 것이라
+실제 메모리 순서다(리틀 엔디언 호스트에서 워드 `6c6c6548`의 바이트는 `48 65 6c 6c` = "Hell").
+
+### 15.2 라벨
+
+`SpimView::eduCollectLabels()` — 텍스트 세그먼트가 다시 그려질 때(로드, Reinitialize) 한 번:
+
+1. `print_symbols()` 출력을 캡처(`write_output()`에 `eduOutputCapture` 스위치 — `QtSpim/spim_support.cpp`, `// EDU:`)해서
+   `edu::parseSymbolListing()`으로 파싱. **전역 라벨만 나온다**(§3.7의 6단계 메모).
+2. 두 텍스트 세그먼트의 명령어를 훑어 `EXPR(inst)->symbol`이 정의된 것의 이름·주소를 더한다 — `la $a0, msg`의 `msg` 같은 **로컬 라벨**이 이렇게 들어온다.
+
+한계: 코드가 참조하지 않는 로컬 `.data` 라벨은 얻지 못한다(`tests/samples/data-stack.s`의 `msg`, `bytes`, `half`가 그 예).
+브레이크포인트가 걸린 주소의 명령어는 `break`로 바뀌어 있어 그 명령어의 라벨도 빠진다(다른 명령어가 같은 라벨을 참조하면 무관).
+
+### 15.3 argv/환경변수 접기 — 경계의 근거
+
+`initialize_run_stack()`(`CPU/spim-utils.cpp:237-270`)의 순서: 스택 꼭대기에서부터 환경변수 문자열, argv 문자열 → 정렬 →
+`0`, `envp[]` 포인터들(**마지막으로 쓴 것이 `envp[0]`, 그 주소가 `$a2`** — 261행) → `0`, `argv[]` 포인터들(`$a1`, 265행) → `argc`(`$sp`).
+GUI의 `SpimView::initStack()`이 `initialize_stack()`을 부른 **직후** `$a2`를 읽어 둔다(`eduNoteStackInitialized()`, `menu.cpp`의 `// EDU:` 한 줄).
+접는 범위는 **`[$a2, STACK_TOP)`** = `envp[]` 포인터 + 모든 문자열. `argc`와 `argv[]` 포인터, 그 끝의 `0`은 보이는 채로 둔다
+(시작 코드의 `lw $a0 0($sp)` / `addiu $a1 $sp 4`가 읽는 부분). argv **문자열**(로드한 파일 경로 = 사용자명)은 접힌 쪽에 있다.
+접힘 행의 "N bytes"는 `STACK_TOP - $a2`.
+
+### 15.4 갱신
+
+원본과 같은 지점 — `DisplayDataSegments(force)`, `data_modified` — 에 **`$sp`/`$fp`/`$gp`가 바뀐 경우**를 더했다(§12 26번).
+`refresh()`는 행 목록을 새로 만들어 이전과 **모양(종류·주소·길이)이 같으면 `dataChanged`만** 보낸다(스텝 중의 보통 경우:
+선택·스크롤 유지, 보이는 칸만 다시 그림). 모양이 바뀌면(스택이 자람, 0-구간이 깨짐, 접기) 모델 리셋 후 선택을 주소로 복원.
+접힌 세그먼트(기본: Kernel data)는 훑지 않는다. 인스펙터의 "Pointers"는 표와 달리 **현재 레지스터**로 계산한다(실행 명령마다 인스펙터가 갱신되므로).
+
+측정(offscreen, 3회, ms — 5단계 빌드 = 원본 Data 창):
+
+| 시나리오 | 원본 Data 창 | 6단계 |
+|---|---|---|
+| `tt.core.s` 단일 스텝 500회 | 565 · 571 · 580 | 492 · 502 · 501 |
+| `data-stack.s` 스텝 60회(store, push) | 40 · 40 · 41 | 36 · 37 · 36 |
+| store 루프 스텝 400회 | 417 · 415 · 411 | 339 · 339 · 338 |
+| store 루프 Run (240만 명령, store 60만) | 631 · 629 · 625 | 626 · 629 · 628 |
+| 600만 명령 루프 Run | 1544 · 1549 · 1553 | 1552 · 1548 · 1549 |
+
+### 15.5 로그 저장·인쇄
+
+`SpimView::dataSegmentLogText()` / `printDataSegment()`가 유일한 출구. 원본 빌더(`formatUserDataSeg` · `formatUserStack` ·
+`formatKernelDataSeg` · `formatMemoryContents` — 수정 없음)의 HTML을 숨은 `QPlainTextEdit`에 원본과 같은 호출
+(`clear()` + `appendHtml()`)로 넣는다. 접힘·단위·고정 줄은 로그에 영향이 없다(환경변수 영역도 원본처럼 전부 나온다).
+`tools/regress.sh` 4번이 `tests/golden/data-*.txt` 11개(로드, Run, 2·10진, 세그먼트 토글 3종, 샘플 프로그램 스텝/Run, `tt.core.s` 300스텝)와 비교한다.
+
+### 15.6 Go to와 인스펙터
+
+`edu::resolveGoTo()`(단위 테스트 `tst_memory_text.cpp`): `$이름`/`$번호`는 레지스터 → 알려진 라벨 → `0x…` 또는 16진수 8자리 이하는 주소
+→ `$` 없는 레지스터 이름. (`a0`은 주소 0xa0이다 — 레지스터는 `$a0`.) 대상이 접힌 곳이면 펼치고, 0-구간 안이면 그 줄을 고정한다.
+보이는 세그먼트 밖의 주소(텍스트 라벨 등)는 "No data at …".
+인스펙터(`edu::memoryDetailLines()`): 주소 | 라벨 | 세그먼트, Hex / Signed / Unsigned, 비트 눈금 + 2진수, Bytes(메모리 순서 + 문자),
+Pointers(그 워드 안을 가리키는 모든 일반 레지스터, `$t0+1` 식).
 

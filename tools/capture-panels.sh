@@ -83,6 +83,26 @@ if [ "$file" = "$repo/helloworld.s" ]; then
     --select-instruction 00400080
   shot r3-bne-bare -bare -noexception --load "$repo/tests/samples/bare-branch.s" \
     --select-instruction 00400008
+
+  # Data panel and memory inspector (PLAN R5).
+  dshot() {  # dshot NAME [app options...]
+    local name=$1; shift
+    QT_QPA_PLATFORM=offscreen "$app" "$@" --raise data --window-size 1920x1080 \
+      --capture window --out "$out/$name-window.png" \
+      --capture inspector --out "$out/$name-inspector.png" \
+      --capture data --out "$out/$name-data.png"
+  }
+  dshot r5-load          --load "$file"
+  dshot r5-env-expanded  --load "$file" --expand-env
+  dshot r5-word-selected --load "$file" --steps 9 --goto msg
+  sample="$repo/tests/samples/data-stack.s"
+  dshot r5-stack-sp      --load "$sample" --steps 12 --goto '$sp'
+  dshot r5-bytes         --load "$sample" --steps 12 \
+    --trigger action_Data_UnitBytes --goto nums
+  dshot r5-halves-decimal --load "$sample" --steps 12 \
+    --trigger action_Data_UnitHalves --trigger action_Data_DisplayDecimal
+  dshot r5-kernel-edit   --load "$sample" --steps 12 --expand-kernel-data \
+    --set-memory 10010104=deadbeef --goto 0x10010104
 fi
 
 echo
