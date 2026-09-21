@@ -5,6 +5,7 @@
 #include <QAction>
 #include <QContextMenuEvent>
 #include <QHeaderView>
+#include <QStyle>
 #include <QMenu>
 #include <QMessageBox>
 #include <QStyledItemDelegate>
@@ -106,7 +107,10 @@ void EduRegisterView::applyPanelFont(const QFont& font) {
       metrics.horizontalAdvance("R31") +
       metrics.horizontalAdvance("0x00000000") +
       metrics.horizontalAdvance("-2147483648") + 4 * cellPadding +
-      2 * frameWidth() + 20;  // + vertical scroll bar, if it ever shows
+      2 * frameWidth() +
+      // + the vertical scroll bar, which shows whenever the inspector below
+      // is taller than its six-line minimum (an instruction is selected)
+      style()->pixelMetric(QStyle::PM_ScrollBarExtent) + 16;
   setMinimumWidth(width);
 }
 
