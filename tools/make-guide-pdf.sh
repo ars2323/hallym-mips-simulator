@@ -6,7 +6,7 @@
 #
 # Markdown -> HTML with pandoc (or Python's "markdown" module if PYTHON points
 # at an interpreter that has it), HTML -> PDF with a headless Chrome/Chromium.
-# A4, small type: the Korean guide is meant to fit two pages.  A font with
+# A4, small type.  The comparison pictures of section 3 are embedded.  A font with
 # Hangul has to be installed (CI installs fonts-nanum).
 
 set -euo pipefail
@@ -31,6 +31,9 @@ p, ul, ol { margin: 3pt 0; } li { margin: 1.5pt 0; }
 table { border-collapse: collapse; width: 100%; font-size: 8.6pt; margin: 4pt 0; }
 th, td { border: 0.5pt solid #888; padding: 2.5pt 4pt; vertical-align: top; }
 th { background: #eee; }
+img { max-width: 100%; display: block; margin: 3pt auto 7pt; }
+img[src*="01-registers"] { max-width: 52%; }  /* narrow and tall */
+p { orphans: 3; widows: 3; }
 code { font-family: "DejaVu Sans Mono", Consolas, monospace; font-size: 8.8pt; }
 '
 
@@ -38,7 +41,8 @@ for name in GUIDE-ko GUIDE; do
   md="$repo/docs/$name.md"
   html="$out/$name.html"
   {
-    printf '<!doctype html><html><head><meta charset="utf-8"><title>%s</title><style>%s</style></head><body>\n' "$name" "$css"
+    # <base>: the guides refer to their pictures relative to docs/.
+    printf '<!doctype html><html><head><meta charset="utf-8"><base href="file://%s/docs/"><title>%s</title><style>%s</style></head><body>\n' "$repo" "$name" "$css"
     if command -v pandoc >/dev/null 2>&1; then
       pandoc --from gfm --to html "$md"
     else
@@ -50,7 +54,7 @@ PY
     printf '</body></html>\n'
   } >"$html"
   "$chrome" --headless --disable-gpu --no-sandbox --no-pdf-header-footer \
-      --print-to-pdf="$out/QtSpim-Edu-$name.pdf" "file://$html" >/dev/null 2>&1
+      --allow-file-access-from-files --print-to-pdf="$out/QtSpim-Edu-$name.pdf" "file://$html" >/dev/null 2>&1
   [ -s "$out/QtSpim-Edu-$name.pdf" ] || { echo "no PDF for $name" >&2; exit 1; }
   rm -f "$html"
   echo "wrote $out/QtSpim-Edu-$name.pdf"

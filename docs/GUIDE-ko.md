@@ -23,15 +23,29 @@ Text·Data 탭 위에 노란 띠 "**Source changed — save (Ctrl+S) to assemble
 
 ## 3. 표준 QtSpim과 다른 점
 
-| 화면 | QtSpim-Edu | 표준 QtSpim |
-|---|---|---|
-| 레지스터 (왼쪽) | 용도별 그룹(Arguments, Temporaries, Saved …), `$t0`과 번호 `R8` 함께 표시, 값은 16진수와 10진수 두 열. Int Regs / FP Regs는 **세로 탭** | 한 줄씩 나열, 위쪽 탭 |
-| Inspector (왼쪽 아래) | 레지스터·명령어·메모리 워드를 고르면 hex / 부호 있는·없는 10진수 / 2진수(비트 눈금)를 보여 줌 | 없음 |
-| Text | 열: BP · 주소 · 기계어 · **타입 배지(R / I / J …)** · 명령어 · 소스. 명령어를 고르면 Inspector에 **opcode, rs, rt, rd, shamt, funct, immediate 필드 분해**와 분기·점프 목적지. `li`, `la`처럼 여러 명령어로 펼쳐지는 줄은 색 띠로 묶임. 커널 코드는 접혀 있음(머리 행을 누르면 펼쳐짐) | 글자로만 표시 |
-| Data | 주소 · +0 · +4 · +8 · +C · ASCII · **Labels**. `.data`의 라벨 이름, **`$sp` `$fp` `$gp`가 가리키는 칸 표시**, Words / Half words / Bytes 전환, Go to(주소·라벨·`$sp`). 스택 맨 위의 **환경변수 영역은 접혀 있음** — 사용자 이름과 폴더 경로가 들어 있어서, 스크린샷에 나오지 않게 한 것입니다 | 글자로만 표시, 환경변수가 그대로 보임 |
-| Editor | 프로그램 안에서 편집, 문법 색, 에러 목록 | 없음(메모장 등으로 편집 후 Load) |
-| File > Load File | 프로그램이 이미 올라와 있으면 "**Reinitialize and load / Add to current program / Cancel**"을 물음 | 묻지 않고 위에 얹음 |
-| 상태바 | Bare Machine 같은 설정이 켜져 있으면 노란 표시, 오른쪽 끝에 버전 | 없음 |
+아래 그림은 두 프로그램에 **같은 파일(helloworld.s), 같은 실행 단계, 같은 창 크기**를 준 것입니다. 왼쪽이 표준 QtSpim 9.1.24, 오른쪽이 QtSpim-Edu입니다. 값은 같고, 보여 주는 방식만 다릅니다.
+
+**레지스터** — Run이 끝난 뒤. 용도별 그룹(Arguments, Temporaries, Saved …), `$이름`과 번호 `R8`, 16진수와 10진수 두 열, 이번 실행으로 바뀐 값은 빨강. Int Regs / FP Regs는 왼쪽의 **세로 탭**입니다.
+
+![레지스터 비교](images/compare/01-registers.png)
+
+**Text** — 열로 나뉩니다: BP(누르면 브레이크포인트) · 주소 · 기계어 · **타입 배지(R / I / J …)** · 명령어 · 소스. `li`, `la`처럼 여러 명령어로 펼쳐지는 줄은 색 띠로 묶이고, 커널 코드는 접힌 한 줄입니다(머리 행을 누르면 펼쳐짐).
+
+![Text 비교](images/compare/02-text.png)
+
+**명령어 필드 분해** — 명령어를 고르면 왼쪽 아래 Inspector가 기계어를 **opcode, rs, rt, immediate(또는 rd, shamt, funct)**로 나누고, 레지스터 이름과 분기·점프 목적지를 보여 줍니다. 레지스터나 메모리 워드를 고르면 hex / 10진수 / 2진수를 보여 줍니다. 표준 QtSpim에는 없는 기능입니다.
+
+![Inspector 비교](images/compare/03-inspector.png)
+
+**Data와 스택** — 주소 · +0 · +4 · +8 · +C · ASCII · Labels. `.data`의 라벨 이름, **`$sp` `$fp` `$gp`가 가리키는 칸 표시**, Words / Half words / Bytes 전환, Go to(주소·라벨·`$sp`). 스택 맨 위의 **환경변수 영역은 접혀 있습니다** — 왼쪽 그림처럼 사용자 이름과 폴더 경로가 들어 있어서, 스크린샷에 나오지 않게 한 것입니다(누르면 펼쳐짐).
+
+![Data 비교](images/compare/04-data.png)
+
+**Editor** — 프로그램 안에서 편집하고 Ctrl+S로 저장+어셈블. 에러는 창이 하나씩 뜨는 대신 목록으로 나오고, 해당 줄에 빨간 점이 찍힙니다.
+
+![Editor 비교](images/compare/05-editor.png)
+
+그 밖에: 프로그램이 이미 올라와 있을 때 **File > Load File**을 누르면 "**Reinitialize and load / Add to current program / Cancel**"을 묻습니다(표준 QtSpim은 묻지 않고 위에 얹습니다). Bare Machine 같은 설정이 켜져 있으면 상태바에 노란 표시가 뜨고, 상태바 오른쪽 끝에 버전이 나옵니다.
 
 ## 4. 알아둘 것
 

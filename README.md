@@ -6,13 +6,52 @@ the MIPS32 simulator by James R. Larus. The simulator core (`CPU/`) is
 QtSpim, and the test suite checks that on every push. Only the interface is
 new.
 
-![QtSpim-Edu: registers grouped by role, typed instructions, field breakdown in the inspector](docs/images/qtspim-edu.png)
+## What's different
 
-- **Registers** grouped by their role, hex and decimal side by side, changes highlighted
-- **Text**: every instruction with its type (R / I / J …); select one to see its opcode, rs, rt, rd, shamt, funct and immediate fields and where a branch goes
-- **Data / stack**: labels, markers where `$sp` `$fp` `$gp` point, words / halves / bytes; the environment strings at the top of the stack are folded away
-- **Editor**: write, press Ctrl+S to save *and* assemble, errors in a list instead of one dialog each
-- Installs and runs next to standard QtSpim without touching it
+Both programs below were given the same file (`helloworld.s`), the same steps,
+the same 1600×900 window and the same environment. **The simulation is
+identical; only what you see changes.**
+
+**Registers** — after *Run*. Grouped by role, `$name` and number together, hex
+and decimal side by side, and everything the run changed in red; upstream is
+one flat list in one base at a time.
+
+![Registers: standard QtSpim and QtSpim-Edu side by side](docs/images/compare/en/01-registers.png)
+
+**Text** — columns instead of a text dump: a breakpoint column, the machine
+word, a type badge (R / I / J …), the instruction, the source line. The kernel
+segment is one folded row until you want it.
+
+![Text segment: standard QtSpim and QtSpim-Edu side by side](docs/images/compare/en/02-text.png)
+
+**Instruction fields** — select an instruction and the inspector splits the
+word into opcode, rs, rt, immediate (or rd, shamt, funct), names the registers
+and shows where a branch or jump goes. Upstream shows the word as hex and
+nothing more.
+
+![Inspector: field breakdown of lw, not available in standard QtSpim](docs/images/compare/en/03-inspector.png)
+
+**Data and stack** — a table with headers, the labels of `.data`, a marker on
+the word `$sp` points to, words / halves / bytes. The strings at the top of the
+stack (environment variables and paths, i.e. your user name) are folded away
+instead of being the first thing in every screenshot.
+
+![Data segment: standard QtSpim and QtSpim-Edu side by side](docs/images/compare/en/04-data.png)
+
+**Editor** — write, press Ctrl+S to save *and* assemble, get the errors as a
+list with markers on their lines. Standard QtSpim has no editor.
+
+![Editor with error list; standard QtSpim has none](docs/images/compare/en/05-editor.png)
+
+Also: File > Load File asks before loading on top of a loaded program, a
+status-bar badge shows while Bare Machine or a similar setting is on, and the
+program installs and runs next to standard QtSpim without touching it.
+
+<details><summary>The whole window</summary>
+
+![QtSpim-Edu main window](docs/images/qtspim-edu.png)
+
+</details>
 
 ## Download
 

@@ -36,15 +36,49 @@ program: the last file is reopened, but nothing is assembled for you.
 
 ## 3. What differs from standard QtSpim
 
-| Where | QtSpim-Edu | Standard QtSpim |
-|---|---|---|
-| Registers (left) | Grouped by role (Arguments, Temporaries, Saved …), name `$t0` and number `R8` together, hex and decimal side by side. Int Regs / FP Regs are **vertical tabs** | One flat list, tabs on top |
-| Inspector (bottom left) | Select a register, an instruction or a memory word: hex, signed and unsigned decimal, binary with a bit ruler | — |
-| Text | Columns: BP · address · machine code · **type badge (R / I / J …)** · instruction · source. Selecting an instruction shows its **opcode, rs, rt, rd, shamt, funct, immediate fields** and the branch / jump destination. Lines that expand to several instructions (`li`, `la`) are banded. Kernel code is folded (click its header row) | Plain text |
-| Data | Address · +0 · +4 · +8 · +C · ASCII · **Labels**. `.data` label names, **markers where `$sp` `$fp` `$gp` point**, Words / Half words / Bytes, Go to (address, label, `$sp`). The **environment area at the top of the stack is folded**: it holds your user name and folder paths, and this keeps them out of screenshots | Plain text, environment visible |
-| Editor | Edit inside the program, syntax colours, error list | — (edit elsewhere, then Load) |
-| File > Load File | With a program already loaded it asks **"Reinitialize and load / Add to current program / Cancel"** | Loads on top without asking |
-| Status bar | A yellow badge while a setting such as Bare Machine is on; the version at the right | — |
+In the pictures both programs were given **the same file (helloworld.s), the
+same steps and the same window size**: standard QtSpim 9.1.24 on the left,
+QtSpim-Edu on the right. The values are the same; only the presentation
+differs.
+
+**Registers** — after Run. Grouped by role (Arguments, Temporaries, Saved …),
+`$name` and number `R8` together, hex and decimal side by side, what the run
+changed in red. Int Regs / FP Regs are **vertical tabs** on the left.
+
+![Registers compared](images/compare/en/01-registers.png)
+
+**Text** — columns: BP (click to set a breakpoint) · address · machine code ·
+**type badge (R / I / J …)** · instruction · source. Lines that expand to
+several instructions (`li`, `la`) are banded; kernel code is one folded row
+(click its header).
+
+![Text compared](images/compare/en/02-text.png)
+
+**Instruction fields** — select an instruction and the Inspector (bottom left)
+splits the word into **opcode, rs, rt, immediate (or rd, shamt, funct)**, names
+the registers and shows where a branch or jump goes. For a register or a memory
+word it shows hex, decimal and binary. Standard QtSpim has nothing like it.
+
+![Inspector compared](images/compare/en/03-inspector.png)
+
+**Data and stack** — address · +0 · +4 · +8 · +C · ASCII · Labels. `.data`
+label names, **markers where `$sp` `$fp` `$gp` point**, Words / Half words /
+Bytes, Go to (address, label, `$sp`). The **environment area at the top of the
+stack is folded**: as the left picture shows, it holds your user name and
+folder paths, and this keeps them out of screenshots (click to unfold).
+
+![Data compared](images/compare/en/04-data.png)
+
+**Editor** — edit inside the program, Ctrl+S saves and assembles. Errors come
+as a list, with a red marker on each line, instead of one dialog each.
+
+![Editor compared](images/compare/en/05-editor.png)
+
+Also: with a program already loaded, **File > Load File** asks
+"**Reinitialize and load / Add to current program / Cancel**" (standard QtSpim
+loads on top without asking). A yellow status-bar badge shows while a setting
+such as Bare Machine is on, and the version is at the right end of the status
+bar.
 
 ## 4. Good to know
 
