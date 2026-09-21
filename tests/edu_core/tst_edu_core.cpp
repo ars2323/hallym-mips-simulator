@@ -12,12 +12,16 @@
 
 QObject* createTestVersion();       // tst_version.cpp
 QObject* createTestPathEncoding();  // tst_path_encoding.cpp
+QObject* createTestFormat();        // tst_format.cpp
+QObject* createTestRegisters();     // tst_registers.cpp
 
 typedef QObject* (*TestFactory)();
 
 static const TestFactory kTests[] = {
     createTestVersion,
     createTestPathEncoding,
+    createTestFormat,
+    createTestRegisters,
 };
 
 int main(int argc, char* argv[]) {
