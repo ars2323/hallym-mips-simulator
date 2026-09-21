@@ -8,6 +8,7 @@
 #include <QDockWidget>
 #include <QFile>
 #include <QFileInfo>
+#include <QLayout>
 #include <QMessageBox>
 #include <QPixmap>
 #include <QStatusBar>
@@ -62,6 +63,7 @@ QString EduDevtools::usage() {
       "                         must be followed by --out\n"
       "  --out <file.png>       where to write the preceding --capture\n"
       "  --dump <stream> <file> write a text stream; repeatable\n"
+      "  --window-size <W>x<H>  resize the main window first\n"
       "  --select-register <r>  select a register row (fills the inspector)\n"
       "  --set-register <r>=<hex> edit a register as the user would; repeatable\n"
       "  --reg-base <2|10|16>   choose Registers > Binary/Decimal/Hex\n"
@@ -106,6 +108,20 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
         return rest;
       }
       dumps_.append(dump);
+      continue;
+    }
+
+    if (arg == "--window-size") {
+      const QStringList parts =
+          (i + 1 < args.size()) ? args.at(i + 1).split('x') : QStringList();
+      if (parts.size() != 2 || parts.at(0).toInt() <= 0 ||
+          parts.at(1).toInt() <= 0) {
+        err() << "--window-size needs <W>x<H>\n" << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      windowSize_ = QSize(parts.at(0).toInt(), parts.at(1).toInt());
+      i += 1;
       continue;
     }
 
@@ -385,6 +401,16 @@ void EduDevtools::run() {
   // (menu.cpp initializePCAndStack), which would silently make the
   // screenshot show a second run.  The status bar is the only public
   // indication of that state.
+  if (windowSize_.isValid()) {
+    // A window manager can hand a window less than its layout's minimum
+    // (tiling, a restored geometry, a small screen).  Lift the constraint so
+    // that case can be reproduced here too.
+    window_->layout()->setSizeConstraint(QLayout::SetNoConstraint);
+    window_->setMinimumSize(1, 1);
+    window_->resize(windowSize_);
+    settle();
+  }
+
   if (regBase_ == 2) {
     window_->ui->action_Reg_DisplayBinary->trigger();
   } else if (regBase_ == 10) {

@@ -23,6 +23,9 @@
    Any of --capture/--dump switches the program into this mode: it runs the
    script, writes the files and exits without waiting for the user.
 
+   --window-size <W>x<H> resizes the main window before anything is captured
+   (the offscreen platform has no window manager to object).
+
    --select-register <name> selects that row of the register panel (any
    spelling edu::findRegister() accepts), which fills the inspector.
 
@@ -63,6 +66,7 @@
 
 #include <QList>
 #include <QObject>
+#include <QSize>
 #include <QString>
 #include <QStringList>
 
@@ -125,6 +129,7 @@ class EduDevtools : public QObject {
   bool runToCompletion_;
   int regBase_;  // 0 = leave alone, else 2/10/16 via the Registers menu
   QString selectRegister_;  // register to select before capturing
+  QSize windowSize_;        // invalid = leave the window alone
   QStringList setRegisters_;  // "name=value" edits applied after running
   int steps_;
   SpimView* window_;
