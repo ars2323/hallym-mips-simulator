@@ -199,6 +199,23 @@ win32-msvc2012 {
   DEFINES += _CRT_SECURE_NO_WARNINGS
 }
 
+# EDU: MSVC 2015 and later use the single "win32-msvc" mkspec, so none of the
+# version-specific blocks above match a Qt 5.15 / MSVC 2019 build.
+#
+win32-msvc {
+  # Disable security warnings, as the blocks above do.
+  DEFINES += _CRT_SECURE_NO_WARNINGS
+
+  # Our sources under edu/ are UTF-8 and contain Korean text in string
+  # literals; without this MSVC would read them in the system code page.
+  QMAKE_CXXFLAGS += /utf-8
+
+  # winflexbison (choco install winflexbison3) installs the tools under these
+  # names.  lex.prf recognises "flex" in the name and uses the -o form.
+  QMAKE_YACC = win_bison
+  QMAKE_LEX  = win_flex
+}
+
 
 # gcc flags
 #
