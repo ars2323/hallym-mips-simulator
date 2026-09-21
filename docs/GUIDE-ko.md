@@ -33,7 +33,7 @@ Text·Data 탭 위에 노란 띠 "**Source changed — save (Ctrl+S) to assemble
 
 ![Text 비교](images/compare/02-text.png)
 
-**명령어 필드 분해** — 명령어를 고르면 왼쪽 아래 Inspector가 기계어를 **opcode, rs, rt, immediate(또는 rd, shamt, funct)**로 나누고, 레지스터 이름과 분기·점프 목적지를 보여 줍니다. 레지스터나 메모리 워드를 고르면 hex / 10진수 / 2진수를 보여 줍니다. 표준 QtSpim에는 없는 기능입니다.
+**명령어 필드 분해** — 명령어를 고르면 왼쪽 아래 Inspector가 기계어를 **opcode, rs, rt, immediate**(또는 **rd, shamt, funct**)로 나누고, 레지스터 이름과 분기·점프 목적지를 보여 줍니다. 레지스터나 메모리 워드를 고르면 hex / 10진수 / 2진수를 보여 줍니다. 표준 QtSpim에는 없는 기능입니다.
 
 ![Inspector 비교](images/compare/03-inspector.png)
 
