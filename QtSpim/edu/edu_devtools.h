@@ -103,7 +103,9 @@ class EduDevtools : public QObject {
 
   // True when --capture or --dump was given, i.e. when the program should
   // run the script and exit instead of waiting for the user.
-  bool isActive() const { return !captures_.isEmpty() || !dumps_.isEmpty(); }
+  bool isActive() const {
+    return !captures_.isEmpty() || !dumps_.isEmpty() || reportTime_;
+  }
 
   // Starts answering modal dialogs.  Call as soon as the mode is known and
   // before anything is loaded: the simulator already raises error dialogs
