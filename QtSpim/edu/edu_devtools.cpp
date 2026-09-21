@@ -9,8 +9,10 @@
 #include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
+#include <QLabel>
 #include <QLayout>
 #include <QMessageBox>
+#include <QMouseEvent>
 #include <QPixmap>
 #include <QStatusBar>
 #include <QTextDocument>
@@ -29,6 +31,8 @@
 #include "edu/edu_inspector.h"
 #include "edu/edu_register_model.h"
 #include "edu/edu_register_view.h"
+#include "edu/edu_text_model.h"
+#include "edu/edu_text_view.h"
 
 namespace {
 
@@ -48,6 +52,9 @@ EduDevtools::EduDevtools(QObject* parent)
     : QObject(parent),
       runToCompletion_(false),
       regBase_(0),
+      expandKernel_(false),
+      hasSelectInstruction_(false),
+      selectInstruction_(0),
       reportTime_(false),
       redisplay_(false),
       steps_(0),
@@ -68,6 +75,9 @@ QString EduDevtools::usage() {
       "  --dump <stream> <file> write a text stream; repeatable\n"
       "  --window-size <W>x<H>  resize the main window first\n"
       "  --select-register <r>  select a register row (fills the inspector)\n"
+      "  --select-instruction <hexaddr>  select a Text panel row (same)\n"
+      "  --expand-kernel        open the Text panel's kernel segment\n"
+      "  --click-bp <hexaddr>   click that row's BP cell (repeatable)\n"
       "  --set-register <r>=<hex> edit a register as the user would; repeatable\n"
       "  --trigger <action>     trigger a menu action by object name; repeatable\n"
       "  --redisplay            force a full redraw after the triggers\n"
@@ -173,6 +183,42 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
       }
       setRegisters_ << args.at(i + 1);
       i += 1;
+      continue;
+    }
+
+    if (arg == "--select-instruction") {
+      bool parsed = false;
+      if (i + 1 < args.size()) {
+        selectInstruction_ = args.at(i + 1).toUInt(&parsed, 16);
+      }
+      if (!parsed) {
+        err() << "--select-instruction needs a hex address\n" << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      hasSelectInstruction_ = true;
+      i += 1;
+      continue;
+    }
+
+    if (arg == "--click-bp") {
+      bool parsed = false;
+      quint32 address = 0;
+      if (i + 1 < args.size()) {
+        address = args.at(i + 1).toUInt(&parsed, 16);
+      }
+      if (!parsed) {
+        err() << "--click-bp needs a hex address\n" << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      clickBreakpoints_ << address;
+      i += 1;
+      continue;
+    }
+
+    if (arg == "--expand-kernel") {
+      expandKernel_ = true;
       continue;
     }
 
@@ -388,6 +434,29 @@ bool EduDevtools::writeDump(const Dump& dump) {
 // them.  OK is the dialog's default and means "carry on", which is what the
 // terminal spim does; Abort would set force_break and stop the program.
 void EduDevtools::dismissBlockingDialog() {
+  // Upstream's breakpoint dialog is not modal, but sim_Run() spins until one
+  // of its buttons is pressed.  Answer "Abort", which stops at the
+  // breakpoint.
+  const QWidgetList tops = QApplication::topLevelWidgets();
+  for (int i = 0; i < tops.size(); i += 1) {
+    QAbstractButton* abort =
+        tops.at(i)->isVisible()
+            ? tops.at(i)->findChild<QAbstractButton*>("abortPushButton")
+            : 0;
+    if (abort != 0) {
+      QLabel* label = tops.at(i)->findChild<QLabel*>("label");
+      out() << "breakpoint dialog: "
+            << (label != 0 ? label->text() : QString()) << " -> Abort\n"
+            << Qt::flush;
+      if (!dialogShotDir_.isEmpty()) {
+        grabToFile(tops.at(i), dialogShotDir_ + QString("/breakpoint-dialog.png"));
+      }
+      abort->click();
+      tops.at(i)->hide();
+      return;
+    }
+  }
+
   QWidget* modal = QApplication::activeModalWidget();
   if (modal == 0) {
     return;
@@ -518,6 +587,45 @@ void EduDevtools::run() {
       window_->ui->IntRegView->selectRegister(reg);
     } else {
       err() << "unknown register: " << selectRegister_ << "\n" << Qt::flush;
+      status_ = 2;
+    }
+  }
+
+  if (expandKernel_) {
+    window_->eduTextModel->setKernelExpanded(true);
+  }
+  for (int i = 0; i < clickBreakpoints_.size(); i += 1) {
+    // A real mouse click on the BP cell, through the view's own handlers.
+    const quint32 address = clickBreakpoints_.at(i);
+    EduTextView* view = window_->ui->TextSegView;
+    const int row = window_->eduTextModel->rowOfAddress(address);
+    if (row < 0) {
+      err() << "no instruction shown at 0x" << QString::number(address, 16)
+            << "\n" << Qt::flush;
+      status_ = 2;
+      continue;
+    }
+    const QModelIndex cell =
+        window_->eduTextModel->index(row, EduTextModel::BpColumn);
+    view->scrollTo(cell);
+    const QPoint at = view->visualRect(cell).center();
+    QMouseEvent press(QEvent::MouseButtonPress, at, Qt::LeftButton,
+                      Qt::LeftButton, Qt::NoModifier);
+    QMouseEvent release(QEvent::MouseButtonRelease, at, Qt::LeftButton,
+                        Qt::NoButton, Qt::NoModifier);
+    QApplication::sendEvent(view->viewport(), &press);
+    QApplication::sendEvent(view->viewport(), &release);
+    out() << "clicked BP cell of 0x" << edu::hex32Digits(address) << ": "
+          << (inst_is_breakpoint(address) ? "breakpoint set" : "no breakpoint")
+          << "\n" << Qt::flush;
+  }
+
+  if (hasSelectInstruction_) {
+    if (window_->eduTextModel->rowOfAddress(selectInstruction_) >= 0) {
+      window_->ui->TextSegView->selectAddress(selectInstruction_);
+    } else {
+      err() << "no instruction shown at 0x"
+            << QString::number(selectInstruction_, 16) << "\n" << Qt::flush;
       status_ = 2;
     }
   }

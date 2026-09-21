@@ -29,6 +29,10 @@
    --select-register <name> selects that row of the register panel (any
    spelling edu::findRegister() accepts), which fills the inspector.
 
+   --select-instruction <hexaddr> selects that row of the Text panel, which
+   fills the inspector as a click would; --expand-kernel opens the kernel
+   segment first.
+
    --set-register <name>=<hex> writes a register the way the Change Value
    dialog does once the user has typed a value (same model call), after the
    run/steps; repeatable.  Used to check that user edits are not highlighted.
@@ -145,10 +149,14 @@ class EduDevtools : public QObject {
   bool runToCompletion_;
   int regBase_;  // 0 = leave alone, else 2/10/16 via the Registers menu
   QString selectRegister_;  // register to select before capturing
+  bool expandKernel_;
+  bool hasSelectInstruction_;
+  quint32 selectInstruction_;  // Text panel row to select before capturing
   QSize windowSize_;        // invalid = leave the window alone
   QStringList setRegisters_;  // "name=value" edits applied after running
   QStringList triggers_;      // QAction object names to trigger first
   QList<quint32> breakpoints_;
+  QList<quint32> clickBreakpoints_;  // BP cells to click after running
   bool reportTime_;
   bool redisplay_;
   int steps_;
