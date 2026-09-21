@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- QtSpim-Edu installer (WiX Toolset v3).  See ../README.md.
+
+     Built by tools/package-msi.ps1, which passes
+       ProductVersion  EDU_VERSION from QtSpim/edu/edu_version.h (MAJOR.MINOR.PATCH)
+       StageDir        the staged zip folder; its files are harvested into
+                       the component group AppFiles (heat) -->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*" Name="QtSpim-Edu" Manufacturer="QtSpim-Edu"
+           Language="1033" Codepage="1252" Version="$(var.ProductVersion)"
+           UpgradeCode="8B69C2A5-F331-48CE-A04C-1462CE02A3C8">
+    <Package InstallerVersion="301" Compressed="yes" InstallScope="perMachine"
+             Platform="x64" Keywords="Installer"
+             Description="QtSpim-Edu $(var.ProductVersion) installer"
+             Comments="Unofficial educational build of QtSpim. SPIM is Copyright (c) James R. Larus." />
+
+    <!-- A newer QtSpim-Edu replaces an older one.  Standard QtSpim has a
+         different UpgradeCode and is never looked for. -->
+    <MajorUpgrade DowngradeErrorMessage="A newer version of QtSpim-Edu is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="QtSpimEdu.ico" SourceFile="$(var.IconFile)" />
+    <Property Id="ARPPRODUCTICON" Value="QtSpimEdu.ico" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/ars2323/qtspim-edu" />
+
+    <UIRef Id="WixUI_InstallDir" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseFile)" />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="QtSpim-Edu" />
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="EduProgramMenuDir" Name="QtSpim-Edu">
+          <Component Id="EduStartMenu" Guid="5B0E1C0E-6E0B-4A55-9F6B-3D6E5A0B7C11" Win64="yes">
+            <Shortcut Id="EduStartMenuApp" Name="QtSpim-Edu"
+                      Description="MIPS simulator (educational build of QtSpim)"
+                      Target="[INSTALLFOLDER]QtSpimEdu.exe"
+                      WorkingDirectory="INSTALLFOLDER" Icon="QtSpimEdu.ico" />
+            <Shortcut Id="EduStartMenuGuide" Name="User Guide"
+                      Target="[INSTALLFOLDER]GUIDE-ko.md"
+                      WorkingDirectory="INSTALLFOLDER" />
+            <RemoveFolder Id="EduProgramMenuDir" On="uninstall" />
+            <!-- Key path of the shortcuts.  NOT under Software\QtSpim-Edu,
+                 where the program keeps its settings. -->
+            <RegistryValue Root="HKCU" Key="Software\QtSpim-Edu-Installer"
+                           Name="StartMenu" Type="integer" Value="1" KeyPath="yes" />
+          </Component>
+        </Directory>
+      </Directory>
+    </Directory>
+
+    <Feature Id="Complete" Title="QtSpim-Edu" Level="1">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="EduStartMenu" />
+    </Feature>
+  </Product>
+</Wix>

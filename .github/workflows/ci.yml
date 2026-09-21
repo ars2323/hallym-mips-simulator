@@ -90,6 +90,18 @@ jobs:
       - name: Screenshots of every panel
         run: tools/capture-panels.sh -o "$RUNNER_TEMP/screenshots"
 
+      - name: Student guide PDFs
+        run: |
+          sudo apt-get install -y --no-install-recommends pandoc
+          tools/make-guide-pdf.sh "$RUNNER_TEMP/guide"
+
+      - name: Upload guide PDFs
+        uses: actions/upload-artifact@v4
+        with:
+          name: guide-pdf
+          path: ${{ runner.temp }}/guide/*.pdf
+          if-no-files-found: error
+
       - name: Upload screenshots
         uses: actions/upload-artifact@v4
         with:
@@ -166,9 +178,21 @@ jobs:
         shell: pwsh
         run: tools/package-windows.ps1 -BuildDir build -OutDir dist
 
-      - name: Upload zip
+      - name: Package MSI (WiX)
+        shell: pwsh
+        run: tools/package-msi.ps1 -OutDir dist
+
+      # Tables, then a real silent install and uninstall next to a stand-in
+      # for a standard QtSpim installation.
+      - name: MSI does not collide with standard QtSpim
+        shell: pwsh
+        run: tools/check-msi.ps1 -Msi (Get-Item dist/*.msi).FullName -Install
+
+      - name: Upload zip and MSI
         uses: actions/upload-artifact@v4
         with:
           name: QtSpimEdu-windows
-          path: dist/*.zip
+          path: |
+            dist/*.zip
+            dist/*.msi
           if-no-files-found: error
