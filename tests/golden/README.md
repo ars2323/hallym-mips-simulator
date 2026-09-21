@@ -18,7 +18,7 @@ register panel was replaced in stage 3) with helloworld.s:
 byte-for-byte match: the log must not change when the panel does.
 
 They were captured by `tools/capture-goldens.sh` from a build of commit
-a38ebaa -- the last one whose register window is upstream's -- under a pinned
+2626cc0 -- the last one whose register window is upstream's -- under a pinned
 environment (`env -i`, three fixed variables).  The environment matters: SPIM
 copies the process environment onto the simulated stack, so `$sp`, `$a1` and
 `$a2` move with it.  The regression check replays the same environment.
