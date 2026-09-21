@@ -62,5 +62,28 @@ done
 
 QT_QPA_PLATFORM=offscreen "$app" "${args[@]}"
 
+# Text panel and instruction inspector (PLAN R3).  The addresses are those of
+# helloworld.s, so this part only runs for the default file.
+if [ "$file" = "$repo/helloworld.s" ]; then
+  shot() {  # shot NAME [app options...]
+    local name=$1; shift
+    QT_QPA_PLATFORM=offscreen "$app" "$@" --window-size 1920x1080 \
+      --capture window --out "$out/$name-window.png" \
+      --capture inspector --out "$out/$name-inspector.png" \
+      --capture text --out "$out/$name-text.png"
+  }
+  shot r3-syscall --load "$file" --steps 7 --select-instruction 0040002c
+  shot r3-lw      --load "$file" --steps 7 --select-instruction 00400030
+  shot r3-jal     --load "$file" --steps 7 --select-instruction 00400014
+  shot r3-breakpoints-kernel --load "$file" --steps 3 --expand-kernel \
+    --click-bp 00400024 --click-bp 00400030
+  # Default mode branch (note about SPIM's PC-based offsets) and pseudo
+  # instruction bands, then a Bare Machine branch (PC+4, no note).
+  shot r3-bne-default --load "$repo/Tests/tt.core.s" \
+    --select-instruction 00400080
+  shot r3-bne-bare -bare -noexception --load "$repo/tests/samples/bare-branch.s" \
+    --select-instruction 00400008
+fi
+
 echo
 echo "screenshots in $out"
