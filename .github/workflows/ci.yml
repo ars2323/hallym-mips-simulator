@@ -32,7 +32,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            qtbase5-dev qt5-qmake qttools5-dev-tools libqt5help5 bison flex
+            qtbase5-dev qt5-qmake qttools5-dev-tools libqt5help5 bison flex \
+            fonts-nanum
 
       - name: Build (release configuration)
         run: |
@@ -76,6 +77,8 @@ jobs:
       - name: Korean path warning (end to end)
         run: tools/check-path-warning.sh -o "$RUNNER_TEMP/pathcheck"
 
+      # fonts-nanum above is only so that the Korean text in these is
+      # readable when reviewing the artifact.
       - name: Screenshots of every panel
         run: tools/capture-panels.sh -o "$RUNNER_TEMP/screenshots"
 

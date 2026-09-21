@@ -1,18 +1,43 @@
-/* Entry point for the edu/core test binary.  Runs every test class that
-   registered itself with EDU_REGISTER_TEST. */
+/* Entry point for the edu/core test binary.
+
+   Every test class in this binary is listed below.  When adding a test file:
+   define its factory there with EDU_TEST_FACTORY(YourClass) and add the
+   declaration and a line to the table here. */
 
 #include <QCoreApplication>
 #include <QtTest>
+#include <cstdio>
 
-#include "testregistry.h"
+#include "edu_test.h"
+
+QObject* createTestVersion();       // tst_version.cpp
+QObject* createTestPathEncoding();  // tst_path_encoding.cpp
+
+typedef QObject* (*TestFactory)();
+
+static const TestFactory kTests[] = {
+    createTestVersion,
+    createTestPathEncoding,
+};
 
 int main(int argc, char* argv[]) {
   QCoreApplication app(argc, argv);
 
-  int failed = 0;
-  const QList<QObject*>& tests = TestRegistry::instance().tests();
-  for (int i = 0; i < tests.size(); i += 1) {
-    failed += QTest::qExec(tests.at(i), argc, argv);
+  const int count = int(sizeof(kTests) / sizeof(kTests[0]));
+  if (count == 0) {
+    std::fprintf(stderr, "no test classes listed in tst_edu_core.cpp\n");
+    return 1;
   }
+
+  int failed = 0;
+  for (int i = 0; i < count; i += 1) {
+    QObject* test = kTests[i]();
+    failed += QTest::qExec(test, argc, argv);
+    delete test;
+  }
+
+  std::printf("tst_edu_core: %d test class(es), %d with failures\n", count,
+              failed);
+  std::fflush(stdout);
   return failed;
 }

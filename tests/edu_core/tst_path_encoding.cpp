@@ -9,7 +9,7 @@
 #include <QtTest>
 
 #include "edu/core/edu_path_encoding.h"
-#include "testregistry.h"
+#include "edu_test.h"
 
 class TestPathEncoding : public QObject {
   Q_OBJECT
@@ -94,6 +94,6 @@ void TestPathEncoding::nullCodecIsNeverLossless() {
   QVERIFY(!edu::isLosslessIn(QString("abc"), 0));
 }
 
-EDU_REGISTER_TEST(TestPathEncoding)
+EDU_TEST_FACTORY(TestPathEncoding)
 
 #include "tst_path_encoding.moc"

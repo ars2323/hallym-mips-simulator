@@ -21,7 +21,7 @@ HEADERS += ../../QtSpim/edu/core/edu_path_encoding.h \
 SOURCES += tst_edu_core.cpp \
            tst_version.cpp \
            tst_path_encoding.cpp
-HEADERS += ../testregistry.h
+HEADERS += ../edu_test.h
 
 # Test sources contain Korean text in string literals.
 win32-msvc: QMAKE_CXXFLAGS += /utf-8

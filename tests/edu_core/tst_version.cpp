@@ -6,7 +6,7 @@
 #include <QtTest>
 
 #include "edu/edu_version.h"
-#include "testregistry.h"
+#include "edu_test.h"
 #include "version.h"  // CPU/version.h — SPIM_VERSION
 
 class TestVersion : public QObject {
@@ -52,6 +52,6 @@ void TestVersion::identityDiffersFromStandardQtSpim() {
   QVERIFY(qstrlen(EDU_APP_NAME) > 0);
 }
 
-EDU_REGISTER_TEST(TestVersion)
+EDU_TEST_FACTORY(TestVersion)
 
 #include "tst_version.moc"
