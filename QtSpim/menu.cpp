@@ -718,12 +718,27 @@ void SpimView::help_ViewHelp() {
   QProcess* process = new QProcess;
   QStringList args;
 
+  // EDU: a fourth, "portable" location -- help/ next to the executable, as
+  // laid out in the distribution zip -- is tried after the three upstream
+  // install locations, so behaviour is unchanged wherever they exist.  The
+  // browser for it is assistant next to the executable if present (Windows
+  // zip), otherwise "assistant" from PATH (Linux development build).
+  const QString appDir = QCoreApplication::applicationDirPath();
+  QString portableAssistant = appDir + QString("/assistant");
+#ifdef Q_OS_WIN
+  portableAssistant += QString(".exe");
+#endif
+  if (!QFileInfo(portableAssistant).exists()) {
+    portableAssistant = QString("assistant");
+  }
+
   QString helpFile[] = {
       qgetenv("PROGRAMFILES(x86)") +
           QString("/QtSpim/help/qtspim.qhc"),  // Windows
       QString(
           "/Applications/QtSpim.app/Contents/Resources/doc/qtspim.qhc"),  // Mac
       QString("/usr/lib/qtspim/help/qtspim.qhc"),  // Linux
+      appDir + QString("/help/qtspim.qhc"),        // EDU: portable
       0};
 
   int i;
@@ -742,13 +757,14 @@ void SpimView::help_ViewHelp() {
     return;
   }
 
-  char* assistant[] = {
-      "assistant",                                          // Windows
-      "/Applications/QtSpim.app/Contents/MacOS/Assistant",  // Mac
-      "/usr/lib/qtspim/bin/assistant",                      // Linux
-      0};
+  QString assistant[] = {
+      QString("assistant"),                                          // Windows
+      QString("/Applications/QtSpim.app/Contents/MacOS/Assistant"),  // Mac
+      QString("/usr/lib/qtspim/bin/assistant"),                      // Linux
+      portableAssistant,                                             // EDU
+  };
 
-  process->start(QLatin1String(assistant[i]), args);
+  process->start(assistant[i], args);
   if (!process->waitForStarted()) {
     QMessageBox msgBox;
     msgBox.setText(
