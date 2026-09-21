@@ -9,6 +9,7 @@
 #   2. An edit keeps the file's encoding and line ends.
 #   3. Simulator > Assemble builds the same text and data segments as File >
 #      Reinitialize and Load File, and reports no error.
+#      With unsaved changes it asks first, then saves.
 #   4. A file with errors: no modal box, the errors are counted, and the
 #      message log reads exactly as it does for Reinitialize and Load File.
 #   5. A file loaded through the File menu is what the editor holds.
@@ -118,6 +119,19 @@ if [ -s "$work/bad-asm.log" ] && cmp -s "$work/bad-asm.log" "$work/bad-rel.log";
   pass "message log is the File menu route's, byte for byte"
 else
   fail "message log differs from the File menu route's"
+fi
+
+# Edited but not saved: Assemble asks, saves, and assembles what was typed.
+cp "$repo/helloworld.s" "$work/typed.s"
+run typed --editor-open "$work/typed.s" --editor-type 'nop\n' --assemble \
+    --dump text-log "$work/typed.text"
+if grep -q '^assemble question: Save and assemble' "$work/typed.out" &&
+   grep -q '^assemble: 0 error(s)' "$work/typed.out" &&
+   [ "$(head -c 3 "$work/typed.s")" = 'nop' ] &&
+   grep -q 'nop' "$work/typed.text"; then
+  pass "unsaved changes: asked, saved, and the new instruction is in the text segment"
+else
+  fail "Assemble with unsaved changes:"; grep -E '^assemble' "$work/typed.out" || true
 fi
 
 echo

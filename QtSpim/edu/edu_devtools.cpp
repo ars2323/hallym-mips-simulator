@@ -605,6 +605,20 @@ void EduDevtools::dismissBlockingDialog() {
     return;
   }
 
+  // Assemble with unsaved changes: "Save and assemble".
+  if (modal->objectName() == "EduAssembleSaveQuestion") {
+    out() << "assemble question: Save and assemble\n" << Qt::flush;
+    const QList<QAbstractButton*> buttons =
+        qobject_cast<QMessageBox*>(modal)->buttons();
+    for (int i = 0; i < buttons.size(); i += 1) {
+      if (buttons.at(i)->text().startsWith("Save")) {
+        buttons.at(i)->click();
+        return;
+      }
+    }
+    return;
+  }
+
   // Load File while a program is loaded (SpimView::eduConfirmLoadOnTop()).
   if (modal->objectName() == "EduLoadConfirm") {
     const QString answer =

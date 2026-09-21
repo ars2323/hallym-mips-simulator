@@ -5,6 +5,8 @@
 #include <QAction>
 #include <QFileInfo>
 #include <QLabel>
+#include <QMessageBox>
+#include <QPushButton>
 #include <QStatusBar>
 #include <QToolBar>
 
@@ -140,9 +142,24 @@ bool SpimView::eduCollectError(const QString& message) {
 void SpimView::eduAssemble() {
   eduEditor->show();
   eduEditor->raise();
-  if (eduEditor->filePath().isEmpty() || eduEditor->isModified()) {
-    // The core reads files, so there has to be one, and it has to be current.
-    if (!eduEditor->save()) {
+  // The core reads files, so there has to be one, and it has to be current.
+  if (eduEditor->filePath().isEmpty()) {
+    if (!eduEditor->saveAs()) {
+      return;
+    }
+  } else if (eduEditor->isModified()) {
+    QMessageBox box(this);
+    box.setObjectName("EduAssembleSaveQuestion");
+    box.setIcon(QMessageBox::Question);
+    box.setWindowTitle("Assemble");
+    box.setText(QString("%1 has unsaved changes.")
+                    .arg(QFileInfo(eduEditor->filePath()).fileName()));
+    box.setInformativeText("The simulator assembles the file on disk.");
+    QPushButton* save = box.addButton("Save and assemble", QMessageBox::AcceptRole);
+    box.addButton(QMessageBox::Cancel);
+    box.setDefaultButton(save);
+    box.exec();
+    if (box.clickedButton() != save || !eduEditor->save()) {
       return;
     }
   }
