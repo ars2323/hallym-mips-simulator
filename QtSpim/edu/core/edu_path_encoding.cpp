@@ -4,6 +4,13 @@
 
 #include <QTextCodec>
 
+#ifdef Q_OS_WIN
+// The one Win32 call in this fork: QTextCodec::codecForLocale() on Windows
+// is a wrapper around the ANSI code page whose name() is just "System",
+// and nothing in QtCore says which code page that is.  GetACP() does.
+#include <windows.h>
+#endif
+
 namespace edu {
 
 bool isLosslessIn(const QString& text, const QTextCodec* codec) {
@@ -50,7 +57,18 @@ QString unrepresentableInLocal8Bit(const QString& text) {
 
 QString local8BitCodecName() {
   const QTextCodec* codec = QTextCodec::codecForLocale();
-  return codec == 0 ? QString("unknown") : QString::fromLatin1(codec->name());
+  if (codec == 0) {
+    return QString("unknown");
+  }
+  const QString name = QString::fromLatin1(codec->name());
+#ifdef Q_OS_WIN
+  // "System" is the Windows locale codec; report the real code page, e.g.
+  // "CP949" on Korean Windows or "CP1252" on English Windows.
+  if (name == QLatin1String("System")) {
+    return QString("CP%1").arg(GetACP());
+  }
+#endif
+  return name;
 }
 
 }  // namespace edu

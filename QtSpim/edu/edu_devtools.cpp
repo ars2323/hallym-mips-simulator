@@ -11,6 +11,7 @@
 #include <QMessageBox>
 #include <QPixmap>
 #include <QStatusBar>
+#include <QTextDocument>
 #include <QTextCodec>
 #include <QTextStream>
 #include <QTimer>
@@ -290,7 +291,11 @@ void EduDevtools::dismissBlockingDialog() {
   }
   QMessageBox* box = qobject_cast<QMessageBox*>(modal);
   if (box != 0) {
-    out() << "dialog: " << box->text().simplified().left(160) << "\n"
+    // Rich-text dialogs are reported as plain text so scripts can grep them.
+    QTextDocument document;
+    document.setHtml(box->text());
+    out() << "dialog: " << document.toPlainText().simplified().left(600)
+          << "\n"
           << Qt::flush;
     QAbstractButton* ok = box->button(QMessageBox::Ok);
     if (ok != 0) {

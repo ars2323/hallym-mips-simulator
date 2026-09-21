@@ -60,6 +60,12 @@ if grep -q "cannot be passed to the simulator" "$out/warn.stdout"; then
 else
   fail "no warning dialog:"; head -20 "$out/warn.stdout"
 fi
+# The dialog must name the actual encoding, not a Qt alias such as "System".
+if grep -q "System text encoding: ISO-8859-1" "$out/warn.stdout"; then
+  pass "dialog names the encoding (ISO-8859-1)"
+else
+  fail "dialog does not name the encoding:"; grep "dialog:" "$out/warn.stdout" | head -3
+fi
 if grep -q "Cannot open file" "$out/warn.log"; then
   fail "the core still tried to open the file (log has 'Cannot open file')"
 else
