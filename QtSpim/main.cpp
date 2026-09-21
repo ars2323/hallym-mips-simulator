@@ -156,6 +156,16 @@ int main(int argc, char* argv[]) {
       "         margin-top: 2px; /* make non-selected tabs look smaller */"
       "     }");
 
+  // EDU: the register docks now sit in the left dock area, whose tabs are
+  // vertical (QMainWindow::VerticalTabs in spimview.ui).  The rules above
+  // give every tab "min-width: 8ex" plus side padding, which for a vertical
+  // tab is its thickness and made the tab strip 80 pixels wide.
+  a.setStyleSheet(a.styleSheet() +
+                  " QTabBar::tab:left, QTabBar::tab:right {"
+                  "     min-width: 0px; min-height: 8ex;"
+                  "     padding: 10px 2px 10px 2px;"
+                  " }");
+
 #ifdef EDU_DEVTOOLS
   // EDU: run the capture script from inside the event loop, then exit.
   if (devtools.isActive()) {

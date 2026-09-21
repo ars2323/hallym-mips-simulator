@@ -33,6 +33,14 @@ class EduRegisterView : public QTreeView {
   bool currentRegister(edu::RegisterRef* reg) const;
   void selectRegister(const edu::RegisterRef& reg);
 
+  // Sets the font and the minimum width that goes with it.
+  void applyPanelFont(const QFont& font);
+
+  // Height at which every currently expanded row is visible without a
+  // scroll bar.  Also what sizeHint() asks for.
+  int fullContentHeight() const;
+  QSize sizeHint() const;
+
  signals:
   // Emitted when the selection moves; hasRegister is false on a group row.
   void registerSelectionChanged();

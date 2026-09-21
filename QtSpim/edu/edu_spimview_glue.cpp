@@ -17,8 +17,14 @@ void SpimView::eduSetupPanels() {
   eduRegisterModel = new EduRegisterModel(this);
   ui->IntRegView->setRegisterModel(eduRegisterModel);
 
+  // Upstream's .ui restricts the register docks to the top area.
+  ui->IntRegDockWidget->setAllowedAreas(Qt::LeftDockWidgetArea |
+                                        Qt::TopDockWidgetArea);
+  ui->FPRegDockWidget->setAllowedAreas(Qt::LeftDockWidgetArea |
+                                       Qt::TopDockWidgetArea);
+
   eduInspector = new EduInspector(this);
-  addDockWidget(Qt::TopDockWidgetArea, eduInspector);
+  addDockWidget(Qt::LeftDockWidgetArea, eduInspector);
   connect(ui->IntRegView, SIGNAL(registerSelectionChanged()), this,
           SLOT(eduUpdateInspector()));
 
@@ -36,13 +42,24 @@ void SpimView::eduSetupPanels() {
   eduIntRegLog->hide();
 }
 
-// Places the inspector under the register docks.  splitDockWidget() would
-// add it as a third tab if its target were already tabbed, so the register
-// docks are split first and tabbed afterwards (see win_Tile()).
+// The register column lives in the LEFT dock area, not in upstream's top
+// row.  Upstream already hands both left corners to the left area
+// (setCorner() in the constructor), so a left dock runs the full height of
+// the window beside the message log instead of stopping above it.  That
+// height is what lets all 47 rows (8 groups + 39 registers) and the
+// inspector fit a 1080-line screen: in the top row, 1080 lines minus menus,
+// tabs, log and inspector leave room for about 33 rows at any readable row
+// height.
+//
+// Order matters: splitDockWidget() would add the inspector as a third tab if
+// its target were already tabbed, so this runs before win_Tile() tabs the
+// two register docks.
 void SpimView::eduTileInspector() {
+  addDockWidget(Qt::LeftDockWidgetArea, ui->FPRegDockWidget);
   eduInspector->setFloating(false);
   eduInspector->show();
   splitDockWidget(ui->FPRegDockWidget, eduInspector, Qt::Vertical);
+  addDockWidget(Qt::LeftDockWidgetArea, ui->IntRegDockWidget);
 }
 
 void SpimView::eduBeginRunCommand() { eduRegisterModel->beginRunCommand(); }
@@ -60,7 +77,7 @@ void SpimView::eduRefreshRegisterPanel() {
   palette.setColor(QPalette::Base, st_regWinBackgroundColor);
   palette.setColor(QPalette::Text, st_regWinFontColor);
   ui->IntRegView->setPalette(palette);
-  ui->IntRegView->setFont(st_regWinFont);
+  ui->IntRegView->applyPanelFont(st_regWinFont);
   eduRegisterModel->setPanelFont(st_regWinFont);
   eduInspector->setPanelFont(st_regWinFont);
 

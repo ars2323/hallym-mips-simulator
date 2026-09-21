@@ -44,7 +44,10 @@
 void SpimView::readSettings() {
   settings.beginGroup("MainWin");
   restoreGeometry(settings.value("Geometry").toByteArray());
-  restoreState(settings.value("WindowState").toByteArray(), 1);
+  // EDU: version 2.  The register docks moved to the left dock area; a
+  // layout saved by an earlier build (version 1) would put them back in the
+  // top row, so it is ignored once and the default layout applies.
+  restoreState(settings.value("WindowState").toByteArray(), 2);
   settings.endGroup();
 
   // If the size of the restored window exceeds the current screen size, resize
@@ -141,7 +144,7 @@ void SpimView::writeSettings(bool omitWindowState) {
   if (!omitWindowState) {
     settings.beginGroup("MainWin");
     settings.setValue("Geometry", saveGeometry());
-    settings.setValue("WindowState", saveState(1));
+    settings.setValue("WindowState", saveState(2));  // EDU: see readSettings
     settings.endGroup();
   }
 

@@ -37,6 +37,7 @@ class EduInspector : public QDockWidget {
                               bool changed, const QString& groupTitle);
 
  private:
+  enum { kLines = 6 };  // registerText() produces exactly this many
   QPlainTextEdit* view_;
 };
 

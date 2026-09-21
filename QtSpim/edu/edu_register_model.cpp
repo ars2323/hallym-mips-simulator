@@ -108,6 +108,7 @@ QVariant EduRegisterModel::data(const QModelIndex& index, int role) const {
     return QVariant();
   }
 
+
   if (index.internalId() == groupId()) {
     const edu::RegisterGroup& group = groups_.at(index.row());
     if (role == Qt::DisplayRole && index.column() == NameColumn) {

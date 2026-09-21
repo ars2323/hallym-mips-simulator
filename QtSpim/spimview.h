@@ -305,6 +305,7 @@ class SpimView : public QMainWindow {
   void abortBreakpoint();
 
   void eduUpdateInspector();  // EDU
+
 };
 
 extern SpimView* Window;
