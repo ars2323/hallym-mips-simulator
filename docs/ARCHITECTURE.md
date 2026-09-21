@@ -754,7 +754,7 @@ DisplayIntRegisters()  QtSpim/regwin.cpp
 | 31 | 상태바 오른쪽에 **설정 배지**: Bare Machine / Pseudo instructions off / Delayed branches / Delayed loads 중 기본값과 다른 것 | 없음 | 이 설정들은 저장되어 재시작 후에도 남는다. Bare Machine이면 `li` 같은 pseudo 명령이 syntax error가 된다 | 6 후속 · `edu_spimview_glue.cpp` `eduUpdateModeBadge` |
 | 32 | 파일을 코어의 `read_assembly_file()` 대신 **그 복제본 `eduReadAssemblyFile()`**로 읽는다(줄 단위 대응 + `flush_local_labels()` 직전의 `print_symbols()` 캡처) | 코어 함수 직접 호출 | 로컬 라벨을 얻는 유일한 방법(§3.7). **시뮬레이터 상태는 같다** — `tests/edu_loader`가 `Tests/` 전체에서 두 로더 뒤의 텍스트·데이터·경계·에러·심볼 테이블을 비교한다 | 6 후속 · `edu/edu_loader.*`, `menu.cpp`·`main.cpp`(`// EDU:`) |
 | 33 | Data 패널의 Words / Half words / Bytes 선택을 설정에 저장(`DataWin/EduDisplayUnit`) | — | 6단계 체크포인트 | 6 후속 · `state.cpp`(`// EDU:` 2곳) |
-| 34 | **Editor 도크**(Data·Text와 같은 탭 묶음, 시작 화면에서 맨 앞). File 메뉴 맨 위에 New / Open in Editor / Save / Save As(Ctrl+N / O / S / Ctrl+Shift+S), Simulator 메뉴·툴바에 **Assemble(F3)**, Window 메뉴에 Editor | 편집기 없음. 단축키는 F5·Shift-F5·F10 셋뿐 | PLAN R4 | 7 · `edu/edu_editor_dock.*`, `edu/edu_code_editor.*`, `edu/edu_editor_glue.cpp` |
+| 34 | **Editor 도크**(Data·Text와 같은 탭 묶음, 시작 화면에서 맨 앞). File과 Simulator 사이에 **Editor 메뉴**: New / Open / Open Recent / Save / Save As(Ctrl+N / O / S / Ctrl+Shift+S) / Assemble. Simulator 메뉴·툴바에도 **Assemble(F3)**, Window 메뉴에 Editor. 원본 File 메뉴는 그대로 | 편집기 없음. 단축키는 F5·Shift-F5·F10 셋뿐 | PLAN R4 | 7 · `edu/edu_editor_dock.*`, `edu/edu_code_editor.*`, `edu/edu_editor_glue.cpp` |
 | 35 | **Assemble 중의 에러는 모달 없이** 에디터 아래 목록 + 여백의 빨간 점 + 상태바 "N errors". 메시지 로그에는 원본과 똑같이 찍힌다. File 메뉴로 올릴 때는 원본대로 에러마다 모달 | 에러 하나당 모달 하나(§4) | 1단계 결정 4. `SpimView::Error()`의 `// EDU:` 한 곳 | 7 · `spimview.cpp`, `edu_editor_glue.cpp` `eduCollectError` |
 | 36 | 에러 목록의 줄 번호는 **인용된 소스 줄이 실제로 있는 줄**. 로그의 메시지는 코어가 말한 번호 그대로 | 범위 밖 operand 같은 에러는 다음 문장의 첫 토큰을 읽은 뒤에 보고되어 번호가 뒤 줄을 가리킨다(`Tests/tt.alu.bare.s`: 메시지 414, 실제 413) | 학생이 엉뚱한 줄을 보지 않게 | 7 · `edu/core/edu_asm_errors.cpp` `resolveMessageLine` |
 | 37 | File 메뉴·최근 파일·명령행으로 올린 파일은 **에디터에도 열린다**(에디터에 다른 파일의 저장 안 한 변경이 있으면 먼저 묻는다). 로드가 끝나면 Text 탭이 앞으로 온다 | — | PLAN R4 6번 | 7 · `menu.cpp`·`main.cpp`의 `eduEditorFileLoaded` |
@@ -1076,14 +1076,15 @@ SpimView 쪽 연결: edu/edu_editor_glue.cpp (메뉴·툴바 항목, Assemble, �
 
 ### 17.2 Assemble
 
-`SpimView::eduAssemble()`: (이름 없는 파일이면 Save As, 변경이 있으면 "Save and assemble / Cancel") → `eduAssembleFile`에 경로를 넣고
+`SpimView::eduAssemble()`: **묻지 않고 저장**(이름 없는 새 파일만 Save As) → `eduAssembleFile`에 경로를 넣고
 **원본의 `file_ReloadFile()`을 그대로 호출**한다. `file_LoadFile()`은 `// EDU:` 한 곳에서 그 경로를 파일 대화상자 대신 쓴다.
 그동안 `SpimView::Error()`는 메시지를 로그에 쓴 뒤(원본과 같음) 모달 대신 `eduCollectError()`에 넘긴다.
-에러가 없으면 Text 탭으로, 있으면 Editor에 머물고 목록·여백 표시·상태바 배지.
+에러가 없으면 상태바에 "Saved and assembled"를 잠깐 띄우고 Text 탭으로, 있으면 Editor에 머물고 목록·여백 표시·상태바 배지.
 `tools/check-editor.sh`가 Assemble 뒤의 텍스트·데이터 세그먼트 로그가 Reinitialize and Load File 뒤와 바이트 동일한지, 에러가 있는 파일의 메시지 로그가 File 메뉴 경로와 바이트 동일한지 확인한다.
 
-최근 파일 목록은 원본 것 하나를 그대로 쓴다: Assemble과 File > Load File이 올린 파일만 들어간다. **에디터에서 열기만 한 파일은 넣지 않았다** —
-원본이 `st_recentFiles[0]`를 다음 실행의 argv[0]으로 쓰므로(§16), 열기만 해도 목록 맨 앞이 바뀌면 로드된 프로그램의 스택 내용이 달라진다.
+최근 파일은 **두 목록**이다. 원본의 File > Recent Files에는 Assemble과 File > Load File이 올린 파일만 들어간다(원본 동작 그대로).
+에디터가 열거나 저장한 파일은 **Editor > Open Recent**(설정 `Editor/RecentFiles`, 8개)에 따로 둔다 —
+원본이 `st_recentFiles[0]`를 다음 실행의 argv[0]으로 쓰므로(§16), 열기만 해도 그 목록 맨 앞이 바뀌면 로드된 프로그램의 스택 내용이 달라지기 때문이다.
 
 ### 17.3 다른 프로그램이 파일을 바꿨을 때
 
