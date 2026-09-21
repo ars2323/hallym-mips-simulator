@@ -1003,3 +1003,29 @@ GUI의 `SpimView::initStack()`이 `initialize_stack()`을 부른 **직후** `$a2
 인스펙터(`edu::memoryDetailLines()`): 주소 | 라벨 | 세그먼트, Hex / Signed / Unsigned, 비트 눈금 + 2진수, Bytes(메모리 순서 + 문자),
 Pointers(그 워드 안을 가리키는 모든 일반 레지스터, `$t0+1` 식).
 
+---
+
+## 16. 파일을 올리는 두 경로와 그 검사
+
+| 경로 | 코드 | 하는 일 |
+|---|---|---|
+| 명령행 (`QtSpimEdu prog.s`) | `QtSpim/main.cpp` — `sim_ReinitializeSimulator()` 뒤에 `read_assembly_file()` 직접 호출 | 어셈블만. 최근 파일 목록을 건드리지 않는다 |
+| File > Load File | `SpimView::file_LoadFile()` (`QtSpim/menu.cpp`) | 파일 대화상자 → 경로 검사 → `read_assembly_file()` → 최근 파일 갱신 → Text/Data/레지스터 다시 그림. **Reinitialize 없음** |
+| File > Reinitialize and Load File | `SpimView::file_ReloadFile()` | `sim_ReinitializeSimulator()` 뒤에 `file_LoadFile()` |
+
+`initStack()`은 `st_recentFiles[0]`를 argv[0]으로 쓰므로(`menu.cpp`), 메뉴로 올린 뒤 실행하면 **파일의 절대 경로가 시뮬레이션 스택에 올라간다** —
+명령행 경로에서는 올라가지 않는다. 로그 골든(`tests/golden/`)이 명령행 경로(`--load-cmdline`)로 캡처·비교되는 이유: 메뉴 경로로 하면 골든이 체크아웃 위치에 묶인다.
+
+**6단계까지 자동 검사는 전부 명령행 경로만 탔다**(`--load`가 파일을 위치 인자로 넘겼다). `file_LoadFile()`/`file_ReloadFile()`은 사람 체크리스트로만 확인됐다.
+6단계 후속에서 바꾼 것:
+
+- 하네스의 `--load` / `--reload`는 **실제 QAction을 trigger**하고 그 슬롯이 띄운 파일 대화상자에 경로를 입력한다. 스크린샷·속도 측정·`regress.sh` 3번이 이 경로를 탄다.
+- `tools/check-menu-load.sh`: Load 1회, Reload 1회·2회, Load→Reload에 에러 없음 + 텍스트 세그먼트가 명령행 로드와 같음. CI에서 돈다.
+- 같은 스크립트의 `--compare-vanilla`: `tools/menu-probe.py`가 **vanilla-9.1.24와 HEAD의 스크래치 worktree**에 같은 프로브(환경변수로 클릭 순서를 받아 QAction을 trigger하고 메시지 상자를 출력)를 넣어 빌드하고,
+  기본 설정과 Bare Machine 설정에서 여섯 가지 클릭 순서의 메시지 상자를 글자 그대로 비교한다. CI에서 돈다.
+
+**코어 동작으로 고정해 둔 것**(vanilla도 같다): Reinitialize 없이 같은 파일을 Load File로 두 번 올리면
+`Label is defined for the second time … main:` — 전역 라벨이 심볼 테이블에 남아 있기 때문(로컬 라벨은 파일 끝에서 지워져 걸리지 않는다, §3.7).
+Bare Machine이 켜져 있으면 pseudo 명령(`li` 등)이 `syntax error`가 되고, 그 줄의 라벨(`main:`)은 이미 등록된 뒤라 **이어서 Load File을 하면 같은 "second time" 에러**가 난다.
+Bare Machine은 설정 파일에 저장되어 재시작 후에도 남는다(원본 동작).
+
