@@ -245,8 +245,11 @@ golden="$repo/tests/golden"
 if [ ! -x "$app" ] || [ "$(strings "$app" | grep -c -F -- 'intregs-log' || true)" -eq 0 ]; then
   note "SKIP  $app missing or not built with CONFIG+=edu_devtools"
 else
-  export XDG_CONFIG_HOME="$scratch/config-log"
-  mkdir -p "$XDG_CONFIG_HOME"
+  # SPIM copies the process environment onto the simulated stack, so $sp,
+  # $a1 and $a2 depend on it.  The goldens were captured under exactly this
+  # environment (tools/capture-goldens.sh); nothing else may leak in.
+  fixed_env=(env -i QT_QPA_PLATFORM=offscreen HOME=/nonexistent
+             XDG_CONFIG_HOME=/nonexistent/config)
   # name|arguments  -- see tests/golden/README.md
   log_cases=(
     "intregs-load|"
@@ -257,7 +260,7 @@ else
   )
   for entry in "${log_cases[@]}"; do
     IFS='|' read -r name args <<<"$entry"
-    QT_QPA_PLATFORM=offscreen timeout 120 "$app" --load "$repo/helloworld.s" $args \
+    "${fixed_env[@]}" timeout 120 "$app" --load "$repo/helloworld.s" $args \
       --dump intregs-log "$scratch/$name.txt" >"$scratch/$name.gui.log" 2>&1 || true
     if [ ! -f "$scratch/$name.txt" ]; then
       fail "$name: no log text produced"; head -20 "$scratch/$name.gui.log"

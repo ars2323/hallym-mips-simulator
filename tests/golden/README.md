@@ -12,6 +12,10 @@ register panel was replaced in stage 3) with helloworld.s:
 | `intregs-run-base2.txt`, `intregs-run-base10.txt` | same, Registers > Binary / Decimal |
 
 `tools/regress.sh` regenerates them from the current build and requires a
-byte-for-byte match: the log must not change when the panel does.  They were
-captured with an empty settings store and no run parameters, which is what
-the script reproduces; `$sp` and friends depend on the argument string.
+byte-for-byte match: the log must not change when the panel does.
+
+They were captured by `tools/capture-goldens.sh` from a build of commit
+a38ebaa -- the last one whose register window is upstream's -- under a pinned
+environment (`env -i`, three fixed variables).  The environment matters: SPIM
+copies the process environment onto the simulated stack, so `$sp`, `$a1` and
+`$a2` move with it.  The regression check replays the same environment.
