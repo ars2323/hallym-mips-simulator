@@ -27,9 +27,9 @@ QString bin32(quint32 value);
 // "0000 0000 0100 0000 0000 0000 0000 1100": nibbles, most significant first.
 QString bin32Grouped(quint32 value);
 
-// A ruler for bin32Grouped(), same length (39), in a fixed-width font:
-// "31   27   23   19   15   11   7    3  0" -- each label sits over the most
-// significant bit of its nibble, and the final 0 over bit 0.
+// A ruler for bin32Grouped() in a fixed-width font:
+// "31   27   23   19   15   11   7    3" -- the number of each nibble's most
+// significant bit, starting in the column of that nibble's first digit.
 QString bitRuler32();
 
 // The value column of a list that follows the Registers/Data "Binary /

@@ -73,11 +73,11 @@ void TestFormat::values() {
   QCOMPARE(edu::bin32(value).size(), 32);
 }
 
-// Bit n of the value must sit under the label "n" of the ruler.
+// Each label must start in the column of its nibble's first digit.
 void TestFormat::rulerLinesUpWithGroupedBinary() {
   const QString ruler = edu::bitRuler32();
-  QCOMPARE(ruler, QString("31   27   23   19   15   11   7    3  0"));
-  QCOMPARE(ruler.size(), edu::bin32Grouped(0).size());
+  QCOMPARE(ruler, QString("31   27   23   19   15   11   7    3"));
+  QVERIFY(ruler.size() <= edu::bin32Grouped(0).size());
 
   const int labelled[] = {31, 27, 23, 19, 15, 11, 7, 3};
   for (int i = 0; i < 8; i += 1) {
@@ -87,9 +87,13 @@ void TestFormat::rulerLinesUpWithGroupedBinary() {
     QCOMPARE(ruler.mid(column, QString::number(bit).size()),
              QString::number(bit));
   }
-  // Bit 0 is the last character of both lines.
-  QCOMPARE(edu::bin32Grouped(1).indexOf(QLatin1Char('1')), ruler.size() - 1);
-  QVERIFY(ruler.endsWith(QLatin1Char('0')));
+  // ...which is the first column of nibble i: 0, 5, 10, ...  The columns
+  // between labels are blank, so nothing else can be mistaken for one.
+  for (int i = 0; i < 8; i += 1) {
+    const QString label = QString::number(labelled[i]);
+    QCOMPARE(ruler.mid(5 * i, 5).trimmed(), label);
+    QCOMPARE(ruler.mid(5 * i, label.size()), label);
+  }
 }
 
 void TestFormat::inBaseFollowsTheMenu() {

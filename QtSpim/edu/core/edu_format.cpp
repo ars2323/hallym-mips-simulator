@@ -31,16 +31,14 @@ QString bin32Grouped(quint32 value) {
 }
 
 QString bitRuler32() {
-  // One 5-character cell per nibble ("0000 "), label left-aligned over the
-  // nibble's top bit; the last cell is 4 wide and ends with bit 0's label.
+  // One 5-character cell per nibble ("0000 "), the label left-aligned in it
+  // so that it starts over the nibble's top bit.  No trailing blanks.
   QString ruler;
   for (int nibble = 0; nibble < 8; nibble += 1) {
     const int topBit = 31 - nibble * 4;
-    const int width = (nibble < 7) ? 5 : 3;
-    ruler += QString::number(topBit).leftJustified(width, ' ');
+    ruler += QString::number(topBit).leftJustified(5, ' ');
   }
-  ruler += QLatin1Char('0');
-  return ruler;
+  return ruler.trimmed();
 }
 
 QString inBase32(quint32 value, int base) {
