@@ -67,6 +67,14 @@
 //
 
 void SpimView::file_LoadFile() {
+  // EDU: Load File on top of a loaded program adds to it, and the usual
+  // result is "Label is defined for the second time ... main".  Ask first.
+  // (Not when called from Reinitialize and Load File below.)
+  if (((QAction*)sender())->objectName() != "action_File_Reload" &&
+      !eduConfirmLoadOnTop()) {
+    return;
+  }
+
   QString file;
   if (((QAction*)sender())->objectName() != "action_File_Load" &&
       ((QAction*)sender())->objectName() != "action_File_Reload") {

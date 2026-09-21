@@ -18,7 +18,8 @@ clicks.  Never run it on the main working tree.
 """
 import sys
 
-INCLUDES = '''#include <QAction>
+INCLUDES = '''#include <QAbstractButton>
+#include <QAction>
 #include <QFileDialog>
 #include <QLineEdit>
 #include <QMessageBox>
@@ -51,6 +52,15 @@ PROBE = r'''
           probeAnswered = true;
           name->setText(probeFile);
           QMetaObject::invokeMethod(files, "accept", Qt::QueuedConnection);
+        }
+        return;
+      }
+      if (modal->objectName() == "EduLoadConfirm") {
+        // QtSpim-Edu asks before loading on top of a loaded program; answer
+        // "Add to current program", which is what upstream does unasked.
+        if (QAbstractButton* add =
+                modal->findChild<QAbstractButton*>("EduLoadAdd")) {
+          add->click();
         }
         return;
       }

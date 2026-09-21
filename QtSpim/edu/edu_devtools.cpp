@@ -78,6 +78,9 @@ QString EduDevtools::usage() {
       "                         file dialog, as a user does it (repeatable,\n"
       "                         in command-line order together with --reload)\n"
       "  --reload <file.s>      File > Reinitialize and Load File, likewise\n"
+      "  --load-answer <a>      answer to \"A program is already loaded\": reinit,\n"
+      "                         add or cancel; one per question, in order\n"
+      "                         (default add, which is what upstream does)\n"
       "  --load-cmdline <file.s>  pass the file as a command-line argument\n"
       "                         instead (upstream's other way in: main.cpp\n"
       "                         assembles it before the window is up)\n"
@@ -283,6 +286,18 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
         return rest;
       }
       raisePanel_ = args.at(i + 1);
+      i += 1;
+      continue;
+    }
+
+    if (arg == "--load-answer") {
+      const QString answer = i + 1 < args.size() ? args.at(i + 1) : QString();
+      if (answer != "reinit" && answer != "add" && answer != "cancel") {
+        err() << "--load-answer needs reinit, add or cancel\n" << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      loadAnswers_ << answer;
       i += 1;
       continue;
     }
@@ -547,6 +562,26 @@ void EduDevtools::dismissBlockingDialog() {
   QWidget* modal = QApplication::activeModalWidget();
 
   if (modal == 0) {
+    return;
+  }
+
+  // Load File while a program is loaded (SpimView::eduConfirmLoadOnTop()).
+  if (modal->objectName() == "EduLoadConfirm") {
+    const QString answer =
+        loadAnswers_.isEmpty() ? QString("add") : loadAnswers_.takeFirst();
+    out() << "load question: answered " << answer << "\n" << Qt::flush;
+    if (!dialogShotDir_.isEmpty()) {
+      grabToFile(modal, dialogShotDir_ + QString("/load-question.png"));
+    }
+    QAbstractButton* button = modal->findChild<QAbstractButton*>(
+        answer == "reinit" ? "EduLoadReinitialize" : "EduLoadAdd");
+    if (answer == "cancel") {
+      // A cancelled Load File never opens the file dialog.
+      pendingMenuFile_.clear();
+      modal->close();
+    } else if (button != 0) {
+      button->click();
+    }
     return;
   }
 

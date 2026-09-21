@@ -3,7 +3,9 @@
    only carry one-line hooks (each marked "// EDU:"). */
 
 #include <QLabel>
+#include <QMessageBox>
 #include <QPlainTextEdit>
+#include <QPushButton>
 #include <QStatusBar>
 #include <QTextEdit>
 
@@ -51,6 +53,7 @@ void SpimView::eduSetupPanels() {
   statusBar()->addPermanentWidget(eduModeBadge);
   eduModeBadge->hide();
 
+  eduProgramLoaded = false;
   eduInspectorSubject = EduNoSubject;
   connect(ui->IntRegView, SIGNAL(registerSelectionChanged()), this,
           SLOT(eduRegisterSelected()));
@@ -267,10 +270,50 @@ bool SpimView::eduLoadAssemblyFile(const QString& file) {
   QString listing;
   const bool opened = eduReadAssemblyFile(file.toLocal8Bit().data(), &listing);
   eduLoadedSymbols += listing;
+  eduProgramLoaded = eduProgramLoaded || opened;
   return opened;
 }
 
-void SpimView::eduForgetLoadedLabels() { eduLoadedSymbols.clear(); }
+void SpimView::eduForgetLoadedLabels() {
+  eduLoadedSymbols.clear();
+  eduProgramLoaded = false;
+}
+
+// File > Load File (and the recent files) while a program is loaded.
+// Upstream loads on top without a word, which is right for a program made of
+// several files and wrong for the usual case, the same file again.  Returns
+// false for Cancel; reinitializes first if that was the answer.
+bool SpimView::eduConfirmLoadOnTop() {
+  if (!eduProgramLoaded) {
+    return true;
+  }
+  QMessageBox box(this);
+  box.setObjectName("EduLoadConfirm");
+  box.setIcon(QMessageBox::Question);
+  box.setWindowTitle("Load File");
+  box.setText("A program is already loaded.");
+  box.setInformativeText(
+      "Reinitialize and load: clear memory and registers first, then load the "
+      "file (what you want when loading the same program again).\n\n"
+      "Add to current program: keep what is loaded and assemble the file on "
+      "top of it (for a program made of several files). A label both define, "
+      "such as main, is reported as an error.");
+  QPushButton* reinitialize =
+      box.addButton("Reinitialize and load", QMessageBox::AcceptRole);
+  QPushButton* add =
+      box.addButton("Add to current program", QMessageBox::ActionRole);
+  box.addButton(QMessageBox::Cancel);
+  reinitialize->setObjectName("EduLoadReinitialize");
+  add->setObjectName("EduLoadAdd");
+  box.setDefaultButton(reinitialize);
+  box.exec();
+
+  if (box.clickedButton() == reinitialize) {
+    sim_ReinitializeSimulator();
+    return true;
+  }
+  return box.clickedButton() == add;
+}
 
 // Labels by address for the Data panel (ARCHITECTURE 15.2).  Three sources:
 //   - print_symbols() as of the end of each file we loaded, local labels

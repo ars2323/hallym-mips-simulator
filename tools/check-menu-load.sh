@@ -12,11 +12,16 @@
 #   c. Reinitialize and Load File twice     -> no error
 #   d. Load File, then Reinitialize and Load-> no error
 #   e. the text segment after (a)/(b) is the one a command-line load gives
-#   f. Load File twice WITHOUT reinitializing -> exactly upstream's error,
+#   f. Load File twice, answering "Add to current program" to the question
+#      QtSpim-Edu asks (= what upstream does unasked) -> exactly upstream's error,
 #      "Label is defined for the second time ... main".  That one is the
 #      core's doing (a global label is still in the symbol table) and
 #      vanilla QtSpim shows it for the same clicks; it is pinned here so that
 #      a change in either direction is noticed.
+#   g. Load File twice, answering "Reinitialize and load" -> no error
+#   h. Load File twice, answering Cancel -> no error, first program intact
+#   i. the question is asked exactly when a program is loaded and the action
+#      is Load File
 #
 # Part 2 (--compare-vanilla; slow, builds two GUIs): the same click sequences
 # on a vanilla-9.1.24 worktree and on a worktree of HEAD, both instrumented
@@ -66,8 +71,10 @@ harness reload  --reload "$file"
 harness reload2 --reload "$file" --reload "$file"
 harness loadreload --load "$file" --reload "$file"
 harness load2   --load "$file" --load "$file"
+harness load2reinit --load "$file" --load-answer reinit --load "$file"
+harness load2cancel --load "$file" --load-answer cancel --load "$file"
 
-for case in load reload reload2 loadreload; do
+for case in load reload reload2 loadreload load2reinit load2cancel; do
   if [ "$(dialogs $case)" -eq 0 ]; then
     pass "$case: no error dialog"
   else
@@ -87,6 +94,25 @@ else
   fail "load2: expected exactly upstream's duplicate-label error, got:"
   grep '^dialog:' "$work/load2.out" | head -5
 fi
+
+# QtSpim-Edu asks before loading on top of a loaded program (PLAN decision
+# "Load File 확인"); the three answers are the cases load2 (the harness's
+# default answer, "Add to current program"), load2reinit and load2cancel.
+questions() { grep -c '^load question:' "$work/$1.out" || true; }
+for case in load2 load2reinit load2cancel; do
+  if [ "$(questions $case)" -eq 1 ]; then
+    pass "$case: asked once whether to reinitialize"
+  else
+    fail "$case: expected one question, got $(questions $case)"
+  fi
+done
+for case in load reload reload2 loadreload; do
+  if [ "$(questions $case)" -eq 0 ]; then
+    pass "$case: not asked"
+  else
+    fail "$case: asked, but nothing was loaded (or it was a Reinitialize and Load)"
+  fi
+done
 
 if [ "$compare" -eq 1 ]; then
   echo

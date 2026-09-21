@@ -123,6 +123,7 @@ class SpimView : public QMainWindow {
   void eduCollectLabels();        // after the text segment changed (a load)
   bool eduLoadAssemblyFile(const QString& file);  // read_assembly_file() + labels
   void eduForgetLoadedLabels();   // the symbol table was cleared
+  bool eduConfirmLoadOnTop();     // Load File while a program is loaded
   void eduNoteStackInitialized(); // right after the core's initialize_stack()
 
   void DisplayTextSegments(bool force);
@@ -212,6 +213,7 @@ class SpimView : public QMainWindow {
   void eduFillTextLog();
   QPlainTextEdit* eduDataLog;    // EDU: and for the Data window
   QLabel* eduModeBadge;          // EDU: status bar, see eduUpdateModeBadge()
+  bool eduProgramLoaded;         // EDU: a file was assembled since Reinitialize
   QString eduLoadedSymbols;      // EDU: print_symbols() text of every file loaded
   void eduFillDataLog();
   enum { EduNoSubject, EduRegisterSubject, EduInstructionSubject,
