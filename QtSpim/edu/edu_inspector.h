@@ -22,6 +22,8 @@
 
 #include "edu/core/edu_registers.h"
 
+class QFrame;
+class QLabel;
 class QPlainTextEdit;
 
 class EduInspector : public QDockWidget {
@@ -36,8 +38,9 @@ class EduInspector : public QDockWidget {
   void showRegister(const edu::RegisterRef& reg, quint32 value, bool changed,
                     const QString& groupTitle);
 
-  // The lines of edu::instructionDetailLines(); long ones are wrapped.
-  void showInstruction(const QStringList& lines);
+  // The lines of edu::instructionDetailLines() (fixed pitch) and of
+  // edu::instructionNoteLines() (prose: proportional font, word wrap).
+  void showInstruction(const QStringList& lines, const QStringList& notes);
 
   void setPanelFont(const QFont& font);
 
@@ -54,10 +57,15 @@ class EduInspector : public QDockWidget {
  private slots:
   void fitHeight();
 
- private:
-  void setText(const QString& text);
+ protected:
+  bool eventFilter(QObject* watched, QEvent* event);
 
-  QPlainTextEdit* view_;
+ private:
+  void setText(const QString& text, const QString& note = QString());
+
+  QFrame* body_;          // frame around the two parts below
+  QPlainTextEdit* view_;  // fixed pitch: values, bit tables
+  QLabel* note_;          // proportional, word-wrapped; hidden when empty
   int shownLines_;
 };
 

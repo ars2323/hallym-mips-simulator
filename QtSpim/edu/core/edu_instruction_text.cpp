@@ -192,15 +192,24 @@ QStringList instructionDetailLines(const DecodedInstruction& d,
       lines << QString::fromUtf8("Dest = PC + 4 + (offset×4) = ") + where;
     } else {
       lines << QString::fromUtf8("Dest = PC + (offset×4) = ") + where;
-      lines << QString::fromUtf8(
-          "SPIM 기본 모드는 지연 분기가 없어 PC 기준으로 인코딩합니다. "
-          "교재의 MIPS(PC+4 기준)와 offset 값이 1 다릅니다.");
-      lines << QString(
-          "SPIM's default mode has no delayed branches and encodes from PC. "
-          "Textbook MIPS encodes from PC+4, so its offset is 1 less.");
     }
   }
   return lines;
+}
+
+QStringList instructionNoteLines(const DecodedInstruction& d,
+                                 BranchConvention convention) {
+  QStringList notes;
+  if (d.hasDestination && d.kind == DecodedInstruction::Branch &&
+      convention == SpimNoDelaySlot) {
+    notes << QString::fromUtf8(
+        "SPIM 기본 모드는 지연 분기가 없어 PC 기준으로 인코딩합니다. "
+        "교재의 MIPS(PC+4 기준)와 offset 값이 1 다릅니다.");
+    notes << QString(
+        "SPIM's default mode has no delayed branches and encodes from PC. "
+        "Textbook MIPS encodes from PC+4, so its offset is 1 less.");
+  }
+  return notes;
 }
 
 }  // namespace edu

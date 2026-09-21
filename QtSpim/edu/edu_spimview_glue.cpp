@@ -136,9 +136,12 @@ void SpimView::eduUpdateInspector() {
       // Which branch encoding this machine uses (ARCHITECTURE 13.2).
       const edu::BranchConvention convention =
           delayed_branches ? edu::MipsDelaySlot : edu::SpimNoDelaySlot;
-      eduInspector->showInstruction(edu::instructionDetailLines(
-          edu::decode(row->word, row->address, convention), row->address,
-          row->disassembly, row->label, convention));
+      const edu::DecodedInstruction decoded =
+          edu::decode(row->word, row->address, convention);
+      eduInspector->showInstruction(
+          edu::instructionDetailLines(decoded, row->address, row->disassembly,
+                                      row->label, convention),
+          edu::instructionNoteLines(decoded, convention));
       return;
     }
     eduInspectorSubject = EduRegisterSubject;  // the instruction went away

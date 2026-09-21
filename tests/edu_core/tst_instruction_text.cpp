@@ -53,19 +53,32 @@ void TestInstructionText::rType() {
 void TestInstructionText::branchInDefaultMode() {
   const QStringList lines = detail(0x14200002u, 0x00400030u, "bne $1, $0, 8",
                                    "target", edu::SpimNoDelaySlot);
-  QCOMPARE(lines.size(), 10);
+  QCOMPARE(lines.size(), 8);
   QCOMPARE(lines.at(5), QString("5      1     0     2"));
   QCOMPARE(lines.at(6), QString("bne    $at   $zero x4=8"));
   QCOMPARE(lines.at(7),
            QString::fromUtf8("Dest = PC + (offset×4) = 0x00400038 [target]"));
-  QVERIFY(lines.at(8).startsWith(QString::fromUtf8("SPIM 기본 모드는")));
-  QVERIFY(lines.at(9).startsWith(QString("SPIM's default mode")));
+
+  const QStringList notes = edu::instructionNoteLines(
+      edu::decode(0x14200002u, 0x00400030u, edu::SpimNoDelaySlot),
+      edu::SpimNoDelaySlot);
+  QCOMPARE(notes.size(), 2);
+  QVERIFY(notes.at(0).startsWith(QString::fromUtf8("SPIM 기본 모드는")));
+  QVERIFY(notes.at(1).startsWith(QString("SPIM's default mode")));
 }
 
 void TestInstructionText::branchWithDelayedBranches() {
   const QStringList lines = detail(0x1420fffeu, 0x00400030u, "bne $1, $0, -8",
                                    "", edu::MipsDelaySlot);
-  QCOMPARE(lines.size(), 8);  // no note in this mode
+  QCOMPARE(lines.size(), 8);
+  QVERIFY(edu::instructionNoteLines(
+              edu::decode(0x1420fffeu, 0x00400030u, edu::MipsDelaySlot),
+              edu::MipsDelaySlot)
+              .isEmpty());  // no note in this mode
+  QVERIFY(edu::instructionNoteLines(
+              edu::decode(0x0c100009u, 0x00400014u, edu::SpimNoDelaySlot),
+              edu::SpimNoDelaySlot)
+              .isEmpty());  // nor for a jump
   QCOMPARE(lines.at(5), QString("5      1     0     -2"));
   QCOMPARE(lines.at(6), QString("bne    $at   $zero x4=-8"));
   QCOMPARE(lines.at(7),
