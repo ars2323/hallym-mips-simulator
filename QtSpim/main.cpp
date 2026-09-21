@@ -37,6 +37,11 @@
 // EDU: fork identity (name, version, settings store).
 #include "edu/edu_version.h"
 
+#ifdef EDU_DEVTOOLS
+// EDU: scripted screenshot mode, development builds only.
+#include "edu/edu_devtools.h"
+#endif
+
 static QStringList parseCommandLine(QStringList args);
 
 SpimView* Window;
@@ -68,7 +73,20 @@ int main(int argc, char* argv[]) {
   win.SpimConsole->show();
   win.show();
 
-  QStringList fileNames = parseCommandLine(a.arguments());
+  QStringList arguments = a.arguments();
+
+#ifdef EDU_DEVTOOLS
+  // EDU: strip the development options before the vanilla parser sees them;
+  // a --load file comes back as a trailing positional argument.
+  EduDevtools devtools;
+  bool devtoolsOk = true;
+  arguments = devtools.takeOptions(arguments, &devtoolsOk);
+  if (!devtoolsOk) {
+    return 2;
+  }
+#endif
+
+  QStringList fileNames = parseCommandLine(arguments);
 
   win.sim_ReinitializeSimulator();
 
@@ -126,6 +144,13 @@ int main(int argc, char* argv[]) {
       "     QTabBar::tab:!selected {"
       "         margin-top: 2px; /* make non-selected tabs look smaller */"
       "     }");
+
+#ifdef EDU_DEVTOOLS
+  // EDU: run the capture script from inside the event loop, then exit.
+  if (devtools.isActive()) {
+    devtools.scheduleRun(&win);
+  }
+#endif
 
   return a.exec();
 }

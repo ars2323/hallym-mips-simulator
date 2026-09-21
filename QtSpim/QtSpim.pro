@@ -97,6 +97,20 @@ RESOURCES = windows_images.qrc exception.qrc
 win32:RC_FILE = qtspim.rc
 
 
+# EDU: development-only build option.
+#
+#   qmake CONFIG+=edu_devtools ../QtSpim/QtSpim.pro
+#
+# adds a scripted screenshot mode (see edu/edu_devtools.h).  Release builds
+# must not set it -- nothing below is compiled in without it.
+#
+edu_devtools {
+  DEFINES += EDU_DEVTOOLS
+  SOURCES += edu/edu_devtools.cpp
+  HEADERS += edu/edu_devtools.h
+}
+
+
 QMAKE_YACC          = bison
 QMAKE_YACCFLAGS     = --defines=parser_yacc.h --output=parser_yacc.cpp
 QMAKE_YACCFLAGS_MANGLE = -p yy
