@@ -170,6 +170,7 @@ class EduDevtools : public QObject {
   bool expandEnvironment_;
   bool expandKernelData_;
   QStringList menuLoads_;    // "L<path>" / "R<path>", in command-line order
+  QStringList editorSteps_;  // "open=<file>", "type=<text>", "save=", ...
   QStringList loadAnswers_;  // answers to "A program is already loaded"
   QString pendingMenuFile_;  // what the next file dialog should pick
   QString raisePanel_;     // dock to bring to the front of its tab group

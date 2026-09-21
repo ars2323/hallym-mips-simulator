@@ -21,6 +21,7 @@
 #include <QTextDocument>
 #include <QTextCodec>
 #include <QTextStream>
+#include <QThread>
 #include <QTimer>
 #include <QWidget>
 
@@ -35,6 +36,8 @@
 #include "edu/edu_register_model.h"
 #include "edu/edu_data_model.h"
 #include "edu/edu_data_view.h"
+#include "edu/edu_code_editor.h"
+#include "edu/edu_editor_dock.h"
 #include "edu/edu_register_view.h"
 #include "edu/edu_text_model.h"
 #include "edu/edu_text_view.h"
@@ -99,6 +102,14 @@ QString EduDevtools::usage() {
       "  --select-memory <hexaddr>  select that word in the Data panel\n"
       "  --set-memory <hexaddr>=<hexvalue>  write a word as Change Memory\n"
       "                         Contents does\n"
+      "  --editor-open <file>   open a file in the editor (no dialog)\n"
+      "  --editor-type <text>   type text at the cursor (\\n = new line)\n"
+      "  --editor-save          File > Save\n"
+      "  --editor-save-as <file>  File > Save As, through its dialog\n"
+      "  --editor-rewrite-on-disk <text>  another program rewrites the file\n"
+      "  --assemble             Simulator > Assemble (the real action)\n"
+      "                         editor steps run in command-line order, after\n"
+      "                         --load / --reload and before --trigger\n"
       "  --save-settings        write the settings file on exit, as closing the\n"
       "                         window does (the script otherwise leaves none)\n"
       "  --raise <panel>        bring that dock's tab to the front\n"
@@ -302,6 +313,22 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
       continue;
     }
 
+    if (arg == "--editor-open" || arg == "--editor-type" ||
+        arg == "--editor-save-as" || arg == "--editor-rewrite-on-disk") {
+      if (i + 1 >= args.size()) {
+        err() << arg << " needs a value\n" << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      editorSteps_ << arg.mid(9) + QString("=") + args.at(i + 1);
+      i += 1;
+      continue;
+    }
+    if (arg == "--editor-save" || arg == "--assemble") {
+      editorSteps_ << (arg == "--assemble" ? QString("assemble=") : QString("save="));
+      continue;
+    }
+
     if (arg == "--save-settings") {
       saveSettings_ = true;
       continue;
@@ -464,6 +491,7 @@ QWidget* EduDevtools::panelWidget(const QString& name) const {
   if (name == "fpregs") return ui->FPRegDockWidget;
   if (name == "text") return ui->TextSegDockWidget;
   if (name == "data") return ui->DataSegDockWidget;
+  if (name == "editor") return window_->eduEditor;
   if (name == "log") return ui->centralWidget;
   if (name == "inspector") return window_->eduInspector;
   if (name == "console") return window_->SpimConsole;
@@ -562,6 +590,18 @@ void EduDevtools::dismissBlockingDialog() {
   QWidget* modal = QApplication::activeModalWidget();
 
   if (modal == 0) {
+    return;
+  }
+
+  // The editor's questions: reload a file changed on disk -> Yes; unsaved
+  // changes -> Discard (a script that wants them saved says --editor-save).
+  if (modal->objectName() == "EduEditorReloadQuestion" ||
+      modal->objectName() == "EduEditorSaveQuestion") {
+    QMessageBox* question = qobject_cast<QMessageBox*>(modal);
+    const bool reload = modal->objectName() == "EduEditorReloadQuestion";
+    out() << "editor question: " << question->text() << " -> "
+          << (reload ? "Yes" : "Discard") << "\n" << Qt::flush;
+    question->button(reload ? QMessageBox::Yes : QMessageBox::Discard)->click();
     return;
   }
 
@@ -696,6 +736,44 @@ void EduDevtools::run() {
       instructions += read_mem_inst(a) != NULL ? 1 : 0;
     }
     out() << "user text: " << instructions << " instructions\n" << Qt::flush;
+  }
+
+  for (int i = 0; i < editorSteps_.size(); i += 1) {
+    const QString step = editorSteps_.at(i).section('=', 0, 0);
+    const QString value = editorSteps_.at(i).section('=', 1);
+    EduEditorDock* dock = window_->eduEditor;
+    if (step == "open") {
+      if (!dock->openFile(QFileInfo(value).absoluteFilePath(), false)) {
+        err() << "editor could not open " << value << "\n" << Qt::flush;
+        status_ = 2;
+      }
+    } else if (step == "type") {
+      QString text = value;
+      text.replace("\\n", "\n");
+      dock->editor()->insertPlainText(text);
+    } else if (step == "save") {
+      window_->findChild<QAction*>("action_Edu_Save")->trigger();
+    } else if (step == "save-as") {
+      pendingMenuFile_ = QFileInfo(value).absoluteFilePath();
+      window_->findChild<QAction*>("action_Edu_SaveAs")->trigger();
+    } else if (step == "rewrite-on-disk") {
+      QFile file(dock->filePath());
+      if (file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        QString text = value;
+        text.replace("\\n", "\n");
+        file.write(text.toUtf8());
+        file.close();
+      }
+      // The watcher's signal, its 150 ms delay and the question box.
+      for (int n = 0; n < 40; n += 1) {
+        QApplication::processEvents(QEventLoop::AllEvents, 20);
+        QThread::msleep(10);
+      }
+    } else if (step == "assemble") {
+      window_->findChild<QAction*>("action_Edu_Assemble")->trigger();
+      out() << "assemble: " << dock->errorCount() << " error(s)\n" << Qt::flush;
+    }
+    settle();
   }
 
   for (int i = 0; i < triggers_.size(); i += 1) {
