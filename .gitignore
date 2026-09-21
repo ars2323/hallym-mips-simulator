@@ -1,5 +1,7 @@
 # shadow build
 /build/
+/build-tests/
+/build-vanilla/
 
 # in-source build 대비
 QtSpim/Makefile*
