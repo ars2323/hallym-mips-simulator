@@ -295,7 +295,7 @@ void     print_symbols();                   //         CPU/sym-tbl.cpp:371
 > `flush_local_labels()`로 그 파일의 **로컬(비-`.globl`) 라벨을 해시 테이블에서 뺀다**
 > (`CPU/spim-utils.cpp:184`, `CPU/sym-tbl.cpp:334-355`). 그래서 로드가 끝난 뒤의 `print_symbols()`에는
 > `main`, `__start`, `.extern` 같은 **전역 라벨만** 나온다 — 학생 코드의 `msg:` 같은 `.data` 라벨은 대부분 로컬이다.
-> 라벨 구조체 자체는 해제되지 않고(명령어의 `EXPR(inst)->symbol`이 계속 가리킨다 — `sym-tbl.cpp:350` 주석),
+> 라벨 구조체 자체는 해제되지 않고(명령어의 `EXPR(inst)->symbol`이 계속 가리킨다 — `sym-tbl.cpp:351` 주석),
 > 그래서 **명령어가 참조하는 라벨**은 텍스트 세그먼트를 훑어 이름·주소를 얻을 수 있다. Data 패널은 두 출처를 합친다(§15.2).
 > 코드가 한 번도 참조하지 않는 로컬 `.data` 라벨은 `CPU/` 수정 없이는 얻을 방법이 없다.
 

@@ -35,3 +35,10 @@ what upstream writes to a log:
 - the `text-no*` cases pass `--redisplay`: upstream's Text Segment toggles do
   not redraw the window themselves (their "changed" test is inverted), so
   without a forced redraw the toggled state would not be in the log.
+
+`data-*.txt` are the same for the Data window, captured from the last commit
+whose data window is upstream's (the "[6] log text seam for the Data window"
+commit).  They include the whole stack, environment strings and all (the
+pinned three variables): the Data panel folds that area on screen, but a saved
+log has always contained it and still does.  `data-sample-*` use
+`tests/samples/data-stack.s`, which writes to `.data` and keeps a stack frame.
