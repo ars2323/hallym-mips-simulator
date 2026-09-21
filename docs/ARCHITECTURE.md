@@ -517,6 +517,7 @@ Settings 다이얼로그 내용(`QtSpim/settings.ui`, 처리 `menu.cpp:402-541`)
 - 인쇄: `findChild<…>("IntRegTextEdit")->print(&printer)` 등 (`menu.cpp:167-180`)
 
 (3단계 이후 Int Regs는 `SpimView::intRegistersLogText()`/`printIntRegisters()`를 거친다 — §11.)
+(5단계 이후 Text는 `SpimView::textSegmentLogText()`/`printTextSegment()`를 거친다 — §14.4. 우클릭 메뉴의 Set/Clear Breakpoint는 `EduTextView`가 제공한다.)
 
 → **위젯을 `QTreeView`/`QTableView`로 바꾸면 이 두 기능이 그대로는 깨진다.**
 `QTableView`에는 `toPlainText()`도 `print()`도 없다. 3·5·6단계에서 각 패널을 바꿀 때
