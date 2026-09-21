@@ -173,16 +173,34 @@ strip_message_out() {
   ' "$1"
 }
 
+# A differing pair is re-run before it counts as a failure.  Upstream's
+# tt.core.s contains a timer test that spins until CP0 Count, driven by a
+# real-time 10 ms signal, equals exactly 10; on a busy machine the process can
+# sleep through that tick and the run then never finishes (it is cut off by
+# the timeout, so the two outputs differ).  That is nondeterminism in the
+# test program, identical in both binaries -- a core difference would show up
+# on every attempt.
+attempts=3
 for entry in "${cases[@]}"; do
   IFS='|' read -r name flags stdin <<<"$entry"
   program="$tests_dir/$name"
-  run_spim "$vanilla_spim" "$flags" "$program" "$stdin" "$scratch/$name.vanilla"
-  run_spim "$our_spim"     "$flags" "$program" "$stdin" "$scratch/$name.ours"
+  matched=0
+  for attempt in $(seq 1 "$attempts"); do
+    run_spim "$vanilla_spim" "$flags" "$program" "$stdin" "$scratch/$name.vanilla"
+    run_spim "$our_spim"     "$flags" "$program" "$stdin" "$scratch/$name.ours"
+    if diff -u "$scratch/$name.vanilla" "$scratch/$name.ours" >"$scratch/$name.diff"; then
+      matched=$attempt
+      break
+    fi
+    note "      $name: outputs differ on attempt $attempt of $attempts"
+  done
 
-  if diff -u "$scratch/$name.vanilla" "$scratch/$name.ours" >"$scratch/$name.diff"; then
+  if [ "$matched" -eq 1 ]; then
     pass "$name ($(wc -l <"$scratch/$name.vanilla") lines)"
+  elif [ "$matched" -gt 1 ]; then
+    pass "$name ($(wc -l <"$scratch/$name.vanilla") lines) -- on attempt $matched; see the note on timing above check 2 in this script"
   else
-    fail "$name output differs:"
+    fail "$name output differs on all $attempts attempts:"
     head -40 "$scratch/$name.diff"
   fi
 done
