@@ -754,6 +754,12 @@ DisplayIntRegisters()  QtSpim/regwin.cpp
 | 31 | 상태바 오른쪽에 **설정 배지**: Bare Machine / Pseudo instructions off / Delayed branches / Delayed loads 중 기본값과 다른 것 | 없음 | 이 설정들은 저장되어 재시작 후에도 남는다. Bare Machine이면 `li` 같은 pseudo 명령이 syntax error가 된다 | 6 후속 · `edu_spimview_glue.cpp` `eduUpdateModeBadge` |
 | 32 | 파일을 코어의 `read_assembly_file()` 대신 **그 복제본 `eduReadAssemblyFile()`**로 읽는다(줄 단위 대응 + `flush_local_labels()` 직전의 `print_symbols()` 캡처) | 코어 함수 직접 호출 | 로컬 라벨을 얻는 유일한 방법(§3.7). **시뮬레이터 상태는 같다** — `tests/edu_loader`가 `Tests/` 전체에서 두 로더 뒤의 텍스트·데이터·경계·에러·심볼 테이블을 비교한다 | 6 후속 · `edu/edu_loader.*`, `menu.cpp`·`main.cpp`(`// EDU:`) |
 | 33 | Data 패널의 Words / Half words / Bytes 선택을 설정에 저장(`DataWin/EduDisplayUnit`) | — | 6단계 체크포인트 | 6 후속 · `state.cpp`(`// EDU:` 2곳) |
+| 34 | **Editor 도크**(Data·Text와 같은 탭 묶음, 시작 화면에서 맨 앞). File 메뉴 맨 위에 New / Open in Editor / Save / Save As(Ctrl+N / O / S / Ctrl+Shift+S), Simulator 메뉴·툴바에 **Assemble(F3)**, Window 메뉴에 Editor | 편집기 없음. 단축키는 F5·Shift-F5·F10 셋뿐 | PLAN R4 | 7 · `edu/edu_editor_dock.*`, `edu/edu_code_editor.*`, `edu/edu_editor_glue.cpp` |
+| 35 | **Assemble 중의 에러는 모달 없이** 에디터 아래 목록 + 여백의 빨간 점 + 상태바 "N errors". 메시지 로그에는 원본과 똑같이 찍힌다. File 메뉴로 올릴 때는 원본대로 에러마다 모달 | 에러 하나당 모달 하나(§4) | 1단계 결정 4. `SpimView::Error()`의 `// EDU:` 한 곳 | 7 · `spimview.cpp`, `edu_editor_glue.cpp` `eduCollectError` |
+| 36 | 에러 목록의 줄 번호는 **인용된 소스 줄이 실제로 있는 줄**. 로그의 메시지는 코어가 말한 번호 그대로 | 범위 밖 operand 같은 에러는 다음 문장의 첫 토큰을 읽은 뒤에 보고되어 번호가 뒤 줄을 가리킨다(`Tests/tt.alu.bare.s`: 메시지 414, 실제 413) | 학생이 엉뚱한 줄을 보지 않게 | 7 · `edu/core/edu_asm_errors.cpp` `resolveMessageLine` |
+| 37 | File 메뉴·최근 파일·명령행으로 올린 파일은 **에디터에도 열린다**(에디터에 다른 파일의 저장 안 한 변경이 있으면 먼저 묻는다). 로드가 끝나면 Text 탭이 앞으로 온다 | — | PLAN R4 6번 | 7 · `menu.cpp`·`main.cpp`의 `eduEditorFileLoaded` |
+| 38 | 종료(창 닫기, File > Exit) 때 에디터에 저장 안 한 변경이 있으면 Save / Discard / Cancel | 바로 종료 | 작업을 잃지 않게 | 7 · `spimview.cpp` `closeEvent`, `menu.cpp` `file_Exit` |
+| 39 | 저장된 창 배치 버전 3 (이전 빌드의 배치는 한 번 무시) | — | Editor 도크가 없는 배치를 복원하면 도크가 숨는다 | 7 · `state.cpp` |
 
 **다르지 않은 것** (확인된 것만): 시뮬레이터 코어 전체(`CPU/` 바이트 동일, `tools/regress.sh` 1·2·3번),
 Save Log File의 Int Regs·Text·Data 출력(4번 — 17·18번의 경우 포함해 골든과 바이트 동일), 브레이크포인트 다이얼로그(Continue / Single Step / Abort),
@@ -1040,4 +1046,47 @@ Pointers(그 워드 안을 가리키는 모든 일반 레지스터, `$t0+1` 식)
 `Label is defined for the second time … main:` — 전역 라벨이 심볼 테이블에 남아 있기 때문(로컬 라벨은 파일 끝에서 지워져 걸리지 않는다, §3.7).
 Bare Machine이 켜져 있으면 pseudo 명령(`li` 등)이 `syntax error`가 되고, 그 줄의 라벨(`main:`)은 이미 등록된 뒤라 **이어서 Load File을 하면 같은 "second time" 에러**가 난다.
 Bare Machine은 설정 파일에 저장되어 재시작 후에도 남는다(원본 동작).
+
+---
+
+## 17. 7단계 이후의 에디터
+
+### 17.1 구조
+
+```
+EduEditorDock : QDockWidget  ("EditorDockWidget", Top/Bottom, Data·Text와 tabify)      edu/edu_editor_dock.*
+├─ EduCodeEditor : QPlainTextEdit   줄 번호 여백, 현재 줄, 에러 줄 표시, 탭 = 8칸(문자는 그대로)   edu/edu_code_editor.*
+│    └─ EduMipsHighlighter           edu::tokenizeMipsLine()의 토큰에 색만 입힌다
+├─ QListWidget "EditorErrorList"     에러가 있을 때만 보인다. 클릭 = 그 줄로
+└─ QLabel                            "UTF-8   CRLF   Ln 40, Col 1"
+SpimView 쪽 연결: edu/edu_editor_glue.cpp (메뉴·툴바 항목, Assemble, 에러 수집, 로드한 파일 열기)
+```
+
+`edu/core`(QtCore만, 단위 테스트):
+- `edu_mips_syntax` — 한 줄을 토큰으로. **명령어·지시어 목록은 `CPU/op.h` 자체**다: `#define OP(NAME, OPCODE, TYPE, R) {NAME, TYPE},`로
+  그 파일을 포함해 이름과 종류만 남긴다(381개, pseudo 명령 포함). 그래서 에디터가 명령어로 칠하는 단어 = 어셈블러가 명령어로 받는 단어.
+  식별자 규칙은 `CPU/scanner.l`의 `[a-zA-Z_.][a-zA-Z0-9_.]*`, 줄 앞의 `이름:`만 라벨 정의.
+- `edu_text_file` — 바이트 ↔ 텍스트. UTF-8 BOM 기억, 유효한 UTF-8이면 UTF-8, 아니면 CP949, 그것도 아니면 Latin-1(모든 바이트가 그대로 왕복).
+  **Qt의 CP949 코덱은 잘못된 입력을 세어 주지 않고 `canEncode()`도 늘 참**이라, "CP949인가"와 "이 글자를 CP949로 쓸 수 있나"는 둘 다 **왕복 결과가 같은지**로 판정한다.
+  저장은 열 때의 인코딩·BOM·줄바꿈 그대로(새 파일은 UTF-8, BOM 없음, LF). CRLF와 LF가 섞인 파일은 많은 쪽으로 통일되고 정보 줄에 알린다.
+  파일 인코딩으로 쓸 수 없는 글자를 넣고 저장하면 몇 번째 줄인지 알리고 UTF-8로 저장할지 묻는다.
+- `edu_asm_errors` — `spim: (parser) <msg> on line <N> of file <path>` 파싱(§4), 형식이 다르면 원문 그대로. `resolveMessageLine()`은 §12 36번.
+
+에디터의 텍스트는 `QTextDocument::toRawText()`에서 얻는다 — `toPlainText()`는 줄바꿈 없는 공백(U+00A0)을 보통 공백으로 바꿔 버린다.
+
+### 17.2 Assemble
+
+`SpimView::eduAssemble()`: (이름 없는 파일이면 Save As, 변경이 있으면 "Save and assemble / Cancel") → `eduAssembleFile`에 경로를 넣고
+**원본의 `file_ReloadFile()`을 그대로 호출**한다. `file_LoadFile()`은 `// EDU:` 한 곳에서 그 경로를 파일 대화상자 대신 쓴다.
+그동안 `SpimView::Error()`는 메시지를 로그에 쓴 뒤(원본과 같음) 모달 대신 `eduCollectError()`에 넘긴다.
+에러가 없으면 Text 탭으로, 있으면 Editor에 머물고 목록·여백 표시·상태바 배지.
+`tools/check-editor.sh`가 Assemble 뒤의 텍스트·데이터 세그먼트 로그가 Reinitialize and Load File 뒤와 바이트 동일한지, 에러가 있는 파일의 메시지 로그가 File 메뉴 경로와 바이트 동일한지 확인한다.
+
+최근 파일 목록은 원본 것 하나를 그대로 쓴다: Assemble과 File > Load File이 올린 파일만 들어간다. **에디터에서 열기만 한 파일은 넣지 않았다** —
+원본이 `st_recentFiles[0]`를 다음 실행의 argv[0]으로 쓰므로(§16), 열기만 해도 목록 맨 앞이 바뀌면 로드된 프로그램의 스택 내용이 달라진다.
+
+### 17.3 다른 프로그램이 파일을 바꿨을 때
+
+`QFileSystemWatcher` → 150ms 뒤 파일을 다시 읽어 **마지막으로 읽거나 쓴 바이트와 다를 때만** 묻는다(이름 바꾸기로 저장하는 편집기는 감시 경로를 끊으므로 매번 다시 건다; 우리 자신의 저장은 감시를 잠시 뗀다).
+"No"를 고르면 그 버전에 대해서는 다시 묻지 않고 문서를 수정됨 상태로 둔다.
 
