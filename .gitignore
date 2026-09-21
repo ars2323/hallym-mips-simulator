@@ -1,7 +1,9 @@
-# shadow build
+# shadow builds (build/, build-tests/, build-release/, ...)
 /build/
-/build-tests/
-/build-vanilla/
+/build-*/
+
+# packaging output
+/dist/
 
 # in-source build 대비
 QtSpim/Makefile*
