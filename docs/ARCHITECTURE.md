@@ -727,3 +727,91 @@ DisplayIntRegisters()  QtSpim/regwin.cpp
 
 **다르지 않은 것** (확인된 것만): 시뮬레이터 코어 전체(`CPU/` 바이트 동일, `tools/regress.sh` 1·2·3번),
 Save Log File의 Int Regs 출력(4번), FP Regs 탭, Text·Data 패널(5·6단계 전까지), 메뉴·단축키·설정 다이얼로그.
+
+---
+
+## 13. 명령어 디코더 (4단계)
+
+`QtSpim/edu/core/edu_decoder.*` — 32비트 워드(+선택적으로 PC)만 보고 형식·필드·이름·분기/점프 목적지를 낸다.
+코어는 링크하지 않는다. 코어와의 대조는 `tests/edu_oracle/`(코어를 링크하는 유일한 바이너리)이 한다.
+
+### 13.1 형식 판정 (워드만으로)
+
+| opcode | 형식 |
+|---|---|
+| 0x00 SPECIAL, **0x1c SPECIAL2** | R |
+| 0x02, 0x03 | J |
+| 0x10 COP0 | CP0 |
+| 0x11 COP1 | fmt 필드가 8(bc1f/bc1t…)이면 FI, 아니면 FR |
+| 나머지 | I |
+
+0x1c(`mul`, `clz`, `madd`…)는 결정문("opcode 0→R … 나머지→I")에 없지만 R로 넣었다: 필드 배치가
+rs/rt/rd/shamt/funct이고, I로 보이면 `mul`의 rd·funct가 immediate로 뭉개진다. COP2(0x12)와 COP1X(0x13)는
+문자 그대로 I다(SPIM이 실행하지 않는 영역).
+
+### 13.2 분기 목적지 — SPIM은 기본 모드에서 교과서 공식과 다르다
+
+| Delayed Branches 설정 | 어셈블러가 넣는 offset | 목적지 |
+|---|---|---|
+| 꺼짐 (**QtSpim 기본값**) | (라벨 − PC) / 4 | **PC + (offset << 2)** |
+| 켜짐 (Bare Machine) | (라벨 − PC) / 4 − 1 | PC + 4 + (offset << 2) ← MIPS 표준 |
+
+근거: `CPU/sym-tbl.cpp:258-266`(`if (delayed_branches) val -= 1`), `CPU/run.cpp:104-118`(`BRANCH_INST`: 지연 분기일 때만 `+4`).
+즉 **같은 소스 줄이 모드에 따라 다른 기계어가 된다.** 기본 모드에서 `bne` 바로 뒤뒤 명령으로 가는 분기는
+offset 2로 인코딩된다(실제 MIPS라면 1). 실측: `[0x00400030] 0x14200002 bne $1, $0, 8 [target-0x00400030]`, target = 0x00400038.
+PLAN R3의 "목적지 = PC+4+(imm<<2)"는 Bare Machine 모드에서만 맞는다. 디코더는 `BranchConvention`
+(`SpimNoDelaySlot` / `MipsDelaySlot`)을 인자로 받고, 5단계 UI는 현재 설정(`delayed_branches`)에 맞는 쪽을 넘겨야 한다.
+
+점프는 코어와 같이 `(PC & 0xf0000000) | (target << 2)`로 계산한다(`CPU/run.cpp:442,450`). 표준의 `(PC+4)[31:28]`과는
+PC가 256MB 경계 직전일 때만 다르다. 다른 256MB 영역의 라벨로 점프하면 코어는 경고만 하고 상위 4비트를 잘라 인코딩하며,
+실행도 그 잘린 주소로 간다(`tt.core.s`의 `j l17a`: 0x80000258 → 0x00000258).
+
+### 13.3 이름: SPIM이 어셈블·실행할 수 있는 것만
+
+`op.h`의 인코딩 있는 항목 291개 중 **MIPS32 Release 2 표시가 붙은 91개는 SPIM 파서가 전부 거부한다**
+("not implemented. Instruction ignored"): 이 토큰들은 `CPU/parser.y`에서 `*_REV2` 규칙 14개에만 나오고
+그 규칙은 전부 `mips32_r2_inst()`를 부른다(`sub.ps`는 규칙이 아예 없어 문법 오류). 디코더도 이들을 모르는 명령(`known == false`)으로
+둔다. 나머지 200개는 전부 이름이 일치한다.
+
+SPIM의 인코딩이 MIPS32 매뉴얼과 다른 곳은 SPIM을 따랐다(학생이 보는 워드는 SPIM이 만든 것이므로):
+
+| 명령 | SPIM | MIPS32 매뉴얼 |
+|---|---|---|
+| `cvt.d.w` | 0x46200021 (fmt = 17, D) | 0x46800021 (fmt = 20, W — 원본 형식이 fmt) |
+| `rfe` | 0x42000010 | MIPS I 전용, MIPS32에는 없음 |
+| `cop2` | 0x4a000000 + 25비트 인자 (J-type 취급) | COP2 일반 연산 |
+
+`0x00000040`은 `ssnop`이면서 `sll $0,$0,1`이다. 워드만으로는 구분할 수 없어 코어의 디코더처럼 `sll`로 답한다.
+`0x00000000`은 코어가 출력하는 대로 `nop`.
+
+### 13.4 코어 자체 디코더(`inst_decode`)의 버그 — 우리 것과 다른 10곳
+
+`inst_decode()`는 `.word`를 텍스트 세그먼트에 넣었을 때만 쓰인다(어셈블된 명령은 파서가 만든 구조체를 그대로 쓰고,
+`run.cpp`도 내부 opcode로 실행하므로 **프로그램 실행에는 영향이 없다**). 조회 키를 만들 때 비트를 빠뜨려 다음을 잘못 부른다:
+
+| 워드의 실제 명령 | `inst_decode()`의 답 | 원인 (`CPU/inst.cpp:1167-1184`) |
+|---|---|---|
+| `bc1fl`, `bc1tl` | `bc1f`, `bc1t` | COP1 분기 키에 bit 16(tf)만 넣고 bit 17(nd, likely)을 뺀다 |
+| `bc2t`, `bc2fl`, `bc2tl` | `bc2f` | COP2는 rs만 키에 넣는다 |
+| `cop2` | 무효 명령 | 위와 같음: rs 자리가 `cop2` 인자의 일부 |
+| `movt` | `movf` | SPECIAL 키는 funct뿐, rt의 tf 비트가 빠진다 |
+| `movt.s`, `movt.d` | `movf.s`, `movf.d` | COP1 키는 fmt+funct뿐 |
+| `trunc.w.s` | `suxc1` | `op.h`가 Release 2 명령 `suxc1`에 같은 인코딩(0x4600000d)을 줬다 |
+
+마지막 줄은 `op.h`의 **중복 인코딩** 6쌍 중 하나다: `floor.w.s`/`prefx`, `trunc.w.s`/`suxc1`, `round.l.s`/`swxc1`,
+`trunc.l.s`/`sdxc1`, `lwxc1`/`madd.s`, `ldxc1`/`madd.d`. 어느 쪽이 나오는지는 `qsort`가 같은 키를 어떻게 놓느냐에 달려 있어
+C 라이브러리마다 다를 수 있다. 오라클 테스트는 이 경우를 보고만 하고 고정하지 않는다.
+
+5단계에서 Text 패널의 명령어 이름은 **구조체(파서가 만든 것)에서** 가져와야 하고, 워드를 `inst_decode()`에 넣어 얻으면 안 된다.
+
+### 13.5 오라클 테스트가 확인하는 것 (`tests/edu_oracle/tst_decoder_oracle.cpp`)
+
+1. **`op.h` 전체**: 구현된 200개 명령마다 코어 `instruction`을 만들어 `inst_encode()`로 인코딩(피연산자 30가지 조합, 총 5,971워드) →
+   이름, 코어 구조체 슬롯(rs/rt/rd/shamt/imm/target/cc)과 우리 필드, 필드 재조립 = 원래 워드, 필드가 32비트를 빈틈없이 덮는지, 형식 규칙.
+2. **프로그램**: `exceptions.s`, `helloworld.s`, `Tests/tt.{core,le,dir,io,bare,alu.bare,fpu.bare}.s`를 코어로 어셈블해
+   텍스트 세그먼트의 모든 명령(8,964개)에 같은 검사 + 분기·점프 목적지를 **심볼 테이블의 라벨 주소**와 대조(1,484개). 두 분기 규약 모두 포함.
+3. **몰라야 하는 것**: 안 쓰는 opcode, Release 2 항목 91개.
+4. **`inst_decode()`와의 차이**: 위 13.4의 표를 고정. 새 차이가 생기면 실패.
+
+손으로 계산한 경계값(최대/최소 imm, 음수 분기, 미해결 `jal 0x00000000`, nop, 모르는 opcode, 모듈로 2^32)은
+`tests/edu_core/tst_decoder.cpp`.
