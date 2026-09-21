@@ -764,6 +764,8 @@ DisplayIntRegisters()  QtSpim/regwin.cpp
 | 41 | 어셈블이 실패해도 **파일은 저장된 채로** 두고, 상태바에 "Assemble failed — N errors. Simulator was reset." | — | 어셈블은 원본의 Reinitialize and Load File 경로라 이전 프로그램이 사라진다. 그 이유를 알린다 | 7 · 같은 곳 |
 | 42 | Text·Data 패널 맨 위의 띠 **"Source changed — save (Ctrl+S) to assemble"**: 에디터의 소스가 시뮬레이터가 마지막으로 받은 것과 다를 때(입력함, 다른 파일을 엶, Reinitialize 함, 시작 시 마지막 파일이 열림). 클릭 = 저장+어셈블. 어셈블을 시도하면(성공·실패 모두) 사라진다 | — | 보고 있는 Text/Data가 지금 소스와 다르다는 것을 그 자리에서 알린다 | 7 · `edu_editor_glue.cpp` `eduUpdateStaleBanner` |
 | 43 | 시작할 때 **에디터가 마지막으로 열었던 파일을 다시 연다**(설정 `Editor/LastFile`, 파일이 없으면 조용히 빈 에디터). **어셈블하지 않는다** — 시뮬레이터의 시작 상태는 원본과 같다(`check-editor.sh` 7번이 텍스트 세그먼트를 새 시작과 비교). 프로그램이 로드되지 않은 시작에서는 저장된 창 배치와 무관하게 Editor 탭이 앞 | — | 7단계 체크포인트 | 7 · `edu_editor_glue.cpp` `eduSetupEditor`, `eduEditorAtStartup`; `main.cpp`(`// EDU:`) |
+| 44 | 버전이 **우리 것 1.0.0**(`EDU_VERSION`)이고 About에 "QtSpim-Edu 1.0.0 (based on QtSpim 9.1.24)", 상태바 오른쪽 끝에 "QtSpim-Edu 1.0.0" | About에 SPIM 버전만 | 학생의 스크린샷만 보고도 어느 빌드인지 알 수 있게. `CPU/version.h`는 그대로 | 8 · `edu/edu_version.h`, `menu.cpp`, `edu_spimview_glue.cpp` |
+| 45 | **MSI가 별개 제품**: ProductName `QtSpim-Edu`, 고유 UpgradeCode, `%ProgramFiles%\QtSpim-Edu`(64비트), 시작 메뉴만(바탕 화면 바로 가기 없음), `.s` 연결 없음, 설치 프로그램의 레지스트리는 `HKCU\Software\QtSpim-Edu-Installer`뿐 | `QtSpim` / `%ProgramFiles(x86)%\QtSpim.` / 바탕 화면 바로 가기 | 표준 QtSpim과 같은 PC에 설치·제거해도 서로 건드리지 않게. CI의 `tools/check-msi.ps1`이 MSI 테이블과 실제 무인 설치·제거(표준 QtSpim 대역 옆에서)로 확인한다 | 8 · `Setup/QtSpimEdu_Win_Deployment/`, `tools/package-msi.ps1` |
 
 **다르지 않은 것** (확인된 것만): 시뮬레이터 코어 전체(`CPU/` 바이트 동일, `tools/regress.sh` 1·2·3번),
 Save Log File의 Int Regs·Text·Data 출력(4번 — 17·18번의 경우 포함해 골든과 바이트 동일), 브레이크포인트 다이얼로그(Continue / Single Step / Abort),
