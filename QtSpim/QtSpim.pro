@@ -40,7 +40,10 @@ cache()
 
 QT       += core widgets printsupport
 
-TARGET = QtSpim
+# EDU: different executable name so this build can be installed next to the
+# standard QtSpim. The name lives in edu/edu_version.h (EDU_TARGET_NAME) too;
+# keep the two in sync.
+TARGET = QtSpimEdu
 TEMPLATE = app
 
 
@@ -68,6 +71,7 @@ SOURCES += main.cpp\
 
 
 HEADERS  += spimview.h\
+        edu/edu_version.h\
         regtextedit.h\
         texttextedit.h\
         datatextedit.h\

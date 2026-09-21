@@ -34,6 +34,9 @@
 #include <QApplication>
 #include "spimview.h"
 
+// EDU: fork identity (name, version, settings store).
+#include "edu/edu_version.h"
+
 static QStringList parseCommandLine(QStringList args);
 
 SpimView* Window;
@@ -45,9 +48,13 @@ int main(int argc, char* argv[]) {
       LC_NUMERIC,
       "C");  // Qt Linux has wrong default
              // https://doc.qt.io/qt-5/qcoreapplication.html#locale-settings
-  QCoreApplication::setOrganizationName("LarusStone");
-  QCoreApplication::setOrganizationDomain("larusstone.org");
-  QCoreApplication::setApplicationName("QtSpim");
+  // EDU: this fork keeps its own settings store so that it can be installed
+  // and run next to the standard QtSpim without the two overwriting each
+  // other's window layout.
+  QCoreApplication::setOrganizationName(EDU_SETTINGS_ORG);
+  QCoreApplication::setOrganizationDomain(EDU_SETTINGS_DOMAIN);
+  QCoreApplication::setApplicationName(EDU_SETTINGS_APP);
+  QCoreApplication::setApplicationVersion(EDU_VERSION);
 
   App = &a;
   SpimView win;

@@ -40,6 +40,9 @@
 #include "spim_settings.h"
 #include "version.h"
 
+// EDU: fork identity.
+#include "edu/edu_version.h"
+
 #include <QStringBuilder>
 #define QT_USE_FAST_CONCATENATION
 #include <QMessageBox>
@@ -755,12 +758,24 @@ void SpimView::help_ViewHelp() {
 }
 
 void SpimView::help_AboutSPIM() {
+  // EDU: the box now names this fork and states what it changed, then repeats
+  // the upstream notices. Everything from "Based on QtSpim" down -- the
+  // copyright line, the BSD notice and the two LGPL links -- is unaltered.
   QMessageBox box(
-      QMessageBox::NoIcon, "About QtSpim",
+      QMessageBox::NoIcon, "About " EDU_APP_NAME,
       QString("<span style='font-size: 16pt;'>"
-              "<center><strong>QtSpim</strong></center>"
+              "<center><strong>" EDU_APP_NAME "</strong></center>"
               "<center><img src=':/icons/qtspim.png'>"
               "<span style='font-size: 10pt;'>") +
+          QString("<p>" EDU_APP_NAME " " EDU_VERSION "</p>") +
+          QString("<p>An unofficial educational fork of QtSpim that changes "
+                  "only the user interface. The simulator core is the "
+                  "unmodified SPIM core described below, so programs run "
+                  "exactly as they do in the standard QtSpim.</p>"
+                  "<p>Not endorsed by or affiliated with the SPIM "
+                  "project.</p>"
+                  "<hr>"
+                  "<p><strong>Based on QtSpim</strong></p>") +
           QString("<p>") + QString(SPIM_VERSION) + QString("</p>") +
           QString("<p>SPIM is a simulator of the MIPS R3000 processor.</p>"
                   "<p>Copyright (c) 1990-2015, James R. Larus "

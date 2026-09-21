@@ -34,6 +34,9 @@
 #include "spimview.h"
 #include "ui_spimview.h"
 
+// EDU: fork identity.
+#include "edu/edu_version.h"
+
 #include <QStringBuilder>
 #define QT_USE_FAST_CONCATENATION
 #include <QMessageBox>
@@ -43,10 +46,11 @@
 SpimView::SpimView(QWidget *parent)
     : QMainWindow(parent),
       ui(new Ui::SpimView),
-      settings("LarusStone", "QtSpim") {
+      settings(EDU_SETTINGS_ORG, EDU_SETTINGS_APP) {  // EDU: own settings store
   // Open windows
   //
   ui->setupUi(this);
+  setWindowTitle(EDU_APP_NAME);  // EDU: spimview.ui still says "QtSpim"
   SpimConsole = new Console(0);
 
   stdExceptionHandler = QString("<<SPIM Exception Handler>>");
