@@ -750,6 +750,10 @@ DisplayIntRegisters()  QtSpim/regwin.cpp
 | 27 | Change Memory Contents: **취소하면 아무 일도 없다**, 값 범위 검사는 플랫폼 무관(7·8번과 같은 규칙). 0이 이어진 줄 안의 주소도 Go to로 찾아가 고칠 수 있다. 더블클릭으로도 열린다 | 취소해도 "Bad … memory value", `toLong()` 범위는 플랫폼마다 다름, `[a]..[b]` 줄에서는 첫 주소만 고칠 수 있음 | 7·8번과 같은 이유 | 6 · `edu_data_view.cpp` `changeValue` |
 | 28 | Data Segment 메뉴·우클릭 메뉴에 Words / Half words / Bytes, 패널 위에 Go to 입력과 `$sp` 버튼 | 없음 | PLAN R5 | 6 · `edu_data_view.cpp` |
 | 29 | `$sp`가 스택 범위 밖(Clear Registers 직후의 0 등)이면 User Stack을 **할당된 스택 전체**로 보여 준다 | `$sp`부터 0x80000000까지를 그대로 훑는다(매핑 안 된 주소를 5억 워드 읽음 — 사실상 멈춤) | 멈추지 않게. 로그 저장은 원본 빌더 그대로라 이 경우 원본처럼 오래 걸린다 | 6 · `edu_data_model.cpp` `segmentBounds` |
+| 30 | **File > Load File이 묻는다**: 프로그램이 로드된 상태면 "Reinitialize and load(기본) / Add to current program / Cancel". 최근 파일 항목도 같다. Reinitialize and Load File과 첫 로드에서는 묻지 않는다 | 말없이 현재 프로그램 위에 얹는다 → 같은 파일이면 `Label is defined for the second time … main`(§16) | 학생이 가장 자주 만나는 혼란. "Add"를 고르면 원본과 같다 | 6 후속 · `menu.cpp` `file_LoadFile`(`// EDU:`), `edu_spimview_glue.cpp` `eduConfirmLoadOnTop` |
+| 31 | 상태바 오른쪽에 **설정 배지**: Bare Machine / Pseudo instructions off / Delayed branches / Delayed loads 중 기본값과 다른 것 | 없음 | 이 설정들은 저장되어 재시작 후에도 남는다. Bare Machine이면 `li` 같은 pseudo 명령이 syntax error가 된다 | 6 후속 · `edu_spimview_glue.cpp` `eduUpdateModeBadge` |
+| 32 | 파일을 코어의 `read_assembly_file()` 대신 **그 복제본 `eduReadAssemblyFile()`**로 읽는다(줄 단위 대응 + `flush_local_labels()` 직전의 `print_symbols()` 캡처) | 코어 함수 직접 호출 | 로컬 라벨을 얻는 유일한 방법(§3.7). **시뮬레이터 상태는 같다** — `tests/edu_loader`가 `Tests/` 전체에서 두 로더 뒤의 텍스트·데이터·경계·에러·심볼 테이블을 비교한다 | 6 후속 · `edu/edu_loader.*`, `menu.cpp`·`main.cpp`(`// EDU:`) |
+| 33 | Data 패널의 Words / Half words / Bytes 선택을 설정에 저장(`DataWin/EduDisplayUnit`) | — | 6단계 체크포인트 | 6 후속 · `state.cpp`(`// EDU:` 2곳) |
 
 **다르지 않은 것** (확인된 것만): 시뮬레이터 코어 전체(`CPU/` 바이트 동일, `tools/regress.sh` 1·2·3번),
 Save Log File의 Int Regs·Text·Data 출력(4번 — 17·18번의 경우 포함해 골든과 바이트 동일), 브레이크포인트 다이얼로그(Continue / Single Step / Abort),
@@ -953,14 +957,22 @@ Kernel data `K_DATA_BOT..k_data_top` (`CPU/mem.h:67-105`).
 
 ### 15.2 라벨
 
-`SpimView::eduCollectLabels()` — 텍스트 세그먼트가 다시 그려질 때(로드, Reinitialize) 한 번:
+세 출처를 합친다(`SpimView::eduCollectLabels()` — 텍스트 세그먼트가 다시 그려질 때, 즉 로드·Reinitialize 뒤):
 
-1. `print_symbols()` 출력을 캡처(`write_output()`에 `eduOutputCapture` 스위치 — `QtSpim/spim_support.cpp`, `// EDU:`)해서
-   `edu::parseSymbolListing()`으로 파싱. **전역 라벨만 나온다**(§3.7의 6단계 메모).
-2. 두 텍스트 세그먼트의 명령어를 훑어 `EXPR(inst)->symbol`이 정의된 것의 이름·주소를 더한다 — `la $a0, msg`의 `msg` 같은 **로컬 라벨**이 이렇게 들어온다.
+1. **파일을 읽는 시점의 `print_symbols()`** — `eduReadAssemblyFile()`(`QtSpim/edu/edu_loader.cpp`)이 코어의 `read_assembly_file()`
+   (`CPU/spim-utils.cpp:170-188`)과 **줄 단위로 같은 호출**을 하면서 `flush_local_labels()` 직전에 한 번 캡처한다. 로컬 라벨 전부가 여기서 들어온다
+   (`msg`, 참조되지 않는 `bytes`·`half`까지). File 메뉴와 명령행 두 로드 지점이 이 함수를 쓴다. Reinitialize(`InitializeWorld`) 때 비운다.
+2. **지금의 `print_symbols()`** — 전역 라벨. 예외 핸들러는 코어가 직접 읽으므로(`initialize_world()`) 1번에 없고, 그 전역 라벨이 여기로 들어온다.
+3. **명령어가 참조하는 라벨**(`EXPR(inst)->symbol`) — 예외 핸들러의 로컬 라벨(`__m1_` 등)이 이렇게 들어온다.
 
-한계: 코드가 참조하지 않는 로컬 `.data` 라벨은 얻지 못한다(`tests/samples/data-stack.s`의 `msg`, `bytes`, `half`가 그 예).
-브레이크포인트가 걸린 주소의 명령어는 `break`로 바뀌어 있어 그 명령어의 라벨도 빠진다(다른 명령어가 같은 라벨을 참조하면 무관).
+캡처는 `write_output()`의 `eduOutputCapture` 스위치(`QtSpim/spim_support.cpp`, `// EDU:`)로 하고 `edu::parseSymbolListing()`이 파싱한다.
+
+**복제가 코어와 어긋나지 않는다는 근거**(`tests/edu_loader/tst_loader.cpp`, 코어를 링크한 테스트):
+`Tests/*.s` 전부 + 샘플을 Makefile의 플래그와 GUI 기본 모드 양쪽에서, 코어 로더와 복제 로더로 각각 읽은 뒤
+명령어(코어의 `format_an_inst` 줄), 0이 아닌 데이터 워드, 세그먼트 경계, 에러 메시지 목록, 로드 후 심볼 테이블을 비교한다.
+같은 테스트가 **소스에 정의된 라벨 수 = 캡처된 라벨 수**도 확인한다(syntax error로 파싱이 멈춘 파일은 그 줄까지만 센다 — 에러 줄의 라벨은 등록된 뒤다).
+GUI 수준에서는 골든 31개(로드 직후 포함)와 `syntaxerror-*` 골든 5개(파일 중간 syntax error: 텍스트·데이터·메시지 로그·Run 후 레지스터·로그 — `stage-6` 빌드, 즉 코어 로더로 캡처),
+`tools/check-menu-load.sh --compare-vanilla`가 같다.
 
 ### 15.3 argv/환경변수 접기 — 경계의 근거
 
