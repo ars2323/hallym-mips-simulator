@@ -14,6 +14,10 @@
 #      message log reads exactly as it does for Reinitialize and Load File.
 #   5. A file loaded through the File menu is what the editor holds.
 #   6. A file rewritten by another program is offered for reloading.
+#   3b. Saving is assembling: a real Ctrl+S saves, assembles and goes to the
+#      Text tab; the "Source changed" strip comes and goes; a failed assemble
+#      keeps the file saved and says the simulator was reset.
+#   7. The last file is reopened at the next start and not assembled.
 
 set -euo pipefail
 
@@ -136,6 +140,52 @@ else
 fi
 
 echo
+echo "== 3b. saving is assembling (real key presses)"
+cp "$repo/helloworld.s" "$work/keys.s"
+run keys --editor-report --editor-open "$work/keys.s" --editor-report \
+    --editor-type 'nop\n' --editor-report --editor-key ctrl+s --editor-report \
+    --editor-type 'nop\n' --editor-report --editor-click-banner --editor-report \
+    --dump text-log "$work/keys.text"
+mapfile -t rep < <(grep '^editor:' "$work/keys.out")
+expect() {  # expect INDEX WHAT PATTERN
+  if [[ "${rep[$1]:-}" == *$3* ]]; then pass "$2"; else fail "$2: ${rep[$1]:-<no report>}"; fi
+}
+expect 0 "start: Editor tab in front, no strip"          'banner=0 front=Editor'
+expect 1 "file opened, not assembled: strip shows"      'file=keys.s modified=0 banner=1'
+expect 2 "typed: modified, strip shows"                 'modified=1 banner=1 front=Editor'
+expect 3 "Ctrl+S: saved, assembled, Text tab, strip gone" 'modified=0 banner=0 front=Text errors=0 status="Saved and assembled"'
+expect 4 "typed again: strip is back"                   'modified=1 banner=1'
+expect 5 "click on the strip: saved and assembled"      'modified=0 banner=0 front=Text errors=0'
+if [ "$(head -c 10 "$work/keys.s" | tr -d '\r')" = "$(printf 'nop\nnop\n')" ] &&
+   [ "$(grep -c ' nop ' "$work/keys.text" || true)" -ge 2 ]; then
+  pass "both edits are on disk and in the text segment"
+else
+  fail "edits not on disk / not assembled"
+fi
+
+# A failed assemble: the file is saved all the same, the errors are listed,
+# and the status bar says the simulator was reset.
+cp "$repo/helloworld.s" "$work/fails.s"
+run fails --editor-open "$work/fails.s" --editor-key f3 \
+    --editor-type 'addi $t0, $t0, )\n' --editor-key f3 --editor-report \
+    --dump text-log "$work/fails.text"
+mapfile -t rep < <(grep '^editor:' "$work/fails.out")
+expect 0 "F3 on a broken file: stays in the Editor, one error, no strip" \
+    'modified=0 banner=0 front=Editor errors=1'
+expect 0 "status bar: failed, simulator was reset" \
+    'badge="Assemble failed — 1 error. Simulator was reset."'
+if [ "$(head -c 4 "$work/fails.s")" = "addi" ]; then
+  pass "the broken file was saved (the student's work is kept)"
+else
+  fail "the broken file was not saved"
+fi
+if ! grep -q 'la \$a0, msg' "$work/fails.text"; then
+  pass "the program that ran before is gone (simulator reinitialized)"
+else
+  fail "the old program is still in the text segment"
+fi
+
+echo
 echo "== 5. File > Load File also opens the file in the editor"
 run loaded --load "$file" --editor-save-as "$work/loaded.copy.s"
 if cmp -s "$file" "$work/loaded.copy.s"; then
@@ -155,6 +205,37 @@ if grep -q '^editor question: watched.s was changed by another program. -> Yes' 
   pass "asked, and reloaded the new contents"
 else
   fail "external change:"; grep '^editor question' "$work/watched.out" || echo "  (no question)"
+fi
+
+echo
+echo "== 7. the last file is reopened at the next start, and not assembled"
+cp "$repo/helloworld.s" "$work/last.s"
+keep="$work/keep-config"
+persist() {  # like run, but with a settings directory that survives
+  local name=$1; shift
+  env -i QT_QPA_PLATFORM=offscreen HOME=/nonexistent XDG_CONFIG_HOME="$keep" \
+      timeout 120 "$app" "$@" >"$work/$name.out" 2>&1 || true
+}
+persist last1 --editor-open "$work/last.s" --assemble --save-settings \
+    --dump console "$work/last1.console"
+persist last2 --editor-report --dump text-log "$work/last2.text"
+run fresh --dump text-log "$work/fresh.text"
+mapfile -t rep < <(grep '^editor:' "$work/last2.out")
+expect 0 "second start: last.s is open, strip shows, Editor in front" \
+    'file=last.s modified=0 banner=1 front=Editor'
+if [ -s "$work/last2.text" ] && cmp -s "$work/last2.text" "$work/fresh.text"; then
+  pass "nothing was assembled: the text segment is a fresh start's"
+else
+  fail "the text segment differs from a fresh start's"
+fi
+rm -f "$work/last.s"
+persist last3 --editor-report --dump console "$work/last3.console"
+mapfile -t rep < <(grep '^editor:' "$work/last3.out")
+expect 0 "file deleted meanwhile: starts empty, no message" 'file= modified=0 banner=0'
+if [ "$(grep -c '^dialog:' "$work/last3.out" || true)" -eq 0 ]; then
+  pass "no dialog about the missing file"
+else
+  fail "a dialog came up for the missing file"
 fi
 
 echo

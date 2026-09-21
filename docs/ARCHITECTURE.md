@@ -754,12 +754,16 @@ DisplayIntRegisters()  QtSpim/regwin.cpp
 | 31 | 상태바 오른쪽에 **설정 배지**: Bare Machine / Pseudo instructions off / Delayed branches / Delayed loads 중 기본값과 다른 것 | 없음 | 이 설정들은 저장되어 재시작 후에도 남는다. Bare Machine이면 `li` 같은 pseudo 명령이 syntax error가 된다 | 6 후속 · `edu_spimview_glue.cpp` `eduUpdateModeBadge` |
 | 32 | 파일을 코어의 `read_assembly_file()` 대신 **그 복제본 `eduReadAssemblyFile()`**로 읽는다(줄 단위 대응 + `flush_local_labels()` 직전의 `print_symbols()` 캡처) | 코어 함수 직접 호출 | 로컬 라벨을 얻는 유일한 방법(§3.7). **시뮬레이터 상태는 같다** — `tests/edu_loader`가 `Tests/` 전체에서 두 로더 뒤의 텍스트·데이터·경계·에러·심볼 테이블을 비교한다 | 6 후속 · `edu/edu_loader.*`, `menu.cpp`·`main.cpp`(`// EDU:`) |
 | 33 | Data 패널의 Words / Half words / Bytes 선택을 설정에 저장(`DataWin/EduDisplayUnit`) | — | 6단계 체크포인트 | 6 후속 · `state.cpp`(`// EDU:` 2곳) |
-| 34 | **Editor 도크**(Data·Text와 같은 탭 묶음, 시작 화면에서 맨 앞). File과 Simulator 사이에 **Editor 메뉴**: New / Open / Open Recent / Save / Save As(Ctrl+N / O / S / Ctrl+Shift+S) / Assemble. Simulator 메뉴·툴바에도 **Assemble(F3)**, Window 메뉴에 Editor. 원본 File 메뉴는 그대로 | 편집기 없음. 단축키는 F5·Shift-F5·F10 셋뿐 | PLAN R4 | 7 · `edu/edu_editor_dock.*`, `edu/edu_code_editor.*`, `edu/edu_editor_glue.cpp` |
+| 34 | **Editor 도크**(Data·Text와 같은 탭 묶음, 시작 화면에서 맨 앞). File과 Simulator 사이에 **Editor 메뉴**: New(Ctrl+N) / Open(Ctrl+O) / Open Recent / Save and Assemble(Ctrl+S, F3) / Save As and Assemble(Ctrl+Shift+S). Simulator 메뉴·툴바에도 같은 액션(툴바 글자는 "Assemble"), Window 메뉴에 Editor. 원본 File 메뉴는 그대로 | 편집기 없음. 단축키는 F5·Shift-F5·F10 셋뿐 | PLAN R4 | 7 · `edu/edu_editor_dock.*`, `edu/edu_code_editor.*`, `edu/edu_editor_glue.cpp` |
 | 35 | **Assemble 중의 에러는 모달 없이** 에디터 아래 목록 + 여백의 빨간 점 + 상태바 "N errors". 메시지 로그에는 원본과 똑같이 찍힌다. File 메뉴로 올릴 때는 원본대로 에러마다 모달 | 에러 하나당 모달 하나(§4) | 1단계 결정 4. `SpimView::Error()`의 `// EDU:` 한 곳 | 7 · `spimview.cpp`, `edu_editor_glue.cpp` `eduCollectError` |
 | 36 | 에러 목록의 줄 번호는 **인용된 소스 줄이 실제로 있는 줄**. 로그의 메시지는 코어가 말한 번호 그대로 | 범위 밖 operand 같은 에러는 다음 문장의 첫 토큰을 읽은 뒤에 보고되어 번호가 뒤 줄을 가리킨다(`Tests/tt.alu.bare.s`: 메시지 414, 실제 413) | 학생이 엉뚱한 줄을 보지 않게 | 7 · `edu/core/edu_asm_errors.cpp` `resolveMessageLine` |
 | 37 | File 메뉴·최근 파일·명령행으로 올린 파일은 **에디터에도 열린다**(에디터에 다른 파일의 저장 안 한 변경이 있으면 먼저 묻는다). 로드가 끝나면 Text 탭이 앞으로 온다 | — | PLAN R4 6번 | 7 · `menu.cpp`·`main.cpp`의 `eduEditorFileLoaded` |
 | 38 | 종료(창 닫기, File > Exit) 때 에디터에 저장 안 한 변경이 있으면 Save / Discard / Cancel | 바로 종료 | 작업을 잃지 않게 | 7 · `spimview.cpp` `closeEvent`, `menu.cpp` `file_Exit` |
 | 39 | 저장된 창 배치 버전 3 (이전 빌드의 배치는 한 번 무시) | — | Editor 도크가 없는 배치를 복원하면 도크가 숨는다 | 7 · `state.cpp` |
+| 40 | **저장 = 어셈블.** Editor > Save and Assemble(Ctrl+S = F3 = 툴바 Assemble) 하나뿐이고 저장만 하는 동작은 없다. Save As도 저장 후 어셈블. 묻지 않는다(이름 없는 새 파일만 Save As) | 편집기 없음 | "저장했는데 왜 안 바뀌지"가 없게 (7단계 체크포인트) | 7 · `edu_editor_glue.cpp` `eduAssemble` |
+| 41 | 어셈블이 실패해도 **파일은 저장된 채로** 두고, 상태바에 "Assemble failed — N errors. Simulator was reset." | — | 어셈블은 원본의 Reinitialize and Load File 경로라 이전 프로그램이 사라진다. 그 이유를 알린다 | 7 · 같은 곳 |
+| 42 | Text·Data 패널 맨 위의 띠 **"Source changed — save (Ctrl+S) to assemble"**: 에디터의 소스가 시뮬레이터가 마지막으로 받은 것과 다를 때(입력함, 다른 파일을 엶, Reinitialize 함, 시작 시 마지막 파일이 열림). 클릭 = 저장+어셈블. 어셈블을 시도하면(성공·실패 모두) 사라진다 | — | 보고 있는 Text/Data가 지금 소스와 다르다는 것을 그 자리에서 알린다 | 7 · `edu_editor_glue.cpp` `eduUpdateStaleBanner` |
+| 43 | 시작할 때 **에디터가 마지막으로 열었던 파일을 다시 연다**(설정 `Editor/LastFile`, 파일이 없으면 조용히 빈 에디터). **어셈블하지 않는다** — 시뮬레이터의 시작 상태는 원본과 같다(`check-editor.sh` 7번이 텍스트 세그먼트를 새 시작과 비교). 프로그램이 로드되지 않은 시작에서는 저장된 창 배치와 무관하게 Editor 탭이 앞 | — | 7단계 체크포인트 | 7 · `edu_editor_glue.cpp` `eduSetupEditor`, `eduEditorAtStartup`; `main.cpp`(`// EDU:`) |
 
 **다르지 않은 것** (확인된 것만): 시뮬레이터 코어 전체(`CPU/` 바이트 동일, `tools/regress.sh` 1·2·3번),
 Save Log File의 Int Regs·Text·Data 출력(4번 — 17·18번의 경우 포함해 골든과 바이트 동일), 브레이크포인트 다이얼로그(Continue / Single Step / Abort),
@@ -1076,10 +1080,11 @@ SpimView 쪽 연결: edu/edu_editor_glue.cpp (메뉴·툴바 항목, Assemble, �
 
 ### 17.2 Assemble
 
-`SpimView::eduAssemble()`: **묻지 않고 저장**(이름 없는 새 파일만 Save As) → `eduAssembleFile`에 경로를 넣고
+`SpimView::eduAssemble()` — Ctrl+S, F3, 툴바, 띠 클릭, Save As가 모두 여기로 온다(저장 = 어셈블, §12 40번): **묻지 않고 저장**(이름 없는 새 파일만 Save As) → `eduAssembleFile`에 경로를 넣고
 **원본의 `file_ReloadFile()`을 그대로 호출**한다. `file_LoadFile()`은 `// EDU:` 한 곳에서 그 경로를 파일 대화상자 대신 쓴다.
 그동안 `SpimView::Error()`는 메시지를 로그에 쓴 뒤(원본과 같음) 모달 대신 `eduCollectError()`에 넘긴다.
-에러가 없으면 상태바에 "Saved and assembled"를 잠깐 띄우고 Text 탭으로, 있으면 Editor에 머물고 목록·여백 표시·상태바 배지.
+에러가 없으면 상태바에 "Saved and assembled"를 잠깐 띄우고 Text 탭으로, 있으면 Editor에 머물고 목록·여백 표시·상태바 배지("Assemble failed — N errors. Simulator was reset.").
+어느 쪽이든 `eduSyncedPath`(시뮬레이터가 마지막으로 받은 파일)를 갱신해 "Source changed" 띠를 내린다. 띠는 File 메뉴로 올린 파일이 에디터에 열렸을 때도 내려가고, 입력·다른 파일 열기·Reinitialize(`InitializeWorld`)에서 올라온다.
 `tools/check-editor.sh`가 Assemble 뒤의 텍스트·데이터 세그먼트 로그가 Reinitialize and Load File 뒤와 바이트 동일한지, 에러가 있는 파일의 메시지 로그가 File 메뉴 경로와 바이트 동일한지 확인한다.
 
 최근 파일은 **두 목록**이다. 원본의 File > Recent Files에는 Assemble과 File > Load File이 올린 파일만 들어간다(원본 동작 그대로).
