@@ -813,7 +813,8 @@ void SpimView::help_AboutSPIM() {
               "<center><strong>" EDU_APP_NAME "</strong></center>"
               "<center><img src=':/icons/qtspim.png'>"
               "<span style='font-size: 10pt;'>") +
-          QString("<p>" EDU_APP_NAME " " EDU_VERSION "</p>") +
+          QString("<p>" EDU_APP_NAME " " EDU_VERSION
+                  " (based on QtSpim " EDU_BASE_VERSION ")</p>") +
           QString("<p>An unofficial educational fork of QtSpim that changes "
                   "only the user interface. The simulator core is the "
                   "unmodified SPIM core described below, so programs run "

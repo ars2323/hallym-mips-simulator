@@ -31,16 +31,13 @@ void TestVersion::baseVersionMatchesSimulatorCore() {
 }
 
 void TestVersion::eduVersionExtendsBaseVersion() {
+  // Our own MAJOR.MINOR.PATCH (the MSI's ProductVersion needs exactly that
+  // shape); the SPIM release it is built on is EDU_BASE_VERSION.
   const QString eduVersion = QString::fromLatin1(EDU_VERSION);
-
-  QVERIFY2(eduVersion.startsWith(QLatin1String(EDU_BASE_VERSION)),
-           qPrintable("EDU_VERSION must start with EDU_BASE_VERSION: " +
-                      eduVersion));
-
-  const QString suffix = eduVersion.mid(qstrlen(EDU_BASE_VERSION));
-  QRegExp fork("^-edu\\.[0-9]+$");
-  QVERIFY2(fork.exactMatch(suffix),
-           qPrintable("EDU_VERSION suffix must be -edu.<n>, got: " + suffix));
+  QRegExp semver("^[0-9]+\\.[0-9]+\\.[0-9]+$");
+  QVERIFY2(semver.exactMatch(eduVersion),
+           qPrintable("EDU_VERSION must be MAJOR.MINOR.PATCH, got: " + eduVersion));
+  QVERIFY(eduVersion != QLatin1String(EDU_BASE_VERSION));
 }
 
 // QtSpim-Edu is installed next to the standard QtSpim, so the executable

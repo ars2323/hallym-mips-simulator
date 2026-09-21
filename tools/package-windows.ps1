@@ -42,8 +42,8 @@ function Fail([string]$message) { Write-Error $message; exit 1 }
 $header = Get-Content (Join-Path $repo "QtSpim\edu\edu_version.h") -Raw
 if ($header -notmatch '#define EDU_BASE_VERSION "([^"]+)"') { Fail "EDU_BASE_VERSION not found" }
 $baseVersion = $Matches[1]
-if ($header -notmatch '#define EDU_VERSION EDU_BASE_VERSION "([^"]+)"') { Fail "EDU_VERSION not found" }
-$version = $baseVersion + $Matches[1]
+if ($header -notmatch '#define EDU_VERSION "([^"]+)"') { Fail "EDU_VERSION not found" }
+$version = $Matches[1]
 $name = "QtSpimEdu-$version-win64"
 Write-Host "packaging $name"
 

@@ -5,7 +5,10 @@
    string (SPIM_VERSION in CPU/version.h) is the authority on which SPIM
    release this is built from and must never be edited here.
 
-   EDU_VERSION is the version of *our* changes: "<upstream>-edu.<n>".
+   EDU_VERSION is the version of *our* changes, MAJOR.MINOR.PATCH.  It is
+   what the About box, the status bar and the download names show
+   ("QtSpim-Edu 1.0.0"); which SPIM it is built on is said next to it
+   ("based on QtSpim 9.1.24").
 */
 
 #ifndef EDU_VERSION_H
@@ -14,8 +17,9 @@
 /* Upstream release this fork is based on (mirrors CPU/version.h). */
 #define EDU_BASE_VERSION "9.1.24"
 
-/* Version of this fork.  Bump the -edu.<n> part on every release. */
-#define EDU_VERSION EDU_BASE_VERSION "-edu.1"
+/* Version of this fork.  tools/package-windows.ps1 and the MSI read it from
+   this line. */
+#define EDU_VERSION "1.0.0"
 
 /* Product name shown to the user. */
 #define EDU_APP_NAME "QtSpim-Edu"

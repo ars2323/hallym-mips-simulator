@@ -22,6 +22,7 @@
 #include "edu/edu_register_view.h"
 #include "edu/edu_text_model.h"
 #include "edu/edu_text_view.h"
+#include "edu/edu_version.h"
 #include "spimview.h"
 #include "ui_spimview.h"
 
@@ -45,6 +46,13 @@ void SpimView::eduSetupPanels() {
 
   eduInspector = new EduInspector(this);
   addDockWidget(Qt::LeftDockWidgetArea, eduInspector);
+  // Which program and version this is, at the far right of the status bar
+  // (a student's screenshot then says which build it came from).
+  QLabel* version = new QLabel(QString(EDU_APP_NAME " " EDU_VERSION), this);
+  version->setObjectName("EduVersionLabel");
+  version->setStyleSheet("QLabel { color: #616161; padding: 0px 6px; }");
+  statusBar()->addPermanentWidget(version);
+
   // Shown only while a setting that changes how files are assembled or run
   // differs from QtSpim's defaults.
   eduModeBadge = new QLabel(this);
