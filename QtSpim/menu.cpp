@@ -725,11 +725,13 @@ void SpimView::help_ViewHelp() {
   QProcess* process = new QProcess;
   QStringList args;
 
-  // EDU: a fourth, "portable" location -- help/ next to the executable, as
-  // laid out in the distribution zip -- is tried after the three upstream
-  // install locations, so behaviour is unchanged wherever they exist.  The
-  // browser for it is assistant next to the executable if present (Windows
-  // zip), otherwise "assistant" from PATH (Linux development build).
+  // EDU: help/ next to the executable, as laid out in the distribution zip,
+  // is tried first; the three upstream install locations follow.  A
+  // deliverable has to be self-contained: depending on another program's
+  // install folder breaks silently when that program is removed or updated.
+  // The browser for the portable location is assistant next to the
+  // executable if present (Windows zip), otherwise "assistant" from PATH
+  // (Linux development build).
   const QString appDir = QCoreApplication::applicationDirPath();
   QString portableAssistant = appDir + QString("/assistant");
 #ifdef Q_OS_WIN
@@ -740,12 +742,12 @@ void SpimView::help_ViewHelp() {
   }
 
   QString helpFile[] = {
+      appDir + QString("/help/qtspim.qhc"),  // EDU: portable, first
       qgetenv("PROGRAMFILES(x86)") +
           QString("/QtSpim/help/qtspim.qhc"),  // Windows
       QString(
           "/Applications/QtSpim.app/Contents/Resources/doc/qtspim.qhc"),  // Mac
       QString("/usr/lib/qtspim/help/qtspim.qhc"),  // Linux
-      appDir + QString("/help/qtspim.qhc"),        // EDU: portable
       0};
 
   int i;
@@ -765,10 +767,10 @@ void SpimView::help_ViewHelp() {
   }
 
   QString assistant[] = {
+      portableAssistant,                                             // EDU
       QString("assistant"),                                          // Windows
       QString("/Applications/QtSpim.app/Contents/MacOS/Assistant"),  // Mac
       QString("/usr/lib/qtspim/bin/assistant"),                      // Linux
-      portableAssistant,                                             // EDU
   };
 
   process->start(assistant[i], args);

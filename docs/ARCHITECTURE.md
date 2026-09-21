@@ -551,9 +551,12 @@ Settings 다이얼로그 내용(`QtSpim/settings.ui`, 처리 `menu.cpp:402-541`)
   - Linux `/usr/lib/qtspim/help/qtspim.qhc` + `/usr/lib/qtspim/bin/assistant`
 - 없으면 "Cannot find QtSpim help file. Check installation." 메시지박스.
 - **따라서 설치하지 않은 개발 빌드에서는 원본도 헬프가 안 열린다.** 0단계 보고 참조.
-- 2단계에서 **네 번째 후보**를 원본 세 후보 **뒤에** 추가했다: `<실행 파일 폴더>/help/qtspim.qhc`,
-  브라우저는 `<실행 파일 폴더>/assistant(.exe)`가 있으면 그것, 없으면 PATH의 `assistant`.
-  원본 후보가 존재하는 환경에서는 동작이 그대로이고, zip을 풀어 실행한 경우와 Linux 개발 빌드
+- 2단계에서 후보를 하나 추가했다: `<실행 파일 폴더>/help/qtspim.qhc`, 브라우저는
+  `<실행 파일 폴더>/assistant(.exe)`가 있으면 그것, 없으면 PATH의 `assistant`.
+  처음엔 원본 세 후보 뒤에 두었다가 2단계 체크포인트 결정으로 **맨 앞**으로 옮겼다:
+  배포물은 자기 안에서 완결돼야 하고, 표준 QtSpim의 설치 폴더에 의존하면 그쪽이 삭제·갱신될 때
+  조용히 깨지기 때문이다. 이것이 원본 동작과 다른 유일한 지점이다(표준 QtSpim이 설치된 PC에서도
+  우리 헬프가 열린다). zip을 풀어 실행한 경우와 Linux 개발 빌드
   (`build/help/qtspim.qhc` + `/usr/bin/assistant`)에서 헬프가 열린다.
 - Windows에서 원본이 `"assistant"`라는 이름만으로 헬프 브라우저를 찾는 이유: `CreateProcess`는
   **실행 파일이 있는 폴더를 PATH보다 먼저** 뒤진다. 설치 폴더에 `assistant.exe`를 같이 넣는 것으로 충분하다
