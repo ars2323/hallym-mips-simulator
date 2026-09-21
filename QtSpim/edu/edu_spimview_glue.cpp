@@ -3,10 +3,15 @@
    only carry one-line hooks (each marked "// EDU:"). */
 
 #include <QPlainTextEdit>
+#include <QTextEdit>
 
+#include "edu/core/edu_decoder.h"
+#include "edu/core/edu_instruction_text.h"
 #include "edu/edu_inspector.h"
 #include "edu/edu_register_model.h"
 #include "edu/edu_register_view.h"
+#include "edu/edu_text_model.h"
+#include "edu/edu_text_view.h"
 #include "spimview.h"
 #include "ui_spimview.h"
 
@@ -25,7 +30,17 @@ void SpimView::eduSetupPanels() {
 
   eduInspector = new EduInspector(this);
   addDockWidget(Qt::LeftDockWidgetArea, eduInspector);
+  eduInspectorSubject = EduNoSubject;
   connect(ui->IntRegView, SIGNAL(registerSelectionChanged()), this,
+          SLOT(eduRegisterSelected()));
+  connect(ui->IntRegView, SIGNAL(clicked(QModelIndex)), this,
+          SLOT(eduRegisterSelected()));
+
+  eduTextModel = new EduTextModel(this);
+  ui->TextSegView->setTextModel(eduTextModel);
+  connect(ui->TextSegView, SIGNAL(instructionSelectionChanged()), this,
+          SLOT(eduInstructionSelected()));
+  connect(ui->TextSegView, SIGNAL(instructionRowsReset()), this,
           SLOT(eduUpdateInspector()));
 
   // Window > Inspector, next to the other panels' entries.
@@ -40,6 +55,13 @@ void SpimView::eduSetupPanels() {
   eduIntRegLog->setUndoRedoEnabled(false);
   eduIntRegLog->setReadOnly(true);
   eduIntRegLog->hide();
+
+  // The same for the Text window, except that it is only filled when a log
+  // is saved or printed (SpimView::eduFillTextLog() in textwin.cpp).
+  eduTextLog = new QTextEdit(this);
+  eduTextLog->setUndoRedoEnabled(false);
+  eduTextLog->setReadOnly(true);
+  eduTextLog->hide();
 }
 
 // The register column lives in the LEFT dock area, not in upstream's top
@@ -85,7 +107,43 @@ void SpimView::eduRefreshRegisterPanel() {
   eduUpdateInspector();
 }
 
+// The inspector shows whatever was picked last, a register or an
+// instruction.  After that, refreshes (a step, a redraw) keep the subject.
+void SpimView::eduRegisterSelected() {
+  edu::RegisterRef reg;
+  if (ui->IntRegView->currentRegister(&reg)) {
+    eduInspectorSubject = EduRegisterSubject;
+  }
+  eduUpdateInspector();
+}
+
+void SpimView::eduInstructionSelected() {
+  quint32 address = 0;
+  if (ui->TextSegView->currentInstruction(&address)) {
+    eduInspectorSubject = EduInstructionSubject;
+  }
+  eduUpdateInspector();
+}
+
 void SpimView::eduUpdateInspector() {
+  if (eduInspectorSubject == EduInstructionSubject) {
+    quint32 address = 0;
+    const EduTextModel::Row* row =
+        ui->TextSegView->currentInstruction(&address)
+            ? eduTextModel->rowAt(eduTextModel->rowOfAddress(address))
+            : 0;
+    if (row != 0) {
+      // Which branch encoding this machine uses (ARCHITECTURE 13.2).
+      const edu::BranchConvention convention =
+          delayed_branches ? edu::MipsDelaySlot : edu::SpimNoDelaySlot;
+      eduInspector->showInstruction(edu::instructionDetailLines(
+          edu::decode(row->word, row->address, convention), row->address,
+          row->disassembly, row->label, convention));
+      return;
+    }
+    eduInspectorSubject = EduRegisterSubject;  // the instruction went away
+  }
+
   edu::RegisterRef reg;
   if (!ui->IntRegView->currentRegister(&reg)) {
     eduInspector->showNothing();
@@ -95,4 +153,25 @@ void SpimView::eduUpdateInspector() {
   eduInspector->showRegister(reg, EduRegisterModel::readRegister(reg),
                              eduRegisterModel->isChanged(reg),
                              index.parent().data().toString());
+}
+
+// DisplayTextSegments(): settings that upstream baked into its HTML are
+// pushed into the model and view instead.
+void SpimView::eduRefreshTextPanel() {
+  QPalette palette = ui->TextSegView->palette();
+  palette.setColor(QPalette::Base, st_textWinBackgroundColor);
+  palette.setColor(QPalette::Text, st_textWinFontColor);
+  ui->TextSegView->setPalette(palette);
+  ui->TextSegView->applyPanelFont(st_textWinFont);
+  eduTextModel->setColors(st_textWinFontColor, st_textWinBackgroundColor);
+
+  eduTextModel->rebuild(st_showUserTextSegment, st_showKernelTextSegment);
+  ui->TextSegView->setColumnsShown(st_showTextDisassembly, st_showTextComments);
+}
+
+// highlightInstruction(): two rows repaint, and the view scrolls only if the
+// PC's row is not visible.
+void SpimView::eduHighlightInstruction(mem_addr pc) {
+  eduTextModel->setCurrentPc(pc);
+  ui->TextSegView->showAddress(pc);
 }

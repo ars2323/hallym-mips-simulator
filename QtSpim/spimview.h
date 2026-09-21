@@ -59,7 +59,9 @@ class SpimView;
 // EDU: new panels (QtSpim/edu/).
 class EduInspector;
 class EduRegisterModel;
+class EduTextModel;
 class QPlainTextEdit;
+class QTextEdit;
 
 class SpimView : public QMainWindow {
   Q_OBJECT
@@ -101,6 +103,11 @@ class SpimView : public QMainWindow {
   void eduBeginRunCommand();       // a Step/Run/Continue is about to start
   void eduResetRegisterChanges();  // Reinitialize / Load / Clear Registers
   void eduRefreshRegisterPanel();
+
+  // EDU: Text panel (edu/edu_text_model.h, edu/edu_text_view.h).
+  EduTextModel* eduTextModel;
+  void eduRefreshTextPanel();                // rows, columns, font, colours
+  void eduHighlightInstruction(mem_addr pc);
 
   void DisplayTextSegments(bool force);
   void DisplayDataSegments(bool force);
@@ -185,6 +192,10 @@ class SpimView : public QMainWindow {
   // can be highlighted.
   //
   QPlainTextEdit* eduIntRegLog;  // EDU: hidden; source of log/print text
+  QTextEdit* eduTextLog;         // EDU: same for the Text window, filled on demand
+  void eduFillTextLog();
+  enum { EduNoSubject, EduRegisterSubject, EduInstructionSubject };
+  int eduInspectorSubject;       // EDU: what the inspector is showing
 
   reg_word oldR[R_LENGTH];
   mem_addr oldPC;
@@ -307,6 +318,8 @@ class SpimView : public QMainWindow {
   void abortBreakpoint();
 
   void eduUpdateInspector();  // EDU
+  void eduRegisterSelected();
+  void eduInstructionSelected();
 
 };
 

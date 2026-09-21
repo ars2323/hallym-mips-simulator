@@ -170,12 +170,8 @@ void SpimView::wireCommands() {
   QObject::connect(ui->action_Help_AboutSPIM, SIGNAL(triggered(bool)), this,
                    SLOT(help_AboutSPIM()));
 
-  QObject::connect(ui->TextSegmentTextEdit->action_Context_SetBreakpoint,
-                   SIGNAL(triggered(bool)), ui->TextSegmentTextEdit,
-                   SLOT(setBreakpoint()));
-  QObject::connect(ui->TextSegmentTextEdit->action_Context_ClearBreakpoint,
-                   SIGNAL(triggered(bool)), ui->TextSegmentTextEdit,
-                   SLOT(clearBreakpoint()));
+  // EDU: the Text panel (edu/edu_text_view.h) wires its own Set / Clear
+  // Breakpoint actions.
 
   // EDU: the integer register panel (edu/edu_register_view.h) wires its own
   // "Change Register Contents" action.

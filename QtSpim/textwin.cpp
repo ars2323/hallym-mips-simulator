@@ -33,6 +33,7 @@
 
 #include "spimview.h"
 #include "ui_spimview.h"
+#include "texttextedit.h"  // EDU: no longer pulled in by ui_spimview.h
 #
 
 #include <QRegExp>
@@ -46,31 +47,39 @@
 
 void SpimView::DisplayTextSegments(bool force) {
   if (force || text_modified) {
-    textTextEdit* te =
-        ui->TextSegDockWidget->findChild<textTextEdit*>("TextSegmentTextEdit");
-
-    te->clear();
-    QString windowContents =
-        windowFormattingStart(st_textWinFont, st_textWinFontColor,
-                              st_textWinBackgroundColor) %
-        formatUserTextSeg() % formatKernelTextSeg() % windowFormattingEnd();
-    te->insertHtml(windowContents);
+    // EDU: the Text panel is a model/view now; upstream's HTML is only
+    // built when a log is saved or printed (eduFillTextLog()).
+    eduRefreshTextPanel();
     highlightInstruction(PC);
   }
   text_modified = false;
 }
 
 // EDU: what Save Log File writes and Print prints for the text segment; see
-// spimview.h.  For now the source is the upstream widget itself.
+// spimview.h.  The text is upstream's own HTML (the builders below are
+// untouched) put through a QTextEdit that is never shown, exactly as the
+// visible window used to be filled, so the output stays byte-identical.
+void SpimView::eduFillTextLog() {
+  // format_an_inst() lifts and re-sets breakpoints, which marks the text
+  // segment as modified; saving a log is not a reason to redraw the panel.
+  bool modified = text_modified;
+  eduTextLog->clear();
+  QString windowContents =
+      windowFormattingStart(st_textWinFont, st_textWinFontColor,
+                            st_textWinBackgroundColor) %
+      formatUserTextSeg() % formatKernelTextSeg() % windowFormattingEnd();
+  eduTextLog->insertHtml(windowContents);
+  text_modified = modified;
+}
+
 QString SpimView::textSegmentLogText() {
-  return ui->TextSegDockWidget
-      ->findChild<textTextEdit*>("TextSegmentTextEdit")
-      ->toPlainText();
+  eduFillTextLog();
+  return eduTextLog->toPlainText();
 }
 
 void SpimView::printTextSegment(QPrinter* printer) {
-  ui->TextSegDockWidget->findChild<textTextEdit*>("TextSegmentTextEdit")
-      ->print(printer);
+  eduFillTextLog();
+  eduTextLog->print(printer);
 }
 
 QString SpimView::formatUserTextSeg() {
@@ -142,29 +151,9 @@ QString SpimView::formatInstructions(mem_addr from, mem_addr to) {
 }
 
 void SpimView::highlightInstruction(mem_addr pc) {
-  QTextEdit* te =
-      ui->TextSegDockWidget->findChild<QTextEdit*>("TextSegmentTextEdit");
-  QTextCursor cursor(te->document());
-
-  QRegExp rx("\\[" + formatAddress(pc) + "\\]");  // Start of specific line
-  cursor = te->document()->find(rx, cursor);
-  if (!cursor.isNull()) {
-    cursor.select(QTextCursor::LineUnderCursor);
-    QString l = cursor.selectedText();
-
-    QTextCharFormat format;
-    format.setBackground(QBrush(Qt::cyan));
-
-    QTextEdit::ExtraSelection es;
-    es.cursor = cursor;
-    es.format = format;
-    QList<QTextEdit::ExtraSelection> ess;
-    ess << es;
-    te->setExtraSelections(ess);
-
-    te->setTextCursor(cursor);
-    te->ensureCursorVisible();
-  }
+  // EDU: upstream searched the document for "[address]" and put an extra
+  // selection on that line; the model knows the row.
+  eduHighlightInstruction(pc);
 }
 
 //

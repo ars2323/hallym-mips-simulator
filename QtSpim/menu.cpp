@@ -242,9 +242,7 @@ void SpimView::sim_ReinitializeSimulator() {
   regTextEdit* rte =
       ui->FPRegDockWidget->findChild<regTextEdit*>("FPRegTextEdit");
   rte->verticalScrollBar()->setValue(rte->verticalScrollBar()->minimum());
-  textTextEdit* tte =
-      ui->TextSegDockWidget->findChild<textTextEdit*>("TextSegmentTextEdit");
-  tte->verticalScrollBar()->setValue(tte->verticalScrollBar()->minimum());
+  ui->TextSegView->scrollToTop();  // EDU: was TextSegmentTextEdit's scroll bar
   dataTextEdit* dte =
       ui->DataSegDockWidget->findChild<dataTextEdit*>("DataSegmentTextEdit");
   dte->verticalScrollBar()->setValue(dte->verticalScrollBar()->minimum());
@@ -614,21 +612,24 @@ void SpimView::text_DisplayUserText() {
   bool changed =
       st_showUserTextSegment == ui->action_Text_DisplayUserText->isChecked();
   st_showUserTextSegment = ui->action_Text_DisplayUserText->isChecked();
-  DisplayTextSegments(changed);
+  Q_UNUSED(changed);  // EDU: upstream's test is inverted, so the window
+  DisplayTextSegments(true);  // never followed the menu; redraw always
 }
 
 void SpimView::text_DisplayKernelText() {
   bool changed = st_showKernelTextSegment ==
                  ui->action_Text_DisplayKernelText->isChecked();
   st_showKernelTextSegment = ui->action_Text_DisplayKernelText->isChecked();
-  DisplayTextSegments(changed);
+  Q_UNUSED(changed);  // EDU: upstream's test is inverted, so the window
+  DisplayTextSegments(true);  // never followed the menu; redraw always
 }
 
 void SpimView::text_DisplayComments() {
   bool changed =
       st_showTextComments == ui->action_Text_DisplayComments->isChecked();
   st_showTextComments = ui->action_Text_DisplayComments->isChecked();
-  DisplayTextSegments(changed);
+  Q_UNUSED(changed);  // EDU: upstream's test is inverted, so the window
+  DisplayTextSegments(true);  // never followed the menu; redraw always
 }
 
 void SpimView::text_DisplayInstructionValue() {
@@ -636,7 +637,8 @@ void SpimView::text_DisplayInstructionValue() {
                  ui->action_Text_DisplayInstructionValue->isChecked();
 
   st_showTextDisassembly = ui->action_Text_DisplayInstructionValue->isChecked();
-  DisplayTextSegments(changed);
+  Q_UNUSED(changed);  // EDU: upstream's test is inverted, so the window
+  DisplayTextSegments(true);  // never followed the menu; redraw always
 }
 
 // Data menu

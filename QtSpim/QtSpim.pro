@@ -55,6 +55,11 @@ SOURCES += main.cpp\
         edu/edu_path_check.cpp\
         edu/core/edu_format.cpp\
         edu/core/edu_registers.cpp\
+        edu/core/edu_decoder.cpp\
+        edu/core/edu_instruction_text.cpp\
+        edu/core/edu_source_text.cpp\
+        edu/edu_text_model.cpp\
+        edu/edu_text_view.cpp\
         edu/edu_register_model.cpp\
         edu/edu_register_view.cpp\
         edu/edu_inspector.cpp\
@@ -84,6 +89,11 @@ HEADERS  += spimview.h\
         edu/edu_path_check.h\
         edu/core/edu_format.h\
         edu/core/edu_registers.h\
+        edu/core/edu_decoder.h\
+        edu/core/edu_instruction_text.h\
+        edu/core/edu_source_text.h\
+        edu/edu_text_model.h\
+        edu/edu_text_view.h\
         edu/edu_register_model.h\
         edu/edu_register_view.h\
         edu/edu_inspector.h\

@@ -218,18 +218,12 @@
    <attribute name="dockWidgetArea">
     <number>4</number>
    </attribute>
-   <widget class="textTextEdit" name="TextSegmentTextEdit">
+   <widget class="EduTextView" name="TextSegView">
     <property name="minimumSize">
      <size>
       <width>800</width>
       <height>600</height>
      </size>
-    </property>
-    <property name="undoRedoEnabled" stdset="0">
-     <bool>false</bool>
-    </property>
-    <property name="readOnly" stdset="0">
-     <bool>true</bool>
     </property>
    </widget>
   </widget>
@@ -575,9 +569,9 @@
    <header>edu/edu_register_view.h</header>
   </customwidget>
   <customwidget>
-   <class>textTextEdit</class>
-   <extends>QWidget</extends>
-   <header>texttextedit.h</header>
+   <class>EduTextView</class>
+   <extends>QTableView</extends>
+   <header>edu/edu_text_view.h</header>
   </customwidget>
   <customwidget>
    <class>dataTextEdit</class>
