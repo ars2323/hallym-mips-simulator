@@ -35,6 +35,11 @@
 | 에디터 최근 파일 | **에디터 전용 목록**을 Editor 메뉴 아래에 둔다. 원본 File > Recent Files 목록은 건드리지 않는다 | 원본은 `st_recentFiles[0]`를 다음 실행의 argv[0]으로 쓴다 — 에디터에서 열기만 해도 바뀌면 로드된 프로그램의 스택이 달라진다 (ARCHITECTURE §17.2) |
 | 어셈블 에러의 줄 번호 | 에러 목록·줄 표시는 **인용된 소스 줄이 실제로 있는 줄**로 보정, 메시지 로그는 코어가 말한 번호 그대로 | 코어는 범위 밖 operand 같은 에러를 다음 문장의 줄 번호로 보고한다 (ARCHITECTURE §12 36번) |
 | 저장소 공개 | GitHub 저장소를 공개로 둔다(Actions 무료). 루트에 영문 README(소개·라이선스·빌드 한 줄·"학생 안내는 릴리스 후") | 비공개 저장소의 Actions 한도 |
+| 버전 | **1.0.0**. About·상태바·zip/MSI 이름에 "QtSpim-Edu 1.0.0", About에 "based on QtSpim 9.1.24" 유지. `edu_version.h`만 바꾸고 `SPIM_VERSION`은 그대로 | 8단계 |
+| 배포 형태 | **zip(portable)이 기본**, MSI는 부가. 안내문에서 zip을 먼저 권장 | 학생 PC에 관리자 권한이 없을 수 있다 |
+| 코드 서명 | 하지 않는다. SmartScreen 경고를 넘기는 방법을 안내문에 적는다 | 8단계 |
+| 배포 채널 | GitHub Releases `v1.0.0` — zip + MSI + 안내문(PDF·MD) | 저장소가 공개라 링크 하나로 배포 가능 |
+| Windows 확인(3~7단계) | 완료: 실행·헬프·화면·에디터·한글 폴더 저장 정상. 메모장 ANSI/BOM 왕복은 CI의 단위 테스트·`check-editor.sh` 결과로 갈음 | 8단계 진입 전 체크포인트 |
 | 타입 배지 판정 | `op.h` 분류가 아니라 **기계어 워드만으로** 결정 | `op.h`의 형식 종류는 피연산자 배치이지 기계어 형식이 아님 (ARCHITECTURE §3.3). `op.h`는 필드 값 오라클로만 |
 | `.data` 라벨 | **로더 복제**: GUI가 `read_assembly_file()`과 줄 단위로 대응되는 절차로 파일을 읽고, `flush_local_labels()` **직전에** `print_symbols()` 출력을 `write_output` 캡처로 수집한다. `// EDU: mirrors read_assembly_file()` 명시 | 코어는 파일 끝에서 로컬 라벨을 테이블에서 뺀다 — 로드 후 `print_symbols()`에는 전역 라벨만 남는다(ARCHITECTURE §3.7, 6단계 확인). 검증: 로드 직후 골든 바이트 동일, 파일 중간 syntax error 시 vanilla와 같은 메시지·상태, `Tests/*.s`의 정의 라벨 수 = 캡처 수, `check-menu-load.sh --compare-vanilla` 동일 |
 | Data 패널 열 | 7열: Address · +0 · +4 · +8 · +C · ASCII · **Labels**. Address는 **줄의 기준 주소**(16의 배수) | 라벨·포인터를 값 칸 밖에 쓸 자리. 열 제목 +0/+4/+8/+C와 주소가 맞아야 한다 (6단계 체크포인트) |
@@ -220,7 +225,7 @@ Text 패널 열: `BP` · `주소` · `기계어(hex)` · `타입` · `실제 명
 - 모델/`QTableView`, 라벨·포인터 마커, 단위 전환, 이동
 - 보존 기능: 메모리 값 변경, 세그먼트 표시 옵션, 인쇄·로그 저장(바이트 동일, 회귀 스크립트에 추가)
 
-### 7. 에디터 (R4)
+### 7. 에디터 (R4) ✅ (`stage-7`)
 - 에디터 도크(Text·Data와 tabify), 파일 입출력, 문법 강조, Assemble 연결, 에러 목록 + 줄 이동 + 상태바 개수, 외부 변경 감지
 - 한글 주석 파일(UTF-8/CP949, CRLF) 왕복 테스트
 
@@ -232,5 +237,4 @@ Text 패널 열: `BP` · `주소` · `기계어(hex)` · `타입` · `실제 명
 
 ## 미결정
 
-- 제품 최종 이름 (작업명: QtSpim-Edu)
-- 배포 채널 (LMS 첨부, GitHub Releases 등)
+(없음 — 이름은 QtSpim-Edu, 배포는 GitHub Releases로 확정)
