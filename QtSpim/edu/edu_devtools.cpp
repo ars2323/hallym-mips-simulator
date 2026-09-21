@@ -2,15 +2,21 @@
 
 #include "edu/edu_devtools.h"
 
+#include <QAbstractButton>
 #include <QApplication>
 #include <QDockWidget>
+#include <QFile>
 #include <QFileInfo>
+#include <QMessageBox>
 #include <QPixmap>
 #include <QStatusBar>
 #include <QTextStream>
 #include <QTimer>
 #include <QWidget>
 
+// spimview.h already pulls in the core headers used here (str_stream from
+// CPU/string-stream.h, format_registers from CPU/spim-utils.h). Those
+// headers have no include guards, so they must not be included again.
 #include "spimview.h"
 #include "ui_spimview.h"
 
@@ -29,18 +35,27 @@ QTextStream& out() {
 }  // namespace
 
 EduDevtools::EduDevtools(QObject* parent)
-    : QObject(parent), steps_(0), window_(0), status_(0) {}
+    : QObject(parent),
+      runToCompletion_(false),
+      steps_(0),
+      window_(0),
+      dialogTimer_(0),
+      dismissedDialogs_(0),
+      status_(0) {}
 
 QString EduDevtools::usage() {
   return QString(
       "QtSpim-Edu development options (CONFIG+=edu_devtools builds only):\n"
       "  --load <file.s>        assembly file to load\n"
       "  --steps <n>            single-step n times after loading\n"
+      "  --run                  run to completion instead of stepping\n"
       "  --capture <panel>      panel to capture; repeatable, each one\n"
       "                         must be followed by --out\n"
       "  --out <file.png>       where to write the preceding --capture\n"
+      "  --dump <stream> <file> write a text stream; repeatable\n"
       "\n"
-      "  panels: intregs fpregs text data console log window about\n");
+      "  panels:  intregs fpregs text data console log window about\n"
+      "  streams: console log regs\n");
 }
 
 QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
@@ -50,6 +65,33 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
 
   for (int i = 0; i < args.size(); i += 1) {
     const QString& arg = args.at(i);
+
+    if (arg == "--run") {
+      runToCompletion_ = true;
+      continue;
+    }
+
+    if (arg == "--dump") {
+      if (i + 2 >= args.size()) {
+        err() << "--dump needs a stream name and a file\n"
+              << usage() << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      Dump dump;
+      dump.stream = args.at(i + 1);
+      dump.out = args.at(i + 2);
+      i += 2;
+      if (dump.stream != "console" && dump.stream != "log" &&
+          dump.stream != "regs") {
+        err() << "unknown dump stream: " << dump.stream << "\n"
+              << usage() << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      dumps_.append(dump);
+      continue;
+    }
 
     if (arg == "--load" || arg == "--steps" || arg == "--capture" ||
         arg == "--out") {
@@ -107,6 +149,17 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
   return rest;
 }
 
+void EduDevtools::beginHeadless() {
+  if (dialogTimer_ != 0) {
+    return;
+  }
+  dialogTimer_ = new QTimer(this);
+  dialogTimer_->setInterval(10);
+  connect(dialogTimer_, SIGNAL(timeout()), this,
+          SLOT(dismissBlockingDialog()));
+  dialogTimer_->start();
+}
+
 void EduDevtools::scheduleRun(SpimView* window) {
   window_ = window;
   QTimer::singleShot(0, this, SLOT(run()));
@@ -148,6 +201,68 @@ bool EduDevtools::grabToFile(QWidget* widget, const QString& path) {
   return true;
 }
 
+// Built by the same core function the terminal spim uses for its
+// "print_all_regs" command (CPU/display-utils.cpp), so the two dumps are
+// directly comparable.
+QString EduDevtools::registerDump() const {
+  str_stream ss;
+  ss.initialized = 0;
+  ss_clear(&ss);
+  format_registers(&ss, 0, 0);
+  // spim's print_all_regs writes "%s\n"; match it.
+  return QString::fromLatin1(ss_to_string(&ss)) + QLatin1String("\n");
+}
+
+bool EduDevtools::writeDump(const Dump& dump) {
+  QString text;
+  if (dump.stream == "console") {
+    text = window_->SpimConsole->toPlainText();
+  } else if (dump.stream == "log") {
+    text = window_->ui->centralWidget->toPlainText();
+  } else {
+    text = registerDump();
+  }
+
+  QFile file(dump.out);
+  if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+    err() << "cannot write " << dump.out << "\n" << Qt::flush;
+    return false;
+  }
+  QTextStream stream(&file);
+  stream << text;
+  file.close();
+
+  out() << "wrote " << QFileInfo(dump.out).absoluteFilePath() << " ("
+        << dump.stream << ", " << text.size() << " chars)\n"
+        << Qt::flush;
+  return true;
+}
+
+// SPIM reports run-time errors by calling error()/run_error(), which end up
+// in SpimView::Error and raise a modal QMessageBox -- one per error, from
+// inside run_spim().  A headless run would block there forever, so answer
+// them.  OK is the dialog's default and means "carry on", which is what the
+// terminal spim does; Abort would set force_break and stop the program.
+void EduDevtools::dismissBlockingDialog() {
+  QWidget* modal = QApplication::activeModalWidget();
+  if (modal == 0) {
+    return;
+  }
+
+  dismissedDialogs_ += 1;
+  QMessageBox* box = qobject_cast<QMessageBox*>(modal);
+  if (box != 0) {
+    out() << "dialog: " << box->text().simplified().left(160) << "\n"
+          << Qt::flush;
+    QAbstractButton* ok = box->button(QMessageBox::Ok);
+    if (ok != 0) {
+      ok->click();
+      return;
+    }
+  }
+  modal->close();
+}
+
 // The About box is modal, so it cannot be grabbed by the code that opens
 // it.  This runs from the dialog's own event loop.
 void EduDevtools::captureModalDialog() {
@@ -175,6 +290,10 @@ void EduDevtools::run() {
   // (menu.cpp initializePCAndStack), which would silently make the
   // screenshot show a second run.  The status bar is the only public
   // indication of that state.
+  if (runToCompletion_) {
+    window_->sim_Run();
+  }
+
   for (int i = 0; i < steps_; i += 1) {
     if (window_->statusBar()->currentMessage() == "Stopped") {
       out() << "program stopped after " << i << " of " << steps_
@@ -183,6 +302,16 @@ void EduDevtools::run() {
       break;
     }
     window_->sim_SingleStep();
+  }
+
+  // Stop before the captures: the About box below is a modal dialog this
+  // harness opens on purpose and must not answer for itself.
+  if (dialogTimer_ != 0) {
+    dialogTimer_->stop();
+  }
+  if (dismissedDialogs_ > 0) {
+    out() << "answered " << dismissedDialogs_ << " dialog(s) with OK\n"
+          << Qt::flush;
   }
   settle();
 
@@ -216,6 +345,12 @@ void EduDevtools::run() {
     settle();
 
     if (!grabToFile(widget, capture.out)) {
+      status_ = 1;
+    }
+  }
+
+  for (int i = 0; i < dumps_.size(); i += 1) {
+    if (!writeDump(dumps_.at(i))) {
       status_ = 1;
     }
   }

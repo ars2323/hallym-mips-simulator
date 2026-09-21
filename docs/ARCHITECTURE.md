@@ -305,6 +305,37 @@ extern bool force_break;   // 중단 요청. sim_Pause/sim_Stop이 세운다  Qt
 GUI는 `executeProgram()`(`QtSpim/menu.cpp:345`)에서 감싸고, 브레이크포인트에 걸리면
 `BreakpointDialog`를 띄운다(`menu.cpp:353-371`).
 
+### 3.9 코어 헤더에는 include guard가 없다
+
+`CPU/*.h` 14개 전부(`mem.h scanner.h inst.h reg.h op.h parser.h syscall.h
+spim-syscall.h run.h data.h sym-tbl.h version.h spim-utils.h string-stream.h`)에
+`#ifndef` 가드도 `#pragma once`도 없다. 중복 include하면 `typedef` 재정의로 컴파일 에러가 난다.
+
+`QtSpim/spimview.h:45-52`가 `spim.h`, `string-stream.h`, `spim-utils.h`, `inst.h`,
+`reg.h`, `mem.h`, `sym-tbl.h`, `version.h`를 이미 include한다.
+→ **`edu/`의 새 파일에서 `spimview.h`를 include했다면 코어 헤더를 또 include하지 말 것.**
+(`QtSpim/edu/edu_devtools.cpp`에서 실제로 부딪혔다.)
+
+### 3.10 GUI와 터미널 spim의 스택 초기화가 다르다
+
+같은 프로그램을 같은 코어로 돌려도 **`$sp`, `$a1`, `$a2`는 두 프런트엔드에서 다르다.**
+
+| | 호출 | 위치 |
+|---|---|---|
+| 터미널 spim | `initialize_run_stack(argc, argv)` | `spim/spim.cpp:271` |
+| QtSpim | `initialize_stack(st_recentFiles[0] + " " + st_commandLine)` | `QtSpim/menu.cpp:309-314` |
+
+argv 내용이 다르므로 스택 위에 쌓이는 문자열 길이가 달라지고, 그만큼 `$sp`가 밀린다.
+실측(helloworld.s 실행 후):
+
+```
+터미널 spim : R5 (a1) = 2147479804   R6 (a2) = 2147479808   R29 (sp) = 2147479800
+QtSpim-Edu  : R5 (a1) = 2147479680   R6 (a2) = 2147479684   R29 (sp) = 2147479676
+```
+
+→ 회귀 비교에서 **레지스터 덤프를 통째로 비교하면 안 된다.** `tools/regress.sh`가
+콘솔 출력(프로그램 자신의 출력)을 비교하는 이유.
+
 ---
 
 ## 4. 어셈블 에러 메시지 형식과 출력 경로
@@ -313,13 +344,20 @@ GUI는 `executeProgram()`(`QtSpim/menu.cpp:345`)에서 감싸고, 브레이크�
 yyerror(s)   CPU/parser.y:2941  → parse_error_occurred = true; clear_labels(); yywarn(s)
 yywarn(s)    CPU/parser.y:2950  → error("spim: (parser) %s on line %d of file %s\n%s",
                                         s, line_no, input_file_name, erroneous_line())
-erroneous_line()  CPU/scanner.l:~700  → "줄번호: 소스원문"
+erroneous_line()  CPU/scanner.l:545  → 소스 줄 + 스캐너가 멈춘 위치를 가리키는 캐럿
 ```
-최종 문자열 예:
+실측(`Tests/tt.alu.bare.s`, 탭은 `→`로 표시):
 ```
-spim: (parser) Syntax error on line 12 of file /path/to/a.s
-12:        addi $t0 $t1
+spim: (parser) immediate value (65432) out of range (-32768 .. 32767) on line 414 of file Tests/tt.alu.bare.s
+→  addi $4 $0 0xff98
+→                   ^
 ```
+- 1행: `spim: (parser) ` + 메시지 + ` on line ` + **줄 번호** + ` of file ` + **경로**
+- 2행: 탭 + 공백 2개 + 소스 줄 원문
+- 3행: 탭 + 공백 2개 + `prefix_length`개의 공백 + `^` (`CPU/scanner.l:552-555`)
+
+**주의**: 이 `erroneous_line()`은 명령어에 붙는 주석을 만드는 `source_line()`
+(`CPU/scanner.l:687`, 형식 `"줄번호: 원문"`, §3.4)과 **다른 함수다.** 이름이 비슷해 헷갈리기 쉽다.
 `error()`의 구현은 우리 쪽 `QtSpim/spim_support.cpp:60-69` →
 `Window->Error(buf, /*fatal=*/0)` → `QtSpim/spimview.cpp:268`:
 1. `WriteOutput(message)` — 중앙 로그 `QTextEdit`에 HTML로 추가
@@ -330,6 +368,15 @@ spim: (parser) Syntax error on line 12 of file /path/to/a.s
 
 `error()`/`run_error()`/`fatal_error()` 셋 다 같은 경로. `fatal_error`만 `SaveStateAndExit(1)`.
 버퍼는 고정 10000바이트(`spim_support.cpp:56`, `BIG_BUF_SIZE`).
+
+**에러 하나당 모달 하나**다. 어셈블 중에도, 실행 중에도 뜬다.
+`Tests/tt.alu.bare.s`를 로드하면 파서 에러만 11개 → 모달 11번.
+헤드리스로 돌리려면 이 대화상자를 대신 눌러 줘야 한다
+(`QtSpim/edu/edu_devtools.cpp`의 `dismissBlockingDialog()`가 그 일을 한다).
+
+`WriteOutput`(`QtSpim/spimview.cpp:250`)은 `\n`→`<br>`, 공백→`&nbsp;`만 치환하고
+**`<`, `>`, `&`는 이스케이프하지 않은 채** `QTextEdit::append()`에 HTML로 넘긴다.
+소스 줄에 `<`가 있으면 로그에서 사라진다. 7단계에서 에러를 에디터에 표시할 때 주의.
 
 ---
 

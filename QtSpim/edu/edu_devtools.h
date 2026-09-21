@@ -14,10 +14,23 @@
                  --capture intregs --out regs.png \
                  --capture text    --out text.png
 
+       QtSpimEdu --load prog.s --run --dump console out.txt
+
    --capture/--out may be repeated; each --capture must be followed by its
-   --out.  Presence of --capture is what switches the program into this
-   mode: it runs the requested steps, writes the images and exits without
-   entering the normal event loop.
+   --out.  --dump takes a stream name and a file, and may also be repeated.
+   Any of --capture/--dump switches the program into this mode: it runs the
+   script, writes the files and exits without waiting for the user.
+
+   --run runs the program to completion through the normal Run path instead
+   of single-stepping.  Combine with a shell timeout: a test program that
+   loops forever will hang here exactly as it would in the GUI.
+
+   From the moment this mode is entered until the captures are taken, any
+   modal dialog the simulator raises (SPIM reports assembler and run-time
+   errors through QMessageBox, one per error) is answered with OK so that a
+   headless run does not block.  The number of dialogs and
+   their text is reported on stdout, and the text is in the log pane, so
+   they are never silently swallowed.
 
    Captures are taken with QWidget::grab(), which renders through QPainter
    and therefore also works under the "offscreen" platform plugin.  Fonts,
@@ -33,6 +46,7 @@
 #include <QString>
 #include <QStringList>
 
+class QTimer;
 class QWidget;
 class SpimView;
 
@@ -49,9 +63,15 @@ class EduDevtools : public QObject {
   // writes to stderr if an option is malformed.
   QStringList takeOptions(const QStringList& args, bool* ok);
 
-  // True when --capture was given, i.e. when the program should run the
-  // script and exit instead of waiting for the user.
-  bool isActive() const { return !captures_.isEmpty(); }
+  // True when --capture or --dump was given, i.e. when the program should
+  // run the script and exit instead of waiting for the user.
+  bool isActive() const { return !captures_.isEmpty() || !dumps_.isEmpty(); }
+
+  // Starts answering modal dialogs.  Call as soon as the mode is known and
+  // before anything is loaded: the simulator already raises error dialogs
+  // while assembling, i.e. before the main event loop is entered.  A modal
+  // dialog runs its own event loop, so the timer fires there too.
+  void beginHeadless();
 
   // Runs the script once the event loop is up.  Call, then a.exec().
   void scheduleRun(SpimView* window);
@@ -61,6 +81,7 @@ class EduDevtools : public QObject {
  private slots:
   void run();
   void captureModalDialog();
+  void dismissBlockingDialog();
 
  private:
   struct Capture {
@@ -68,14 +89,25 @@ class EduDevtools : public QObject {
     QString out;
   };
 
+  struct Dump {
+    QString stream;
+    QString out;
+  };
+
   QWidget* panelWidget(const QString& name) const;
   bool grabToFile(QWidget* widget, const QString& path);
+  bool writeDump(const Dump& dump);
+  QString registerDump() const;
   void settle();
 
   QList<Capture> captures_;
+  QList<Dump> dumps_;
+  bool runToCompletion_;
   int steps_;
   SpimView* window_;
   QString modalOut_;
+  QTimer* dialogTimer_;
+  int dismissedDialogs_;
   int status_;
 };
 

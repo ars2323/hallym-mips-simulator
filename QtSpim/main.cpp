@@ -84,6 +84,11 @@ int main(int argc, char* argv[]) {
   if (!devtoolsOk) {
     return 2;
   }
+  // Before the first load: assembling a file can already raise modal error
+  // dialogs, which would block a headless run.
+  if (devtools.isActive()) {
+    devtools.beginHeadless();
+  }
 #endif
 
   QStringList fileNames = parseCommandLine(arguments);
