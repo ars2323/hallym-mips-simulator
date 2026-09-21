@@ -23,7 +23,10 @@
 | 타입 배지 판정 | `op.h` 분류가 아니라 **기계어 워드만으로** 결정 | `op.h`의 형식 종류는 피연산자 배치이지 기계어 형식이 아님 (ARCHITECTURE §3.3). `op.h`는 필드 값 오라클로만 |
 | `.data` 라벨 | `write_output` 캡처로 `print_symbols()` 출력을 로드 시 1회 수집 | 주소→라벨 API 없음, 해시 테이블 static (ARCHITECTURE §3.7). 파싱은 단위 테스트로 고정 |
 | 어셈블 에러 표시 | 에디터 경로: 모달 대신 에러 목록(클릭 시 줄 이동) + 에디터 줄 표시 + 상태바 개수. 로그 창 메시지는 원본대로 | 원본은 에러 하나당 모달 하나 (ARCHITECTURE §4) |
-| 한글 경로 | `CPU/` 수정 없이 **감지·경고만**: 로컬 8비트 인코딩으로 손실 없이 표현 못 하는 경로는 로드 전에 명확히 경고 | 코어가 `fopen(char*)`를 쓰므로 근본 해결은 `CPU/` 수정 (ARCHITECTURE §5) |
+| 한글 경로 | `CPU/` 수정 없이 **감지·경고만**: 로컬 8비트 인코딩으로 손실 없이 표현 못 하는 경로는 로드 전에 명확히 경고하고 **로드는 건너뛴다** | 코어가 `fopen(char*)`를 쓰므로 근본 해결은 `CPU/` 수정 (ARCHITECTURE §5). 진행하면 `fopen`이 `???` 경로로 실패해 2차 에러가 뜬다 |
+| 헬프 탐색 순서 | `<실행 파일 폴더>/help` **최우선**, 그 뒤에 원본 세 후보(Program Files / Mac 번들 / `/usr/lib/qtspim`) | 배포물은 자기 안에서 완결돼야 한다. 남의 설치 폴더에 의존하면 그쪽이 삭제·갱신될 때 조용히 깨진다 |
+| Windows zip 구성 | `opengl32sw.dll` 유지(약 20MB). 코드 서명은 8단계에서 | GPU 드라이버가 없는 PC 대비 |
+| 문자열 리터럴 | `-Zc:strictStrings`는 코어 때문에 껐지만 `QtSpim/edu/`의 새 코드는 리터럴을 항상 `const char*`/`QString`으로 받는다 | CLAUDE.md에도 기록 |
 
 ## 요구사항 스펙
 
@@ -113,6 +116,7 @@ Text 패널 열: `BP` · `주소` · `기계어(hex)` · `타입` · `실제 명
 - 셀마다 정확한 주소를 툴팁/인스펙터로 확인 가능
 - `.data` 라벨을 해당 주소 행에 표시 — `write_output` 캡처로 `print_symbols()` 출력을 **로드 시점 1회** 수집해 주소→라벨 표를 만든다. 파싱 규칙은 단위 테스트로 고정 (ARCHITECTURE §3.7)
 - `$sp`, `$fp`, `$gp`가 가리키는 행에 마커
+- **스택 상단의 argv/환경변수 영역은 기본 접힘** — 한 줄 "환경변수 N바이트 (펼치기)"로 표시, 펼치기 가능. 학생이 스크린샷을 제출할 때 사용자명·경로가 노출되는 것을 막기 위함. 인쇄·로그 저장 출력은 원본 그대로(접지 않음)
 - 표시 단위: word / halfword / byte
 - 이동: 주소·라벨·레지스터 이름 입력으로 점프, "$sp로 이동" 버튼
 - 세그먼트 선택: User data / Stack / Kernel data
@@ -153,7 +157,7 @@ Text 패널 열: `BP` · `주소` · `기계어(hex)` · `타입` · `실제 명
 - [x] **스크린샷 하네스**: 개발 빌드 옵션(`CONFIG+=edu_devtools`)에서만 켜지는 명령줄 모드 — `--load <file.s> --steps N --capture <panel> --out <png>` (+ `--run`, `--dump console|log|regs`)
 - [x] **회귀 스크립트**: vanilla 빌드와 현재 빌드의 실행 출력 비교 — `tools/regress.sh`
 
-### 2. Windows 파이프라인
+### 2. Windows 파이프라인 ✅ (`stage-2`)
 - GitHub **비공개** 저장소 생성(`gh repo create --private`), `main` 브랜치와 태그 push. `gh`·`git` 인증은 개발 PC에 이미 되어 있음
 - CI(GitHub Actions `windows-2022`): Qt 5.15.2 msvc2019_64(aqtinstall) + winflexbison → qmake → 빌드 → `windeployqt` → zip 산출물
 - `.pro`의 Windows용 bison/flex 호출 경로 확인·수정

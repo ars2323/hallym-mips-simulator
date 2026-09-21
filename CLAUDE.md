@@ -24,6 +24,7 @@ mkdir -p build && cd build && qmake ../QtSpim/QtSpim.pro && make -j$(nproc)
 5. **빌드가 소스 트리를 더럽히면 안 된다.** `make` 후 `git status`가 깨끗해야 한다.
 6. **코어 구조를 추측하지 않는다.** 레지스터 배열, 텍스트 세그먼트, 명령어 인코딩, 심볼 테이블, 메모리 읽기 경로 등은 반드시 소스를 읽어 확인하고 `docs/ARCHITECTURE.md`에 파일:줄 근거와 함께 기록한 뒤 사용한다.
 7. **숫자 표시는 한 곳에서만 만든다.** hex/dec/bin 변환, 명령어 필드 분해, 주소 계산은 `QtSpim/edu/core/`의 테스트된 함수를 통해서만 한다. 위젯 안에서 즉석 포맷팅 금지.
+8. **문자열 리터럴은 `const char*` 또는 `QString`으로만 받는다.** MSVC의 `-Zc:strictStrings`는 코어(`CPU/`)가 `char*`에 리터럴을 넘기기 때문에 `.pro`에서 껐다. `QtSpim/edu/`의 새 코드는 그 예외에 기대지 않는다: 리터럴을 `char*`에 대입하거나 `char*` 매개변수에 넘기지 않는다.
 
 ## 검증 — 완료 선언 전 필수
 
