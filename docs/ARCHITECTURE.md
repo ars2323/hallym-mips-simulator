@@ -336,6 +336,12 @@ QtSpim-Edu  : R5 (a1) = 2147479680   R6 (a2) = 2147479684   R29 (sp) = 214747967
 → 회귀 비교에서 **레지스터 덤프를 통째로 비교하면 안 된다.** `tools/regress.sh`가
 콘솔 출력(프로그램 자신의 출력)을 비교하는 이유.
 
+**프로세스 환경변수도 스택에 올라간다.** `initialize_stack()`이 argv 뒤에 envp를 복사하므로
+(Data 패널의 User Stack 끝에서 `PATH=...` 같은 문자열이 그대로 보인다), 같은 바이너리라도
+환경변수가 다르면 `$sp`/`$a1`/`$a2`가 달라진다. 3단계에서 로그 저장 골든 파일이 재현되지 않아
+알게 됐다 → `tools/capture-goldens.sh`와 `regress.sh` 4번 검사는 `env -i` + 고정 변수 3개로 돌린다.
+(PLAN R5의 "argv/환경변수 영역 기본 접힘" 결정의 근거이기도 하다: 학생의 사용자명·경로가 거기 있다.)
+
 ---
 
 ## 4. 어셈블 에러 메시지 형식과 출력 경로
@@ -510,6 +516,8 @@ Settings 다이얼로그 내용(`QtSpim/settings.ui`, 처리 `menu.cpp:402-541`)
 - 로그 저장: `findChild<…>("IntRegTextEdit")->toPlainText()` 등 (`menu.cpp:124-143`)
 - 인쇄: `findChild<…>("IntRegTextEdit")->print(&printer)` 등 (`menu.cpp:167-180`)
 
+(3단계 이후 Int Regs는 `SpimView::intRegistersLogText()`/`printIntRegisters()`를 거친다 — §11.)
+
 → **위젯을 `QTreeView`/`QTableView`로 바꾸면 이 두 기능이 그대로는 깨진다.**
 `QTableView`에는 `toPlainText()`도 `print()`도 없다. 3·5·6단계에서 각 패널을 바꿀 때
 모델에서 텍스트/문서를 생성하는 함수를 같이 만들어야 한다(8절).
@@ -647,3 +655,41 @@ MSVC는 BOM 없는 UTF-8 소스를 시스템 코드페이지로 읽으므로 `.p
 
 zip 배포(2단계)는 이 스크립트들을 쓰지 않고 `tools/package-windows.ps1`이 따로 만든다.
 `bin/release-win`과 WiX는 MSI 흐름(8단계) 몫으로 남겨 두었고 아직 원본 이름 그대로다.
+
+---
+
+## 11. 3단계 이후의 레지스터 패널
+
+원본 §2의 Int Regs 경로는 이렇게 바뀌었다 (FP Regs는 원본 그대로).
+
+```
+DisplayIntRegisters()  QtSpim/regwin.cpp
+  ├ 원본 HTML 빌더(formatSpecialIntRegister/formatIntRegister) 그대로 실행
+  │   → eduIntRegLog (숨은 QPlainTextEdit)  ← Save Log File / Print가 읽는 유일한 곳
+  │       SpimView::intRegistersLogText() / printIntRegisters()
+  └ eduRefreshRegisterPanel()  QtSpim/edu/edu_spimview_glue.cpp
+      → EduRegisterModel::refresh()  → EduRegisterView(QTreeView, IntRegDockWidget 안)
+      → EduInspector (레지스터 도크 아래 도크)
+```
+
+| 파일 | 역할 |
+|---|---|
+| `edu/core/edu_format.*` | 32비트 값 ↔ 문자열. 위젯은 여기만 부른다 |
+| `edu/core/edu_registers.*` | 레지스터 이름·번호 표기·그룹·이름 조회 |
+| `edu/edu_register_model.*` | 2단계 트리 모델, 값 읽기/쓰기, 변경 스냅샷 |
+| `edu/edu_register_view.*` | 트리 뷰, 우클릭 메뉴, 값 변경(원본 다이얼로그 재사용) |
+| `edu/edu_inspector.*` | 인스펙터 도크 (지금은 레지스터만) |
+| `edu/edu_spimview_glue.cpp` | `SpimView::edu*` 멤버. 원본 파일에는 `// EDU:` 한 줄 훅만 |
+
+**변경 강조 스냅샷 시점** (`eduBeginRunCommand()` 호출 지점, 전부 `QtSpim/menu.cpp`):
+`sim_Run`, `sim_SingleStep`, `continueBreakpoint`, `singleStepBreakpoint`의 첫 줄.
+초기화(`eduResetRegisterChanges()`): `sim_ReinitializeSimulator`, `sim_ClearRegisters`, `file_LoadFile`.
+사용자 편집은 `EduRegisterModel::writeRegister()`가 스냅샷에 같은 값을 넣어 강조에서 뺀다.
+
+**FP 탭과의 관계**: 원본은 Int/FP 창이 같은 클래스(`regTextEdit`)와 같은 `changeValue()`를 쓴다
+(클릭한 줄을 정규식으로 읽어 `R`/`FG`/`FP`/특수 이름을 구분). Int 창을 떼어 내도 클래스는 FP 탭용으로
+그대로 남고, 정수 레지스터 분기는 FP 창의 텍스트에 걸리지 않을 뿐이라 **분리 작업이 필요 없었다.**
+
+**로그 저장 동일성**은 구조로 보장한다: 새 코드가 로그 텍스트를 "다시 만드는" 것이 아니라 원본 HTML
+빌더의 출력을 그대로 숨은 위젯에 넣어 `toPlainText()`/`print()`를 부른다. `tests/golden/`과
+`regress.sh` 4번 검사는 그 구조가 깨지지 않았는지를 확인한다.
