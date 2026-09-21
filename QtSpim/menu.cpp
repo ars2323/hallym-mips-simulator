@@ -76,6 +76,10 @@ void SpimView::file_LoadFile() {
   }
 
   QString file;
+  if (!eduAssembleFile.isEmpty()) {  // EDU: Assemble names the file itself
+    file = eduAssembleFile;
+    eduAssembleFile.clear();
+  } else
   if (((QAction*)sender())->objectName() != "action_File_Load" &&
       ((QAction*)sender())->objectName() != "action_File_Reload") {
     file = ((QAction*)sender())
@@ -104,6 +108,7 @@ void SpimView::file_LoadFile() {
     // the registers here; their values are the same, only the colour goes).
     eduResetRegisterChanges();
     DisplayIntRegisters();
+    eduEditorFileLoaded(file);  // EDU: what the simulator runs, the editor shows
   }
 }
 
@@ -207,6 +212,9 @@ void SpimView::file_Exit() {
         this->SaveStateAndExit(0);
     }
 #endif
+  if (!eduEditorMaybeSave()) {  // EDU: unsaved changes in the editor, Cancel
+    return;
+  }
   this->SaveStateAndExit(0);
 }
 
@@ -728,6 +736,7 @@ void SpimView::win_Tile() {
   ui->TextSegDockWidget->setFloating(false);
   ui->DataSegDockWidget->setFloating(false);
   tabifyDockWidget(ui->DataSegDockWidget, ui->TextSegDockWidget);
+  eduTileEditor();  // EDU: a third tab with Data and Text
 }
 
 // Help menu

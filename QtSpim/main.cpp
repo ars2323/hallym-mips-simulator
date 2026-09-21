@@ -106,6 +106,7 @@ int main(int argc, char* argv[]) {
       // EDU: read_assembly_file() with the file's labels kept; see
       // edu/edu_loader.h.
       win.eduLoadAssemblyFile(fileNames[i]);
+      win.eduEditorFileLoaded(fileNames[i]);  // EDU
     }
   }
 

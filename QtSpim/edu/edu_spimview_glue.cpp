@@ -15,6 +15,7 @@
 #include "edu/core/edu_symbols.h"
 #include "edu/edu_data_model.h"
 #include "edu/edu_data_view.h"
+#include "edu/edu_editor_dock.h"
 #include "edu/edu_inspector.h"
 #include "edu/edu_loader.h"
 #include "edu/edu_register_model.h"
@@ -101,6 +102,8 @@ void SpimView::eduSetupPanels() {
   eduDataLog->setUndoRedoEnabled(false);
   eduDataLog->setReadOnly(true);
   eduDataLog->hide();
+
+  eduSetupEditor();
 }
 
 // The register column lives in the LEFT dock area, not in upstream's top
@@ -254,6 +257,7 @@ void SpimView::eduRefreshTextPanel() {
   ui->TextSegView->setPalette(palette);
   ui->TextSegView->applyPanelFont(st_textWinFont);
   eduTextModel->setColors(st_textWinFontColor, st_textWinBackgroundColor);
+  eduEditor->setPanelFont(st_textWinFont);  // the editor follows the Text window's font
 
   eduTextModel->rebuild(st_showUserTextSegment, st_showKernelTextSegment);
   ui->TextSegView->setColumnsShown(st_showTextDisassembly, st_showTextComments);

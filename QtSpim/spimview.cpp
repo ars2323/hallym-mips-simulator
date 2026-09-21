@@ -84,7 +84,11 @@ SpimView::SpimView(QWidget *parent)
   programStatus = IDLE;
 }
 
-void SpimView::closeEvent(QCloseEvent *) {
+void SpimView::closeEvent(QCloseEvent *event) {
+  if (!eduEditorMaybeSave()) {  // EDU: unsaved changes in the editor, Cancel
+    event->ignore();
+    return;
+  }
   writeSettings(false);
   qApp->exit(0);
 }
@@ -275,6 +279,12 @@ void SpimView::SetOutputColor(QString color) { outputColor = color; }
 
 void SpimView::Error(QString message, bool fatal) {
   WriteOutput(message);
+
+  // EDU: while the editor assembles, errors go to its list instead of one
+  // modal box each.  The message log above gets them as always.
+  if (!fatal && eduCollectError(message)) {
+    return;
+  }
 
   if (fatal) {
     QMessageBox::critical(0, "Error", message,

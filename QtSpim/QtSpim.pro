@@ -66,6 +66,12 @@ SOURCES += main.cpp\
         edu/edu_data_model.cpp\
         edu/edu_data_view.cpp\
         edu/edu_loader.cpp\
+        edu/core/edu_mips_syntax.cpp\
+        edu/core/edu_asm_errors.cpp\
+        edu/core/edu_text_file.cpp\
+        edu/edu_code_editor.cpp\
+        edu/edu_editor_dock.cpp\
+        edu/edu_editor_glue.cpp\
         edu/edu_register_model.cpp\
         edu/edu_register_view.cpp\
         edu/edu_inspector.cpp\
@@ -106,6 +112,11 @@ HEADERS  += spimview.h\
         edu/edu_data_model.h\
         edu/edu_data_view.h\
         edu/edu_loader.h\
+        edu/core/edu_mips_syntax.h\
+        edu/core/edu_asm_errors.h\
+        edu/core/edu_text_file.h\
+        edu/edu_code_editor.h\
+        edu/edu_editor_dock.h\
         edu/edu_register_model.h\
         edu/edu_register_view.h\
         edu/edu_inspector.h\

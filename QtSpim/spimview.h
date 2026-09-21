@@ -39,6 +39,7 @@
 #include <QSettings>
 #include <QList>
 #include <QString>
+#include <QStringList>
 
 #include "ui_spimview.h"
 #include "console.h"
@@ -58,6 +59,7 @@ class SpimView;
 
 // EDU: new panels (QtSpim/edu/).
 class EduDataModel;
+class EduEditorDock;
 class EduInspector;
 class EduRegisterModel;
 class EduTextModel;
@@ -105,6 +107,16 @@ class SpimView : public QMainWindow {
   void eduSetupPanels();
   void eduTileInspector();
   void eduUpdateModeBadge();  // status bar: settings that change assembling
+
+  // EDU: the editor (edu/edu_editor_dock.h); implemented in
+  // edu/edu_editor_glue.cpp.
+  EduEditorDock* eduEditor;
+  void eduSetupEditor();
+  void eduTileEditor();
+  bool eduEditorMaybeSave();                     // false = the user cancelled
+  void eduEditorFileLoaded(const QString& file); // File > Load File, command line
+  bool eduCollectError(const QString& message);  // true = taken, show no box
+  QString eduAssembleFile;                       // set for file_LoadFile()
   void eduBeginRunCommand();       // a Step/Run/Continue is about to start
   void eduResetRegisterChanges();  // Reinitialize / Load / Clear Registers
   void eduRefreshRegisterPanel();
@@ -212,6 +224,9 @@ class SpimView : public QMainWindow {
   QTextEdit* eduTextLog;         // EDU: same for the Text window, filled on demand
   void eduFillTextLog();
   QPlainTextEdit* eduDataLog;    // EDU: and for the Data window
+  QLabel* eduAssembleBadge;      // EDU: status bar, "2 errors"
+  bool eduCollectingErrors;      // EDU: an Assemble is in progress
+  QStringList eduCollectedErrors;
   QLabel* eduModeBadge;          // EDU: status bar, see eduUpdateModeBadge()
   bool eduProgramLoaded;         // EDU: a file was assembled since Reinitialize
   QString eduLoadedSymbols;      // EDU: print_symbols() text of every file loaded
@@ -344,6 +359,11 @@ class SpimView : public QMainWindow {
   void eduRegisterSelected();
   void eduInstructionSelected();
   void eduMemorySelected();
+  void eduAssemble();
+  void eduEditorNew();
+  void eduEditorOpen();
+  void eduEditorSave();
+  void eduEditorSaveAs();
 
 };
 
