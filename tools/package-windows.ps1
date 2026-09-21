@@ -99,6 +99,14 @@ Copy-Item (Join-Path $repo "helloworld.s") $stage
 Copy-Item (Join-Path $repo "README") (Join-Path $stage "README-SPIM.txt")
 Copy-Item (Join-Path $repo "Setup\QtSpim_License.rtf") (Join-Path $stage "QtSpim_License.rtf")
 
+# The student guide, Korean and English.  Markdown reads well enough in
+# Notepad; the PDFs are on the release page.  (UTF-8 with BOM, as below.)
+foreach ($guide in @("GUIDE-ko.md", "GUIDE.md")) {
+  $text = Get-Content (Join-Path $repo "docs\$guide") -Raw -Encoding UTF8
+  [System.IO.File]::WriteAllText((Join-Path $stage $guide), $text,
+                                  (New-Object System.Text.UTF8Encoding $true))
+}
+
 $readme = Get-Content (Join-Path $repo "tools\windows-zip-README.txt") -Raw
 $readme = $readme.Replace("@VERSION@", $version).Replace("@BASE_VERSION@", $baseVersion)
 # UTF-8 with BOM so Notepad shows the Korean half correctly.
@@ -111,7 +119,7 @@ $required = @("QtSpimEdu.exe", "assistant.exe", "Qt5Core.dll", "Qt5Gui.dll",
               "platforms\qwindows.dll", "sqldrivers\qsqlite.dll",
               "msvcp140.dll", "vcruntime140.dll",
               "help\qtspim.qch", "help\qtspim.qhc", "helloworld.s",
-              "README-QtSpim-Edu.txt")
+              "README-QtSpim-Edu.txt", "GUIDE-ko.md", "GUIDE.md")
 $missing = $required | Where-Object { -not (Test-Path (Join-Path $stage $_)) }
 if ($missing) { Fail ("zip would be incomplete, missing: " + ($missing -join ", ")) }
 
