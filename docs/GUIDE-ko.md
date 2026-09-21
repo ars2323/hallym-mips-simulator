@@ -19,7 +19,7 @@ QtSpim-Edu는 MIPS 시뮬레이터 **QtSpim 9.1.24의 화면만 바꾼** 교육�
     - 에러가 있으면 Editor에 머물고, 아래 목록에 에러가 나옵니다. 항목을 누르면 그 줄로 갑니다. 파일은 저장된 상태입니다.
 3. **F5** 실행, **F10** 한 명령씩 실행. 브레이크포인트는 Text 탭의 BP 칸을 누르면 됩니다.
 
-Text·Data 탭 위에 노란 띠 **"Source changed — save (Ctrl+S) to assemble"**가 보이면, 지금 보고 있는 내용이 에디터의 코드와 다르다는 뜻입니다. Ctrl+S를 누르거나 띠를 누르면 반영됩니다. 프로그램을 다시 켰을 때도 마지막 파일이 열린 채로 이 띠가 보입니다(자동으로 어셈블하지는 않습니다).
+Text·Data 탭 위에 노란 띠 "**Source changed — save (Ctrl+S) to assemble**"가 보이면, 지금 보고 있는 내용이 에디터의 코드와 다르다는 뜻입니다. Ctrl+S를 누르거나 띠를 누르면 반영됩니다. 프로그램을 다시 켰을 때도 마지막 파일이 열린 채로 이 띠가 보입니다(자동으로 어셈블하지는 않습니다).
 
 ## 3. 표준 QtSpim과 다른 점
 
@@ -30,7 +30,7 @@ Text·Data 탭 위에 노란 띠 **"Source changed — save (Ctrl+S) to assemble
 | Text | 열: BP · 주소 · 기계어 · **타입 배지(R / I / J …)** · 명령어 · 소스. 명령어를 고르면 Inspector에 **opcode, rs, rt, rd, shamt, funct, immediate 필드 분해**와 분기·점프 목적지. `li`, `la`처럼 여러 명령어로 펼쳐지는 줄은 색 띠로 묶임. 커널 코드는 접혀 있음(머리 행을 누르면 펼쳐짐) | 글자로만 표시 |
 | Data | 주소 · +0 · +4 · +8 · +C · ASCII · **Labels**. `.data`의 라벨 이름, **`$sp` `$fp` `$gp`가 가리키는 칸 표시**, Words / Half words / Bytes 전환, Go to(주소·라벨·`$sp`). 스택 맨 위의 **환경변수 영역은 접혀 있음** — 사용자 이름과 폴더 경로가 들어 있어서, 스크린샷에 나오지 않게 한 것입니다 | 글자로만 표시, 환경변수가 그대로 보임 |
 | Editor | 프로그램 안에서 편집, 문법 색, 에러 목록 | 없음(메모장 등으로 편집 후 Load) |
-| File > Load File | 프로그램이 이미 올라와 있으면 **"Reinitialize and load / Add to current program / Cancel"**을 물음 | 묻지 않고 위에 얹음 |
+| File > Load File | 프로그램이 이미 올라와 있으면 "**Reinitialize and load / Add to current program / Cancel**"을 물음 | 묻지 않고 위에 얹음 |
 | 상태바 | Bare Machine 같은 설정이 켜져 있으면 노란 표시, 오른쪽 끝에 버전 | 없음 |
 
 ## 4. 알아둘 것
