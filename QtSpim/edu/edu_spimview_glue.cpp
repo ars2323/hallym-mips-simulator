@@ -33,6 +33,7 @@ QString* eduOutputCapture = NULL;
 // lays the docks out and before readSettings() restores a saved layout (the
 // inspector has to exist for restoreState() to place it).
 void SpimView::eduSetupPanels() {
+  eduEditor = 0;  // until eduSetupEditor() at the end of this function
   eduRegisterModel = new EduRegisterModel(this);
   ui->IntRegView->setRegisterModel(eduRegisterModel);
 
@@ -281,6 +282,12 @@ bool SpimView::eduLoadAssemblyFile(const QString& file) {
 void SpimView::eduForgetLoadedLabels() {
   eduLoadedSymbols.clear();
   eduProgramLoaded = false;
+  // Reinitialize: whatever the editor shows is no longer in the simulator.
+  // (An Assemble comes through here too and sets this again when it is done.)
+  eduSyncedPath.clear();
+  if (eduEditor != 0) {
+    eduUpdateStaleBanner();
+  }
 }
 
 // File > Load File (and the recent files) while a program is loaded.

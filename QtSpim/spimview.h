@@ -66,6 +66,7 @@ class EduTextModel;
 class QLabel;
 class QMenu;
 class QPlainTextEdit;
+class QPushButton;
 class QTextEdit;
 
 class SpimView : public QMainWindow {
@@ -119,6 +120,9 @@ class SpimView : public QMainWindow {
   bool eduCollectError(const QString& message);  // true = taken, show no box
   QString eduAssembleFile;                       // set for file_LoadFile()
   QMenu* eduEditorRecentMenu;                    // Editor > Open Recent
+  QList<QPushButton*> eduStaleBanners;           // "Source changed" strips
+  QString eduSyncedPath;                         // file the simulator last took
+  void eduUpdateStaleBanner();
   void eduRebuildEditorRecentMenu();
   void eduBeginRunCommand();       // a Step/Run/Continue is about to start
   void eduResetRegisterChanges();  // Reinitialize / Load / Clear Registers

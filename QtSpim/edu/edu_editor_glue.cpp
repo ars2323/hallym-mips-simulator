@@ -8,8 +8,10 @@
 #include <QLabel>
 #include <QMenu>
 #include <QMenuBar>
+#include <QPushButton>
 #include <QStatusBar>
 #include <QToolBar>
+#include <QVBoxLayout>
 
 #include "edu/core/edu_asm_errors.h"
 #include "edu/edu_code_editor.h"
@@ -92,6 +94,53 @@ void SpimView::eduSetupEditor() {
       " padding: 1px 8px; font-weight: bold; }");
   statusBar()->addPermanentWidget(eduAssembleBadge);
   eduAssembleBadge->hide();
+
+  // "The editor's source is not what the simulator holds": a strip across
+  // the top of the Text and Data panels, which is where one is looking when
+  // it matters.  A click saves and assembles.
+  QDockWidget* const docks[] = {ui->TextSegDockWidget, ui->DataSegDockWidget};
+  for (unsigned i = 0; i < sizeof(docks) / sizeof(docks[0]); i += 1) {
+    QWidget* panel = docks[i]->widget();
+    QWidget* box = new QWidget(docks[i]);
+    QVBoxLayout* layout = new QVBoxLayout(box);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
+    QPushButton* banner = new QPushButton(
+        QString("Source changed ") + QChar(0x2014) +
+            QString(" save (Ctrl+S) to assemble"),
+        box);
+    banner->setObjectName("EduStaleBanner");
+    banner->setFlat(true);
+    banner->setCursor(Qt::PointingHandCursor);
+    banner->setFocusPolicy(Qt::NoFocus);
+    banner->setStyleSheet(
+        "QPushButton { background: #ffe082; color: black; border: none;"
+        " padding: 3px 8px; text-align: left; font-weight: bold; }"
+        "QPushButton:hover { background: #ffd54f; }");
+    banner->hide();
+    connect(banner, SIGNAL(clicked()), this, SLOT(eduAssemble()));
+    layout->addWidget(banner);
+    layout->addWidget(panel, 1);
+    docks[i]->setWidget(box);
+    eduStaleBanners << banner;
+  }
+
+  eduUpdateStaleBanner();
+}
+
+// In step = the simulator last took (assembled, or loaded through the File
+// menu) exactly the file the editor shows, and nothing was typed since.  A
+// failed assemble counts: its outcome is in the error list, and the strip
+// would only repeat "press Ctrl+S".  An empty, untouched editor has nothing
+// to be out of step with.
+void SpimView::eduUpdateStaleBanner() {
+  const QString path = eduEditor->filePath();
+  const bool nothing = path.isEmpty() && !eduEditor->isModified();
+  const bool inStep = !path.isEmpty() && !eduEditor->isModified() &&
+                      QFileInfo(path).canonicalFilePath() == eduSyncedPath;
+  for (int i = 0; i < eduStaleBanners.size(); i += 1) {
+    eduStaleBanners.at(i)->setVisible(!nothing && !inStep);
+  }
 }
 
 // win_Tile(): the editor is a third tab beside Data and Text, in front until
@@ -106,6 +155,7 @@ void SpimView::eduTileEditor() {
 // Editor > Open Recent: files the editor opened or saved, newest first,
 // kept in the settings under Editor/RecentFiles.
 void SpimView::eduEditorFileChanged() {
+  eduUpdateStaleBanner();
   const QString path = eduEditor->filePath();
   if (path.isEmpty()) {
     return;
@@ -185,6 +235,8 @@ void SpimView::eduEditorFileLoaded(const QString& file) {
       eduEditor->openFile(file, !same);
     }
     ui->TextSegDockWidget->raise();  // a program was loaded: look at it
+    eduSyncedPath = QFileInfo(file).canonicalFilePath();
+    eduUpdateStaleBanner();
   }
 }
 
@@ -217,6 +269,8 @@ void SpimView::eduAssemble() {
   file_ReloadFile();
   eduCollectingErrors = false;
   eduAssembleFile.clear();  // (a path the core cannot take: never consumed)
+  eduSyncedPath = QFileInfo(eduEditor->filePath()).canonicalFilePath();
+  eduUpdateStaleBanner();
 
   QList<edu::AssemblerMessage> messages;
   for (int i = 0; i < eduCollectedErrors.size(); i += 1) {
@@ -239,6 +293,7 @@ void SpimView::eduAssemble() {
                               : QString(" %1 errors").arg(messages.size())) +
         QString(". Simulator was reset."));
     eduAssembleBadge->show();
+    statusBar()->clearMessage();  // an earlier "Saved and assembled"
     eduEditor->raise();
   }
 }
