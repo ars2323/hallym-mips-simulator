@@ -13,6 +13,7 @@ class TestAsmErrors : public QObject {
   void pathsWithSpacesAndHangul();
   void messageThatMentionsALine();
   void otherMessagesAreKeptWhole();
+  void lineIsWhereTheQuotedSourceIs();
 };
 
 // Real output for Tests/tt.alu.bare.s.
@@ -78,6 +79,39 @@ void TestAsmErrors::otherMessagesAreKeptWhole() {
     QCOMPARE(m.message, QString::fromLatin1(texts[i]).simplified());
     QCOMPARE(edu::assemblerMessageSummary(m), m.message);
   }
+}
+
+// Tests/tt.alu.bare.s: the message says 414, the quoted line is line 413.
+void TestAsmErrors::lineIsWhereTheQuotedSourceIs() {
+  QStringList file;
+  file << "\tlui $4 0xffff"           // 1
+       << "\taddi $4 $0 0xff98"       // 2  <- the offender
+       << ""                          // 3
+       << "# a comment"               // 4
+       << "\tbne $t1 $4 fail"         // 5  <- where the parser noticed
+       << "\taddi $4 $0 0xff98";      // 6  (the same text again, later)
+  edu::AssemblerMessage m = edu::parseAssemblerMessage(
+      "spim: (parser) immediate value (65432) out of range (-32768 .. 32767) "
+      "on line 5 of file x.s\n\t  addi $4 $0 0xff98\n\t        ^\n");
+  QCOMPARE(m.line, 5);
+  QCOMPARE(edu::resolveMessageLine(m, file), 2);  // upwards, not line 6
+  QCOMPARE(edu::assemblerMessageSummary(m, 2),
+           QString("2: immediate value (65432) out of range (-32768 .. 32767)"));
+
+  // A syntax error is reported on its own line.
+  m = edu::parseAssemblerMessage(
+      "spim: (parser) syntax error on line 5 of file x.s\n\t  bne $t1 $4 fail\n\t  ^\n");
+  QCOMPARE(edu::resolveMessageLine(m, file), 5);
+
+  // Not found (the editor's text has changed): the core's number stands.
+  m = edu::parseAssemblerMessage(
+      "spim: (parser) syntax error on line 4 of file x.s\n\t  gone\n\t  ^\n");
+  QCOMPARE(edu::resolveMessageLine(m, file), 4);
+  // Beyond the end of the file, nothing quoted, no location.
+  m = edu::parseAssemblerMessage("spim: (parser) syntax error on line 99 of file x.s\n");
+  QCOMPARE(edu::resolveMessageLine(m, file), 99);
+  m = edu::parseAssemblerMessage("Cannot open file: `x.s'\n");
+  QCOMPARE(edu::resolveMessageLine(m, file), 0);
 }
 
 EDU_TEST_FACTORY(TestAsmErrors)

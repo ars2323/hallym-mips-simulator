@@ -35,11 +35,30 @@ AssemblerMessage parseAssemblerMessage(const QString& text) {
   return result;
 }
 
+int resolveMessageLine(const AssemblerMessage& message,
+                       const QStringList& fileLines) {
+  if (!message.hasLocation || message.source.isEmpty()) {
+    return message.line;
+  }
+  const QString wanted = message.source.simplified();
+  const int from = qMin(message.line, fileLines.size());
+  for (int line = from; line >= 1 && line > from - 200; line -= 1) {
+    if (fileLines.at(line - 1).simplified() == wanted) {
+      return line;
+    }
+  }
+  return message.line;
+}
+
 QString assemblerMessageSummary(const AssemblerMessage& message) {
+  return assemblerMessageSummary(message, message.line);
+}
+
+QString assemblerMessageSummary(const AssemblerMessage& message, int line) {
   if (!message.hasLocation) {
     return message.message;
   }
-  return QString::number(message.line) + QString(": ") + message.message;
+  return QString::number(line) + QString(": ") + message.message;
 }
 
 }  // namespace edu

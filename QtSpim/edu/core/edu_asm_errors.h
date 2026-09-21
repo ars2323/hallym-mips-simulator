@@ -18,6 +18,7 @@
 #define EDU_ASM_ERRORS_H
 
 #include <QString>
+#include <QStringList>
 
 namespace edu {
 
@@ -32,8 +33,19 @@ struct AssemblerMessage {
 
 AssemblerMessage parseAssemblerMessage(const QString& text);
 
+// The line of `fileLines` (the file's text, one entry per line) the message
+// is about, 1-based.  The core's number is not always it: an operand that is
+// out of range is only reported once the parser has read the first token of
+// the NEXT statement, so the number is that of a later line, while the
+// quoted source line is the right one.  This looks for the quoted line at
+// the reported number and then upwards; if it is not found (the file has
+// changed, the message quotes nothing) the core's number stands.
+int resolveMessageLine(const AssemblerMessage& message,
+                       const QStringList& fileLines);
+
 // One line for the error list: "12: syntax error" or the message alone.
 QString assemblerMessageSummary(const AssemblerMessage& message);
+QString assemblerMessageSummary(const AssemblerMessage& message, int line);
 
 }  // namespace edu
 
