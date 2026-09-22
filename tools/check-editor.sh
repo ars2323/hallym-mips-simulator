@@ -18,8 +18,9 @@
 #      Text tab; the "Source changed" strip comes and goes; a failed assemble
 #      keeps the file saved and says the simulator was reset.
 #   7. The last file is reopened at the next start and not assembled.
-#   9. The tour opens its sample program only over an empty, unnamed editor,
-#      never over the student's own work, and asks nothing either way.
+#   9. The tour always opens the example program, asking first when the
+#      editor holds unsaved work (Cancel means it does not start), and every
+#      one of its buttons works when clicked with the mouse.
 
 set -euo pipefail
 
@@ -282,96 +283,70 @@ else
 fi
 
 echo
-echo "== 9. the tour opens its sample only over an empty editor"
-# Three editor states, one question in each case: is anything of the
-# student's touched, and is a dialog put in the way?  (The harness answers
-# a "save changes?" box with Discard and prints "editor question:", so its
-# absence in the output is the proof that none was shown.)
-tour_case() {  # tour_case NAME WANT_SAMPLE WANT_TAIL ARGS...
-  local name=$1 wantSample=$2 wantTail=$3; shift 3
-  run "$name" "$@" --window-size 1600x900 --tutorial-report
-  local out="$work/$name.out"
-  local sample button wantButton
-  sample=$(sed -n 's/^tutorial sample=\([01]\) .*/\1/p' "$out")
-  button=$(sed -n 's/^tutorial sample=[01] steps=[0-9]* button=\([01\]\).*/\1/p' "$out")
-  # The offer to switch belongs exactly where the example was not opened.
-  if [ "$wantSample" = "1" ]; then wantButton=0; else wantButton=1; fi
-  if [ "$sample" = "$wantSample" ]; then
-    pass "$name: sample=$sample"
-  else
-    fail "$name: expected sample=$wantSample, got \"$sample\""
-  fi
-  if [ "$button" = "$wantButton" ]; then
-    pass "$name: example button=$button"
-  else
-    fail "$name: expected the example button=$wantButton, got \"$button\""
-  fi
-  if grep -q "^editor question:" "$out"; then
-    fail "$name: a dialog was shown: $(grep -m1 '^editor question:' "$out")"
-  else
-    pass "$name: nothing was asked"
-  fi
-  local welcome
-  welcome=$(sed -n 's/^tutorial welcome: //p' "$out")
-  case "$welcome" in
-    *"$wantTail"*) pass "$name: the first step says which program it walks" ;;
-    *) fail "$name: expected \"$wantTail\" in \"$welcome\"" ;;
-  esac
-}
-
+echo "== 9. the tour always opens the example, and asks before taking the editor"
+# The tour replaces whatever the editor holds with samples/tutorial.s.  That
+# is worth one question when there is unsaved work, and no question at all
+# otherwise; Cancel means the tour does not start and nothing changes.
 printf '\t.text\nmain:\tli $v0, 10\n\tsyscall\n' >"$work/mine.s"
 before=$(md5sum <"$work/mine.s")
 
-tour_case tourA 1 "A sample program is already open."
-tour_case tourB 0 "The tour runs on what you have open." --editor-type '# mine\n'
-tour_case tourC 0 "The tour runs on what you have open." --editor-open "$work/mine.s"
-
-# The typed text is still there, unnamed and unsaved, and the file that was
-# open was neither rewritten nor closed.
-run tourD --editor-type '# mine\n' --window-size 1600x900 --tutorial-report \
-    --editor-report
-typed=$(sed -n 's/.*editor: file=\([^ ]*\) modified=\([01]\).*/\1|\2/p' \
-    "$work/tourD.out")
-case "$typed" in
-  "|1") pass "typed text survives the tour: still unnamed and unsaved" ;;
-  *) fail "expected an unnamed modified editor, got \"$typed\"" ;;
-esac
-if [ "$before" = "$(md5sum <"$work/mine.s")" ]; then
-  pass "the student's file on disk is untouched"
-else
-  fail "the tour changed $work/mine.s"
-fi
-
-# The button on the first step: cancelling the question changes nothing,
-# going ahead opens the example and starts the tour over with every step.
-press_case() {  # press_case NAME proceed|cancel WANT_SAMPLE WANT_STEPS WANT_ASKS ARGS...
-  local name=$1 answer=$2 wantSample=$3 wantSteps=$4 wantAsks=$5; shift 5
-  run "$name" "$@" --window-size 1600x900 --tutorial-use-sample "$answer"
-  local out="$work/$name.out" after asked
-  after=$(sed -n 's/^tutorial after: sample=\([01]\) steps=\([0-9]*\) step=\([0-9]*\).*/\1 \2 \3/p' "$out")
-  if [ "$after" = "$wantSample $wantSteps 1" ]; then
-    pass "$name ($answer): sample=$wantSample, $wantSteps steps, back at step 1"
-  else
-    fail "$name ($answer): expected \"$wantSample $wantSteps 1\", got \"$after\""
-  fi
+tour_case() {  # tour_case NAME ANSWER WANT_STARTED WANT_ASKS ARGS...
+  local name=$1 answer=$2 wantStarted=$3 wantAsks=$4; shift 4
+  run "$name" "$@" --editor-answer "$answer" --window-size 1600x900 \
+      --tutorial-report
+  local out="$work/$name.out" steps skipped asked
+  steps=$(sed -n 's/^tutorial steps=\([0-9]*\) .*/\1/p' "$out")
+  skipped=$(sed -n 's/^tutorial steps=[0-9]* skipped=\([0-9]*\).*/\1/p' "$out")
   asked=$(grep -c '^editor question:' "$out" || true)
-  if [ "$asked" = "$wantAsks" ]; then
-    pass "$name ($answer): $asked question(s) about unsaved text"
+  if [ "$wantStarted" = "0" ]; then
+    if [ -z "$steps" ]; then
+      pass "$name: cancelled, the tour did not start"
+    else
+      fail "$name: cancelled but the tour ran ($steps steps)"
+    fi
   else
-    fail "$name ($answer): expected $wantAsks question(s), got $asked"
+    if [ "$steps" = "19" ] && [ "$skipped" = "0" ]; then
+      pass "$name: 19 steps, none left out"
+    else
+      fail "$name: expected 19 steps and none skipped, got \"$steps\" and \"$skipped\" skipped"
+      sed -n 's/^tutorial skipped: /  left out: /p' "$out"
+    fi
   fi
-  if grep -q '^dialog:' "$out"; then
-    fail "$name ($answer): $(grep -m1 '^dialog:' "$out")"
+  if [ "$asked" = "$wantAsks" ]; then
+    pass "$name: $asked question(s) about unsaved work"
   else
-    pass "$name ($answer): no error box"
+    fail "$name: expected $wantAsks question(s), got $asked"
   fi
 }
 
-press_case tourE cancel 0 9 1 --editor-type '# mine\n'
-press_case tourF proceed 1 18 1 --editor-type '# mine\n'
-# Over a saved, assembled program: nothing to ask about, and the example
-# replaces it instead of being assembled on top of it (a second main:).
-press_case tourG proceed 1 18 0 --editor-open "$work/mine.s" --assemble
+tour_case tourEmpty   discard 1 0
+tour_case tourSaved   discard 1 0 --editor-open "$work/mine.s"
+tour_case tourTyped   discard 1 1 --editor-type '# mine\n'
+tour_case tourCancel  cancel  0 1 --editor-type '# mine\n'
+
+if [ "$before" = "$(md5sum <"$work/mine.s")" ]; then
+  pass "the file the editor held is unchanged on disk"
+else
+  fail "the tour wrote to $work/mine.s"
+fi
+
+# Every button, with the mouse: the tour used to end at the first click of
+# Next because clicking the overlay deactivated the main window.
+run tourClicks --window-size 1600x900 --tutorial-click-through
+clicks=$(grep -c '^tutorial click Next: visible=1' "$work/tourClicks.out" || true)
+if [ "$clicks" = "18" ]; then
+  pass "Next, clicked with the mouse, walks all 19 steps"
+else
+  fail "expected 18 mouse clicks on Next, got $clicks"
+fi
+for what in "click Back: visible=1" "click finish: visible=0" "click Skip: visible=0"; do
+  if grep -q "^tutorial $what" "$work/tourClicks.out"; then
+    pass "mouse $what"
+  else
+    fail "mouse $what not reported"
+    grep '^tutorial click' "$work/tourClicks.out" | tail -3
+  fi
+done
 
 echo
 if [ "$failures" -eq 0 ]; then

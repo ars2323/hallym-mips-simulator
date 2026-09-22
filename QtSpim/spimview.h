@@ -152,7 +152,7 @@ class SpimView : public QMainWindow {
   void eduRestoreEditorZoom();                  // the saved editor text size
   bool eduLoadTutorialSample();                 // samples/tutorial.s, for the tour
   QString eduTutorialSamplePath() const;        // where it is, or empty
-  bool eduSwitchToTutorialSample();             // the tour's "use the example"
+  void eduRunToTutorialStop();                  // into sum_array, third turn
   void eduRefreshRegisterPanel();
 
   // EDU: Text panel (edu/edu_text_model.h, edu/edu_text_view.h).

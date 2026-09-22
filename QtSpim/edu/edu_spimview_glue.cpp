@@ -272,23 +272,22 @@ void SpimView::eduRevealWindows() {
 }
 
 void SpimView::eduShowTutorial() {
+  // The tour always walks the example program, so that every step has the
+  // same thing to point at whoever starts it.  That means taking the
+  // editor away from whatever it held, which is worth one question when
+  // there is unsaved work in it; Cancel means the tour does not start and
+  // nothing has changed.
+  if (eduEditor != 0) {
+    if (!eduEditor->maybeSave()) {
+      return;
+    }
+    eduEditor->forgetChanges();  // answered: opening must not ask again
+  }
   if (eduTutorial == 0) {
     eduTutorial = new EduTutorial(this);
   }
   settings.setValue("Tutorial/Shown", true);
-  // With nothing loaded there is no changed register, no type badge, no
-  // label and no stack marker to point at, which is most of the tour, so on
-  // a first run the sample is opened and stepped into.  The editor has to be
-  // empty and unnamed for that: anything the student has open or has typed
-  // is left exactly as it is, and no question is asked about it.  The tour
-  // then runs on whatever is on the screen and leaves out the steps that
-  // have nothing to point at.
-  const bool ownProgram = eduEditor == 0 || !eduEditor->isUntouched();
-  if (!ownProgram && !eduProgramLoaded) {
-    eduLoadTutorialSample();
-  }
-  eduTutorial->setUsingOwnProgram(ownProgram);
-  eduTutorial->setProgramLoaded(eduProgramLoaded);
+  eduTutorial->setProgramLoaded(eduLoadTutorialSample());
   eduTutorial->start();
 }
 
@@ -308,44 +307,71 @@ QString SpimView::eduTutorialSamplePath() const {
   return QString();
 }
 
-// The tour's "use the example" button.  This is the one place that asks
-// about unsaved work, because the student asked for it; false means the
-// question was answered with Cancel and nothing has changed.
-bool SpimView::eduSwitchToTutorialSample() {
-  if (eduEditor == 0 || eduTutorialSamplePath().isEmpty()) {
-    return false;
-  }
-  if (!eduEditor->maybeSave()) {
-    return false;
-  }
-  // Saved or discarded: opening the sample must not ask a second time.
-  eduEditor->forgetChanges();
-  return eduLoadTutorialSample();
-}
-
 bool SpimView::eduLoadTutorialSample() {
   const QString path = eduTutorialSamplePath();
   if (path.isEmpty() || !edu::confirmPathLoadable(this, path)) {
     return false;
   }
-  // The example is meant to be the whole program, not an addition to one:
-  // loading it on top of a program that already defines main() is a
-  // duplicate-label error, which is what the tour's "use the example"
-  // button produced over an assembled file.  This is File > Reinitialize
-  // and Load File, in that order.
-  if (eduProgramLoaded) {
-    sim_ReinitializeSimulator();
-  }
+  // Reinitialize first, always: assembled on top of a program that already
+  // has a main:, the example is a duplicate-label error.  This is what
+  // File > Reinitialize and Load File does.
+  sim_ReinitializeSimulator();
   eduLoadAssemblyFile(path);
   eduEditorFileLoaded(path);
   DisplayTextSegments(true);
   UpdateDataDisplay();
-  // Far enough into the loop that registers have changed and the data panel
-  // has something in it, but before the program ends.
-  for (int i = 0; i < 12 && statusBar()->currentMessage() != "Stopped"; i += 1) {
-    sim_SingleStep();
-  }
+  eduRunToTutorialStop();
   return eduProgramLoaded;
+}
+
+// Where the tour wants the example to be: inside sum_array, the third time
+// the loop comes round.  The frame is on the stack, $sp has moved, two
+// elements have been added and the running total has been written to
+// memory twice -- so the register panel, the data panel and the stack
+// markers all have something true to show.  The stop is a label, not a
+// number of steps: editing the example cannot silently move it.
+void SpimView::eduRunToTutorialStop() {
+  const int kWantedVisits = 3;
+  const int kMaxSteps = 800;
+  quint32 stop = 0;
+  const bool known =
+      eduDataModel != 0 && eduDataModel->labels().find("sum_loop", &stop);
+  if (!known) {
+    const QString file = QFileInfo(eduTutorialSamplePath()).fileName();
+    qWarning("tutorial: sum_loop is not in %s; the example is left at its "
+             "entry point", qPrintable(file));
+    return;
+  }
+  // One run command, so that the register panel marks everything it
+  // changed -- which is what the step about changed values points at.
+  // Single stepping takes a new baseline each time, so it is held for the
+  // length of this run.
+  eduBeginRunCommand();
+  eduRegisterModel->setSnapshotHeld(true);
+  int visits = 0;
+  bool arrived = false;
+  for (int i = 0; i < kMaxSteps && !arrived; i += 1) {
+    if (quint32(PC) == stop) {
+      visits += 1;
+      arrived = visits >= kWantedVisits;
+    }
+    if (!arrived && statusBar()->currentMessage() == "Stopped") {
+      break;
+    }
+    if (!arrived) {
+      sim_SingleStep();
+    }
+  }
+  if (!arrived) {
+    qWarning("tutorial: sum_loop was not reached %d times in %d steps",
+             kWantedVisits, kMaxSteps);
+  }
+  eduRegisterModel->setSnapshotHeld(false);
+  eduRefreshRegisterPanel();
+  eduRegisterModel->refresh();
+  DisplayIntRegisters();
+  DisplayTextSegments(false);
+  UpdateDataDisplay();
 }
 
 // The title bar names the file the editor has open, as editors do:

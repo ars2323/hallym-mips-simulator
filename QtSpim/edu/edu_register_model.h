@@ -61,6 +61,12 @@ class EduRegisterModel : public QAbstractItemModel {
 
   // Snapshot handling; see the comment at the top.
   void beginRunCommand();
+
+  // While the snapshot is held, beginRunCommand() keeps the baseline it
+  // already has.  The tour walks the example with many single steps but
+  // wants what they changed marked as one run, the way a student's Run
+  // command marks it.
+  void setSnapshotHeld(bool held) { snapshotHeld_ = held; }
   void resetChanges();
 
   void setBase(int base);
@@ -85,6 +91,7 @@ class EduRegisterModel : public QAbstractItemModel {
   QFont panelFont_;
   QColor changedColor_;
   bool colorChanges_;
+  bool snapshotHeld_;
 };
 
 #endif  // EDU_REGISTER_MODEL_H

@@ -36,6 +36,7 @@
 #include <QList>
 #include <QRect>
 #include <QString>
+#include <QStringList>
 #include <QWidget>
 
 #include "edu/core/edu_tutorial_layout.h"
@@ -64,8 +65,9 @@ class EduTutorial : public QWidget {
     TextBadge,
     TextFields,
     TextPcAndBreakpoints,
-    DataHeader,
+    DataWords,
     DataLabels,
+    DataString,
     DataStack,
     DataEnvironment,
     EditorPanel,
@@ -88,20 +90,12 @@ class EduTutorial : public QWidget {
   // the stack are left out when there is nothing to point at.
   void setProgramLoaded(bool loaded);
 
-  // True when the tour did not open its sample because the editor was not
-  // empty.  It then walks whatever is on the screen and the first step says
-  // so.  The harness reads it back.
-  void setUsingOwnProgram(bool own);
-  bool usingOwnProgram() const { return ownProgram_; }
-
-  // The card's text, for the harness to check that the first step names the
-  // right program.
+  // The card's text, for the harness.
   QString bodyText() const;
 
-  // Whether the first step is offering to open the example instead.  It is
-  // there only when the tour is walking the student's own screen and the
-  // example is installed.
-  bool sampleButtonShown() const;
+  // Steps that were left out because what they point at was not on the
+  // screen, by name.  Empty is the expected result with the example open.
+  QStringList skippedSteps() const { return skipped_; }
 
   // Opens the tour at the given step (0-based, counted after the steps with
   // nothing to show were dropped).
@@ -135,7 +129,7 @@ class EduTutorial : public QWidget {
   void finish();
   void toggleLanguage();
   void reposition();
-  void useSample();  // "Use the example": open it and start over
+  void updateForActivation();  // another program came forward, or we did
 
  private:
   static const Step kStepData[];
@@ -149,10 +143,22 @@ class EduTutorial : public QWidget {
   bool collectSpots(StepId id, QList<QRect>* spots, QString* tip,
                     QRect* tipAnchor);
   QRect rectOf(QWidget* widget) const;  // in overlay coordinates
+
+  // What the steps point at is found by label and by address, never by row
+  // number: the example can be edited without silently moving a spotlight
+  // onto the wrong thing.
+  bool labelAddress(const char* name, quint32* address) const;
+  int textRowOfAddress(quint32 address) const;
+  int textRowOfMnemonic(const QString& mnemonic,
+                        const QString& mentioning = QString()) const;
+  QRect textCell(int row, int column) const;
+  QRect textRowRect(int row, int firstColumn, int lastColumn) const;
+  QRect dataCellAt(quint32 address) const;   // reveals it first
+  QRect dataLabelCellAt(quint32 address) const;
+  QRect registerRowRect(const char* name) const;
   bool dockIsOpen(const char* name) const;
   void raiseDock(const char* name) const;
   void placeCard();
-  int cardWidth() const;  // wider on the first step when it offers the example
   QRect tipBubbleRect() const;  // the drawn tool tip, or empty
   void followWindow();          // sit exactly over the main window
   bool handleTourKey(int key);  // the keys the tour answers to
@@ -162,8 +168,8 @@ class EduTutorial : public QWidget {
   int current_;
   bool korean_;
   bool programLoaded_;
-  bool ownProgram_;
-  bool sampleAvailable_;  // samples/tutorial.s is installed
+  bool running_;  // between start() and finish(), whatever is on screen
+  QStringList skipped_;  // steps with nothing to point at, for the harness
   QList<QRect> spots_;  // what is lit; the first one is what the arrow means
   QString tip_;         // a tool tip drawn next to tipAnchor_, or empty
   QRect tipAnchor_;
@@ -175,7 +181,6 @@ class EduTutorial : public QWidget {
   QLabel* body_;
   QLabel* progress_;
   QPushButton* language_;
-  QPushButton* sample_;  // "Use the example", on the first step only
   QPushButton* skip_;
   QPushButton* back_;
   QPushButton* next_;

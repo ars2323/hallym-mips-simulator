@@ -19,7 +19,8 @@ EduRegisterModel::EduRegisterModel(QObject* parent)
       groups_(edu::registerGroups()),
       base_(16),
       changedColor_(Qt::red),
-      colorChanges_(true) {
+      colorChanges_(true),
+      snapshotHeld_(false) {
   rows_.resize(groups_.size());
   for (int g = 0; g < groups_.size(); g += 1) {
     const QList<edu::RegisterRef>& registers = groups_.at(g).registers;
@@ -304,6 +305,9 @@ void EduRegisterModel::refresh() {
 }
 
 void EduRegisterModel::beginRunCommand() {
+  if (snapshotHeld_) {
+    return;
+  }
   for (int g = 0; g < rows_.size(); g += 1) {
     for (int r = 0; r < rows_.at(g).size(); r += 1) {
       rows_[g][r].snapshot = readRegister(rows_.at(g).at(r).reg);

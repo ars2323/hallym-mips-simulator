@@ -129,7 +129,7 @@ class EduDevtools : public QObject {
     return !captures_.isEmpty() || !dumps_.isEmpty() || reportTime_ ||
            !dragInspector_.isEmpty() || !editorSteps_.isEmpty() || layoutReport_ ||
            tutorialReport_ || !dockDrop_.isEmpty() || !menuLoads_.isEmpty() ||
-           !useSample_.isEmpty();
+           clickThrough_;
   }
 
   // Starts answering modal dialogs.  Call as soon as the mode is known and
@@ -137,6 +137,11 @@ class EduDevtools : public QObject {
   // while assembling, i.e. before the main event loop is entered.  A modal
   // dialog runs its own event loop, so the timer fires there too.
   void beginHeadless();
+
+  // One of the tour card's buttons, pressed as a mouse does it -- including
+  // the activation a window manager sends when the overlay is clicked,
+  // which is what used to end the tour (docs/ARCHITECTURE.md 12, 83).
+  bool clickTourButton(const char* objectName);
 
   // Runs the script once the event loop is up.  Call, then a.exec().
   void scheduleRun(SpimView* window);
@@ -198,9 +203,10 @@ class EduDevtools : public QObject {
   bool tutorialReport_;  // --tutorial-report: every step's card, and whether
                          // it is inside the window
   QString dockDrop_;     // --dock-drop: simulate a drop, report the split
-  QString useSample_;    // --tutorial-use-sample: press the first step's
-                         // "Use the example" button, answering the question
-                         // about unsaved work with proceed or cancel
+  QString saveAnswer_;   // --editor-answer: how the "unsaved changes"
+                         // question is answered (discard by default)
+  bool clickThrough_;    // --tutorial-click-through: walk the tour with the
+                         // mouse, on the card's own buttons
   SpimView* window_;
   QString modalOut_;
   QString dialogShotDir_;

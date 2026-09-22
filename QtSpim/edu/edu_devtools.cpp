@@ -86,6 +86,7 @@ EduDevtools::EduDevtools(QObject* parent)
       steps_(0),
       tutorialStep_(0),
       tutorialReport_(false),
+      clickThrough_(false),
       window_(0),
       dialogTimer_(0),
       dismissedDialogs_(0),
@@ -161,10 +162,10 @@ QString EduDevtools::usage() {
       "  --dock-drop <h|v>      drop the editor beside (h) or under (v) the\n"
       "                         text panel, as a drag does, and report the two\n"
       "                         sizes: they should come out equal\n"
-      "  --tutorial-use-sample <proceed|cancel>  press the first step's \"Use\n"
-      "                         the example\" button and answer the question\n"
-      "                         about unsaved work that way; report before\n"
-      "                         and after\n"
+      "  --editor-answer <discard|save|cancel>  how to answer the editor's\n"
+      "                         \"unsaved changes\" question (discard)\n"
+      "  --tutorial-click-through  walk the whole tour by clicking the card's\n"
+      "                         buttons with the mouse, reporting each step\n"
       "  --tutorial-report      walk every step of the tour and print each\n"
       "                         card's rectangle and whether it is inside the\n"
       "                         window (the check for docs/ARCHITECTURE 12, 70)\n"
@@ -488,19 +489,27 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
       continue;
     }
 
-    if (arg == "--tutorial-use-sample") {
+    if (arg == "--editor-answer") {
       if (i + 1 >= args.size()) {
-        err() << arg << " needs proceed or cancel\n" << usage() << Qt::flush;
+        err() << arg << " needs discard, save or cancel\n" << usage()
+              << Qt::flush;
         *ok = false;
         return rest;
       }
-      useSample_ = args.at(i + 1);
-      if (useSample_ != "proceed" && useSample_ != "cancel") {
-        err() << arg << " takes proceed or cancel\n" << usage() << Qt::flush;
+      saveAnswer_ = args.at(i + 1);
+      if (saveAnswer_ != "discard" && saveAnswer_ != "save" &&
+          saveAnswer_ != "cancel") {
+        err() << arg << " takes discard, save or cancel\n" << usage()
+              << Qt::flush;
         *ok = false;
         return rest;
       }
       i += 1;
+      continue;
+    }
+
+    if (arg == "--tutorial-click-through") {
+      clickThrough_ = true;
       continue;
     }
 
@@ -638,6 +647,35 @@ void EduDevtools::scheduleRun(SpimView* window) {
 }
 
 // Give the widgets a chance to lay out and repaint before grabbing them.
+// A real press and release on one of the card's buttons.  The two
+// activation events are what a window manager sends when a click lands on
+// the overlay: the main window goes inactive and the overlay becomes the
+// active window.  Hiding the tour on that was the bug this reproduces.
+bool EduDevtools::clickTourButton(const char* objectName) {
+  EduTutorial* tour = window_->eduTutorial;
+  QAbstractButton* button =
+      tour == 0 ? 0 : tour->findChild<QAbstractButton*>(objectName);
+  if (button == 0 || !button->isVisible()) {
+    err() << "the tour has no visible " << objectName << "\n" << Qt::flush;
+    status_ = 1;
+    return false;
+  }
+  QEvent deactivate(QEvent::WindowDeactivate);
+  QApplication::sendEvent(window_, &deactivate);
+  QEvent activate(QEvent::WindowActivate);
+  QApplication::sendEvent(tour, &activate);
+  const QPoint centre = button->rect().center();
+  const QPoint global = button->mapToGlobal(centre);
+  QMouseEvent press(QEvent::MouseButtonPress, centre, global, Qt::LeftButton,
+                    Qt::LeftButton, Qt::NoModifier);
+  QMouseEvent release(QEvent::MouseButtonRelease, centre, global,
+                      Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+  QApplication::sendEvent(button, &press);
+  QApplication::sendEvent(button, &release);
+  settle();
+  return true;
+}
+
 void EduDevtools::settle() {
   for (int i = 0; i < 3; i += 1) {
     QApplication::processEvents(QEventLoop::AllEvents, 50);
@@ -774,9 +812,12 @@ void EduDevtools::dismissBlockingDialog() {
     if (reload) {
       answer = QMessageBox::Yes;
       said = "Yes";
-    } else if (useSample_ == "cancel") {
+    } else if (saveAnswer_ == "cancel") {
       answer = QMessageBox::Cancel;
       said = "Cancel";
+    } else if (saveAnswer_ == "save") {
+      answer = QMessageBox::Save;
+      said = "Save";
     }
     out() << "editor question: " << question->text() << " -> " << said << "\n"
           << Qt::flush;
@@ -1371,32 +1412,68 @@ void EduDevtools::run() {
     }
   }
 
-  // The first step's "Use the example" button: is it offered, what does
-  // pressing it ask, and what does the tour look like afterwards?
-  if (!useSample_.isEmpty()) {
+  // The whole tour, driven with the mouse on the card's own buttons.  The
+  // keyboard route already worked when clicking Next ended the tour
+  // instead of advancing it, so this check uses nothing but mouse events.
+  if (clickThrough_) {
     window_->eduShowTutorial();
     EduTutorial* tour = window_->eduTutorial;
     if (tour == 0) {
-      err() << "no tutorial\n" << Qt::flush;
+      err() << "the tour did not start\n" << Qt::flush;
       status_ = 2;
     } else {
-      tour->start(0);
       settle();
-      out() << "tutorial before: sample=" << (tour->usingOwnProgram() ? 0 : 1)
-            << " steps=" << tour->stepCount() << " button="
-            << (tour->sampleButtonShown() ? 1 : 0) << "\n" << Qt::flush;
-      QAbstractButton* button =
-          tour->findChild<QAbstractButton*>("EduTutorialSample");
-      if (button == 0 || !button->isVisible()) {
-        err() << "the first step offers no example button\n" << Qt::flush;
-        status_ = 1;
-      } else {
-        button->click();
+      const int steps = tour->stepCount();
+      out() << "tutorial click-through: steps=" << steps << "\n" << Qt::flush;
+      for (int i = 0; i + 1 < steps; i += 1) {
+        const int before = tour->currentStep();
+        if (!clickTourButton("EduTutorialNext")) {
+          break;
+        }
+        const bool up = tour->isVisible();
+        out() << "tutorial click Next: visible=" << (up ? 1 : 0) << " step="
+              << (tour->currentStep() + 1) << "/" << steps << "\n"
+              << Qt::flush;
+        if (!up || tour->currentStep() != before + 1) {
+          err() << "the tour did not advance on a mouse click\n" << Qt::flush;
+          status_ = 1;
+          break;
+        }
+      }
+      // Back, then forward again, still with the mouse.
+      if (status_ == 0 && tour->isVisible() && tour->currentStep() > 0) {
+        const int before = tour->currentStep();
+        clickTourButton("EduTutorialBack");
+        out() << "tutorial click Back: visible=" << (tour->isVisible() ? 1 : 0)
+              << " step=" << (tour->currentStep() + 1) << "/" << steps << "\n"
+              << Qt::flush;
+        if (!tour->isVisible() || tour->currentStep() != before - 1) {
+          err() << "Back did not go back on a mouse click\n" << Qt::flush;
+          status_ = 1;
+        }
+        clickTourButton("EduTutorialNext");
+      }
+      // The last step's button ends the tour.
+      if (status_ == 0 && tour->isVisible()) {
+        clickTourButton("EduTutorialNext");
+        out() << "tutorial click finish: visible="
+              << (tour->isVisible() ? 1 : 0) << "\n" << Qt::flush;
+        if (tour->isVisible()) {
+          err() << "the last step did not finish the tour\n" << Qt::flush;
+          status_ = 1;
+        }
+      }
+      // And Skip, from the beginning.
+      if (status_ == 0) {
+        window_->eduShowTutorial();
         settle();
-        out() << "tutorial after: sample=" << (tour->usingOwnProgram() ? 0 : 1)
-              << " steps=" << tour->stepCount() << " step="
-              << (tour->currentStep() + 1) << " button="
-              << (tour->sampleButtonShown() ? 1 : 0) << "\n" << Qt::flush;
+        clickTourButton("EduTutorialSkip");
+        out() << "tutorial click Skip: visible=" << (tour->isVisible() ? 1 : 0)
+              << "\n" << Qt::flush;
+        if (tour->isVisible()) {
+          err() << "Skip did not end the tour\n" << Qt::flush;
+          status_ = 1;
+        }
       }
     }
   }
@@ -1414,9 +1491,12 @@ void EduDevtools::run() {
       // says about it: the sample only opens over an empty editor.
       tour->start(0);
       settle();
-      out() << "tutorial sample=" << (tour->usingOwnProgram() ? 0 : 1)
-            << " steps=" << tour->stepCount() << " button="
-            << (tour->sampleButtonShown() ? 1 : 0) << "\n" << Qt::flush;
+      const QStringList skipped = tour->skippedSteps();
+      out() << "tutorial steps=" << tour->stepCount() << " skipped="
+            << skipped.size() << "\n" << Qt::flush;
+      for (int i = 0; i < skipped.size(); i += 1) {
+        out() << "tutorial skipped: " << skipped.at(i) << "\n" << Qt::flush;
+      }
       out() << "tutorial welcome: " << tour->bodyText().simplified() << "\n"
             << Qt::flush;
       const QRect window(QPoint(0, 0), window_->size());
