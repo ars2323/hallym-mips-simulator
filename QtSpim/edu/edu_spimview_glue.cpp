@@ -277,12 +277,17 @@ void SpimView::eduShowTutorial() {
   }
   settings.setValue("Tutorial/Shown", true);
   // With nothing loaded there is no changed register, no type badge, no
-  // label and no stack marker to point at, which is most of the tour.  On a
-  // first run the sample is opened and stepped into; a program the student
-  // already has open is never touched.
-  if (!eduProgramLoaded) {
+  // label and no stack marker to point at, which is most of the tour, so on
+  // a first run the sample is opened and stepped into.  The editor has to be
+  // empty and unnamed for that: anything the student has open or has typed
+  // is left exactly as it is, and no question is asked about it.  The tour
+  // then runs on whatever is on the screen and leaves out the steps that
+  // have nothing to point at.
+  const bool ownProgram = eduEditor == 0 || !eduEditor->isUntouched();
+  if (!ownProgram && !eduProgramLoaded) {
     eduLoadTutorialSample();
   }
+  eduTutorial->setUsingOwnProgram(ownProgram);
   eduTutorial->setProgramLoaded(eduProgramLoaded);
   eduTutorial->start();
 }

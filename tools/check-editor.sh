@@ -18,6 +18,8 @@
 #      Text tab; the "Source changed" strip comes and goes; a failed assemble
 #      keeps the file saved and says the simulator was reset.
 #   7. The last file is reopened at the next start and not assembled.
+#   9. The tour opens its sample program only over an empty, unnamed editor,
+#      never over the student's own work, and asks nothing either way.
 
 set -euo pipefail
 
@@ -277,6 +279,59 @@ if [ -z "$fresh" ]; then
   pass "empty editor, nothing loaded: no strip"
 else
   fail "no strip expected for an empty editor, got \"$fresh\""
+fi
+
+echo
+echo "== 9. the tour opens its sample only over an empty editor"
+# Three editor states, one question in each case: is anything of the
+# student's touched, and is a dialog put in the way?  (The harness answers
+# a "save changes?" box with Discard and prints "editor question:", so its
+# absence in the output is the proof that none was shown.)
+tour_case() {  # tour_case NAME WANT_SAMPLE WANT_TAIL ARGS...
+  local name=$1 wantSample=$2 wantTail=$3; shift 3
+  run "$name" "$@" --window-size 1600x900 --tutorial-report
+  local out="$work/$name.out"
+  local sample
+  sample=$(sed -n 's/^tutorial sample=\([01]\) .*/\1/p' "$out")
+  if [ "$sample" = "$wantSample" ]; then
+    pass "$name: sample=$sample"
+  else
+    fail "$name: expected sample=$wantSample, got \"$sample\""
+  fi
+  if grep -q "^editor question:" "$out"; then
+    fail "$name: a dialog was shown: $(grep -m1 '^editor question:' "$out")"
+  else
+    pass "$name: nothing was asked"
+  fi
+  local welcome
+  welcome=$(sed -n 's/^tutorial welcome: //p' "$out")
+  case "$welcome" in
+    *"$wantTail"*) pass "$name: the first step says which program it walks" ;;
+    *) fail "$name: expected \"$wantTail\" in \"$welcome\"" ;;
+  esac
+}
+
+printf '\t.text\nmain:\tli $v0, 10\n\tsyscall\n' >"$work/mine.s"
+before=$(md5sum <"$work/mine.s")
+
+tour_case tourA 1 "A sample program is already open."
+tour_case tourB 0 "The tour runs on what you have open." --editor-type '# mine\n'
+tour_case tourC 0 "The tour runs on what you have open." --editor-open "$work/mine.s"
+
+# The typed text is still there, unnamed and unsaved, and the file that was
+# open was neither rewritten nor closed.
+run tourD --editor-type '# mine\n' --window-size 1600x900 --tutorial-report \
+    --editor-report
+typed=$(sed -n 's/.*editor: file=\([^ ]*\) modified=\([01]\).*/\1|\2/p' \
+    "$work/tourD.out")
+case "$typed" in
+  "|1") pass "typed text survives the tour: still unnamed and unsaved" ;;
+  *) fail "expected an unnamed modified editor, got \"$typed\"" ;;
+esac
+if [ "$before" = "$(md5sum <"$work/mine.s")" ]; then
+  pass "the student's file on disk is untouched"
+else
+  fail "the tour changed $work/mine.s"
 fi
 
 echo

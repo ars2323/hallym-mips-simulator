@@ -36,6 +36,9 @@ class EduEditorDock : public QDockWidget {
   EduCodeEditor* editor() const { return editor_; }
   QString filePath() const { return path_; }  // empty: not saved yet
   bool isModified() const;
+  // No file, nothing typed: the tour may open its sample here without
+  // asking anything or touching anyone's work.
+  bool isUntouched() const;
   edu::TextFileFormat format() const { return format_; }
 
   // Each returns false if the user cancelled or the file could not be

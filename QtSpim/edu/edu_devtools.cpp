@@ -1350,6 +1350,14 @@ void EduDevtools::run() {
       err() << "no tutorial\n" << Qt::flush;
       status_ = 2;
     } else {
+      // Which program the tour is walking through, and what its first step
+      // says about it: the sample only opens over an empty editor.
+      out() << "tutorial sample=" << (tour->usingOwnProgram() ? 0 : 1)
+            << " steps=" << tour->stepCount() << "\n" << Qt::flush;
+      tour->start(0);
+      settle();
+      out() << "tutorial welcome: " << tour->bodyText().simplified() << "\n"
+            << Qt::flush;
       const QRect window(QPoint(0, 0), window_->size());
       for (int i = 0; i < tour->stepCount(); i += 1) {
         tour->start(i);

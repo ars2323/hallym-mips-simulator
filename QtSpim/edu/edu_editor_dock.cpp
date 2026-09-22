@@ -86,6 +86,10 @@ bool EduEditorDock::isModified() const {
   return editor_->document()->isModified();
 }
 
+bool EduEditorDock::isUntouched() const {
+  return path_.isEmpty() && !isModified() && editor_->document()->isEmpty();
+}
+
 void EduEditorDock::setPanelFont(const QFont& font) {
   editor_->setPanelFont(font);
   errorList_->setFont(font);

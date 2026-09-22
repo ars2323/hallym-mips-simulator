@@ -99,12 +99,11 @@ const EduTutorial::Step EduTutorial::kStepData[] = {
     {EduTutorial::Welcome, "시작", "Start",
      "한림 MIPS 시뮬레이터에 오신 것을 환영합니다",
      "표준 QtSpim과 시뮬레이션 결과는 같고, 화면과 편집 기능이 다릅니다. "
-     "무엇이 다른지 화면 위에서 차례대로 짚어 드립니다. 예제 프로그램을 "
-     "열어 두었으니 그대로 보시면 됩니다.",
+     "무엇이 다른지 화면 위에서 차례대로 짚어 드립니다.",
      "Welcome to Hallym MIPS Simulator",
      "Programs assemble and run exactly as in the standard QtSpim; what "
      "changed is the screen and the editing. This tour points at each of "
-     "those changes in place. A sample program is already open."},
+     "those changes in place."},
 
     {EduTutorial::ToolbarFile, "툴바", "Tool bar",
      "파일 버튼",
@@ -290,6 +289,7 @@ EduTutorial::EduTutorial(SpimView* window)
       current_(0),
       korean_(systemIsKorean()),
       programLoaded_(false),
+      ownProgram_(false),
       side_(edu::CardCentre),
       card_(new QFrame(this)),
       title_(new QLabel(card_)),
@@ -399,6 +399,10 @@ EduTutorial::EduTutorial(SpimView* window)
 }
 
 void EduTutorial::setProgramLoaded(bool loaded) { programLoaded_ = loaded; }
+
+void EduTutorial::setUsingOwnProgram(bool own) { ownProgram_ = own; }
+
+QString EduTutorial::bodyText() const { return body_->text(); }
 
 QRect EduTutorial::cardRect() const { return card_->geometry(); }
 
@@ -821,8 +825,26 @@ void EduTutorial::showStep(int index) {
 
   title_->setText(korean_ ? QString::fromUtf8(step.titleKo)
                           : QString::fromUtf8(step.titleEn));
-  body_->setText(korean_ ? QString::fromUtf8(step.bodyKo)
-                         : QString::fromUtf8(step.bodyEn));
+  QString body =
+      korean_ ? QString::fromUtf8(step.bodyKo) : QString::fromUtf8(step.bodyEn);
+  // The first step says which program the tour is about to walk through:
+  // the sample it opened, or what the student already had on the screen.
+  if (step.id == Welcome) {
+    if (ownProgram_) {
+      body += korean_ ? QString::fromUtf8(
+                            " 지금 열려 있는 프로그램으로 진행합니다. 예제로 "
+                            "보려면 편집기를 비우고 다시 실행하세요.")
+                      : QString(" The tour runs on what you have open. To see "
+                                "it with the sample program instead, empty the "
+                                "editor and start it again.");
+    } else if (programLoaded_) {
+      body += korean_ ? QString::fromUtf8(
+                            " 예제 프로그램을 열어 두었으니 그대로 보시면 "
+                            "됩니다.")
+                      : QString(" A sample program is already open.");
+    }
+  }
+  body_->setText(body);
   progress_->setText(
       QString::fromUtf8(korean_ ? step.sectionKo : step.sectionEn) +
       QString::fromUtf8("  \xc2\xb7  ") + QString::number(current_ + 1) + " / " +

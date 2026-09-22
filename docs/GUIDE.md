@@ -28,8 +28,10 @@ inspector, text, data, editor.
 
 - **Next** and **Back** move through it; **Skip** or **Esc** ends it.
 - The **EN / 한국어** switch at the top right of the card changes the language.
-- To see it again: **Help > Tutorial**. Started with a file of your own
-  open, it works on that instead.
+- To see it again: **Help > Tutorial**. It opens the sample **only when the
+  editor is empty and unnamed**. With a file of your own open, or anything
+  typed, it walks that instead: nothing is asked and nothing of yours is
+  touched. Empty the editor and start it again to see it with the sample.
 - The keyboard works too: Enter, Space or the right arrow for the next step,
   the left arrow to go back, Escape to leave.
 

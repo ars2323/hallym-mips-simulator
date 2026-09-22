@@ -88,6 +88,16 @@ class EduTutorial : public QWidget {
   // the stack are left out when there is nothing to point at.
   void setProgramLoaded(bool loaded);
 
+  // True when the tour did not open its sample because the editor was not
+  // empty.  It then walks whatever is on the screen and the first step says
+  // so.  The harness reads it back.
+  void setUsingOwnProgram(bool own);
+  bool usingOwnProgram() const { return ownProgram_; }
+
+  // The card's text, for the harness to check that the first step names the
+  // right program.
+  QString bodyText() const;
+
   // Opens the tour at the given step (0-based, counted after the steps with
   // nothing to show were dropped).
   void start(int step = 0);
@@ -144,6 +154,7 @@ class EduTutorial : public QWidget {
   int current_;
   bool korean_;
   bool programLoaded_;
+  bool ownProgram_;
   QList<QRect> spots_;  // what is lit; the first one is what the arrow means
   QString tip_;         // a tool tip drawn next to tipAnchor_, or empty
   QRect tipAnchor_;
