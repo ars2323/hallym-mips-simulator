@@ -28,8 +28,9 @@ const int kGap = 22;
 
 // What the card asks for.  The width is fixed by the design; the height
 // varies with the text and the platform's font, so the range is generous.
+// The first step is wider when it also offers the example program.
 const QSize kCards[] = {QSize(360, 150), QSize(360, 190), QSize(360, 240),
-                        QSize(360, 300)};
+                        QSize(360, 300), QSize(480, 200)};
 
 // The panels, as they sit in a window of the given size: the register column
 // on the left, the editor in the middle, the text and data panels on the

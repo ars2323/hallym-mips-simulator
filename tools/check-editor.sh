@@ -291,12 +291,20 @@ tour_case() {  # tour_case NAME WANT_SAMPLE WANT_TAIL ARGS...
   local name=$1 wantSample=$2 wantTail=$3; shift 3
   run "$name" "$@" --window-size 1600x900 --tutorial-report
   local out="$work/$name.out"
-  local sample
+  local sample button wantButton
   sample=$(sed -n 's/^tutorial sample=\([01]\) .*/\1/p' "$out")
+  button=$(sed -n 's/^tutorial sample=[01] steps=[0-9]* button=\([01\]\).*/\1/p' "$out")
+  # The offer to switch belongs exactly where the example was not opened.
+  if [ "$wantSample" = "1" ]; then wantButton=0; else wantButton=1; fi
   if [ "$sample" = "$wantSample" ]; then
     pass "$name: sample=$sample"
   else
     fail "$name: expected sample=$wantSample, got \"$sample\""
+  fi
+  if [ "$button" = "$wantButton" ]; then
+    pass "$name: example button=$button"
+  else
+    fail "$name: expected the example button=$wantButton, got \"$button\""
   fi
   if grep -q "^editor question:" "$out"; then
     fail "$name: a dialog was shown: $(grep -m1 '^editor question:' "$out")"
@@ -333,6 +341,37 @@ if [ "$before" = "$(md5sum <"$work/mine.s")" ]; then
 else
   fail "the tour changed $work/mine.s"
 fi
+
+# The button on the first step: cancelling the question changes nothing,
+# going ahead opens the example and starts the tour over with every step.
+press_case() {  # press_case NAME proceed|cancel WANT_SAMPLE WANT_STEPS WANT_ASKS ARGS...
+  local name=$1 answer=$2 wantSample=$3 wantSteps=$4 wantAsks=$5; shift 5
+  run "$name" "$@" --window-size 1600x900 --tutorial-use-sample "$answer"
+  local out="$work/$name.out" after asked
+  after=$(sed -n 's/^tutorial after: sample=\([01]\) steps=\([0-9]*\) step=\([0-9]*\).*/\1 \2 \3/p' "$out")
+  if [ "$after" = "$wantSample $wantSteps 1" ]; then
+    pass "$name ($answer): sample=$wantSample, $wantSteps steps, back at step 1"
+  else
+    fail "$name ($answer): expected \"$wantSample $wantSteps 1\", got \"$after\""
+  fi
+  asked=$(grep -c '^editor question:' "$out" || true)
+  if [ "$asked" = "$wantAsks" ]; then
+    pass "$name ($answer): $asked question(s) about unsaved text"
+  else
+    fail "$name ($answer): expected $wantAsks question(s), got $asked"
+  fi
+  if grep -q '^dialog:' "$out"; then
+    fail "$name ($answer): $(grep -m1 '^dialog:' "$out")"
+  else
+    pass "$name ($answer): no error box"
+  fi
+}
+
+press_case tourE cancel 0 9 1 --editor-type '# mine\n'
+press_case tourF proceed 1 18 1 --editor-type '# mine\n'
+# Over a saved, assembled program: nothing to ask about, and the example
+# replaces it instead of being assembled on top of it (a second main:).
+press_case tourG proceed 1 18 0 --editor-open "$work/mine.s" --assemble
 
 echo
 if [ "$failures" -eq 0 ]; then

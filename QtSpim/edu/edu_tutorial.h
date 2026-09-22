@@ -98,11 +98,17 @@ class EduTutorial : public QWidget {
   // right program.
   QString bodyText() const;
 
+  // Whether the first step is offering to open the example instead.  It is
+  // there only when the tour is walking the student's own screen and the
+  // example is installed.
+  bool sampleButtonShown() const;
+
   // Opens the tour at the given step (0-based, counted after the steps with
   // nothing to show were dropped).
   void start(int step = 0);
 
   int stepCount() const { return steps_.size(); }
+  int currentStep() const { return current_; }  // 0-based
 
   // The card, in overlay coordinates.  The capture harness checks that it is
   // inside the window at every step and every window size.
@@ -129,6 +135,7 @@ class EduTutorial : public QWidget {
   void finish();
   void toggleLanguage();
   void reposition();
+  void useSample();  // "Use the example": open it and start over
 
  private:
   static const Step kStepData[];
@@ -145,6 +152,7 @@ class EduTutorial : public QWidget {
   bool dockIsOpen(const char* name) const;
   void raiseDock(const char* name) const;
   void placeCard();
+  int cardWidth() const;  // wider on the first step when it offers the example
   QRect tipBubbleRect() const;  // the drawn tool tip, or empty
   void followWindow();          // sit exactly over the main window
   bool handleTourKey(int key);  // the keys the tour answers to
@@ -155,6 +163,7 @@ class EduTutorial : public QWidget {
   bool korean_;
   bool programLoaded_;
   bool ownProgram_;
+  bool sampleAvailable_;  // samples/tutorial.s is installed
   QList<QRect> spots_;  // what is lit; the first one is what the arrow means
   QString tip_;         // a tool tip drawn next to tipAnchor_, or empty
   QRect tipAnchor_;
@@ -166,6 +175,7 @@ class EduTutorial : public QWidget {
   QLabel* body_;
   QLabel* progress_;
   QPushButton* language_;
+  QPushButton* sample_;  // "Use the example", on the first step only
   QPushButton* skip_;
   QPushButton* back_;
   QPushButton* next_;

@@ -120,6 +120,10 @@ bool EduEditorDock::maybeSave() {
   return answer == QMessageBox::Discard;
 }
 
+void EduEditorDock::forgetChanges() {
+  editor_->document()->setModified(false);
+}
+
 bool EduEditorDock::newFile() {
   if (!maybeSave()) {
     return false;

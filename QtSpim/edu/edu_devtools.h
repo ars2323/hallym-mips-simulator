@@ -128,7 +128,8 @@ class EduDevtools : public QObject {
   bool isActive() const {
     return !captures_.isEmpty() || !dumps_.isEmpty() || reportTime_ ||
            !dragInspector_.isEmpty() || !editorSteps_.isEmpty() || layoutReport_ ||
-           tutorialReport_ || !dockDrop_.isEmpty() || !menuLoads_.isEmpty();
+           tutorialReport_ || !dockDrop_.isEmpty() || !menuLoads_.isEmpty() ||
+           !useSample_.isEmpty();
   }
 
   // Starts answering modal dialogs.  Call as soon as the mode is known and
@@ -197,6 +198,9 @@ class EduDevtools : public QObject {
   bool tutorialReport_;  // --tutorial-report: every step's card, and whether
                          // it is inside the window
   QString dockDrop_;     // --dock-drop: simulate a drop, report the split
+  QString useSample_;    // --tutorial-use-sample: press the first step's
+                         // "Use the example" button, answering the question
+                         // about unsaved work with proceed or cancel
   SpimView* window_;
   QString modalOut_;
   QString dialogShotDir_;

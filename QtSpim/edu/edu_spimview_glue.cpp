@@ -294,21 +294,47 @@ void SpimView::eduShowTutorial() {
 
 // samples/tutorial.s, which ships next to the program.  Returns false when
 // it is not there; the tour then leaves out the steps that need it.
-bool SpimView::eduLoadTutorialSample() {
+QString SpimView::eduTutorialSamplePath() const {
   const QString appDir = QCoreApplication::applicationDirPath();
   const char* const places[] = {"/samples/tutorial.s", "/tutorial.s",
                                 "/../samples/tutorial.s",
                                 "/../../samples/tutorial.s"};
-  QString path;
   for (unsigned i = 0; i < sizeof(places) / sizeof(places[0]); i += 1) {
     const QFileInfo candidate(appDir + QString(places[i]));
     if (candidate.exists()) {
-      path = candidate.absoluteFilePath();
-      break;
+      return candidate.absoluteFilePath();
     }
   }
+  return QString();
+}
+
+// The tour's "use the example" button.  This is the one place that asks
+// about unsaved work, because the student asked for it; false means the
+// question was answered with Cancel and nothing has changed.
+bool SpimView::eduSwitchToTutorialSample() {
+  if (eduEditor == 0 || eduTutorialSamplePath().isEmpty()) {
+    return false;
+  }
+  if (!eduEditor->maybeSave()) {
+    return false;
+  }
+  // Saved or discarded: opening the sample must not ask a second time.
+  eduEditor->forgetChanges();
+  return eduLoadTutorialSample();
+}
+
+bool SpimView::eduLoadTutorialSample() {
+  const QString path = eduTutorialSamplePath();
   if (path.isEmpty() || !edu::confirmPathLoadable(this, path)) {
     return false;
+  }
+  // The example is meant to be the whole program, not an addition to one:
+  // loading it on top of a program that already defines main() is a
+  // duplicate-label error, which is what the tour's "use the example"
+  // button produced over an assembled file.  This is File > Reinitialize
+  // and Load File, in that order.
+  if (eduProgramLoaded) {
+    sim_ReinitializeSimulator();
   }
   eduLoadAssemblyFile(path);
   eduEditorFileLoaded(path);

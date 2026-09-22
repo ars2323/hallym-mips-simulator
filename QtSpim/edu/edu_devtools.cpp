@@ -161,6 +161,10 @@ QString EduDevtools::usage() {
       "  --dock-drop <h|v>      drop the editor beside (h) or under (v) the\n"
       "                         text panel, as a drag does, and report the two\n"
       "                         sizes: they should come out equal\n"
+      "  --tutorial-use-sample <proceed|cancel>  press the first step's \"Use\n"
+      "                         the example\" button and answer the question\n"
+      "                         about unsaved work that way; report before\n"
+      "                         and after\n"
       "  --tutorial-report      walk every step of the tour and print each\n"
       "                         card's rectangle and whether it is inside the\n"
       "                         window (the check for docs/ARCHITECTURE 12, 70)\n"
@@ -484,6 +488,22 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
       continue;
     }
 
+    if (arg == "--tutorial-use-sample") {
+      if (i + 1 >= args.size()) {
+        err() << arg << " needs proceed or cancel\n" << usage() << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      useSample_ = args.at(i + 1);
+      if (useSample_ != "proceed" && useSample_ != "cancel") {
+        err() << arg << " takes proceed or cancel\n" << usage() << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      i += 1;
+      continue;
+    }
+
     if (arg == "--tutorial-report") {
       tutorialReport_ = true;
       continue;
@@ -748,9 +768,19 @@ void EduDevtools::dismissBlockingDialog() {
       modal->objectName() == "EduEditorSaveQuestion") {
     QMessageBox* question = qobject_cast<QMessageBox*>(modal);
     const bool reload = modal->objectName() == "EduEditorReloadQuestion";
-    out() << "editor question: " << question->text() << " -> "
-          << (reload ? "Yes" : "Discard") << "\n" << Qt::flush;
-    question->button(reload ? QMessageBox::Yes : QMessageBox::Discard)->click();
+    // --tutorial-use-sample cancel is the one script that answers No.
+    QMessageBox::StandardButton answer = QMessageBox::Discard;
+    const char* said = "Discard";
+    if (reload) {
+      answer = QMessageBox::Yes;
+      said = "Yes";
+    } else if (useSample_ == "cancel") {
+      answer = QMessageBox::Cancel;
+      said = "Cancel";
+    }
+    out() << "editor question: " << question->text() << " -> " << said << "\n"
+          << Qt::flush;
+    question->button(answer)->click();
     return;
   }
 
@@ -1341,6 +1371,36 @@ void EduDevtools::run() {
     }
   }
 
+  // The first step's "Use the example" button: is it offered, what does
+  // pressing it ask, and what does the tour look like afterwards?
+  if (!useSample_.isEmpty()) {
+    window_->eduShowTutorial();
+    EduTutorial* tour = window_->eduTutorial;
+    if (tour == 0) {
+      err() << "no tutorial\n" << Qt::flush;
+      status_ = 2;
+    } else {
+      tour->start(0);
+      settle();
+      out() << "tutorial before: sample=" << (tour->usingOwnProgram() ? 0 : 1)
+            << " steps=" << tour->stepCount() << " button="
+            << (tour->sampleButtonShown() ? 1 : 0) << "\n" << Qt::flush;
+      QAbstractButton* button =
+          tour->findChild<QAbstractButton*>("EduTutorialSample");
+      if (button == 0 || !button->isVisible()) {
+        err() << "the first step offers no example button\n" << Qt::flush;
+        status_ = 1;
+      } else {
+        button->click();
+        settle();
+        out() << "tutorial after: sample=" << (tour->usingOwnProgram() ? 0 : 1)
+              << " steps=" << tour->stepCount() << " step="
+              << (tour->currentStep() + 1) << " button="
+              << (tour->sampleButtonShown() ? 1 : 0) << "\n" << Qt::flush;
+      }
+    }
+  }
+
   // Every step of the tour, with the card's rectangle: the harness checks
   // that it never leaves the window (docs/ARCHITECTURE.md 12, 70).
   if (tutorialReport_) {
@@ -1352,10 +1412,11 @@ void EduDevtools::run() {
     } else {
       // Which program the tour is walking through, and what its first step
       // says about it: the sample only opens over an empty editor.
-      out() << "tutorial sample=" << (tour->usingOwnProgram() ? 0 : 1)
-            << " steps=" << tour->stepCount() << "\n" << Qt::flush;
       tour->start(0);
       settle();
+      out() << "tutorial sample=" << (tour->usingOwnProgram() ? 0 : 1)
+            << " steps=" << tour->stepCount() << " button="
+            << (tour->sampleButtonShown() ? 1 : 0) << "\n" << Qt::flush;
       out() << "tutorial welcome: " << tour->bodyText().simplified() << "\n"
             << Qt::flush;
       const QRect window(QPoint(0, 0), window_->size());

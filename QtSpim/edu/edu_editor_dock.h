@@ -49,6 +49,9 @@ class EduEditorDock : public QDockWidget {
   bool save();                  // Save As if the file has no name yet
   bool saveAs();
   bool maybeSave();             // "Save changes?"  true = go on
+  // The question has been answered and the text is about to be replaced:
+  // whoever opens the next file must not ask about it a second time.
+  void forgetChanges();
 
   void setPanelFont(const QFont& font);
 

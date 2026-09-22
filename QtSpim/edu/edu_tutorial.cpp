@@ -290,12 +290,14 @@ EduTutorial::EduTutorial(SpimView* window)
       korean_(systemIsKorean()),
       programLoaded_(false),
       ownProgram_(false),
+      sampleAvailable_(false),
       side_(edu::CardCentre),
       card_(new QFrame(this)),
       title_(new QLabel(card_)),
       body_(new QLabel(card_)),
       progress_(new QLabel(card_)),
       language_(new QPushButton(card_)),
+      sample_(new QPushButton(card_)),
       skip_(new QPushButton(card_)),
       back_(new QPushButton(card_)),
       next_(new QPushButton(card_)),
@@ -326,11 +328,13 @@ EduTutorial::EduTutorial(SpimView* window)
   language_->setObjectName("EduTutorialLanguage");
   language_->setFlat(true);
   language_->setCursor(Qt::PointingHandCursor);
+  sample_->setObjectName("EduTutorialSample");
+  sample_->hide();  // only the first step, and only over the student's own screen
   skip_->setObjectName("EduTutorialSkip");
   back_->setObjectName("EduTutorialBack");
   next_->setObjectName("EduTutorialNext");
   next_->setDefault(true);
-  QAbstractButton* const buttons[] = {language_, skip_, back_, next_};
+  QAbstractButton* const buttons[] = {language_, sample_, skip_, back_, next_};
   for (unsigned i = 0; i < sizeof(buttons) / sizeof(buttons[0]); i += 1) {
     buttons[i]->setFocusPolicy(Qt::NoFocus);
   }
@@ -377,6 +381,7 @@ EduTutorial::EduTutorial(SpimView* window)
   foot->setSpacing(kSpace2);
   foot->addWidget(progress_);
   foot->addStretch(1);
+  foot->addWidget(sample_);
   foot->addWidget(skip_);
   foot->addWidget(back_);
   foot->addWidget(next_);
@@ -388,6 +393,7 @@ EduTutorial::EduTutorial(SpimView* window)
   layout->addWidget(body_);
   layout->addLayout(foot);
 
+  connect(sample_, SIGNAL(clicked()), this, SLOT(useSample()));
   connect(skip_, SIGNAL(clicked()), this, SLOT(finish()));
   connect(back_, SIGNAL(clicked()), this, SLOT(back()));
   connect(next_, SIGNAL(clicked()), this, SLOT(next()));
@@ -400,7 +406,26 @@ EduTutorial::EduTutorial(SpimView* window)
 
 void EduTutorial::setProgramLoaded(bool loaded) { programLoaded_ = loaded; }
 
-void EduTutorial::setUsingOwnProgram(bool own) { ownProgram_ = own; }
+void EduTutorial::setUsingOwnProgram(bool own) {
+  ownProgram_ = own;
+  sampleAvailable_ =
+      window_ != 0 && !window_->eduTutorialSamplePath().isEmpty();
+}
+
+bool EduTutorial::sampleButtonShown() const { return sample_->isVisible(); }
+
+// "Use the example": the student asked for it, so this is the one place the
+// tour may ask about unsaved work.  Cancelling the question leaves
+// everything as it was and the tour goes on with what is on the screen.
+void EduTutorial::useSample() {
+  if (window_ == 0 || !window_->eduSwitchToTutorialSample()) {
+    return;
+  }
+  ownProgram_ = false;
+  programLoaded_ = true;  // it only returns true once the example is running
+  buildSteps();  // the steps that had nothing to point at are back
+  showStep(0);
+}
 
 QString EduTutorial::bodyText() const { return body_->text(); }
 
@@ -830,13 +855,18 @@ void EduTutorial::showStep(int index) {
   // The first step says which program the tour is about to walk through:
   // the sample it opened, or what the student already had on the screen.
   if (step.id == Welcome) {
-    if (ownProgram_) {
+    if (ownProgram_ && sampleAvailable_) {
       body += korean_ ? QString::fromUtf8(
-                            " 지금 열려 있는 프로그램으로 진행합니다. 예제로 "
-                            "보려면 편집기를 비우고 다시 실행하세요.")
-                      : QString(" The tour runs on what you have open. To see "
-                                "it with the sample program instead, empty the "
-                                "editor and start it again.");
+                            " 지금 열려 있는 프로그램으로 진행합니다. 아래 "
+                            "[예제로 보기]를 누르면 예제 프로그램으로 볼 수 "
+                            "있습니다.")
+                      : QString(" The tour runs on what you have open. The "
+                                "button below opens the example program "
+                                "instead.");
+    } else if (ownProgram_) {
+      body += korean_ ? QString::fromUtf8(
+                            " 지금 열려 있는 프로그램으로 진행합니다.")
+                      : QString(" The tour runs on what you have open.");
     } else if (programLoaded_) {
       body += korean_ ? QString::fromUtf8(
                             " 예제 프로그램을 열어 두었으니 그대로 보시면 "
@@ -870,6 +900,9 @@ void EduTutorial::showStep(int index) {
   }
   back_->setEnabled(current_ > 0);
   skip_->setVisible(!last);
+  sample_->setText(korean_ ? QString::fromUtf8("예제로 보기")
+                           : QString("Use the example"));
+  sample_->setVisible(step.id == Welcome && ownProgram_ && sampleAvailable_);
 
   reposition();
 }
@@ -895,13 +928,28 @@ QRect EduTutorial::tipBubbleRect() const {
   return bubble;
 }
 
+// The card is one width for every step, except the first one when it also
+// offers the example: four buttons and the step counter do not fit 360, and
+// the two languages need different room.
+int EduTutorial::cardWidth() const {
+  if (!sample_->isVisible()) {
+    return kCardWidth;
+  }
+  const int buttons = sample_->sizeHint().width() + skip_->sizeHint().width() +
+                      back_->sizeHint().width() + next_->sizeHint().width() +
+                      3 * kSpace2;
+  return qMax(kCardWidth, progress_->sizeHint().width() + kSpace3 + buttons +
+                              2 * kSpace4);
+}
+
 void EduTutorial::placeCard() {
   // The card's width is fixed, so the wrapped labels decide its height.
   // QLabel::sizeHint() does not know that width yet; ask it directly.
   // A window event can reach us between show() and the first step, while
   // both labels are still empty; QLabel then answers -1 and a negative
   // fixed height is a warning and no layout at all.
-  const int inner = kCardWidth - 2 * kSpace4;
+  card_->setFixedWidth(cardWidth());
+  const int inner = card_->width() - 2 * kSpace4;
   title_->setFixedHeight(qMax(
       0, title_->heightForWidth(inner - language_->sizeHint().width() - kSpace2)));
   body_->setFixedHeight(qMax(0, body_->heightForWidth(inner)));
