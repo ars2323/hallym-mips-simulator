@@ -1,4 +1,4 @@
-# QtSpim-Edu 1.0.0 — User Guide
+# QtSpim-Edu 1.0.1 — User Guide
 
 QtSpim-Edu is an educational build of the MIPS simulator **QtSpim 9.1.24 with a
 new interface only**. The simulator itself (assembler and execution) is the
@@ -7,7 +7,7 @@ the same results as in standard QtSpim.** You can check your work in either.
 
 ## 1. Installing
 
-1. Unzip `QtSpimEdu-1.0.0-win64.zip` anywhere. (There is an MSI installer too,
+1. Unzip `QtSpimEdu-1.0.1-win64.zip` anywhere. (There is an MSI installer too,
    but the zip is recommended: no administrator rights, and removing it is
    deleting the folder.)
 2. Run `QtSpimEdu.exe`.
@@ -108,6 +108,23 @@ bar.
   list and red markers point at the real line.
 - Assembling **stops at the first syntax error** in a file; later errors show up
   once it is fixed.
+
+## 6. Window layout
+
+- **Editor and Text side by side**: Window > Layout.
+  - **Tabs** — Editor, Text and Data in one tab group (the initial state).
+  - **Editor | Text** — Editor on the left, Text on the right (Data behind
+    Text). After Ctrl+S the editor stays where it is; only Text is redrawn.
+  - **Editor / Text** — Editor above, Text below.
+  - You can also drag a tab and drop it beside, above or below another panel,
+    and drop a title bar onto a tab to make it a tab again. The arrangement
+    is kept for the next start; Window > Tile restores the initial one.
+- **Hiding the message log**: Window > Message Log (**Ctrl+L**). The message
+  pane at the bottom goes away and the panels take its room. It comes back by
+  itself on an assembler error or a run-time exception.
+- **Inspector height**: drag the edge above the Inspector. Until you do, it
+  grows and shrinks with what is selected; once dragged, the height is kept
+  (Window > Tile gives it back).
 
 Questions and bugs: <https://github.com/ars2323/qtspim-edu/issues>
 SPIM is the work of James R. Larus, distributed under a BSD license. QtSpim-Edu

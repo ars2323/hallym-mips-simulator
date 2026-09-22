@@ -766,6 +766,11 @@ DisplayIntRegisters()  QtSpim/regwin.cpp
 | 43 | 시작할 때 **에디터가 마지막으로 열었던 파일을 다시 연다**(설정 `Editor/LastFile`, 파일이 없으면 조용히 빈 에디터). **어셈블하지 않는다** — 시뮬레이터의 시작 상태는 원본과 같다(`check-editor.sh` 7번이 텍스트 세그먼트를 새 시작과 비교). 프로그램이 로드되지 않은 시작에서는 저장된 창 배치와 무관하게 Editor 탭이 앞 | — | 7단계 체크포인트 | 7 · `edu_editor_glue.cpp` `eduSetupEditor`, `eduEditorAtStartup`; `main.cpp`(`// EDU:`) |
 | 44 | 버전이 **우리 것 1.0.0**(`EDU_VERSION`)이고 About에 "QtSpim-Edu 1.0.0 (based on QtSpim 9.1.24)", 상태바 오른쪽 끝에 "QtSpim-Edu 1.0.0" | About에 SPIM 버전만 | 학생의 스크린샷만 보고도 어느 빌드인지 알 수 있게. `CPU/version.h`는 그대로 | 8 · `edu/edu_version.h`, `menu.cpp`, `edu_spimview_glue.cpp` |
 | 45 | **MSI가 별개 제품**: ProductName `QtSpim-Edu`, 고유 UpgradeCode, `%ProgramFiles%\QtSpim-Edu`(64비트), 시작 메뉴만(바탕 화면 바로 가기 없음), `.s` 연결 없음, 설치 프로그램의 레지스트리는 `HKCU\Software\QtSpim-Edu-Installer`뿐 | `QtSpim` / `%ProgramFiles(x86)%\QtSpim.` / 바탕 화면 바로 가기 | 표준 QtSpim과 같은 PC에 설치·제거해도 서로 건드리지 않게. CI의 `tools/check-msi.ps1`이 MSI 테이블과 실제 무인 설치·제거(표준 QtSpim 대역 옆에서)로 확인한다 | 8 · `Setup/QtSpimEdu_Win_Deployment/`, `tools/package-msi.ps1` |
+| 46 | **Inspector 위의 분할 바가 움직인다.** 인스펙터는 사용자가 분할 바를 잡기 전까지 내용 높이(6~16줄)에 잠겨 있고, 누르는 순간 풀린다(최소 3줄, 최대 없음). 드래그로 높이가 바뀌면 그때부터 사용자 높이(창 상태와 함께 저장, `MainWin/InspectorUserSized`), 누르기만 하면 다시 잠긴다. Window > Tile이 잠금으로 되돌린다 | — | 1.0.0에서는 내용 높이에 고정되어 분할 바가 먹지 않았다(버그). `resizeDocks()`로 따라가게 하는 방식은 Qt가 세로 요청에 왼쪽 열 폭까지 다시 계산해(401→492px) 버려서 쓰지 않았다 | 1.0.1 · `edu_inspector.cpp` `setHeightLocked`, `edu_spimview_glue.cpp` `eventFilter` |
+| 47 | **Window > Message Log (Ctrl+L)**: 가운데 메시지 로그를 끌 수 있고, 끄면 Text/Data/Editor가 그 자리를 차지한다. 저장·복원. 시뮬레이터가 에러를 보고하면(어셈블·실행 예외, `SpimView::Error()`) 저절로 다시 켜진다. 원본 메시지 상자는 그대로 | 항상 보임 | 화면을 넓게 쓰되 메시지를 놓치지 않게. Ctrl+L은 원본(F5·Shift-F5·F10)·에디터(Ctrl+N/O/S, Ctrl+Shift+S, F3)와 겹치지 않는다 | 1.0.1 · `edu_editor_glue.cpp` `eduSetLogVisible`, `spimview.cpp`(`// EDU:`) |
+| 48 | **Editor·Text·Data를 나란히 놓을 수 있다**: `dockOptions`가 `ForceTabbedDocks` 대신 `AllowNestedDocks | AllowTabbedDocks | GroupedDragging`. 탭 하나를 끌어내어 옆·위·아래에 붙이거나 띄우고, 제목줄을 다른 탭 위에 놓으면 다시 탭이 된다. Window > Layout에 프리셋 3개(Tabs / Editor \| Text / Editor / Text), 창 상태 버전 4 | 세 패널이 항상 한 탭 묶음 | VS Code처럼 코드와 결과를 같이 보게 | 1.0.1 · `spimview.ui`, `edu_editor_glue.cpp` `eduArrangePanels` |
+| 49 | Assemble 뒤 Text로 "전환"은 Text가 이미 보이면(나란히 배치) 하지 않는다. 에러 때 Editor로 전환도 같다. Text 패널의 Instruction 열은 내용 폭에 맞춘다(최대 38자) — 반쪽 폭에서 Source 열이 남게 | — | 나란히 배치의 의미를 지키려고 | 1.0.1 · `eduAssemble`, `edu_text_view.cpp` `afterReset` |
+| 50 | Text 패널의 최소 크기가 300×120(원본 .ui는 800×600 최소). 800×600은 `sizeHint`로 남기고, 첫 실행 창 크기는 1300×830 | 800×600 최소 | 나란히 놓으려면 패널이 작아질 수 있어야 한다 | 1.0.1 · `spimview.ui`, `edu_text_view.h`, `state.cpp` |
 
 **다르지 않은 것** (확인된 것만): 시뮬레이터 코어 전체(`CPU/` 바이트 동일, `tools/regress.sh` 1·2·3번),
 Save Log File의 Int Regs·Text·Data 출력(4번 — 17·18번의 경우 포함해 골든과 바이트 동일), 브레이크포인트 다이얼로그(Continue / Single Step / Abort),
@@ -1097,4 +1102,38 @@ SpimView 쪽 연결: edu/edu_editor_glue.cpp (메뉴·툴바 항목, Assemble, �
 
 `QFileSystemWatcher` → 150ms 뒤 파일을 다시 읽어 **마지막으로 읽거나 쓴 바이트와 다를 때만** 묻는다(이름 바꾸기로 저장하는 편집기는 감시 경로를 끊으므로 매번 다시 건다; 우리 자신의 저장은 감시를 잠시 뗀다).
 "No"를 고르면 그 버전에 대해서는 다시 묻지 않고 문서를 수정됨 상태로 둔다.
+
+---
+
+## 18. 1.0.1 — 화면 배치
+
+### 18.1 Inspector 높이
+
+`EduInspector::setHeightLocked()`: 잠기면 `body_`가 내용 높이에 `setFixedHeight`, 풀리면 최소 3줄·최대 없음.
+`SpimView::eventFilter`(메인 창 자신에 설치)가 분할 바를 잡는 순간을 본다 — QMainWindow는 분할 바(자식 위젯이 아닌 틈)의 마우스 이벤트를 직접 받으므로
+`MouseButtonPress`에서 `childAt(pos) == 0`이면 분할 바다. 누르면 풀고, 놓을 때 높이가 바뀌었으면 사용자 크기로 확정(`eduInspectorSizing(true)`), 아니면 다시 잠근다.
+사용자 크기 플래그는 `MainWin/InspectorUserSized`로 저장하고 `readSettings()`에서 **`restoreState()` 전에** 적용한다(잠긴 채로 복원하면 내용 높이가 이긴다).
+`tools`의 `--drag-inspector <dy>`가 같은 경로(메인 창에 press/move/release)로 검사한다.
+
+시도했다가 버린 것: 내용이 바뀔 때마다 `resizeDocks(Vertical)`로 따라가기. Qt 5.15의 `QDockAreaLayout::resizeDocks`는 세로 요청에도 열의 가로 크기를 sizeHint로 다시 잡아
+왼쪽 열이 401→492px로 넓어졌고, 요청이 텍스트 위젯의 레이아웃 도중에 나오면 뒤따르는 relayout에 묻혔다.
+
+### 18.2 메시지 로그
+
+`ui->centralWidget`(QTextEdit)을 숨기면 QMainWindow가 도크 영역에 그 공간을 준다(확인: 1920×1080에서 Text 높이 623→950).
+`eduShowLog()`는 `SpimView::Error()`에서 부른다 — `error()`·`run_error()` 둘 다 거기로 오므로 어셈블 에러와 실행 예외 모두 로그를 되살린다.
+로그의 최소 높이 120px(없으면 Editor / Text 프리셋에서 로그가 71px로 눌렸다).
+
+### 18.3 나란히 배치
+
+- `dockOptions`: `AllowNestedDocks | AllowTabbedDocks | AnimatedDocks | GroupedDragging | VerticalTabs` (원본은 `ForceTabbedDocks`).
+- 탭 하나를 끌어내는 것은 Qt 5.15의 `QMainWindowTabBar`가 한다(`libQt5Widgets.so.5.15`에 심볼 있음): 탭 위젯이 아니라 탭 자체를 끌면 그 도크만 떨어져 나온다.
+  offscreen 하네스로는 창 관리자 없는 드래그를 재현할 수 없어 실제 모니터 항목이다.
+- 프리셋(`eduArrangePanels`): 세 도크를 `addDockWidget(Top)`으로 다시 넣어 묶음에서 빼낸 뒤 Tabs는 tabify 둘, 나머지는 `splitDockWidget(editor, text, o)` + Data를 Text에 tabify,
+  `resizeDocks({editor, text}, {1000, 1000}, o)`로 반반(같은 값을 주면 Qt가 비율로 맞춘다).
+- 창 상태 버전 4: `ForceTabbedDocks`로 저장된 상태를 한 번 버린다.
+- 검사: `--layout-report`가 각 패널의 위치·크기와 화면에 보이는지(`visibleRegion()`), Text의 Instruction·Source 열 폭을 찍는다.
+  1920×1080 좌우 분할에서 Text 폭 753px, Instruction 191px, Source 319px.
+
+Qt로 되는 것과 안 되는 것은 `docs/GUIDE-ko.md` 6절과 이번 보고의 표 참고.
 

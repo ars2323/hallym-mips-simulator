@@ -1,11 +1,11 @@
-# QtSpim-Edu 1.0.0 사용 안내
+# QtSpim-Edu 1.0.1 사용 안내
 
 QtSpim-Edu는 MIPS 시뮬레이터 **QtSpim 9.1.24의 화면만 바꾼** 교육용 확장판입니다.
 시뮬레이터 본체(어셈블러와 실행기)는 원본 그대로여서, **같은 프로그램은 표준 QtSpim과 똑같이 어셈블되고 똑같은 결과를 냅니다.** 과제는 어느 쪽에서 확인해도 됩니다.
 
 ## 1. 설치
 
-1. `QtSpimEdu-1.0.0-win64.zip`을 원하는 폴더에 풉니다. (MSI 설치 파일도 있지만 zip을 권장합니다. 관리자 권한이 필요 없고, 지울 때는 폴더만 지우면 됩니다.)
+1. `QtSpimEdu-1.0.1-win64.zip`을 원하는 폴더에 풉니다. (MSI 설치 파일도 있지만 zip을 권장합니다. 관리자 권한이 필요 없고, 지울 때는 폴더만 지우면 됩니다.)
 2. `QtSpimEdu.exe`를 실행합니다.
 3. "Windows의 PC 보호" 창이 뜨면 **추가 정보 → 실행**을 누릅니다. 코드 서명이 없어서 나오는 경고입니다.
 
@@ -60,6 +60,16 @@ Text·Data 탭 위에 노란 띠 "**Source changed — save (Ctrl+S) to assemble
 - 브레이크포인트가 걸린 줄은 **File > Save Log File로 저장한 Text 로그에서 글자가 깨져** 보입니다(`N [x0040002] …`). 화면에서는 정상입니다.
 - 어셈블 에러 중 일부(범위를 벗어난 상수 등)는 아래 메시지 창에 **한 줄 뒤의 번호**로 찍힙니다. 에디터의 에러 목록과 빨간 점은 실제 줄을 가리킵니다.
 - 어셈블 에러는 파일의 **첫 syntax error에서 멈춥니다.** 그 뒤의 에러는 고치고 나서야 보입니다.
+
+## 6. 화면 배치
+
+- **Editor와 Text를 나란히 보기**: Window > Layout에서 고릅니다.
+  - **Tabs** — Editor, Text, Data가 한 탭 묶음(처음 상태).
+  - **Editor | Text** — 왼쪽 Editor, 오른쪽 Text(Data는 Text 뒤 탭). Ctrl+S 뒤에도 Editor가 그대로 보이고 Text만 새로 그려집니다.
+  - **Editor / Text** — 위 Editor, 아래 Text.
+  - 탭을 직접 끌어서 다른 패널의 옆이나 위·아래에 놓아도 되고, 제목줄을 끌어 다른 탭 위에 놓으면 다시 탭으로 합쳐집니다. 배치는 다음 실행에도 유지되고, Window > Tile이 처음 상태로 되돌립니다.
+- **메시지 로그 끄기**: Window > Message Log(**Ctrl+L**). 끄면 아래 메시지 창이 사라지고 패널이 그 자리를 씁니다. 어셈블 에러나 실행 중 예외가 나면 저절로 다시 켜집니다.
+- **Inspector 높이**: Inspector 위의 경계를 끌어 높이를 바꿀 수 있습니다. 손대기 전에는 선택한 내용에 맞춰 저절로 커지고 작아지며, 한 번 끌면 그 높이가 유지됩니다(Window > Tile로 원래대로).
 
 문의·버그: <https://github.com/ars2323/qtspim-edu/issues>
 SPIM은 James R. Larus의 저작물이며 BSD 라이선스로 배포됩니다. QtSpim-Edu는 SPIM 프로젝트와 무관한 비공식 수정판입니다.
