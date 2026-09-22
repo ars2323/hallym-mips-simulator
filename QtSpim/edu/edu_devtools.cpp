@@ -71,6 +71,7 @@ EduDevtools::EduDevtools(QObject* parent)
       hasSelectInstruction_(false),
       selectInstruction_(0),
       saveSettings_(false),
+      layoutReport_(false),
       expandEnvironment_(false),
       expandKernelData_(false),
       reportTime_(false),
@@ -114,6 +115,7 @@ QString EduDevtools::usage() {
       "  --editor-click-banner  click the \"Source changed\" strip on the Text panel\n"
       "  --editor-report        print the editor's file, modified flag, whether the\n"
       "                         strip shows, which tab is in front, the status text\n"
+      "  --editor-trigger <action>  trigger a QAction in editor-step order\n"
       "  --editor-goto-line <n> move the cursor there (and centre it)\n"
       "  --editor-type <text>   type text at the cursor (\\n = new line)\n"
       "  --editor-save          Editor > Save and Assemble (same as --assemble)\n"
@@ -125,6 +127,8 @@ QString EduDevtools::usage() {
       "                         --load / --reload and before --trigger\n"
       "  --drag-inspector <dy>  drag the separator above the Inspector by dy\n"
       "                         pixels with real mouse events, then report\n"
+      "  --layout-report        print each panel's geometry and whether it is on\n"
+      "                         screen (Editor, Text, Data, message log)\n"
       "  --inspector-report     print the Inspector dock's height, the content's\n"
       "                         preferred height and whether the user sized it\n"
       "  --save-settings        write the settings file on exit, as closing the\n"
@@ -332,6 +336,7 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
 
     if (arg == "--editor-open" || arg == "--editor-type" ||
         arg == "--editor-goto-line" || arg == "--editor-key" ||
+        arg == "--editor-trigger" ||
         arg == "--editor-save-as" || arg == "--editor-rewrite-on-disk") {
       if (i + 1 >= args.size()) {
         err() << arg << " needs a value\n" << Qt::flush;
@@ -360,6 +365,10 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
         return rest;
       }
       i += 1;
+      continue;
+    }
+    if (arg == "--layout-report") {
+      layoutReport_ = true;
       continue;
     }
     if (arg == "--inspector-report") {
@@ -785,6 +794,14 @@ void EduDevtools::run() {
         err() << "editor could not open " << value << "\n" << Qt::flush;
         status_ = 2;
       }
+    } else if (step == "trigger") {  // an action, in step order
+      QAction* action = window_->findChild<QAction*>(value);
+      if (action == 0) {
+        err() << "no action named " << value << "\n" << Qt::flush;
+        status_ = 2;
+      } else {
+        action->trigger();
+      }
     } else if (step == "goto-line") {
       dock->editor()->goToLine(value.toInt());
     } else if (step == "type") {
@@ -846,6 +863,7 @@ void EduDevtools::run() {
               ? QString("Text")
               : (!dock->editor()->visibleRegion().isEmpty() ? QString("Editor")
                                                             : QString("other"));
+      const bool editorOn = !dock->editor()->visibleRegion().isEmpty();
       out() << "editor: file=" << QFileInfo(dock->filePath()).fileName()
             << " modified=" << (dock->isModified() ? 1 : 0)
             << " banner=" << (banner != 0 && !banner->isHidden() ? 1 : 0)
@@ -853,7 +871,7 @@ void EduDevtools::run() {
             << " status=\"" << window_->statusBar()->currentMessage() << "\""
             << " badge=\""
             << (badge != 0 && !badge->isHidden() ? badge->text() : QString())
-            << "\"\n" << Qt::flush;
+            << "\" editor_onscreen=" << (editorOn ? 1 : 0) << "\n" << Qt::flush;
     } else if (step == "assemble") {
       window_->findChild<QAction*>("action_Edu_Assemble")->trigger();
       out() << "assemble: " << dock->errorCount() << " error(s)\n" << Qt::flush;
@@ -971,6 +989,27 @@ void EduDevtools::run() {
       status_ = 2;
     }
   }
+  if (layoutReport_) {
+    settle();
+    struct { const char* name; QWidget* w; QWidget* content; } const panels[] = {
+        {"editor", window_->eduEditor, window_->eduEditor->editor()},
+        {"text", window_->ui->TextSegDockWidget, window_->ui->TextSegView},
+        {"data", window_->ui->DataSegDockWidget, window_->ui->DataSegPanel},
+        {"log", window_->ui->centralWidget, window_->ui->centralWidget},
+    };
+    for (unsigned i = 0; i < sizeof(panels) / sizeof(panels[0]); i += 1) {
+      const QRect r(panels[i].w->mapTo(window_, QPoint(0, 0)), panels[i].w->size());
+      out() << "layout: " << panels[i].name << " x=" << r.x() << " y=" << r.y()
+            << " w=" << r.width() << " h=" << r.height() << " onscreen="
+            << (!panels[i].w->isHidden() && !panels[i].content->visibleRegion().isEmpty() ? 1 : 0)
+            << "\n" << Qt::flush;
+    }
+    out() << "layout: text instruction column " 
+          << window_->ui->TextSegView->columnWidth(EduTextModel::InstructionColumn)
+          << " source column " << window_->ui->TextSegView->columnWidth(EduTextModel::SourceColumn)
+          << "\n" << Qt::flush;
+  }
+
   for (int i = 0; i < dragInspector_.size(); i += 1) {
     const int dy = dragInspector_.at(i);
     EduInspector* dock = window_->eduInspector;

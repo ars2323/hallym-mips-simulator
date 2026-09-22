@@ -123,7 +123,7 @@ class EduDevtools : public QObject {
   // run the script and exit instead of waiting for the user.
   bool isActive() const {
     return !captures_.isEmpty() || !dumps_.isEmpty() || reportTime_ ||
-           !dragInspector_.isEmpty() || !editorSteps_.isEmpty() ||
+           !dragInspector_.isEmpty() || !editorSteps_.isEmpty() || layoutReport_ ||
            !menuLoads_.isEmpty();
   }
 
@@ -170,6 +170,7 @@ class EduDevtools : public QObject {
   quint32 selectInstruction_;  // Text panel row to select before capturing
   QList<int> dragInspector_;  // separator drags (0 = report only)
   bool saveSettings_;
+  bool layoutReport_;
   bool expandEnvironment_;
   bool expandKernelData_;
   QStringList menuLoads_;    // "L<path>" / "R<path>", in command-line order
