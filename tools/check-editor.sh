@@ -21,6 +21,8 @@
 #   9. The tour always opens the example program, asking first when the
 #      editor holds unsaved work (Cancel means it does not start), and every
 #      one of its buttons works when clicked with the mouse.
+#  10. The first-run route and Help > Tutorial produce the same tour, line
+#      for line.
 
 set -euo pipefail
 
@@ -347,6 +349,28 @@ for what in "click Back: visible=1" "click finish: visible=0" "click Skip: visib
     grep '^tutorial click' "$work/tourClicks.out" | tail -3
   fi
 done
+
+echo
+echo "== 10. the first run and Help > Tutorial give exactly the same tour"
+# Both routes call SpimView::eduShowTutorial(); the start-up one only adds
+# the "Tutorial/Shown" check and a delay.  This proves it from the outside:
+# the same window size, the same fresh settings, and every line of
+# --tutorial-report compared -- the example loaded, where it stopped (PC and
+# $sp), the step count, each card's rectangle, and every title and body in
+# both languages.
+run tourMenu  --window-size 1600x900 --tutorial-report
+run tourFirst --window-size 1600x900 --tutorial-first-run --tutorial-report
+grep '^tutorial ' "$work/tourMenu.out"  >"$work/tour-menu.txt" || true
+grep '^tutorial ' "$work/tourFirst.out" >"$work/tour-first.txt" || true
+if [ ! -s "$work/tour-first.txt" ]; then
+  fail "the start-up route reported nothing (did the tour open?)"
+elif diff -u "$work/tour-menu.txt" "$work/tour-first.txt" >"$work/tour.diff"; then
+  pass "both routes: $(wc -l <"$work/tour-menu.txt") identical lines of report"
+  pass "$(sed -n 's/^tutorial state /state: /p' "$work/tour-menu.txt")"
+else
+  fail "the two routes differ:"
+  head -20 "$work/tour.diff"
+fi
 
 echo
 if [ "$failures" -eq 0 ]; then

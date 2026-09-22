@@ -92,8 +92,14 @@ int main(int argc, char* argv[]) {
   SpimView win;
   Window = &win;
   // EDU: a scripted run never opens the tour by itself -- it would load the
-  // sample over whatever the script is doing.  --tutorial-step still does.
-  win.eduTourOnStart = !scripted;
+  // sample over whatever the script is doing.  --tutorial-step still does,
+  // and --tutorial-first-run asks for exactly the start-up route.
+#ifdef EDU_DEVTOOLS
+  const bool firstRunTour = EduDevtools::wantsFirstRunTour(rawArguments);
+#else
+  const bool firstRunTour = false;
+#endif
+  win.eduTourOnStart = !scripted || firstRunTour;
 
   // Initialize Spim
   //

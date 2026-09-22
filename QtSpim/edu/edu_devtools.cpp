@@ -10,7 +10,9 @@
 #include <QElapsedTimer>
 #include <QFile>
 #include <QFileDialog>
+#include <QElapsedTimer>
 #include <QFileInfo>
+#include <QThread>
 #include <QFontDatabase>
 #include <QIcon>
 #include <QToolButton>
@@ -87,6 +89,7 @@ EduDevtools::EduDevtools(QObject* parent)
       tutorialStep_(0),
       tutorialReport_(false),
       clickThrough_(false),
+      firstRunTour_(false),
       window_(0),
       dialogTimer_(0),
       dismissedDialogs_(0),
@@ -166,6 +169,11 @@ QString EduDevtools::usage() {
       "                         \"unsaved changes\" question (discard)\n"
       "  --tutorial-click-through  walk the whole tour by clicking the card's\n"
       "                         buttons with the mouse, reporting each step\n"
+      "  --tutorial-first-run   open the tour the way a first start does (the\n"
+      "                         route the Tutorial/Shown setting guards)\n"
+      "                         rather than the way Help > Tutorial does;\n"
+      "                         with --tutorial-report the two can be\n"
+      "                         compared line for line\n"
       "  --tutorial-report      walk every step of the tour and print each\n"
       "                         card's rectangle and whether it is inside the\n"
       "                         window (the check for docs/ARCHITECTURE 12, 70)\n"
@@ -188,6 +196,10 @@ bool EduDevtools::wantsCaptureMode(const QStringList& args) {
   bool ok = true;
   probe.takeOptions(args, &ok);
   return ok && probe.isActive();
+}
+
+bool EduDevtools::wantsFirstRunTour(const QStringList& args) {
+  return args.contains("--tutorial-first-run");
 }
 
 QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
@@ -510,6 +522,11 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
 
     if (arg == "--tutorial-click-through") {
       clickThrough_ = true;
+      continue;
+    }
+
+    if (arg == "--tutorial-first-run") {
+      firstRunTour_ = true;
       continue;
     }
 
@@ -1481,7 +1498,27 @@ void EduDevtools::run() {
   // Every step of the tour, with the card's rectangle: the harness checks
   // that it never leaves the window (docs/ARCHITECTURE.md 12, 70).
   if (tutorialReport_) {
-    window_->eduShowTutorial();
+    // --tutorial-first-run leaves the start-up route to open the tour on
+    // its timer; waiting for that is the point of the option.  Anything
+    // else opens it the way Help > Tutorial does.
+    if (firstRunTour_) {
+      // The start-up route opens the tour on a timer, so this really has
+      // to wait rather than just pumping whatever is already queued.
+      QElapsedTimer waited;
+      waited.start();
+      while (waited.elapsed() < 5000 &&
+             (window_->eduTutorial == 0 ||
+              !window_->eduTutorial->isRunning())) {
+        QApplication::processEvents(QEventLoop::AllEvents, 20);
+        QThread::msleep(10);
+      }
+      if (window_->eduTutorial == 0 || !window_->eduTutorial->isRunning()) {
+        err() << "the start-up route did not open the tour\n" << Qt::flush;
+        status_ = 2;
+      }
+    } else {
+      window_->eduShowTutorial();
+    }
     EduTutorial* tour = window_->eduTutorial;
     if (tour == 0) {
       err() << "no tutorial\n" << Qt::flush;
@@ -1491,6 +1528,19 @@ void EduDevtools::run() {
       // says about it: the sample only opens over an empty editor.
       tour->start(0);
       settle();
+      // Everything the two entry points have to agree on: what was loaded,
+      // where it stopped, and what the tour made of it.
+      edu::RegisterRef sp;
+      const quint32 pointer =
+          edu::findRegister("sp", &sp) ? EduRegisterModel::readRegister(sp) : 0;
+      const QString file =
+          window_->eduEditor == 0
+              ? QString()
+              : QFileInfo(window_->eduEditor->filePath()).fileName();
+      out() << "tutorial state pc=" << QString::number(PC, 16) << " sp="
+            << QString::number(pointer, 16) << " program="
+            << (window_->eduTutorial != 0 ? 1 : 0) << " file=" << file << "\n"
+            << Qt::flush;
       const QStringList skipped = tour->skippedSteps();
       out() << "tutorial steps=" << tour->stepCount() << " skipped="
             << skipped.size() << "\n" << Qt::flush;
@@ -1513,6 +1563,19 @@ void EduDevtools::run() {
               << Qt::flush;
         if (!inside) {
           status_ = 1;
+        }
+      }
+      // Both languages of every card, so that a difference in one word
+      // between the two entry points would show.
+      for (int language = 0; language < 2; language += 1) {
+        const bool korean = language == 0;
+        tour->setKorean(korean);
+        for (int i = 0; i < tour->stepCount(); i += 1) {
+          tour->start(i);
+          settle();
+          out() << "tutorial text " << (i + 1) << (korean ? " ko: " : " en: ")
+                << tour->titleText().simplified() << " :: "
+                << tour->bodyText().simplified() << "\n" << Qt::flush;
         }
       }
     }

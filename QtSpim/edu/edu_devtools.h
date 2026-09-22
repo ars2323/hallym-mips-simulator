@@ -123,13 +123,18 @@ class EduDevtools : public QObject {
   // (isActive() after takeOptions()); main() then skips the splash screen.
   static bool wantsCaptureMode(const QStringList& args);
 
+  // --tutorial-first-run: take the start-up route into the tour (the one
+  // the "Tutorial/Shown" setting guards) instead of calling it as Help >
+  // Tutorial does, so the two can be compared.
+  static bool wantsFirstRunTour(const QStringList& args);
+
   // True when --capture or --dump was given, i.e. when the program should
   // run the script and exit instead of waiting for the user.
   bool isActive() const {
     return !captures_.isEmpty() || !dumps_.isEmpty() || reportTime_ ||
            !dragInspector_.isEmpty() || !editorSteps_.isEmpty() || layoutReport_ ||
            tutorialReport_ || !dockDrop_.isEmpty() || !menuLoads_.isEmpty() ||
-           clickThrough_;
+           clickThrough_ || firstRunTour_;
   }
 
   // Starts answering modal dialogs.  Call as soon as the mode is known and
@@ -207,6 +212,8 @@ class EduDevtools : public QObject {
                          // question is answered (discard by default)
   bool clickThrough_;    // --tutorial-click-through: walk the tour with the
                          // mouse, on the card's own buttons
+  bool firstRunTour_;    // --tutorial-first-run: let the start-up route open
+                         // the tour, and report on that one
   SpimView* window_;
   QString modalOut_;
   QString dialogShotDir_;
