@@ -19,17 +19,23 @@ settings location differ, so neither affects the other.
 
 ## 2. The first run: a tour of the screen
 
-The first time you start the program a **seven-step tour** appears. It dims
-the window and lights up one panel at a time, saying what that panel does and
-how it differs from the standard QtSpim: registers, inspector, text, editor,
-data.
+The first time you start the program a **tour** appears. It opens the sample
+program (`samples/tutorial.s`), runs a few instructions and then dims the
+window and lights up one thing at a time -- a group of tool bar buttons, two
+column headings, a single badge or cell -- saying what it does and how it
+differs from the standard QtSpim. Eighteen steps: tool bar, registers,
+inspector, text, data, editor.
 
 - **Next** and **Back** move through it; **Skip** or **Esc** ends it.
 - The **EN / 한국어** switch at the top right of the card changes the language.
-- To see it again: **Help > Tutorial**.
+- To see it again: **Help > Tutorial**. Started with a file of your own
+  open, it works on that instead.
+- The keyboard works too: Enter, Space or the right arrow for the next step,
+  the left arrow to go back, Escape to leave.
 
-A step whose panel you have closed is left out, and the tour never rearranges
-your panels.
+A step whose panel you have closed is left out and the rest are renumbered,
+and the tour never rearranges your panels. The sample it opened stays open;
+**Simulator > Reinitialize** clears everything.
 
 ## 3. The basic loop
 
@@ -47,6 +53,14 @@ An amber strip **"Source changed — save (Ctrl+S) to assemble"** above the Text
 and Data tabs means that what you are looking at is not the code in the editor.
 Press Ctrl+S or click the strip. You also see it right after starting the
 program: the last file is reopened, but nothing is assembled for you.
+
+### Text size
+
+**Ctrl +** and **Ctrl -** change the editor's text size and **Ctrl 0** puts it
+back (Ctrl and the wheel work too). Eight to thirty-two points, remembered
+for the next time, and the same as Zoom In / Zoom Out / Reset Zoom in the
+Editor menu. Only the editor changes; the text, data and inspector panels
+keep the font from the settings.
 
 ## 4. What differs from standard QtSpim
 
