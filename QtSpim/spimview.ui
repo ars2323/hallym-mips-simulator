@@ -46,7 +46,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>QtSpim</string>
+   <string>Hallym MIPS Simulator</string>
   </property>
   <property name="dockOptions">
    <set>QMainWindow::AllowNestedDocks|QMainWindow::AllowTabbedDocks|QMainWindow::AnimatedDocks|QMainWindow::GroupedDragging|QMainWindow::VerticalTabs</set>
@@ -248,13 +248,11 @@
    </attribute>
    <addaction name="action_File_Load"/>
    <addaction name="action_File_Reload"/>
-   <addaction name="separator"/>
    <addaction name="action_File_SaveLog"/>
    <addaction name="action_File_Print"/>
    <addaction name="separator"/>
    <addaction name="action_Sim_ClearRegisters"/>
    <addaction name="action_Sim_Reinitialize"/>
-   <addaction name="separator"/>
    <addaction name="action_Sim_Run"/>
    <addaction name="action_Sim_Pause"/>
    <addaction name="action_Sim_Stop"/>
@@ -263,19 +261,11 @@
    <addaction name="action_Help_ViewHelp"/>
   </widget>
   <action name="action_File_Load">
-   <property name="icon">
-    <iconset resource="windows_images.qrc">
-     <normaloff>:/icons/LoadFile.png</normaloff>:/icons/LoadFile.png</iconset>
-   </property>
    <property name="text">
     <string>&amp;Load File</string>
    </property>
   </action>
   <action name="action_File_SaveLog">
-   <property name="icon">
-    <iconset resource="windows_images.qrc">
-     <normaloff>:/icons/SaveLog.png</normaloff>:/icons/SaveLog.png</iconset>
-   </property>
    <property name="text">
     <string>&amp;Save Log File</string>
    </property>
@@ -286,28 +276,16 @@
    </property>
   </action>
   <action name="action_Sim_ClearRegisters">
-   <property name="icon">
-    <iconset resource="windows_images.qrc">
-     <normaloff>:/icons/ClearRegs.png</normaloff>:/icons/ClearRegs.png</iconset>
-   </property>
    <property name="text">
     <string>&amp;Clear Registers</string>
    </property>
   </action>
   <action name="action_Sim_Reinitialize">
-   <property name="icon">
-    <iconset resource="windows_images.qrc">
-     <normaloff>:/icons/Reinit.png</normaloff>:/icons/Reinit.png</iconset>
-   </property>
    <property name="text">
     <string>Re&amp;initialize Simulator</string>
    </property>
   </action>
   <action name="action_File_Reload">
-   <property name="icon">
-    <iconset resource="windows_images.qrc">
-     <normaloff>:/icons/ReloadFile.png</normaloff>:/icons/ReloadFile.png</iconset>
-   </property>
    <property name="text">
     <string>Re&amp;initialize and Load File</string>
    </property>
@@ -318,10 +296,6 @@
    </property>
   </action>
   <action name="action_Sim_Run">
-   <property name="icon">
-    <iconset resource="windows_images.qrc">
-     <normaloff>:/icons/Run.png</normaloff>:/icons/Run.png</iconset>
-   </property>
    <property name="text">
     <string>&amp;Run/Continue</string>
    </property>
@@ -330,19 +304,11 @@
    </property>
   </action>
   <action name="action_Sim_Pause">
-   <property name="icon">
-    <iconset resource="windows_images.qrc">
-     <normaloff>:/icons/Pause.png</normaloff>:/icons/Pause.png</iconset>
-   </property>
    <property name="text">
     <string>&amp;Pause</string>
    </property>
   </action>
   <action name="action_Sim_Stop">
-   <property name="icon">
-    <iconset resource="windows_images.qrc">
-     <normaloff>:/icons/Stop.png</normaloff>:/icons/Pause.png</iconset>
-   </property>
    <property name="text">
     <string>&amp;Stop</string>
    </property>
@@ -351,10 +317,6 @@
    </property>
   </action>
   <action name="action_Sim_SingleStep">
-   <property name="icon">
-    <iconset resource="windows_images.qrc">
-     <normaloff>:/icons/SingleStep.png</normaloff>:/icons/SingleStep.png</iconset>
-   </property>
    <property name="text">
     <string>&amp;Single Step</string>
    </property>
@@ -368,10 +330,6 @@
    </property>
   </action>
   <action name="action_Sim_Settings">
-   <property name="icon">
-    <iconset resource="windows_images.qrc">
-     <normaloff>:/icons/Settings.png</normaloff>:/icons/Settings.png</iconset>
-   </property>
    <property name="text">
     <string>Settings</string>
    </property>
@@ -531,24 +489,16 @@
    </property>
   </action>
   <action name="action_Help_ViewHelp">
-   <property name="icon">
-    <iconset resource="windows_images.qrc">
-     <normaloff>:/icons/Help.png</normaloff>:/icons/Help.png</iconset>
-   </property>
    <property name="text">
     <string>View Help</string>
    </property>
   </action>
   <action name="action_Help_AboutSPIM">
    <property name="text">
-    <string>About QtSpim</string>
+    <string>About Hallym MIPS Simulator</string>
    </property>
   </action>
   <action name="action_File_Print">
-   <property name="icon">
-    <iconset resource="windows_images.qrc">
-     <normaloff>:/icons/Print.png</normaloff>:/icons/Print.png</iconset>
-   </property>
    <property name="text">
     <string>Print</string>
    </property>
@@ -573,7 +523,6 @@
   </customwidget>
  </customwidgets>
  <resources>
-  <include location="windows_images.qrc"/>
  </resources>
  <connections/>
 </ui>

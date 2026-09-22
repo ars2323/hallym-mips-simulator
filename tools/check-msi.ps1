@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Checks that the QtSpim-Edu MSI cannot collide with a standard QtSpim.
+  Checks that the Hallym MIPS Simulator MSI cannot collide with a standard QtSpim.
 
 .DESCRIPTION
   1. Reads the MSI's tables: product name, UpgradeCode, install folder,
@@ -55,8 +55,8 @@ $upstreamUpgrade = $Matches[1].ToUpper()
 $upstreamGuids = [regex]::Matches($upstreamWxs, "Guid='([0-9a-fA-F-]+)'") | ForEach-Object { $_.Groups[1].Value.ToUpper() }
 
 Write-Host "== 1. MSI tables"
-Check ($props["ProductName"] -eq "QtSpim-Edu") "ProductName is QtSpim-Edu (upstream: QtSpim)"
-Check ($props["UpgradeCode"].Trim("{}").ToUpper() -eq "8B69C2A5-F331-48CE-A04C-1462CE02A3C8") "UpgradeCode is ours"
+Check ($props["ProductName"] -eq "Hallym MIPS Simulator") "ProductName is Hallym MIPS Simulator (upstream: QtSpim)"
+Check ($props["UpgradeCode"].Trim("{}").ToUpper() -eq "BF8A162B-8D89-43B4-9166-46E6EFEF30A9") "UpgradeCode is ours"
 Check ($props["UpgradeCode"].Trim("{}").ToUpper() -ne $upstreamUpgrade) "UpgradeCode differs from upstream's ($upstreamUpgrade)"
 Check ($props["ProductVersion"] -match '^[0-9]+\.[0-9]+\.[0-9]+$') "ProductVersion $($props['ProductVersion'])"
 Check ($props["ALLUSERS"] -eq "1") "per-machine install"
@@ -66,7 +66,7 @@ Check (-not ($upgradeRows | Where-Object { $_[0].Trim("{}").ToUpper() -eq $upstr
 
 $dirs = Query "SELECT Directory, DefaultDir FROM Directory" 2
 $installDir = $dirs | Where-Object { $_[0] -eq "INSTALLFOLDER" }
-Check ($installDir -and $installDir[1] -match "QtSpim-Edu") "install folder is ...\QtSpim-Edu ($($installDir[1]))"
+Check ($installDir -and $installDir[1] -match "Hallym MIPS Simulator") "install folder is ...\Hallym MIPS Simulator ($($installDir[1]))"
 Check (-not ($dirs | Where-Object { $_[1] -match '(^|\|)QtSpim\.?$' })) "no folder named QtSpim (upstream's)"
 
 foreach ($table in @("Extension", "ProgId", "Verb", "MIME")) {
@@ -76,7 +76,7 @@ foreach ($table in @("Extension", "ProgId", "Verb", "MIME")) {
 
 $registry = Query "SELECT Registry, Key FROM Registry" 2
 Check (-not ($registry | Where-Object { $_[1] -match "LarusStone" })) "registry: nothing under LarusStone (upstream's settings)"
-Check (-not ($registry | Where-Object { $_[1] -match '^Software\\QtSpim-Edu(\\|$)' })) "registry: nothing under Software\QtSpim-Edu (the program's own settings)"
+Check (-not ($registry | Where-Object { $_[1] -match '^Software\\HallymMIPS(\\|$)' })) "registry: nothing under Software\HallymMIPS (the program's own settings)"
 
 $shortcuts = Query "SELECT Shortcut, Directory_, Name FROM Shortcut" 3
 Check ($shortcuts.Count -ge 1 -and -not ($shortcuts | Where-Object { $_[1] -eq "DesktopFolder" })) "Start menu shortcut(s) only, none on the desktop"
@@ -87,7 +87,7 @@ $clash = $components | Where-Object { $upstreamGuids -contains $_[1].Trim("{}").
 Check (-not $clash) "no component GUID shared with upstream's installer ($($components.Count) components)"
 
 $files = Query "SELECT File, FileName FROM File" 2
-foreach ($needed in @("QtSpimEdu.exe", "assistant.exe", "Qt5Core.dll", "qwindows.dll", "qtspim.qhc", "GUIDE-ko")) {
+foreach ($needed in @("HallymMIPS.exe", "assistant.exe", "Qt5Core.dll", "qwindows.dll", "HallymMIPS.qhc", "GUIDE-ko")) {
   Check ([bool]($files | Where-Object { $_[1] -match [regex]::Escape($needed) })) "contains $needed"
 }
 Check (-not ($files | Where-Object { $_[1] -match '(^|\|)QtSpim\.exe$' })) "does not contain QtSpim.exe"
@@ -101,7 +101,7 @@ if ($Install) {
   Write-Host "== 2. install next to a stand-in for standard QtSpim, then uninstall"
   $pf = $env:ProgramFiles
   $pf86 = ${env:ProgramFiles(x86)}
-  $ours = Join-Path $pf "QtSpim-Edu"
+  $ours = Join-Path $pf "Hallym MIPS Simulator"
   $menu = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs"
 
   # What upstream's MSI leaves on a PC (its .wxs): folder "QtSpim." under
@@ -115,25 +115,25 @@ if ($Install) {
   New-Item -Force -Path "HKCU:\Software\LarusStone\QtSpim" | Out-Null
   Set-ItemProperty "HKCU:\Software\LarusStone\QtSpim" -Name "StandIn" -Value "untouched"
   # ... and settings of our own program, which the installer must leave alone.
-  New-Item -Force -Path "HKCU:\Software\QtSpim-Edu\QtSpimEdu" | Out-Null
-  Set-ItemProperty "HKCU:\Software\QtSpim-Edu\QtSpimEdu" -Name "StandIn" -Value "untouched"
+  New-Item -Force -Path "HKCU:\Software\HallymMIPS\HallymMIPS" | Out-Null
+  Set-ItemProperty "HKCU:\Software\HallymMIPS\HallymMIPS" -Name "StandIn" -Value "untouched"
 
   function StandInIntact() {
     return (Test-Path (Join-Path $standIn "QtSpim.exe")) -and
            (Test-Path (Join-Path $standInMenu "QtSpim.lnk")) -and
            ((Get-ItemProperty "HKCU:\Software\LarusStone\QtSpim").StandIn -eq "untouched") -and
-           ((Get-ItemProperty "HKCU:\Software\QtSpim-Edu\QtSpimEdu").StandIn -eq "untouched")
+           ((Get-ItemProperty "HKCU:\Software\HallymMIPS\HallymMIPS").StandIn -eq "untouched")
   }
 
   $log = Join-Path $env:TEMP "qtspimedu-install.log"
   $p = Start-Process msiexec.exe -ArgumentList "/i `"$Msi`" /qn /norestart /l*v `"$log`"" -Wait -PassThru
   Check ($p.ExitCode -eq 0) "msiexec /i exit code $($p.ExitCode)"
   if ($p.ExitCode -ne 0) { Get-Content $log -Tail 40 }
-  Check (Test-Path (Join-Path $ours "QtSpimEdu.exe")) "installed $ours\QtSpimEdu.exe"
+  Check (Test-Path (Join-Path $ours "HallymMIPS.exe")) "installed $ours\HallymMIPS.exe"
   Check (Test-Path (Join-Path $ours "platforms\qwindows.dll")) "installed the Qt platform plugin"
   Check (Test-Path (Join-Path $ours "help\qtspim.qhc")) "installed the help collection"
-  Check (Test-Path (Join-Path $menu "QtSpim-Edu\QtSpim-Edu.lnk")) "Start menu: QtSpim-Edu\QtSpim-Edu"
-  Check (-not (Test-Path (Join-Path ([Environment]::GetFolderPath("CommonDesktopDirectory")) "QtSpim-Edu.lnk"))) "no desktop shortcut"
+  Check (Test-Path (Join-Path $menu "Hallym MIPS Simulator\Hallym MIPS Simulator.lnk")) "Start menu: Hallym MIPS Simulator\Hallym MIPS Simulator"
+  Check (-not (Test-Path (Join-Path ([Environment]::GetFolderPath("CommonDesktopDirectory")) "Hallym MIPS Simulator.lnk"))) "no desktop shortcut"
   $assoc = cmd /c "assoc .s 2>nul"
   Check (-not ($assoc -match "QtSpim")) "no .s association ($assoc)"
   Check (StandInIntact) "stand-in for standard QtSpim untouched after install"
@@ -141,12 +141,12 @@ if ($Install) {
   $p = Start-Process msiexec.exe -ArgumentList "/x `"$Msi`" /qn /norestart" -Wait -PassThru
   Check ($p.ExitCode -eq 0) "msiexec /x exit code $($p.ExitCode)"
   Check (-not (Test-Path $ours)) "uninstall removed $ours"
-  Check (-not (Test-Path (Join-Path $menu "QtSpim-Edu"))) "uninstall removed the Start menu folder"
-  Check (-not (Test-Path "HKCU:\Software\QtSpim-Edu-Installer")) "uninstall removed the installer's registry key"
+  Check (-not (Test-Path (Join-Path $menu "Hallym MIPS Simulator"))) "uninstall removed the Start menu folder"
+  Check (-not (Test-Path "HKCU:\Software\HallymMIPS-Installer")) "uninstall removed the installer's registry key"
   Check (StandInIntact) "stand-in for standard QtSpim, and our program's settings, untouched after uninstall"
 
   Remove-Item -Recurse -Force $standIn, $standInMenu
-  Remove-Item -Recurse -Force "HKCU:\Software\LarusStone", "HKCU:\Software\QtSpim-Edu"
+  Remove-Item -Recurse -Force "HKCU:\Software\LarusStone", "HKCU:\Software\HallymMIPS"
 }
 
 Write-Host ""

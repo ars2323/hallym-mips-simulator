@@ -19,7 +19,7 @@ build="$repo/build"
 while getopts ":b:" opt; do
   case "$opt" in b) build=$OPTARG ;; *) echo "usage: $0 [-b BUILD_DIR]" >&2; exit 2 ;; esac
 done
-app="$build/QtSpimEdu"
+app="$build/HallymMIPS"
 fixed_env=(env -i QT_QPA_PLATFORM=offscreen HOME=/nonexistent
            XDG_CONFIG_HOME=/nonexistent/config)
 while IFS='|' read -r name program args stream; do

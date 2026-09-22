@@ -24,14 +24,14 @@ while getopts ":b:o:h" opt; do
   esac
 done
 
-app="$build/QtSpimEdu"
+app="$build/HallymMIPS"
 if [ ! -x "$app" ] || [ "$(strings "$app" | grep -c -F -- '--local-codec' || true)" -eq 0 ]; then
   echo "$app is missing or was not built with CONFIG+=edu_devtools" >&2
   exit 1
 fi
 
 if [ -z "$out" ]; then
-  out=$(mktemp -d -t qtspim-edu-pathcheck-XXXXXX)
+  out=$(mktemp -d -t hallym-mips-pathcheck-XXXXXX)
 fi
 mkdir -p "$out"
 

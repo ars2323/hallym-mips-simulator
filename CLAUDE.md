@@ -9,7 +9,7 @@ SPIM/QtSpim **9.1.24** (SVN r764, git tag `vanilla-9.1.24`) 기반 교육용 확
 
 ```bash
 mkdir -p build && cd build && qmake ../QtSpim/QtSpim.pro && make -j$(nproc)
-./build/HallymMIPS   # H2까지는 QtSpimEdu
+./build/HallymMIPS
 ```
 
 - Ubuntu 22.04 · Qt 5.15.3 · bison 3.8.2 · flex 2.6.4 · g++ 11

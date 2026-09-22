@@ -41,6 +41,9 @@
 #include "version.h"
 
 // EDU: fork identity.
+#include "edu/edu_about.h"  // EDU
+#include "edu/theme/tokens.h"  // EDU
+#include "edu/theme/edu_theme.h"  // EDU
 #include "edu/edu_version.h"
 // EDU: warn before passing a path the core cannot open.
 #include "edu/edu_path_check.h"
@@ -235,13 +238,13 @@ void SpimView::sim_ReinitializeSimulator() {
   SpimConsole->Clear();
   initStack();
 
-  SetOutputColor("green");
+  SetOutputColor(edu::theme::color(edu::theme::kTextLog).name());  // EDU: was "green"
   write_startup_message();
   write_output(
       message_out,
       "QtSPIM is linked to the Qt library, which is distributed under the GNU "
       "Lesser General Public License version 3 and version 2.1.\n");
-  SetOutputColor("black");
+  SetOutputColor(edu::theme::color(edu::theme::kTextLog).name());  // EDU: was "black"
 
   CaptureIntRegisters();
   CaptureSFPRegisters();
@@ -764,7 +767,7 @@ void SpimView::help_ViewHelp() {
   }
 
   QString helpFile[] = {
-      appDir + QString("/help/qtspim.qhc"),  // EDU: portable, first
+      appDir + QString("/help/HallymMIPS.qhc"),  // EDU: portable, first
       qgetenv("PROGRAMFILES(x86)") +
           QString("/QtSpim/help/qtspim.qhc"),  // Windows
       QString(
@@ -783,7 +786,7 @@ void SpimView::help_ViewHelp() {
 
   if (helpFile[i] == 0) {
     QMessageBox msgBox;
-    msgBox.setText("Cannot find QtSpim help file. Check installation.");
+    msgBox.setText("Cannot find the help file. Check installation.");  // EDU
     msgBox.exec();
     return;
   }
@@ -805,44 +808,8 @@ void SpimView::help_ViewHelp() {
 }
 
 void SpimView::help_AboutSPIM() {
-  // EDU: the box now names this fork and states what it changed, then repeats
-  // the upstream notices. Everything from "Based on QtSpim" down -- the
-  // copyright line, the BSD notice and the two LGPL links -- is unaltered.
-  QMessageBox box(
-      QMessageBox::NoIcon, "About " EDU_APP_NAME,
-      QString("<span style='font-size: 16pt;'>"
-              "<center><strong>" EDU_APP_NAME "</strong></center>"
-              "<center><img src=':/icons/qtspim.png'>"
-              "<span style='font-size: 10pt;'>") +
-          QString("<p>" EDU_APP_NAME " " EDU_VERSION
-                  " (based on QtSpim " EDU_BASE_VERSION ")</p>") +
-          QString("<p>An unofficial educational fork of QtSpim that changes "
-                  "only the user interface. The simulator core is the "
-                  "unmodified SPIM core described below, so programs run "
-                  "exactly as they do in the standard QtSpim.</p>"
-                  "<p>Not endorsed by or affiliated with the SPIM "
-                  "project.</p>"
-                  "<hr>"
-                  "<p><strong>Based on QtSpim</strong></p>") +
-          QString("<p>") + QString(SPIM_VERSION) + QString("</p>") +
-          QString("<p>SPIM is a simulator of the MIPS R3000 processor.</p>"
-                  "<p>Copyright (c) 1990-2015, James R. Larus "
-                  "(larus@larusstone.org).</p>"
-                  "<p>SPIM is distributed under a BSD license.</p>"
-                  "<p>For more information, source code, and binaries:</p>"
-                  "<p><a "
-                  "href='https://sourceforge.net/projects/spimsimulator/"
-                  "'>https://sourceforge.net/projects/spimsimulator/</a></p>"
-                  "<p>QtSPIM is linked to the Qt library, which is distributed "
-                  "under the GNU Lesser General Public License version 3 and "
-                  "GNU Lesser General Public License version 2.1.</p>"
-                  "<p><a "
-                  "href='http://www.gnu.org/licenses/old-licenses/"
-                  "lgpl-2.1.html'>GNU Lesser General Public License, version "
-                  "2.1</a></p>"
-                  "<p><a href='http://www.gnu.org/licenses/lgpl-3.0.html'>GNU "
-                  "Lesser General Public License, version 3</a></p>"
-                  "</span>"),
-      QMessageBox::Ok);
+  // EDU: the About box is edu/edu_about.h; its License tab carries the
+  // upstream copyright and BSD notice and the Qt LGPL notice unaltered.
+  EduAboutDialog box(this);
   box.exec();
 }

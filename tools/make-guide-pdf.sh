@@ -54,8 +54,8 @@ PY
     printf '</body></html>\n'
   } >"$html"
   "$chrome" --headless --disable-gpu --no-sandbox --no-pdf-header-footer \
-      --allow-file-access-from-files --print-to-pdf="$out/QtSpim-Edu-$name.pdf" "file://$html" >/dev/null 2>&1
-  [ -s "$out/QtSpim-Edu-$name.pdf" ] || { echo "no PDF for $name" >&2; exit 1; }
+      --allow-file-access-from-files --print-to-pdf="$out/HallymMIPS-$name.pdf" "file://$html" >/dev/null 2>&1
+  [ -s "$out/HallymMIPS-$name.pdf" ] || { echo "no PDF for $name" >&2; exit 1; }
   rm -f "$html"
-  echo "wrote $out/QtSpim-Edu-$name.pdf"
+  echo "wrote $out/HallymMIPS-$name.pdf"
 done

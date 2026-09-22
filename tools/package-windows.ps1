@@ -1,13 +1,13 @@
 <#
 .SYNOPSIS
-  Package a Windows release build of QtSpim-Edu as a self-contained zip.
+  Package a Windows release build of Hallym MIPS Simulator as a self-contained zip.
 
 .DESCRIPTION
-  Collects QtSpimEdu.exe, Qt's assistant.exe (the help browser), everything
+  Collects HallymMIPS.exe, Qt's assistant.exe (the help browser), everything
   windeployqt says they need, the MSVC runtime DLLs, the generated help
   collection and a few documents into
 
-      <OutDir>\QtSpimEdu-<version>-win64\
+      <OutDir>\HallymMIPS-<version>-win64\
 
   and zips that folder.  <version> is read from QtSpim/edu/edu_version.h.
 
@@ -16,8 +16,8 @@
   VCToolsRedistDir environment variable that vcvarsall sets, or -RedistDir.
 
 .PARAMETER BuildDir
-  The qmake shadow-build directory (contains QtSpimEdu.exe or
-  release\QtSpimEdu.exe, and help\qtspim.qch / help\qtspim.qhc).
+  The qmake shadow-build directory (contains HallymMIPS.exe or
+  release\HallymMIPS.exe, and help\HallymMIPS.qch / help\HallymMIPS.qhc).
 .PARAMETER OutDir
   Where the staging folder and the zip are written.  Default: dist
 .PARAMETER QtBinDir
@@ -31,7 +31,7 @@ param(
   [string]$OutDir = "dist",
   [string]$QtBinDir = "",
   [string]$RedistDir = "",
-  # Folder with QtSpim-Edu-GUIDE-ko.pdf / QtSpim-Edu-GUIDE.pdf (made by
+  # Folder with HallymMIPS-GUIDE-ko.pdf / HallymMIPS-GUIDE.pdf (made by
   # tools/make-guide-pdf.sh; CI hands them over from the Linux job).  The
   # guides have pictures, so the PDFs are what goes into the zip; without
   # this the Markdown files are shipped instead.
@@ -49,15 +49,15 @@ if ($header -notmatch '#define EDU_BASE_VERSION "([^"]+)"') { Fail "EDU_BASE_VER
 $baseVersion = $Matches[1]
 if ($header -notmatch '#define EDU_VERSION "([^"]+)"') { Fail "EDU_VERSION not found" }
 $version = $Matches[1]
-$name = "QtSpimEdu-$version-win64"
+$name = "HallymMIPS-$version-win64"
 Write-Host "packaging $name"
 
 # ---- inputs ------------------------------------------------------------
-$exe = @("$BuildDir\QtSpimEdu.exe", "$BuildDir\release\QtSpimEdu.exe") |
+$exe = @("$BuildDir\HallymMIPS.exe", "$BuildDir\release\HallymMIPS.exe") |
        Where-Object { Test-Path $_ } | Select-Object -First 1
-if (-not $exe) { Fail "QtSpimEdu.exe not found under $BuildDir" }
+if (-not $exe) { Fail "HallymMIPS.exe not found under $BuildDir" }
 
-foreach ($f in @("$BuildDir\help\qtspim.qch", "$BuildDir\help\qtspim.qhc")) {
+foreach ($f in @("$BuildDir\help\HallymMIPS.qch", "$BuildDir\help\HallymMIPS.qhc")) {
   if (-not (Test-Path $f)) { Fail "$f missing -- was the help collection built?" }
 }
 
@@ -90,15 +90,15 @@ Copy-Item $assistant $stage
 # Qt libraries and plugins for both executables.  --no-translations keeps
 # the zip small; the program is English only.  The runtime DLLs are copied
 # by hand below, so windeployqt is told not to bother.
-foreach ($target in @("QtSpimEdu.exe", "assistant.exe")) {
+foreach ($target in @("HallymMIPS.exe", "assistant.exe")) {
   & $windeployqt --release --no-translations --no-compiler-runtime `
       --dir $stage (Join-Path $stage $target)
   if ($LASTEXITCODE -ne 0) { Fail "windeployqt failed for $target" }
 }
 
 Copy-Item (Join-Path $RedistDir "*.dll") $stage
-Copy-Item "$BuildDir\help\qtspim.qch" (Join-Path $stage "help")
-Copy-Item "$BuildDir\help\qtspim.qhc" (Join-Path $stage "help")
+Copy-Item "$BuildDir\help\HallymMIPS.qch" (Join-Path $stage "help")
+Copy-Item "$BuildDir\help\HallymMIPS.qhc" (Join-Path $stage "help")
 
 Copy-Item (Join-Path $repo "helloworld.s") $stage
 Copy-Item (Join-Path $repo "README") (Join-Path $stage "README-SPIM.txt")
@@ -106,7 +106,7 @@ Copy-Item (Join-Path $repo "Setup\QtSpim_License.rtf") (Join-Path $stage "QtSpim
 
 # The student guide, Korean and English.
 if ($GuideDir) {
-  $guides = @("QtSpim-Edu-GUIDE-ko.pdf", "QtSpim-Edu-GUIDE.pdf")
+  $guides = @("HallymMIPS-GUIDE-ko.pdf", "HallymMIPS-GUIDE.pdf")
   foreach ($guide in $guides) {
     $pdf = Join-Path $GuideDir $guide
     if (-not (Test-Path $pdf)) { Fail "$pdf missing" }
@@ -126,16 +126,16 @@ $readme = Get-Content (Join-Path $repo "tools\windows-zip-README.txt") -Raw
 $readme = $readme.Replace("@VERSION@", $version).Replace("@BASE_VERSION@", $baseVersion)
 $readme = $readme.Replace("@GUIDE_KO@", $guides[0]).Replace("@GUIDE_EN@", $guides[1])
 # UTF-8 with BOM so Notepad shows the Korean half correctly.
-[System.IO.File]::WriteAllText((Join-Path $stage "README-QtSpim-Edu.txt"), $readme,
+[System.IO.File]::WriteAllText((Join-Path $stage "README-HallymMIPS.txt"), $readme,
                                 (New-Object System.Text.UTF8Encoding $true))
 
 # ---- sanity checks on the result ----------------------------------------
-$required = @("QtSpimEdu.exe", "assistant.exe", "Qt5Core.dll", "Qt5Gui.dll",
+$required = @("HallymMIPS.exe", "assistant.exe", "Qt5Core.dll", "Qt5Gui.dll",
               "Qt5Widgets.dll", "Qt5PrintSupport.dll", "Qt5Help.dll", "Qt5Sql.dll",
               "platforms\qwindows.dll", "sqldrivers\qsqlite.dll",
               "msvcp140.dll", "vcruntime140.dll",
-              "help\qtspim.qch", "help\qtspim.qhc", "helloworld.s",
-              "README-QtSpim-Edu.txt") + $guides
+              "help\HallymMIPS.qch", "help\HallymMIPS.qhc", "helloworld.s",
+              "README-HallymMIPS.txt") + $guides
 $missing = $required | Where-Object { -not (Test-Path (Join-Path $stage $_)) }
 if ($missing) { Fail ("zip would be incomplete, missing: " + ($missing -join ", ")) }
 

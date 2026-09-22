@@ -1,4 +1,4 @@
-# QtSpim-Edu unit tests.
+# Hallym MIPS Simulator (QtSpim-Edu) unit tests.
 #
 # Build out of tree, like the application:
 #

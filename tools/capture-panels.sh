@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Capture every panel of a QtSpim-Edu development build into PNGs.
+# Capture every panel of a Hallym MIPS Simulator development build into PNGs.
 #
 #   tools/capture-panels.sh [-b BUILD_DIR] [-f FILE.s] [-n STEPS] [-o OUT_DIR]
 #
@@ -35,7 +35,7 @@ while getopts ":b:f:n:o:h" opt; do
   esac
 done
 
-app="$build/QtSpimEdu"
+app="$build/HallymMIPS"
 if [ ! -x "$app" ]; then
   echo "no executable at $app -- build first (see -h)" >&2
   exit 1
@@ -51,7 +51,7 @@ if [ "$(strings "$app" | grep -c -F -- '--capture' || true)" -eq 0 ]; then
 fi
 
 if [ -z "$out" ]; then
-  out=$(mktemp -d -t qtspim-edu-shots-XXXXXX)
+  out=$(mktemp -d -t hallym-mips-shots-XXXXXX)
 fi
 mkdir -p "$out"
 

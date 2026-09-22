@@ -21,7 +21,7 @@
 #      files (from the working tree) so that no path text can differ; check
 #      1 is what makes that legitimate.
 #
-#   3. If build/QtSpimEdu was built with CONFIG+=edu_devtools, each test
+#   3. If build/HallymMIPS was built with CONFIG+=edu_devtools, each test
 #      program is also run through our GUI binary and its console pane is
 #      compared with what the upstream spim printed.  This is the only check
 #      that exercises the program we actually ship.
@@ -65,7 +65,7 @@ while getopts ":t:w:b:j:kh" opt; do
   esac
 done
 
-scratch=$(mktemp -d -t qtspim-edu-regress-XXXXXX)
+scratch=$(mktemp -d -t hallym-mips-regress-XXXXXX)
 if [ -z "$worktree" ]; then
   worktree="$scratch/vanilla"
 fi
@@ -209,7 +209,7 @@ done
 
 note
 note "== 3. our GUI binary vs $tag terminal spim (console output)"
-app="$build/QtSpimEdu"
+app="$build/HallymMIPS"
 if [ ! -x "$app" ]; then
   note "SKIP  no executable at $app"
 elif [ "$(strings "$app" | grep -c -F -- '--dump' || true)" -eq 0 ]; then

@@ -42,13 +42,13 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-app="$build/QtSpimEdu"
+app="$build/HallymMIPS"
 if [ ! -x "$app" ] || [ "$(strings "$app" | grep -c -F -- '--load-cmdline' || true)" -eq 0 ]; then
   echo "$app is missing or was not built with CONFIG+=edu_devtools" >&2
   exit 1
 fi
 
-work=$(mktemp -d -t qtspim-edu-menuload-XXXXXX)
+work=$(mktemp -d -t hallym-mips-menuload-XXXXXX)
 file="$repo/helloworld.s"
 failures=0
 pass() { printf 'PASS  %s\n' "$*"; }
@@ -95,7 +95,7 @@ else
   grep '^dialog:' "$work/load2.out" | head -5
 fi
 
-# QtSpim-Edu asks before loading on top of a loaded program (PLAN decision
+# Hallym MIPS Simulator (as QtSpim-Edu did) asks before loading on top of a loaded program (PLAN decision
 # "Load File 확인"); the three answers are the cases load2 (the harness's
 # default answer, "Add to current program"), load2reinit and load2cancel.
 questions() { grep -c '^load question:' "$work/$1.out" || true; }
@@ -128,11 +128,12 @@ if [ "$compare" -eq 1 ]; then
 
   probe() {  # probe REV STEPS BARE -> prints the DIALOG lines
     local rev=$1 steps=$2 bare=$3
-    local bin="$work/build-$rev/QtSpimEdu"
+    local bin="$work/build-$rev/HallymMIPS"
+    [ -x "$bin" ] || bin="$work/build-$rev/QtSpimEdu"
     [ -x "$bin" ] || bin="$work/build-$rev/QtSpim"
     rm -rf "$work/pconfig"
     if [ "$bare" = bare ]; then   # what Settings > Bare Machine saves
-      for dir in LarusStone/QtSpim.conf QtSpim-Edu/QtSpimEdu.conf; do
+      for dir in LarusStone/QtSpim.conf QtSpim-Edu/QtSpimEdu.conf HallymMIPS/HallymMIPS.conf; do
         mkdir -p "$work/pconfig/$(dirname $dir)"
         printf '[Spim]\nBareMachine=true\n' >"$work/pconfig/$dir"
       done

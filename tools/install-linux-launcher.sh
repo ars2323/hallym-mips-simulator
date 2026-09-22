@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 #
 # Build the release configuration into build-release/ and add (or refresh) a
-# "QtSpim-Edu" entry in the desktop's application menu for the current user.
+# "Hallym MIPS Simulator" entry in the desktop's application menu for the current user.
 #
 #   tools/install-linux-launcher.sh            build + install the menu entry
 #   tools/install-linux-launcher.sh --remove   remove the menu entry
 #
-# The entry points at this checkout's build-release/QtSpimEdu, so re-run the
+# The entry points at this checkout's build-release/HallymMIPS, so re-run the
 # script after pulling or changing code to rebuild what the menu starts.
 # Nothing is installed system-wide and nothing in the source tree changes
 # (build-release/ is git-ignored).
@@ -15,7 +15,7 @@ set -euo pipefail
 
 repo=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 apps="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
-desktop="$apps/qtspim-edu.desktop"
+desktop="$apps/hallym-mips-simulator.desktop"
 
 if [ "${1:-}" = "--remove" ]; then
   rm -f "$desktop"
@@ -33,17 +33,17 @@ mkdir -p "$apps"
 cat >"$desktop" <<EOF
 [Desktop Entry]
 Type=Application
-Name=QtSpim-Edu
+Name=Hallym MIPS Simulator
 GenericName=MIPS Simulator
-Comment=Educational fork of the QtSpim MIPS32 simulator
-Exec="$build/QtSpimEdu" %F
+Comment=MIPS32 simulator for Hallym University courses
+Exec="$build/HallymMIPS" %F
 Icon=$repo/Setup/NewIcon256x256.png
 Terminal=false
 Categories=Education;
-StartupWMClass=QtSpimEdu
+StartupWMClass=HallymMIPS
 EOF
 chmod 644 "$desktop"
 command -v update-desktop-database >/dev/null && update-desktop-database "$apps" || true
 
-echo "built    $build/QtSpimEdu"
+echo "built    $build/HallymMIPS"
 echo "launcher $desktop"

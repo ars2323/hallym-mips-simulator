@@ -1,13 +1,13 @@
 <#
 .SYNOPSIS
-  Builds the QtSpim-Edu MSI from the folder tools/package-windows.ps1 staged.
+  Builds the Hallym MIPS Simulator MSI from the folder tools/package-windows.ps1 staged.
 
 .DESCRIPTION
-  dist\QtSpimEdu-<version>-win64\  ->  dist\QtSpimEdu-<version>-win64.msi
+  dist\HallymMIPS-<version>-win64\  ->  dist\HallymMIPS-<version>-win64.msi
 
   WiX Toolset v3 (heat, candle, light) has to be installed; the WIX
   environment variable points at it on GitHub's Windows runners.
-  See Setup\QtSpimEdu_Win_Deployment\README.md.
+  See Setup\HallymMIPS_Win_Deployment\README.md.
 #>
 param(
   [string]$OutDir = "dist"
@@ -20,9 +20,9 @@ function Fail([string]$message) { Write-Error $message; exit 1 }
 $header = Get-Content (Join-Path $repo "QtSpim\edu\edu_version.h") -Raw
 if ($header -notmatch '#define EDU_VERSION "([0-9]+\.[0-9]+\.[0-9]+)"') { Fail "EDU_VERSION (MAJOR.MINOR.PATCH) not found" }
 $version = $Matches[1]
-$name = "QtSpimEdu-$version-win64"
+$name = "HallymMIPS-$version-win64"
 $stage = Join-Path $OutDir $name
-if (-not (Test-Path (Join-Path $stage "QtSpimEdu.exe"))) { Fail "$stage is not staged; run tools/package-windows.ps1 first" }
+if (-not (Test-Path (Join-Path $stage "HallymMIPS.exe"))) { Fail "$stage is not staged; run tools/package-windows.ps1 first" }
 $stage = (Resolve-Path $stage).Path
 
 $wixBin = $null
@@ -37,12 +37,12 @@ $work = Join-Path $OutDir "msi-build"
 if (Test-Path $work) { Remove-Item -Recurse -Force $work }
 New-Item -ItemType Directory -Force -Path $work | Out-Null
 
-$guide = @("QtSpim-Edu-GUIDE-ko.pdf", "GUIDE-ko.md") |
+$guide = @("HallymMIPS-GUIDE-ko.pdf", "GUIDE-ko.md") |
          Where-Object { Test-Path (Join-Path $stage $_) } | Select-Object -First 1
 if (-not $guide) { Fail "no guide in $stage" }
 
-$wxs = Join-Path $repo "Setup\QtSpimEdu_Win_Deployment\WiX\QtSpimEdu.wxs"
-$icon = Join-Path $repo "Setup\NewIcon.ico"
+$wxs = Join-Path $repo "Setup\HallymMIPS_Win_Deployment\WiX\HallymMIPS.wxs"
+$icon = Join-Path $repo "QtSpim\edu\theme\brand\HallymMIPS.ico"
 $license = Join-Path $repo "Setup\QtSpim_License.rtf"
 
 # Every file of the staged folder, as one component group.
@@ -58,7 +58,7 @@ if ($LASTEXITCODE -ne 0) { Fail "candle failed" }
 
 $msi = Join-Path $OutDir "$name.msi"
 & (Join-Path $wixBin "light.exe") -nologo -ext WixUIExtension -cultures:en-us `
-    -out $msi (Join-Path $work "QtSpimEdu.wixobj") (Join-Path $work "files.wixobj")
+    -out $msi (Join-Path $work "HallymMIPS.wixobj") (Join-Path $work "files.wixobj")
 if ($LASTEXITCODE -ne 0) { Fail "light failed" }
 
 Write-Host ("wrote {0} ({1:N1} MB)" -f $msi, ((Get-Item $msi).Length / 1MB))

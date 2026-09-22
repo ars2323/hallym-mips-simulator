@@ -11,7 +11,7 @@
 #
 # The QSS is docs/design/mockups/common.qss.in with the @name@ placeholders
 # replaced from the tokens file.  The panel fonts (D2Coding) are settings, so
-# a private XDG_CONFIG_HOME with a prepared QtSpimEdu.conf is used (-c);
+# a private XDG_CONFIG_HOME with a prepared HallymMIPS.conf is used (-c);
 # without -c one is made with D2Coding 10pt and the teal changed-value colour.
 # Needs a CONFIG+=edu_devtools build and the bundled fonts under
 # QtSpim/edu/theme/fonts.
@@ -42,7 +42,7 @@ while getopts ":b:t:o:c:h" opt; do
 done
 [ -n "$tokens" ] && [ -n "$out" ] || { echo "need -t TOKENS -o OUT_DIR" >&2; exit 2; }
 
-app="$build/QtSpimEdu"
+app="$build/HallymMIPS"
 [ -x "$app" ] || { echo "no executable at $app" >&2; exit 1; }
 mkdir -p "$out"
 
@@ -64,8 +64,8 @@ python3 "$repo/tools/make-theme-icons.py" "$icons" > /dev/null
 # Panel font and changed-value colour are settings.
 if [ -z "$config" ]; then
   config="$out/config"
-  mkdir -p "$config/QtSpim-Edu"
-  cat > "$config/QtSpim-Edu/QtSpimEdu.conf" <<'CONF'
+  mkdir -p "$config/HallymMIPS"
+  cat > "$config/HallymMIPS/HallymMIPS.conf" <<'CONF'
 [RegWin]
 Font="D2Coding,10,-1,5,50,0,0,0,1,0"
 ChangedRegColor=#00736F

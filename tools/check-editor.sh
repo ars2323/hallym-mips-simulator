@@ -31,13 +31,13 @@ while getopts ":b:h" opt; do
   esac
 done
 
-app="$build/QtSpimEdu"
+app="$build/HallymMIPS"
 if [ ! -x "$app" ] || [ "$(strings "$app" | grep -c -F -- '--editor-open' || true)" -eq 0 ]; then
   echo "$app is missing or was not built with CONFIG+=edu_devtools" >&2
   exit 1
 fi
 
-work=$(mktemp -d -t qtspim-edu-editor-XXXXXX)
+work=$(mktemp -d -t hallym-mips-editor-XXXXXX)
 failures=0
 pass() { printf 'PASS  %s\n' "$*"; }
 fail() { printf 'FAIL  %s\n' "$*"; failures=$((failures + 1)); }
