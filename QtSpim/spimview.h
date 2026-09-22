@@ -38,6 +38,7 @@
 #include <QPrinter>
 #include <QSettings>
 #include <QList>
+#include <QByteArray>
 #include <QString>
 #include <QStringList>
 
@@ -108,6 +109,8 @@ class SpimView : public QMainWindow {
   EduRegisterModel* eduRegisterModel;
   EduInspector* eduInspector;
   EduTutorial* eduTutorial;  // EDU: the first-run tour (edu/edu_tutorial.h)
+  bool eduLayoutSettled;     // EDU: start-up is over; dock moves are the user's
+  bool eduTourOnStart;       // EDU: false in the scripted capture mode
   void eduSetupPanels();
   void eduTileInspector();
   void eduInspectorSizing(bool byUser);  // false: follow the content again
@@ -134,6 +137,9 @@ class SpimView : public QMainWindow {
   QMenu* eduEditorRecentMenu;                    // Editor > Open Recent
   QList<QPushButton*> eduStaleBanners;           // "Source changed" strips
   QString eduSyncedPath;                         // file the simulator last took
+  QByteArray eduSyncedDigest;                    // the editor text it took
+  bool eduEverAssembled;                         // anything assembled yet?
+  bool eduExtraProgram;                          // something else was added on top
   void eduUpdateStaleBanner();
   void eduRebuildEditorRecentMenu();
   void eduBeginRunCommand();       // a Step/Run/Continue is about to start
@@ -142,6 +148,9 @@ class SpimView : public QMainWindow {
   void eduSetupHelpMenu();                      // User Guide, MIPS Reference
   void eduElideDockTabs();                      // long tab titles get an ellipsis
   void eduUpdateWindowTitle();                  // "file.s -- Hallym MIPS Simulator"
+  QByteArray eduEditorDigest() const;           // the editor text, hashed
+  void eduRestoreEditorZoom();                  // the saved editor text size
+  bool eduLoadTutorialSample();                 // samples/tutorial.s, for the tour
   void eduRefreshRegisterPanel();
 
   // EDU: Text panel (edu/edu_text_model.h, edu/edu_text_view.h).
@@ -375,6 +384,9 @@ class SpimView : public QMainWindow {
   void eduShowUserGuide();       // EDU: Help > User Guide ("?" in the tool bar)
   void eduRevealWindows();       // EDU: after the splash closes
   void eduShowTutorial();        // EDU: Help > Tutorial
+  void eduDockMoved();           // EDU: a dock was dragged somewhere new
+  void eduEqualiseDocks();       // EDU: after a drag, share the room evenly
+  void eduEditorFontSizeChanged(int points);  // EDU: remember the zoom
   void help_AboutSPIM();
 
   void continueBreakpoint();

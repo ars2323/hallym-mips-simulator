@@ -69,6 +69,7 @@ SOURCES += main.cpp\
         edu/core/edu_mips_syntax.cpp\
         edu/core/edu_asm_errors.cpp\
         edu/core/edu_text_file.cpp\
+        edu/core/edu_tutorial_layout.cpp\
         edu/edu_code_editor.cpp\
         edu/edu_editor_dock.cpp\
         edu/edu_editor_glue.cpp\
@@ -119,6 +120,7 @@ HEADERS  += spimview.h\
         edu/core/edu_mips_syntax.h\
         edu/core/edu_asm_errors.h\
         edu/core/edu_text_file.h\
+        edu/core/edu_tutorial_layout.h\
         edu/edu_code_editor.h\
         edu/edu_editor_dock.h\
         edu/edu_register_model.h\
@@ -156,7 +158,7 @@ RESOURCES = exception.qrc edu/theme/theme.qrc  # EDU: windows_images.qrc (upstre
 CONFIG += resources_big
 
 win32:RC_FILE = edu/theme/brand/HallymMIPS.rc  # EDU: was qtspim.rc
-win32:LIBS += -lshell32                       # EDU: AppUserModelID (main.cpp)
+win32:LIBS += -lshell32 -ldwmapi              # EDU: AppUserModelID, title bar
 
 
 # EDU: development-only build option.

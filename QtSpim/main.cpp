@@ -82,17 +82,18 @@ int main(int argc, char* argv[]) {
   // locale codec, and QCoreApplication::arguments() decodes with it anew on
   // every call.
   const QStringList rawArguments = a.arguments();
-  edu::theme::EduSplash* splash = 0;
 #ifdef EDU_DEVTOOLS
-  if (!EduDevtools::wantsCaptureMode(rawArguments)) {
-    splash = edu::theme::showSplash();
-  }
+  const bool scripted = EduDevtools::wantsCaptureMode(rawArguments);
 #else
-  splash = edu::theme::showSplash();
+  const bool scripted = false;
 #endif
+  edu::theme::EduSplash* splash = scripted ? 0 : edu::theme::showSplash();
 
   SpimView win;
   Window = &win;
+  // EDU: a scripted run never opens the tour by itself -- it would load the
+  // sample over whatever the script is doing.  --tutorial-step still does.
+  win.eduTourOnStart = !scripted;
 
   // Initialize Spim
   //

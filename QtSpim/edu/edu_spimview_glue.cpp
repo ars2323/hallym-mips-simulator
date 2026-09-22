@@ -28,6 +28,7 @@
 #include "edu/edu_data_view.h"
 #include "edu/edu_editor_dock.h"
 #include "edu/edu_inspector.h"
+#include "edu/edu_path_check.h"
 #include "edu/edu_tutorial.h"
 #include "edu/edu_loader.h"
 #include "edu/edu_register_model.h"
@@ -49,6 +50,10 @@ void SpimView::eduSetupPanels() {
   eduEditor = 0;  // until eduSetupEditor() at the end of this function
   eduLogAction = 0;
   eduTutorial = 0;  // built on the first run of the tour
+  eduLayoutSettled = false;  // until the saved layout has been restored
+  eduTourOnStart = true;     // main.cpp turns this off for a scripted run
+  eduEverAssembled = false;  // nothing has been assembled this session yet
+  eduExtraProgram = false;   // nothing has been added on top of it
   eduRegisterModel = new EduRegisterModel(this);
   ui->IntRegView->setRegisterModel(eduRegisterModel);
 
@@ -129,6 +134,56 @@ void SpimView::eduSetupPanels() {
 
   eduSetupEditor();
 
+  // Every tool bar button says what it is and what its shortcut is, in both
+  // languages (docs/ARCHITECTURE.md 12, 71).
+  struct {
+    QAction* action;
+    const char* tip;
+  } const tips[] = {
+      {ui->action_File_Load,
+       "Open a program and load it into the simulator (Ctrl+O)\n"
+       "프로그램을 열어 시뮬레이터에 올립니다 (Ctrl+O)"},
+      {ui->action_File_Reload,
+       "Reinitialize the simulator and load the same file again\n"
+       "시뮬레이터를 초기화하고 같은 파일을 다시 올립니다"},
+      {ui->action_File_SaveLog,
+       "Write the registers, the text and the data windows to a text file\n"
+       "레지스터·Text·Data 창의 내용을 텍스트 파일로 저장합니다"},
+      {ui->action_File_Print, "Print those same windows\n같은 창들을 인쇄합니다"},
+      {ui->action_Sim_ClearRegisters,
+       "Set every register to zero, leaving memory as it is\n"
+       "메모리는 그대로 두고 레지스터를 모두 0으로 만듭니다"},
+      {ui->action_Sim_Reinitialize,
+       "Clear the registers and the memory: start over\n"
+       "레지스터와 메모리를 비웁니다. 처음부터 다시"},
+      {ui->action_Sim_Run,
+       "Run the program to its end or to the next breakpoint (F5)\n"
+       "프로그램을 끝까지, 또는 다음 브레이크포인트까지 실행 (F5)"},
+      {ui->action_Sim_Pause, "Pause a running program\n실행 중인 프로그램을 멈춥니다"},
+      {ui->action_Sim_Stop,
+       "Stop the program where it is\n프로그램을 그 자리에서 중지합니다"},
+      {ui->action_Sim_SingleStep,
+       "Run one instruction and stop (F10)\n한 명령만 실행하고 멈춥니다 (F10)"},
+      {ui->action_Sim_Settings,
+       "Fonts, colours and how the simulator assembles and runs\n"
+       "글꼴·색과 어셈블·실행 방식 설정"},
+      {ui->action_Help_ViewHelp,
+       "The written guide for this program\n이 프로그램의 사용 안내문"},
+  };
+  for (unsigned i = 0; i < sizeof(tips) / sizeof(tips[0]); i += 1) {
+    if (tips[i].action != 0) {
+      tips[i].action->setToolTip(QString::fromUtf8(tips[i].tip));
+    }
+  }
+
+  eduModeBadge->setToolTip(QString::fromUtf8(
+      "A setting that changes how files are assembled or run is on; see "
+      "Simulator > Settings\n어셈블·실행 방식을 바꾸는 설정이 켜져 있습니다. "
+      "Simulator > Settings에서 끌 수 있습니다"));
+  version->setToolTip(QString::fromUtf8(
+      "The version of this program; Help > About has the rest\n"
+      "이 프로그램의 버전. 자세한 것은 Help > About"));
+
   // Tool bar and menu icons: Lucide, coloured from the tokens (tokens.md 5).
   struct {
     QAction* action;
@@ -203,7 +258,15 @@ void SpimView::eduRevealWindows() {
   raise();
   activateWindow();
   eduElideDockTabs();
-  if (!settings.value("Tutorial/Shown", false).toBool()) {
+  edu::theme::applyWindowChrome(this);  // a light title bar on Windows
+  eduRestoreEditorZoom();               // the text size the student left
+  // From here on, a dock that moves was moved by the user.
+  eduLayoutSettled = true;
+  // The tour is for a person sitting in front of the program.  A scripted
+  // run must not have it start by itself: it would load the sample over
+  // whatever the script is testing (tools/check-editor.sh caught exactly
+  // that).  --tutorial-step still opens it on purpose.
+  if (eduTourOnStart && !settings.value("Tutorial/Shown", false).toBool()) {
     QTimer::singleShot(250, this, SLOT(eduShowTutorial()));
   }
 }
@@ -213,7 +276,45 @@ void SpimView::eduShowTutorial() {
     eduTutorial = new EduTutorial(this);
   }
   settings.setValue("Tutorial/Shown", true);
+  // With nothing loaded there is no changed register, no type badge, no
+  // label and no stack marker to point at, which is most of the tour.  On a
+  // first run the sample is opened and stepped into; a program the student
+  // already has open is never touched.
+  if (!eduProgramLoaded) {
+    eduLoadTutorialSample();
+  }
+  eduTutorial->setProgramLoaded(eduProgramLoaded);
   eduTutorial->start();
+}
+
+// samples/tutorial.s, which ships next to the program.  Returns false when
+// it is not there; the tour then leaves out the steps that need it.
+bool SpimView::eduLoadTutorialSample() {
+  const QString appDir = QCoreApplication::applicationDirPath();
+  const char* const places[] = {"/samples/tutorial.s", "/tutorial.s",
+                                "/../samples/tutorial.s",
+                                "/../../samples/tutorial.s"};
+  QString path;
+  for (unsigned i = 0; i < sizeof(places) / sizeof(places[0]); i += 1) {
+    const QFileInfo candidate(appDir + QString(places[i]));
+    if (candidate.exists()) {
+      path = candidate.absoluteFilePath();
+      break;
+    }
+  }
+  if (path.isEmpty() || !edu::confirmPathLoadable(this, path)) {
+    return false;
+  }
+  eduLoadAssemblyFile(path);
+  eduEditorFileLoaded(path);
+  DisplayTextSegments(true);
+  UpdateDataDisplay();
+  // Far enough into the loop that registers have changed and the data panel
+  // has something in it, but before the program ends.
+  for (int i = 0; i < 12 && statusBar()->currentMessage() != "Stopped"; i += 1) {
+    sim_SingleStep();
+  }
+  return eduProgramLoaded;
 }
 
 // The title bar names the file the editor has open, as editors do:
@@ -226,6 +327,55 @@ void SpimView::eduUpdateWindowTitle() {
   setWindowTitle(name.isEmpty()
                      ? QString(EDU_APP_NAME)
                      : name + QString::fromUtf8(" \xe2\x80\x94 ") + EDU_APP_NAME);
+}
+
+// Dragging a dock to a new place in the same row leaves Qt's idea of the
+// split, which is whatever the drop indicator happened to show -- often a
+// narrow strip at the edge.  Anything the user does afterwards with the
+// splitter itself is left alone; this runs only when a dock lands somewhere
+// new, and only once.
+void SpimView::eduDockMoved() {
+  if (eduLayoutSettled) {
+    QTimer::singleShot(0, this, SLOT(eduEqualiseDocks()));
+  }
+}
+
+void SpimView::eduEqualiseDocks() {
+  QDockWidget* const candidates[] = {eduEditor, ui->TextSegDockWidget,
+                                     ui->DataSegDockWidget};
+  QList<QDockWidget*> open;
+  for (unsigned i = 0; i < sizeof(candidates) / sizeof(candidates[0]); i += 1) {
+    QDockWidget* dock = candidates[i];
+    // A dock that is behind another tab is parked off the window; it shares
+    // its neighbour's rectangle and has nothing of its own to even out.
+    if (dock != 0 && dock->isVisible() && !dock->isFloating() &&
+        rect().contains(dock->geometry().center())) {
+      open << dock;
+    }
+  }
+  if (open.size() < 2) {
+    return;
+  }
+
+  // Side by side or stacked?  Compare where they sit, not how big they are.
+  bool sideBySide = true;
+  bool stacked = true;
+  for (int i = 0; i < open.size(); i += 1) {
+    for (int j = i + 1; j < open.size(); j += 1) {
+      const QRect a = open.at(i)->geometry();
+      const QRect b = open.at(j)->geometry();
+      sideBySide = sideBySide && a.center().x() != b.center().x();
+      stacked = stacked && a.center().y() != b.center().y();
+    }
+  }
+  if (!sideBySide && !stacked) {
+    return;
+  }
+  QList<int> sizes;
+  for (int i = 0; i < open.size(); i += 1) {
+    sizes << 1000;  // equal values: Qt shares the room out in proportion
+  }
+  resizeDocks(open, sizes, sideBySide ? Qt::Horizontal : Qt::Vertical);
 }
 
 // A dock tab whose title does not fit is cut off in the middle of a word;
@@ -313,6 +463,12 @@ void SpimView::eduInspectorSizing(bool byUser) {
 // so it is unlocked on the press; if the release finds its height changed,
 // the user has sized it, otherwise it is locked again.
 bool SpimView::eventFilter(QObject* watched, QEvent* event) {
+  // The system switched between its light and dark theme: say again what
+  // this window's title bar should look like.
+  if (watched == this && (event->type() == QEvent::ThemeChange ||
+                          event->type() == QEvent::ApplicationPaletteChange)) {
+    edu::theme::applyWindowChrome(this);
+  }
   if (watched == this && !eduInspectorUserSized && !eduInspector->isFloating()) {
     if (event->type() == QEvent::MouseButtonPress) {
       QMouseEvent* mouse = static_cast<QMouseEvent*>(event);
@@ -492,6 +648,8 @@ void SpimView::eduForgetLoadedLabels() {
   // Reinitialize: whatever the editor shows is no longer in the simulator.
   // (An Assemble comes through here too and sets this again when it is done.)
   eduSyncedPath.clear();
+  eduSyncedDigest.clear();
+  eduExtraProgram = false;
   if (eduEditor != 0) {
     eduUpdateStaleBanner();
   }
@@ -530,7 +688,13 @@ bool SpimView::eduConfirmLoadOnTop() {
     sim_ReinitializeSimulator();
     return true;
   }
-  return box.clickedButton() == add;
+  if (box.clickedButton() == add) {
+    // What the simulator holds is now more than the editor's file, which is
+    // what the strip over the Text panel will say (eduUpdateStaleBanner).
+    eduExtraProgram = true;
+    return true;
+  }
+  return false;
 }
 
 // Labels by address for the Data panel (ARCHITECTURE 15.2).  Three sources:

@@ -19,6 +19,7 @@
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QMouseEvent>
+#include <QPainter>
 #include <QPixmap>
 #include <QStatusBar>
 #include <QTextDocument>
@@ -84,6 +85,7 @@ EduDevtools::EduDevtools(QObject* parent)
       redisplay_(false),
       steps_(0),
       tutorialStep_(0),
+      tutorialReport_(false),
       window_(0),
       dialogTimer_(0),
       dismissedDialogs_(0),
@@ -118,7 +120,11 @@ QString EduDevtools::usage() {
       "  --set-memory <hexaddr>=<hexvalue>  write a word as Change Memory\n"
       "                         Contents does\n"
       "  --editor-open <file>   open a file in the editor (no dialog)\n"
-      "  --editor-key <ctrl+s|f3>  a real key press in the editor (shortcut path)\n"
+      "  --editor-load <file>   File > Load File, in editor-step order (so it\n"
+      "                         can follow an --assemble)\n"
+      "  --editor-key <key>     a real key press in the editor, on the route\n"
+      "                         shortcuts are looked up: ctrl+s, f3, ctrl+=,\n"
+      "                         ctrl++, ctrl+-, ctrl+0\n"
       "  --editor-click-banner  click the \"Source changed\" strip on the Text panel\n"
       "  --editor-report        print the editor's file, modified flag, whether the\n"
       "                         strip shows, which tab is in front, the status text\n"
@@ -152,6 +158,12 @@ QString EduDevtools::usage() {
       "  --local-codec <name>   pretend the system text encoding is <name>\n"
       "  --dialog-shots <dir>   save a PNG of every dialog answered\n"
       "  --tutorial-step <n>    open the first-run tour at step n (1-based)\n"
+      "  --dock-drop <h|v>      drop the editor beside (h) or under (v) the\n"
+      "                         text panel, as a drag does, and report the two\n"
+      "                         sizes: they should come out equal\n"
+      "  --tutorial-report      walk every step of the tour and print each\n"
+      "                         card's rectangle and whether it is inside the\n"
+      "                         window (the check for docs/ARCHITECTURE 12, 70)\n"
       "                         before capturing; it never starts by itself\n"
       "                         in this mode\n"
       "  --qss <file>           use this application style sheet (theme mock-ups)\n"
@@ -377,6 +389,17 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
       continue;
     }
 
+    if (arg == "--editor-load") {  // File > Load File, in editor-step order
+      if (i + 1 >= args.size()) {
+        err() << arg << " needs a file\n" << usage() << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      editorSteps_ << QString("load=") + args.at(i + 1);
+      i += 1;
+      continue;
+    }
+
     if (arg == "--editor-open" || arg == "--editor-type" ||
         arg == "--editor-goto-line" || arg == "--editor-key" ||
         arg == "--editor-trigger" ||
@@ -447,6 +470,22 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
       }
       selectRegister_ = args.at(i + 1);
       i += 1;
+      continue;
+    }
+
+    if (arg == "--dock-drop") {
+      if (i + 1 >= args.size()) {
+        err() << arg << " needs h or v\n" << usage() << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      dockDrop_ = args.at(i + 1);
+      i += 1;
+      continue;
+    }
+
+    if (arg == "--tutorial-report") {
+      tutorialReport_ = true;
       continue;
     }
 
@@ -601,7 +640,16 @@ QWidget* EduDevtools::panelWidget(const QString& name) const {
 }
 
 bool EduDevtools::grabToFile(QWidget* widget, const QString& path) {
-  const QPixmap pixmap = widget->grab();
+  QPixmap pixmap = widget->grab();
+  // The tour is a window of its own (edu/edu_tutorial.h), so a grab of the
+  // main window does not contain it.  For a screenshot of the whole window
+  // the two are put back together, which is what the person sees.
+  if (widget == window_ && window_->eduTutorial != 0 &&
+      window_->eduTutorial->isVisible()) {
+    QPixmap overlay = window_->eduTutorial->grab();
+    QPainter painter(&pixmap);
+    painter.drawPixmap(0, 0, overlay);
+  }
   if (pixmap.isNull()) {
     err() << "nothing to grab for " << path << "\n" << Qt::flush;
     return false;
@@ -920,6 +968,15 @@ void EduDevtools::run() {
         err() << "editor could not open " << value << "\n" << Qt::flush;
         status_ = 2;
       }
+    } else if (step == "load") {  // File > Load File, where the order matters
+      pendingMenuFile_ = QFileInfo(value).absoluteFilePath();
+      window_->ui->action_File_Load->trigger();
+      if (!pendingMenuFile_.isEmpty()) {
+        err() << "the file dialog never came up\n" << Qt::flush;
+        pendingMenuFile_.clear();
+        status_ = 2;
+      }
+      settle();
     } else if (step == "trigger") {  // an action, in step order
       QAction* action = window_->findChild<QAction*>(value);
       if (action == 0) {
@@ -957,17 +1014,39 @@ void EduDevtools::run() {
       // which is the only route on which shortcuts are looked up.
       window_->activateWindow();
       QApplication::setActiveWindow(window_);
-      dock->editor()->setFocus();
+      // "text:ctrl+=" sends the key with the Text panel focused instead, to
+      // show that the editor's own shortcuts do not reach across panels.
+      QString what = value.toLower();
+      if (what.startsWith("text:")) {
+        what = what.mid(5);
+        window_->ui->TextSegDockWidget->raise();
+        window_->ui->TextSegView->setFocus();
+      } else {
+        dock->editor()->setFocus();
+      }
       settle();
-      const bool save = value.toLower() == "ctrl+s";
-      const int key = save ? Qt::Key_S : Qt::Key_F3;
-      const Qt::KeyboardModifiers mods = save ? Qt::ControlModifier : Qt::NoModifier;
+      int key = Qt::Key_F3;
+      Qt::KeyboardModifiers mods = Qt::NoModifier;
+      if (what == "ctrl+s") {
+        key = Qt::Key_S;
+        mods = Qt::ControlModifier;
+      } else if (what == "ctrl+=" || what == "ctrl++") {
+        key = (what == "ctrl+=") ? Qt::Key_Equal : Qt::Key_Plus;
+        mods = Qt::ControlModifier;
+      } else if (what == "ctrl+-") {
+        key = Qt::Key_Minus;
+        mods = Qt::ControlModifier;
+      } else if (what == "ctrl+0") {
+        key = Qt::Key_0;
+        mods = Qt::ControlModifier;
+      }
       qt_handleKeyEvent(window_->windowHandle(), QEvent::KeyPress, key, mods,
                         QString(), false, 1);
       qt_handleKeyEvent(window_->windowHandle(), QEvent::KeyRelease, key, mods,
                         QString(), false, 1);
       settle();
-      out() << "key " << value << ": " << dock->errorCount() << " error(s)\n"
+      out() << "key " << value << ": " << dock->errorCount()
+            << " error(s), editor " << dock->editor()->pointSize() << "pt\n"
             << Qt::flush;
     } else if (step == "click-banner") {
       QAbstractButton* banner =
@@ -997,7 +1076,12 @@ void EduDevtools::run() {
             << " status=\"" << window_->statusBar()->currentMessage() << "\""
             << " badge=\""
             << (badge != 0 && !badge->isHidden() ? badge->text() : QString())
-            << "\" editor_onscreen=" << (editorOn ? 1 : 0) << "\n" << Qt::flush;
+            << "\" editor_onscreen=" << (editorOn ? 1 : 0)
+            // New fields go at the end: the checks match on runs of the
+            // older ones (tools/check-editor.sh).
+            << " pt=" << dock->editor()->pointSize() << " bannertext=\""
+            << (banner != 0 && !banner->isHidden() ? banner->text() : QString())
+            << "\"\n" << Qt::flush;
     } else if (step == "assemble") {
       window_->findChild<QAction*>("action_Edu_Assemble")->trigger();
       out() << "assemble: " << dock->errorCount() << " error(s)\n" << Qt::flush;
@@ -1203,6 +1287,75 @@ void EduDevtools::run() {
     out() << "elapsed_ms " << stopwatch.elapsed() << " (run="
           << (runToCompletion_ ? 1 : 0) << " steps=" << steps_ << ")\n"
           << Qt::flush;
+  }
+
+  // A drag and drop of the editor onto the text panel, which is what
+  // splitDockWidget() is: the program should even the two out afterwards.
+  if (!dockDrop_.isEmpty()) {
+    const bool horizontal = dockDrop_.startsWith('h');
+    // What a drag and drop leaves behind: the two panels split along one
+    // axis, with whatever proportion the drop indicator happened to show.
+    // Qt gives no way to drive a real drag here, so the lopsided result is
+    // made directly and the program is then asked to even it out.
+    window_->addDockWidget(Qt::TopDockWidgetArea, window_->eduEditor);
+    window_->addDockWidget(Qt::TopDockWidgetArea, window_->ui->TextSegDockWidget);
+    window_->splitDockWidget(window_->eduEditor, window_->ui->TextSegDockWidget,
+                             horizontal ? Qt::Horizontal : Qt::Vertical);
+    QList<QDockWidget*> pair;
+    pair << window_->eduEditor << window_->ui->TextSegDockWidget;
+    QList<int> lopsided;
+    lopsided << 1700 << 220;
+    window_->resizeDocks(pair, lopsided, horizontal ? Qt::Horizontal
+                                                    : Qt::Vertical);
+    settle();
+    QRect text = window_->ui->TextSegDockWidget->geometry();
+    QRect editor = window_->eduEditor->geometry();
+    out() << "dock drop " << (horizontal ? "horizontal" : "vertical")
+          << " as dropped: editor "
+          << (horizontal ? editor.width() : editor.height()) << " text "
+          << (horizontal ? text.width() : text.height()) << "\n"
+          << Qt::flush;
+
+    window_->eduEqualiseDocks();
+    settle();
+    text = window_->ui->TextSegDockWidget->geometry();
+    editor = window_->eduEditor->geometry();
+    const int a = horizontal ? text.width() : text.height();
+    const int b = horizontal ? editor.width() : editor.height();
+    out() << "dock drop " << (horizontal ? "horizontal" : "vertical")
+          << " evened out: editor " << b << " text " << a << " difference "
+          << qAbs(a - b) << "\n" << Qt::flush;
+    if (qAbs(a - b) > 2) {
+      status_ = 1;
+    }
+  }
+
+  // Every step of the tour, with the card's rectangle: the harness checks
+  // that it never leaves the window (docs/ARCHITECTURE.md 12, 70).
+  if (tutorialReport_) {
+    window_->eduShowTutorial();
+    EduTutorial* tour = window_->eduTutorial;
+    if (tour == 0) {
+      err() << "no tutorial\n" << Qt::flush;
+      status_ = 2;
+    } else {
+      const QRect window(QPoint(0, 0), window_->size());
+      for (int i = 0; i < tour->stepCount(); i += 1) {
+        tour->start(i);
+        settle();
+        const QRect card = tour->cardRect();
+        const bool inside = window.contains(card);
+        out() << "tutorial step " << (i + 1) << "/" << tour->stepCount()
+              << " card " << card.x() << "," << card.y() << " "
+              << card.width() << "x" << card.height() << " window "
+              << window.width() << "x" << window.height() << " inside="
+              << (inside ? 1 : 0) << " " << tour->stepName(i) << "\n"
+              << Qt::flush;
+        if (!inside) {
+          status_ = 1;
+        }
+      }
+    }
   }
 
   // The first-run tour, at one step, for a screenshot of it.
