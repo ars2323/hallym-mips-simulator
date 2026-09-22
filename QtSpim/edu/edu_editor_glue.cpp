@@ -3,6 +3,7 @@
    carry one-line hooks (each marked "// EDU:"). */
 
 #include <QAction>
+#include <QCryptographicHash>
 #include <QFileInfo>
 #include <QDir>
 #include <QLabel>
@@ -74,6 +75,43 @@ void SpimView::eduSetupEditor() {
   connect(assemble, SIGNAL(triggered(bool)), this, SLOT(eduAssemble()));
   menu->addAction(assemble);
 
+  // The editor's own text size.  The shortcuts belong to the editor, not to
+  // the window: Ctrl+- and Ctrl+= mean nothing in the other panels, and a
+  // student who has clicked into the Text panel should not be zooming the
+  // editor by accident.  The menu entries are how they find out this exists.
+  menu->addSeparator();
+  struct {
+    const char* name;
+    const char* text;
+    const char* slot;
+    QKeySequence keys;
+    QKeySequence alternate;
+  } const zooms[] = {
+      {"action_Edu_ZoomIn", "Zoom &In", SLOT(zoomInOnePoint()),
+       QKeySequence("Ctrl++"), QKeySequence("Ctrl+=")},
+      {"action_Edu_ZoomOut", "Zoom &Out", SLOT(zoomOutOnePoint()),
+       QKeySequence("Ctrl+-"), QKeySequence()},
+      {"action_Edu_ZoomReset", "&Reset Zoom", SLOT(resetPointSize()),
+       QKeySequence("Ctrl+0"), QKeySequence()},
+  };
+  for (unsigned i = 0; i < sizeof(zooms) / sizeof(zooms[0]); i += 1) {
+    QAction* action = new QAction(zooms[i].text, this);
+    action->setObjectName(zooms[i].name);
+    QList<QKeySequence> keys;
+    keys << zooms[i].keys;
+    if (!zooms[i].alternate.isEmpty()) {
+      keys << zooms[i].alternate;
+    }
+    action->setShortcuts(keys);
+    action->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+    connect(action, SIGNAL(triggered(bool)), eduEditor->editor(),
+            zooms[i].slot);
+    eduEditor->addAction(action);  // the shortcut only fires inside the editor
+    menu->addAction(action);
+  }
+  connect(eduEditor, SIGNAL(fontSizeChanged(int)), this,
+          SLOT(eduEditorFontSizeChanged(int)));
+
   QAction* saveAs = new QAction("Save &As and Assemble...", this);
   saveAs->setObjectName("action_Edu_SaveAs");
   saveAs->setShortcut(QKeySequence("Ctrl+Shift+S"));
@@ -135,6 +173,14 @@ void SpimView::eduSetupEditor() {
   // menu entries do.
   QDockWidget* const movable[] = {eduEditor, ui->TextSegDockWidget, ui->DataSegDockWidget};
   for (unsigned i = 0; i < sizeof(movable) / sizeof(movable[0]); i += 1) {
+    // Dropped somewhere new: share the room out evenly (eduEqualiseDocks).
+    // A drag ends either in a new area (dockLocationChanged) or by the dock
+    // being unplugged and put back (topLevelChanged); both mean the user has
+    // just rearranged the panels.
+    connect(movable[i], SIGNAL(dockLocationChanged(Qt::DockWidgetArea)), this,
+            SLOT(eduDockMoved()));
+    connect(movable[i], SIGNAL(topLevelChanged(bool)), this,
+            SLOT(eduDockMoved()));
     movable[i]->setFeatures(QDockWidget::DockWidgetClosable |
                             QDockWidget::DockWidgetMovable |
                             QDockWidget::DockWidgetFloatable);
@@ -142,6 +188,9 @@ void SpimView::eduSetupEditor() {
 
   eduAssembleBadge = new QLabel(this);
   eduAssembleBadge->setObjectName("EduAssembleBadge");  // styled by theme/light.qss
+  eduAssembleBadge->setToolTip(QString::fromUtf8(
+      "The last assemble failed; the errors are in the editor's list\n"
+      "마지막 어셈블이 실패했습니다. 에러는 에디터 아래 목록에 있습니다"));
   statusBar()->addPermanentWidget(eduAssembleBadge);
   eduAssembleBadge->hide();
 
@@ -160,6 +209,10 @@ void SpimView::eduSetupEditor() {
             QString(" save (Ctrl+S) to assemble"),
         box);
     banner->setObjectName("EduStaleBanner");  // styled by theme/light.qss
+    banner->setToolTip(QString::fromUtf8(
+        "What you are looking at is older than the editor's text; click to "
+        "save and assemble\n지금 보는 내용이 에디터의 코드보다 오래되었습니다. "
+        "누르면 저장하고 어셈블합니다"));
     banner->setFlat(true);
     banner->setCursor(Qt::PointingHandCursor);
     banner->setFocusPolicy(Qt::NoFocus);
@@ -181,18 +234,74 @@ void SpimView::eduSetupEditor() {
   eduUpdateStaleBanner();
 }
 
-// In step = the simulator last took (assembled, or loaded through the File
-// menu) exactly the file the editor shows, and nothing was typed since.  A
-// failed assemble counts: its outcome is in the error list, and the strip
-// would only repeat "press Ctrl+S".  An empty, untouched editor has nothing
-// to be out of step with.
+// The strip says that what the Text and Data panels show is not this file.
+// There are three ways that happens and the strip names the one that did,
+// because "Source changed" after Reinitialize is simply untrue -- nothing
+// was changed, the program was cleared (docs/ARCHITECTURE.md 12, 79).
+//
+// The comparison is against the editor's text as it was at the last
+// assemble, not the modified flag: a file saved by another program, or
+// undone back to what it was, is judged on what it says now.  A failed
+// assemble counts as in step -- its outcome is in the error list, and the
+// strip would only repeat "press Ctrl+S".
+QByteArray SpimView::eduEditorDigest() const {
+  return QCryptographicHash::hash(eduEditor->editor()->fileText().toUtf8(),
+                                  QCryptographicHash::Md5);
+}
+
 void SpimView::eduUpdateStaleBanner() {
   const QString path = eduEditor->filePath();
-  const bool nothing = path.isEmpty() && !eduEditor->isModified();
-  const bool inStep = !path.isEmpty() && !eduEditor->isModified() &&
-                      QFileInfo(path).canonicalFilePath() == eduSyncedPath;
+  const QString canonical =
+      path.isEmpty() ? QString() : QFileInfo(path).canonicalFilePath();
+  const bool empty = path.isEmpty() && eduEditor->editor()->document()->isEmpty();
+
+  QString message;
+  QString explanation;
+  if (!empty) {
+    if (eduSyncedPath.isEmpty()) {
+      // Nothing of this editor's is in the simulator.
+      if (eduEverAssembled) {
+        message = QString::fromUtf8(
+            "Simulator was reinitialized \xe2\x80\x94 save (Ctrl+S) to "
+            "assemble this file");
+        explanation = QString::fromUtf8(
+            "The program that was assembled has been cleared; the file itself "
+            "is unchanged.\n시뮬레이터가 초기화되어 어셈블된 프로그램이 "
+            "없습니다. 파일은 그대로입니다");
+      } else {
+        message = QString::fromUtf8(
+            "Not assembled yet \xe2\x80\x94 save (Ctrl+S) to assemble this "
+            "file");
+        explanation = QString::fromUtf8(
+            "The simulator has no program yet.\n아직 어셈블한 프로그램이 "
+            "없습니다");
+      }
+    } else if (eduExtraProgram ||
+               (!canonical.isEmpty() && canonical != eduSyncedPath)) {
+      message = QString::fromUtf8(
+          "Text shows a different program \xe2\x80\x94 save (Ctrl+S) to "
+          "assemble this file");
+      explanation = QString::fromUtf8(
+          "What the simulator holds came from another file.\n"
+          "시뮬레이터에 올라간 것은 다른 파일에서 온 것입니다");
+    } else if (eduEditorDigest() != eduSyncedDigest) {
+      message = QString::fromUtf8(
+          "Source changed \xe2\x80\x94 save (Ctrl+S) to assemble");
+      explanation = QString::fromUtf8(
+          "The editor's text is newer than what was assembled.\n"
+          "에디터의 내용이 어셈블된 것보다 새롭습니다");
+    }
+  }
+
   for (int i = 0; i < eduStaleBanners.size(); i += 1) {
-    eduStaleBanners.at(i)->setVisible(!nothing && !inStep);
+    QAbstractButton* strip = eduStaleBanners.at(i);
+    if (!message.isEmpty()) {
+      strip->setText(message);
+      strip->setToolTip(explanation + QString::fromUtf8(
+                            "\nClick to save and assemble / 누르면 저장하고 "
+                            "어셈블합니다"));
+    }
+    strip->setVisible(!message.isEmpty());
   }
 }
 
@@ -207,6 +316,19 @@ void SpimView::eduTileEditor() {
 
 // Editor > Open Recent: files the editor opened or saved, newest first,
 // kept in the settings under Editor/RecentFiles.
+// The editor's text size is the student's, not a window setting: it is
+// remembered and put back at the next start.
+void SpimView::eduEditorFontSizeChanged(int points) {
+  settings.setValue("Editor/FontPointSize", points);
+}
+
+void SpimView::eduRestoreEditorZoom() {
+  const int points = settings.value("Editor/FontPointSize", 0).toInt();
+  if (points > 0) {
+    eduEditor->editor()->setPointSize(points);
+  }
+}
+
 void SpimView::eduEditorFileChanged() {
   eduUpdateStaleBanner();
   eduUpdateWindowTitle();  // EDU: the title bar names the open file
@@ -358,6 +480,8 @@ void SpimView::eduEditorFileLoaded(const QString& file) {
       ui->TextSegDockWidget->raise();  // a program was loaded: look at it
     }
     eduSyncedPath = QFileInfo(file).canonicalFilePath();
+    eduSyncedDigest = eduEditorDigest();
+    eduEverAssembled = true;
     eduUpdateStaleBanner();
   }
 }
@@ -392,6 +516,9 @@ void SpimView::eduAssemble() {
   eduCollectingErrors = false;
   eduAssembleFile.clear();  // (a path the core cannot take: never consumed)
   eduSyncedPath = QFileInfo(eduEditor->filePath()).canonicalFilePath();
+  eduSyncedDigest = eduEditorDigest();
+  eduEverAssembled = true;
+  eduExtraProgram = false;  // this assemble started from a clean simulator
   eduUpdateStaleBanner();
 
   QList<edu::AssemblerMessage> messages;

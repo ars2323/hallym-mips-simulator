@@ -29,14 +29,23 @@ EduEditorDock::EduEditorDock(QWidget* parent)
       errorList_(new QListWidget(this)),
       info_(new QLabel(this)),
       watcher_(new QFileSystemWatcher(this)),
+      pointSizeTimer_(new QTimer(this)),
       askingAboutDisk_(false) {
   setObjectName("EditorDockWidget");  // saveState()/restoreState() key
   setAllowedAreas(Qt::TopDockWidgetArea | Qt::BottomDockWidgetArea);
 
   errorList_->setObjectName("EditorErrorList");
+  errorList_->setToolTip(QString::fromUtf8(
+      "What the assembler refused; click a line to go to it\n"
+      "어셈블러가 거부한 것들. 한 줄을 누르면 그 줄로 갑니다"));
   errorList_->setSelectionMode(QAbstractItemView::SingleSelection);
   errorList_->hide();
   info_->setContentsMargins(4, 1, 4, 1);
+  info_->setToolTip(QString::fromUtf8(
+      "The file's text encoding and line endings, and where the cursor is. "
+      "Both are kept as they were when the file was opened.\n"
+      "파일의 인코딩과 줄바꿈, 그리고 커서 위치. 둘 다 파일을 열 때 상태를 "
+      "유지합니다"));
 
   QSplitter* splitter = new QSplitter(Qt::Vertical, this);
   splitter->addWidget(editor_);
@@ -56,6 +65,12 @@ EduEditorDock::EduEditorDock(QWidget* parent)
   connect(editor_->document(), SIGNAL(modificationChanged(bool)), this,
           SLOT(onModificationChanged()));
   connect(editor_, SIGNAL(cursorPositionChanged()), this, SLOT(onCursorMoved()));
+  // The size after a zoom, in the status line, for a second and a half.
+  pointSizeTimer_->setSingleShot(true);
+  pointSizeTimer_->setInterval(1500);
+  connect(pointSizeTimer_, SIGNAL(timeout()), this, SLOT(clearPointSizeNote()));
+  connect(editor_, SIGNAL(pointSizeChanged(int)), this,
+          SLOT(onPointSizeChanged(int)));
   connect(errorList_, SIGNAL(itemClicked(QListWidgetItem*)), this,
           SLOT(onErrorActivated(QListWidgetItem*)));
   connect(errorList_, SIGNAL(itemActivated(QListWidgetItem*)), this,
@@ -363,10 +378,23 @@ void EduEditorDock::updateTitle() {
 }
 
 void EduEditorDock::updateInfo() {
-  info_->setText(QString("%1%2   %3   Ln %4, Col %5")
+  info_->setText(QString("%1%2   %3   Ln %4, Col %5%6")
                      .arg(edu::encodingName(format_.encoding))
                      .arg(format_.byteOrderMark ? " with BOM" : "")
                      .arg(edu::lineEndName(format_.lineEnd))
                      .arg(editor_->currentLine())
-                     .arg(editor_->currentColumn()));
+                     .arg(editor_->currentColumn())
+                     .arg(pointSizeNote_));
+}
+
+void EduEditorDock::onPointSizeChanged(int points) {
+  pointSizeNote_ = QString("      %1pt").arg(points);
+  updateInfo();
+  pointSizeTimer_->start();
+  emit fontSizeChanged(points);
+}
+
+void EduEditorDock::clearPointSizeNote() {
+  pointSizeNote_.clear();
+  updateInfo();
 }

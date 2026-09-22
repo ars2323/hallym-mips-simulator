@@ -24,6 +24,7 @@ class EduCodeEditor;
 class QFileSystemWatcher;
 class QLabel;
 class QListWidget;
+class QTimer;
 class QListWidgetItem;
 
 class EduEditorDock : public QDockWidget {
@@ -55,9 +56,13 @@ class EduEditorDock : public QDockWidget {
   int errorCount() const;
 
  signals:
+  void fontSizeChanged(int points);  // the editor was zoomed; save it
   void fileChanged();  // path, modified flag or format changed: retitle
 
  private slots:
+  void onPointSizeChanged(int points);  // show it in the status line for a moment
+  void clearPointSizeNote();
+
   void onModificationChanged();
   void onCursorMoved();
   void onErrorActivated(QListWidgetItem* item);
@@ -73,7 +78,9 @@ class EduEditorDock : public QDockWidget {
   EduCodeEditor* editor_;
   QListWidget* errorList_;
   QLabel* info_;
+  QString pointSizeNote_;  // "14pt", shown briefly after a zoom
   QFileSystemWatcher* watcher_;
+  QTimer* pointSizeTimer_;
   QString path_;
   edu::TextFileFormat format_;
   QByteArray bytesOnDisk_;  // what we last read or wrote

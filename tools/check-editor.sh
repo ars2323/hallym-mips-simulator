@@ -239,6 +239,47 @@ else
 fi
 
 echo
+echo "== 8. the strip over Text says which of the three things happened"
+cp "$repo/helloworld.s" "$work/strip.s"
+cp "$repo/samples/tutorial.s" "$work/other.s"
+strip_text() {  # strip_text NAME ARGS... -> the strip's text, or empty
+  local name=$1; shift
+  run "$name" "$@"
+  sed -n 's/.*bannertext="\([^"]*\)".*/\1/p' "$work/$name.out"
+}
+expect_strip() {  # expect_strip WHAT WANTED GOT
+  case "$3" in
+    *"$2"*) pass "$1: $3" ;;
+    *) fail "$1: expected \"$2\", got \"$3\"" ;;
+  esac
+}
+edited=$(strip_text stripA --editor-open "$work/strip.s" --assemble \
+    --editor-type '# typed' --editor-report)
+expect_strip "edited since the assemble" "Source changed" "$edited"
+
+cleared=$(strip_text stripB --editor-open "$work/strip.s" --assemble \
+    --editor-trigger action_Sim_Reinitialize --editor-report)
+expect_strip "reinitialized" "Simulator was reinitialized" "$cleared"
+
+added=$(strip_text stripC --editor-open "$work/strip.s" --assemble \
+    --editor-load "$work/other.s" --load-answer add --editor-report)
+expect_strip "another program on top" "Text shows a different program" "$added"
+
+instep=$(strip_text stripD --editor-open "$work/strip.s" --assemble --editor-report)
+if [ -z "$instep" ]; then
+  pass "assembled and untouched: no strip"
+else
+  fail "no strip expected, got \"$instep\""
+fi
+
+fresh=$(strip_text stripE --editor-report)
+if [ -z "$fresh" ]; then
+  pass "empty editor, nothing loaded: no strip"
+else
+  fail "no strip expected for an empty editor, got \"$fresh\""
+fi
+
+echo
 if [ "$failures" -eq 0 ]; then
   echo "all checks passed"
   rm -rf "$work"

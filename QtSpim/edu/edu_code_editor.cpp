@@ -6,6 +6,7 @@
 
 #include <QHelpEvent>
 #include <QPainter>
+#include <QWheelEvent>
 #include <QTextBlock>
 #include <QToolTip>
 
@@ -83,7 +84,11 @@ void EduMipsHighlighter::highlightBlock(const QString& text) {
 //
 
 EduCodeEditor::EduCodeEditor(QWidget* parent)
-    : QPlainTextEdit(parent), margin_(new Margin(this)) {
+    : QPlainTextEdit(parent),
+      pointSize_(10),
+      basePointSize_(10),
+      baseSet_(false),
+      margin_(new Margin(this)) {
   setLineWrapMode(QPlainTextEdit::NoWrap);
   new EduMipsHighlighter(document());
 
@@ -96,12 +101,71 @@ EduCodeEditor::EduCodeEditor(QWidget* parent)
   highlightCurrentLine();
 }
 
+// The font the settings give every panel.  The editor keeps its own size on
+// top of it (Ctrl+= / Ctrl+-), but a new font from the Settings dialog wins:
+// the zoom starts again from the size the user just chose.
 void EduCodeEditor::setPanelFont(const QFont& font) {
+  const int points = font.pointSize() > 0 ? font.pointSize() : 10;
+  const bool changed =
+      font.family() != baseFont_.family() || points != basePointSize_;
+  if (changed) {
+    baseFont_ = font;
+    basePointSize_ = points;
+    pointSize_ = points;
+    // The first font of the session is not something the student did, and
+    // must not overwrite the size they left last time -- which is read back
+    // after this (SpimView::eduRestoreEditorZoom).
+    if (baseSet_) {
+      emit pointSizeChanged(pointSize_);
+    }
+    baseSet_ = true;
+  }
+  applyPointSize();
+}
+
+void EduCodeEditor::applyPointSize() {
+  QFont font = baseFont_;
+  font.setPointSize(pointSize_);
   setFont(font);
   // A tab is eight columns: SPIM's sources (and most students' files) are
   // laid out for that.
   setTabStopDistance(8 * QFontMetricsF(font).horizontalAdvance(QLatin1Char(' ')));
   updateMarginWidth();
+  highlightCurrentLine();  // the band and the error rows follow the new height
+  if (viewport() != 0) {
+    viewport()->update();
+  }
+}
+
+void EduCodeEditor::setPointSize(int points) {
+  const int wanted = qBound(int(kMinPointSize), points, int(kMaxPointSize));
+  if (wanted == pointSize_) {
+    return;  // at either end nothing happens, and nothing is said about it
+  }
+  pointSize_ = wanted;
+  applyPointSize();
+  emit pointSizeChanged(pointSize_);
+}
+
+void EduCodeEditor::zoomInOnePoint() { setPointSize(pointSize_ + 1); }
+
+void EduCodeEditor::zoomOutOnePoint() { setPointSize(pointSize_ - 1); }
+
+void EduCodeEditor::resetPointSize() { setPointSize(basePointSize_); }
+
+// Ctrl and the wheel: the same one point a step.
+void EduCodeEditor::wheelEvent(QWheelEvent* event) {
+  if (event->modifiers().testFlag(Qt::ControlModifier)) {
+    const int ticks = event->angleDelta().y();
+    if (ticks > 0) {
+      zoomInOnePoint();
+    } else if (ticks < 0) {
+      zoomOutOnePoint();
+    }
+    event->accept();
+    return;
+  }
+  QPlainTextEdit::wheelEvent(event);
 }
 
 QString EduCodeEditor::fileText() const {

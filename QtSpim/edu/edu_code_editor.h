@@ -33,6 +33,14 @@ class EduCodeEditor : public QPlainTextEdit {
 
   void setPanelFont(const QFont& font);
 
+  // The editor's own text size, in points, on top of the font the settings
+  // give it.  8 to 32; the margin, the current-line band and the error
+  // markers follow it.  Only this widget and its line numbers change --
+  // the other panels keep the settings font.
+  enum { kMinPointSize = 8, kMaxPointSize = 32 };
+  int pointSize() const { return pointSize_; }
+  void setPointSize(int points);
+
   // The document as the file's text: '\n' line ends, nothing substituted
   // (QPlainTextEdit::toPlainText() turns no-break spaces into blanks).
   QString fileText() const;
@@ -48,8 +56,17 @@ class EduCodeEditor : public QPlainTextEdit {
   void paintMargin(QPaintEvent* event);
   QString marginToolTip(int y) const;
 
+ public slots:
+  void zoomInOnePoint();
+  void zoomOutOnePoint();
+  void resetPointSize();
+
+ signals:
+  void pointSizeChanged(int points);
+
  protected:
   void resizeEvent(QResizeEvent* event);
+  void wheelEvent(QWheelEvent* event);
 
  private slots:
   void updateMarginWidth();
@@ -57,6 +74,12 @@ class EduCodeEditor : public QPlainTextEdit {
   void highlightCurrentLine();
 
  private:
+  void applyPointSize();
+
+  QFont baseFont_;   // what the settings asked for; the zoom is on top of it
+  int pointSize_;    // what is in use
+  int basePointSize_;
+  bool baseSet_;     // the first font is not a change worth remembering
   QWidget* margin_;
   QMap<int, QString> errors_;
 };
