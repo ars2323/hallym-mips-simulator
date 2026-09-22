@@ -20,7 +20,7 @@ import tempfile
 from PIL import Image, ImageDraw, ImageFont
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-LEFT_REV = "v1.0.1"                 # the images with the old right halves
+LEFT_REV = "qtspim-edu-1.0.1"       # the images with the old right halves
 FONT = os.path.join(REPO, "QtSpim", "edu", "theme", "fonts", "Pretendard-Medium.otf")
 NAVY, GRAY, WHITE = "#00205B", "#5A5A5A", "#FFFFFF"
 BAR = 36
