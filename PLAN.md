@@ -1,4 +1,6 @@
-# QtSpim-Edu 개발 계획
+# Hallym MIPS Simulator 개발 계획
+
+(0~8단계는 QtSpim-Edu 1.0.1까지의 기록이다. 이 저장소는 그 파생판이며 새 작업은 맨 아래 **H단계**다.)
 
 ## 목표
 
@@ -236,6 +238,43 @@ Text 패널 열: `BP` · `주소` · `기계어(hex)` · `타입` · `실제 명
 - `1.0.0` 릴리스: GitHub Releases에 zip(기본) + MSI + 안내문(`docs/GUIDE-ko.md`, `docs/GUIDE.md`, PDF)
 - 범위 밖으로 남긴 것은 `docs/FUTURE.md`
 
+## H단계 — Hallym MIPS Simulator (한림대학교용 파생판)
+
+QtSpim-Edu 1.0.1(`v1.0.1`)에서 갈라진 저장소 `ars2323/hallym-mips-simulator`. 레이아웃·기능·코어는 그대로, **겉모습만** 바꾼다. 0~8단계의 규칙(CPU/ 무수정, 보존 기능 표, 검증 절차, 로그 저장 바이트 동일)은 그대로 적용.
+
+### 확정된 결정
+
+| 항목 | 결정 | 근거 |
+|---|---|---|
+| 이름 | 표시명 "Hallym MIPS Simulator", 실행 파일·설정 폴더 `HallymMIPS`, 한글 "한림 MIPS 시뮬레이터"(안내문에만). QtSpim/Spim/Edu 표기는 About → License 탭과 LICENSE 파일의 원본 고지에만 남긴다 | 사용자 지시 |
+| CI 자산 | `assets/ci/A1~A4`(원본 zip은 `~/workspace/hallym-ci/`에 보관), 매뉴얼 이미지·규정은 `assets/ci/manual/`. 변형 금지, 축소와 여백만. 앱 아이콘은 심볼 기본형만 | 16·32px에서 엠블럼·시그니처는 형태가 뭉개짐 (`docs/design/mockups/icon-sizes.png`) |
+| 색 | 2945 → #0055A5, 326 → #00A9A5, 281 → #00205B, Cool Gray 4 → #BCBEC0. `.ai`의 CMYK 별색 정의를 `docs/design/tokens.md` §1.1에 기록 | 페이지에 HEX 지정 없음 |
+| 글꼴 | UI Pretendard, 코드 D2Coding(1순위) / JetBrains Mono(대안), 전부 OFL로 리소스 동봉 | Windows/Linux 동일 렌더링 |
+| 아이콘 | Lucide(ISC) SVG 20px, 기본 281 / hover 2945 / disabled Cool Gray 4 | 비트맵 전부 교체 |
+| 시안 절차 | **H1 시안(QSS·글꼴·아이콘만)을 보고 사용자가 A/B를 고른 뒤에야 위젯 코드를 바꾼다** | 사용자 지시 |
+| 저장소 | 공개, 히스토리·태그 유지. 원본 qtspim-edu는 읽기만 | |
+
+### H0. 저장소 ✅
+- [x] clone(히스토리 유지) → `gh repo create ars2323/hallym-mips-simulator --public`, main + 태그 push, CI 첫 실행 초록
+- [x] CLAUDE.md·PLAN.md 갱신
+- [x] `.ai` → PDF/SVG/PNG (Ghostscript + pdftocairo): `assets/ci/converted/`(페이지 전체), `assets/ci/marks/`(심볼 기본형·활용형, 로고타입 국문/국영문/세로/영문 1줄·2줄/한문, 엠블럼 A 2종·B·C, 시그니처 좌우 4종·상하 A/B 8종·세로 2종)
+- [x] 색 근거 기록, 글꼴·아이콘 동봉(`QtSpim/edu/theme/fonts`, `theme/icons/lucide`)
+
+### H1. 디자인 시스템 — 시안 승인 대기
+- [x] `docs/design/tokens.md` 초안(규정 인용, 색 근거, 대비 표, 타이포·간격·배지·문법 강조)
+- [x] devtools `--qss --font-dir --ui-font --icon-dir`, `tools/capture-theme.sh`, `tools/make-theme-icons.py`
+- [x] 시안 A "Campus" / B "Studio" 캡처 각 3장 + 1366×768 → `docs/design/mockups/`
+- [ ] **사람 체크포인트: A/B 선택 + tokens.md §7 결정** — 여기서 멈춘다
+
+### H2. 선택된 시안 구현 (승인 후)
+- QSS 한 파일(`QtSpim/edu/theme/light.qss`) + 토큰 헤더(`theme/tokens.h`). 하드코딩 색·글꼴 리터럴 전부 토큰으로; grep으로 잔여 `QColor(`/`QFont(`/`setStyleSheet(` 리터럴 0건
+- 브랜딩: 앱 아이콘(16·32·48·256 .ico/.png/.icns), 창 제목, 작업표시줄, 스플래시(시그니처, 1.2초, 클릭 시 닫힘), About(엠블럼 A + 로고타입 + "Hallym MIPS Simulator 1.0.0" + License 탭), 설정 저장소 `HallymMIPS/HallymMIPS`, 실행 파일 `HallymMIPS`, MSI ProductName/UpgradeCode 새로, 설치 경로 `Program Files\Hallym MIPS Simulator`
+- 인쇄·로그 저장은 원본과 바이트 동일 유지(`regress.sh`)
+- 캡처: 시안과 같은 상태로 다시 찍어 비교. 1366×768 추가
+- 문서: GUIDE-ko/GUIDE, README에서 QtSpim/Edu 표기 제거(라이선스 절 제외). 비교 이미지 5장 오른쪽 라벨 "Hallym MIPS Simulator", 왼쪽 "표준 QtSpim" 유지
+- `docs/ARCHITECTURE.md` §12에 이 파생판의 차이(이름·설정 저장소·테마)
+- 사람 체크포인트(Linux) → 태그 `v1.0.0`, 릴리스는 사용자 확인 후
+
 ## 미결정
 
-(없음 — 이름은 QtSpim-Edu, 배포는 GitHub Releases로 확정)
+`docs/design/tokens.md` §7 (PC 행 표현, 변경값 배경, 코드 글꼴 동봉 범위, 1366×768 레지스터 표시).

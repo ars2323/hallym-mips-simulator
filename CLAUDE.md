@@ -1,14 +1,15 @@
-# QtSpim-Edu — Claude Code 작업 규칙
+# Hallym MIPS Simulator — Claude Code 작업 규칙
 
-SPIM/QtSpim **9.1.24** (SVN r764, git tag `vanilla-9.1.24`) 기반 교육용 확장판.
+SPIM/QtSpim **9.1.24** (SVN r764, git tag `vanilla-9.1.24`) 기반 교육용 확장판 QtSpim-Edu 1.0.1의 한림대학교용 파생판.
+레이아웃·기능·시뮬레이터 코어는 QtSpim-Edu 그대로 두고 **겉모습(브랜딩·색·글꼴·아이콘·간격)만** 바꾼다 (PLAN.md "H단계").
 수업에서 표준 QtSpim과 함께 쓰이므로 **시뮬레이션 결과는 원본과 완전히 같아야 하고, 바뀌는 것은 GUI뿐**이다.
-최종 배포 대상은 **Windows**. 전체 계획은 `PLAN.md`, 코드 구조 조사 결과는 `docs/ARCHITECTURE.md`(1단계에서 작성).
+최종 배포 대상은 **Windows**. 전체 계획은 `PLAN.md`, 코드 구조 조사 결과는 `docs/ARCHITECTURE.md`(1단계에서 작성), 디자인 토큰은 `docs/design/tokens.md`.
 
 ## 빌드 (Linux 개발 환경)
 
 ```bash
 mkdir -p build && cd build && qmake ../QtSpim/QtSpim.pro && make -j$(nproc)
-./build/QtSpim
+./build/HallymMIPS   # H2까지는 QtSpimEdu
 ```
 
 - Ubuntu 22.04 · Qt 5.15.3 · bison 3.8.2 · flex 2.6.4 · g++ 11
@@ -24,7 +25,9 @@ mkdir -p build && cd build && qmake ../QtSpim/QtSpim.pro && make -j$(nproc)
 5. **빌드가 소스 트리를 더럽히면 안 된다.** `make` 후 `git status`가 깨끗해야 한다.
 6. **코어 구조를 추측하지 않는다.** 레지스터 배열, 텍스트 세그먼트, 명령어 인코딩, 심볼 테이블, 메모리 읽기 경로 등은 반드시 소스를 읽어 확인하고 `docs/ARCHITECTURE.md`에 파일:줄 근거와 함께 기록한 뒤 사용한다.
 7. **숫자 표시는 한 곳에서만 만든다.** hex/dec/bin 변환, 명령어 필드 분해, 주소 계산은 `QtSpim/edu/core/`의 테스트된 함수를 통해서만 한다. 위젯 안에서 즉석 포맷팅 금지.
-8. **문자열 리터럴은 `const char*` 또는 `QString`으로만 받는다.** MSVC의 `-Zc:strictStrings`는 코어(`CPU/`)가 `char*`에 리터럴을 넘기기 때문에 `.pro`에서 껐다. `QtSpim/edu/`의 새 코드는 그 예외에 기대지 않는다: 리터럴을 `char*`에 대입하거나 `char*` 매개변수에 넘기지 않는다.
+8. **이름.** 표시명 "Hallym MIPS Simulator", 실행 파일·설정 폴더 "HallymMIPS", 한글 "한림 MIPS 시뮬레이터"(안내문에만). 화면·메뉴·파일명·문서 어디에도 QtSpim/Spim/Edu 표기를 남기지 않는다. 예외: BSD·LGPL 조건상 About → License 탭과 동봉 LICENSE 파일의 원본 저작권 고지(James Larus, SPIM)와 Qt LGPL 고지는 그대로 둔다. 코드 식별자(`edu_*`, `EDU_*`)는 이름이 아니라 코드이므로 바꾸지 않는다.
+9. **CI 자산은 변형하지 않는다.** 심볼마크·로고타입·엠블럼·시그니처(`assets/ci/`)는 축소와 여백만. 단색화·회전·비율 변경·색 변경·요소 분리 금지. 색·글꼴·간격은 `docs/design/tokens.md`의 토큰만 쓴다 — `QtSpim/edu/theme/tokens.h`와 `theme/light.qss` 밖에서 색·글꼴 리터럴 금지.
+10. **문자열 리터럴은 `const char*` 또는 `QString`으로만 받는다.** MSVC의 `-Zc:strictStrings`는 코어(`CPU/`)가 `char*`에 리터럴을 넘기기 때문에 `.pro`에서 껐다. `QtSpim/edu/`의 새 코드는 그 예외에 기대지 않는다: 리터럴을 `char*`에 대입하거나 `char*` 매개변수에 넘기지 않는다.
 
 ## 검증 — 완료 선언 전 필수
 
