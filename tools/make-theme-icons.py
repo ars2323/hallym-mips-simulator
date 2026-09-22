@@ -10,7 +10,7 @@ Brand marks: QtSpim/edu/theme/brand/<name>.svg -> <name>-<width>.png and
 <name>-<width>@2x.png at the widths edu_theme.cpp asks for.  The application
 icon (app-<size>.png, HallymMIPS.ico, HallymMIPS.icns) and the three-way
 comparison sheet docs/design/captures/app-icon-options.png come from here
-too: 16 px carries the symbol, the larger sizes the circular emblem.
+too: the symbol up to 32 px, the circular emblem from 48 px up.
 
 The colours and sizes are read from QtSpim/edu/theme/tokens.h so that this
 file never holds a value of its own.  Needs cairosvg (pip install cairosvg).
@@ -36,11 +36,11 @@ STATES = {"normal": "kNavy", "active": "kBlue", "disabled": "kGray"}
 BRAND = {"emblem-a-navy": [112], "logotype-ko-en": [220],
          "signature-h-ko-en": [260, 320], "symbol-basic": [64]}
 
-# The application icon.  At 16 px the emblem's ring of lettering turns to
-# mush, so that size gets the plain symbol; every larger size gets the
-# circular emblem, which is what people recognise in a task bar.  Both are
-# official marks, used whole -- only scaled and padded.
-APPICON = [(16, "symbol-basic"), (24, "emblem-a-navy"), (32, "emblem-a-navy"),
+# The application icon.  Below 48 px the emblem's ring of lettering is a
+# smudge, so the title bar (16) and the task bar (24, 32) get the plain
+# symbol; the circular emblem is used where it can be read, from 48 px up.
+# Both are official marks, used whole -- only scaled and padded.
+APPICON = [(16, "symbol-basic"), (24, "symbol-basic"), (32, "symbol-basic"),
            (48, "emblem-a-navy"), (64, "emblem-a-navy"), (256, "emblem-a-navy")]
 
 
@@ -89,12 +89,12 @@ def write_ico(images, path):
 
 def comparison_sheet(path):
     """Three ways to fill the .ico, at the sizes Windows actually asks for."""
-    sizes = [16, 24, 32, 48]
+    sizes = [16, 24, 32, 48, 64]
     options = [("(a) symbol at every size", lambda s: "symbol-basic"),
-               ("(b) symbol at 16, emblem above",
-                lambda s: "symbol-basic" if s == 16 else "emblem-a-navy"),
+               ("(b) symbol to 32, emblem from 48",
+                lambda s: "symbol-basic" if s < 48 else "emblem-a-navy"),
                ("(c) emblem at every size", lambda s: "emblem-a-navy")]
-    zoom, head, label, cell = 4, 40, 110, 48 * 4 + 40
+    zoom, head, label, cell = 4, 58, 110, 64 * 4 + 40
     width = label + len(options) * cell
     row_heights = [size * zoom + 28 for size in sizes]
     height = head + sum(row_heights)
@@ -105,6 +105,9 @@ def comparison_sheet(path):
 
     for column, (title, _) in enumerate(options):
         draw.text((label + column * cell + 12, 12), title, fill="#00205B", font=font)
+        if column == 1:  # the one the program ships
+            draw.text((label + column * cell + 12, 32), "in use", fill="#0055A5",
+                      font=small)
     row = head
     for index, size in enumerate(sizes):
         draw.text((12, row + 4), "%d px" % size, fill="#1F2933", font=font)
@@ -140,7 +143,8 @@ def main():
         app_icon(mark, size).save(os.path.join(THEME, "brand", "app-%d.png" % size))
     write_ico([(size, app_icon(mark, size)) for size, mark in APPICON],
               os.path.join(THEME, "brand", "HallymMIPS.ico"))
-    icns = [app_icon("emblem-a-navy", s) for s in (1024, 512, 256, 128, 64, 32, 16)]
+    icns = [app_icon("emblem-a-navy" if s >= 48 else "symbol-basic", s)
+            for s in (1024, 512, 256, 128, 64, 32, 16)]
     icns[0].save(os.path.join(THEME, "brand", "HallymMIPS.icns"),
                  append_images=icns[1:])
     for name, widths in BRAND.items():

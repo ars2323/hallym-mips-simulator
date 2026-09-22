@@ -52,3 +52,9 @@ the message log, and registers/log after Run.  They were captured from the
 All cases are run from the repository root with a relative program path, so
 that the path inside an assembler message does not depend on the checkout.
 
+## 버전을 올리면 다시 떠야 하는 골든
+
+`syntaxerror-log.txt`와 `syntaxerror-run-log.txt`는 **메시지 창**(`--dump log`)이라
+시작 배너가 들어 있고, 배너에는 `EDU_VERSION`이 찍힌다. `edu/edu_version.h`의
+버전을 올리면 이 둘만 `tools/capture-goldens.sh`로 다시 뜬다. Save Log File이
+쓰는 `*-log` 골든에는 버전이 없다.

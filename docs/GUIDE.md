@@ -1,4 +1,4 @@
-# Hallym MIPS Simulator 1.0.0 — User Guide
+# Hallym MIPS Simulator 1.0.1 — User Guide
 
 Hallym MIPS Simulator is the Hallym University build of the MIPS simulator **QtSpim 9.1.24 with a
 new interface only**. The simulator itself (assembler and execution) is the
@@ -7,7 +7,7 @@ the same results as in standard QtSpim.** You can check your work in either.
 
 ## 1. Installing
 
-1. Unzip `HallymMIPS-1.0.0-win64.zip` anywhere. (There is an MSI installer too,
+1. Unzip `HallymMIPS-1.0.1-win64.zip` anywhere. (There is an MSI installer too,
    but the zip is recommended: no administrator rights, and removing it is
    deleting the folder.)
 2. Run `HallymMIPS.exe`.
