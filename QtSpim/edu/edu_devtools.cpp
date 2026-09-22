@@ -11,6 +11,9 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QFontDatabase>
+#include <QIcon>
+#include <QToolButton>
 #include <QLabel>
 #include <QLayout>
 #include <QLineEdit>
@@ -144,6 +147,11 @@ QString EduDevtools::usage() {
       "  --reg-base <2|10|16>   choose Registers > Binary/Decimal/Hex\n"
       "  --local-codec <name>   pretend the system text encoding is <name>\n"
       "  --dialog-shots <dir>   save a PNG of every dialog answered\n"
+      "  --qss <file>           use this application style sheet (theme mock-ups)\n"
+      "  --font-dir <dir>       register every .ttf/.otf in <dir>; repeatable\n"
+      "  --ui-font <family,Npx> application font, e.g. \"Pretendard,13px\"\n"
+      "  --icon-dir <dir>       give each QAction the icon <dir>/<objectName>.svg\n"
+      "                         (+ .active.svg / .disabled.svg) if it exists\n"
       "\n"
       "  panels:  intregs fpregs text data console log window about\n"
       "           inspector\n"
@@ -161,6 +169,27 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
 
     if (arg == "--redisplay") {
       redisplay_ = true;
+      continue;
+    }
+
+    if (arg == "--qss" || arg == "--font-dir" || arg == "--ui-font" ||
+        arg == "--icon-dir") {
+      if (i + 1 >= args.size()) {
+        err() << arg << " needs a value\n" << usage() << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      const QString value = args.at(i + 1);
+      if (arg == "--qss") {
+        qssFile_ = value;
+      } else if (arg == "--font-dir") {
+        fontDirs_ << value;
+      } else if (arg == "--ui-font") {
+        uiFont_ = value;
+      } else {
+        iconDir_ = value;
+      }
+      i += 1;
       continue;
     }
 
@@ -734,8 +763,80 @@ void EduDevtools::captureModalDialog() {
   modal->close();
 }
 
+// --font-dir, --ui-font, --qss and --icon-dir: the appearance-only part of a
+// theme, so that a design can be captured before any widget code changes.
+void EduDevtools::applyThemeOptions() {
+  for (int i = 0; i < fontDirs_.size(); i += 1) {
+    const QDir dir(fontDirs_.at(i));
+    const QStringList files =
+        dir.entryList(QStringList() << "*.ttf" << "*.otf", QDir::Files);
+    for (int j = 0; j < files.size(); j += 1) {
+      const int id = QFontDatabase::addApplicationFont(dir.filePath(files.at(j)));
+      if (id < 0) {
+        err() << "cannot load font " << files.at(j) << "\n" << Qt::flush;
+        status_ = 2;
+      } else {
+        out() << "font: " << QFontDatabase::applicationFontFamilies(id).join(", ")
+              << "\n" << Qt::flush;
+      }
+    }
+  }
+
+  if (!uiFont_.isEmpty()) {  // "Family,13px" or "Family,10pt"
+    QFont font(uiFont_.section(',', 0, 0));
+    const QString size = uiFont_.section(',', 1, 1).trimmed();
+    if (size.endsWith("px")) {
+      font.setPixelSize(size.left(size.size() - 2).toInt());
+    } else if (size.endsWith("pt")) {
+      font.setPointSizeF(size.left(size.size() - 2).toDouble());
+    }
+    QApplication::setFont(font);
+  }
+
+  if (!qssFile_.isEmpty()) {
+    QFile file(qssFile_);
+    if (!file.open(QIODevice::ReadOnly)) {
+      err() << "cannot read " << qssFile_ << "\n" << Qt::flush;
+      status_ = 2;
+    } else {
+      qApp->setStyleSheet(QString::fromUtf8(file.readAll()));
+    }
+  }
+
+  if (!iconDir_.isEmpty()) {
+    const QDir dir(iconDir_);
+    const QList<QAction*> actions = window_->findChildren<QAction*>();
+    int applied = 0;
+    for (int i = 0; i < actions.size(); i += 1) {
+      QAction* action = actions.at(i);
+      const QString name = action->objectName();
+      if (name.isEmpty() || !dir.exists(name + ".svg")) {
+        continue;
+      }
+      QIcon icon(dir.filePath(name + ".svg"));
+      if (dir.exists(name + ".active.svg")) {
+        icon.addFile(dir.filePath(name + ".active.svg"), QSize(), QIcon::Active);
+      }
+      if (dir.exists(name + ".disabled.svg")) {
+        icon.addFile(dir.filePath(name + ".disabled.svg"), QSize(),
+                     QIcon::Disabled);
+      }
+      action->setIcon(icon);
+      applied += 1;
+      // The Assemble button keeps its caption next to the icon.
+      QToolButton* button = qobject_cast<QToolButton*>(
+          window_->ui->toolBar->widgetForAction(action));
+      if (button != 0 && name == "action_Edu_Assemble") {
+        button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+      }
+    }
+    out() << "icons: " << applied << " actions\n" << Qt::flush;
+  }
+}
+
 void EduDevtools::run() {
   settle();
+  applyThemeOptions();
 
   // The window title is not part of a QWidget::grab() (the frame belongs to
   // the window manager), so report it here for branding checks.

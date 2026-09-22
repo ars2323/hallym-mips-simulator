@@ -159,6 +159,7 @@ class EduDevtools : public QObject {
   bool writeDump(const Dump& dump);
   QString registerDump() const;
   void settle();
+  void applyThemeOptions();
 
   QList<Capture> captures_;
   QList<Dump> dumps_;
@@ -191,6 +192,11 @@ class EduDevtools : public QObject {
   SpimView* window_;
   QString modalOut_;
   QString dialogShotDir_;
+  // Theme mock-ups (PLAN stage H): applied before anything else runs.
+  QString qssFile_;       // --qss: replaces the application style sheet
+  QStringList fontDirs_;  // --font-dir: .ttf/.otf files to register
+  QString uiFont_;        // --ui-font: "Family,13px" application font
+  QString iconDir_;       // --icon-dir: <action object name>.svg icons
   QTimer* dialogTimer_;
   int dismissedDialogs_;
   int status_;
