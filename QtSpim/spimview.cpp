@@ -279,6 +279,7 @@ void SpimView::SetOutputColor(QString color) { outputColor = color; }
 
 void SpimView::Error(QString message, bool fatal) {
   WriteOutput(message);
+  eduShowLog();  // EDU: a hidden message log comes back for an error
 
   // EDU: while the editor assembles, errors go to its list instead of one
   // modal box each.  The message log above gets them as always.

@@ -33,6 +33,11 @@ class EduTextView : public QTableView {
   // Text > Comments / Instruction Value.
   void setColumnsShown(bool code, bool source);
 
+  // What the panel asks for at first start (upstream's .ui gave the text
+  // window a MINIMUM of 800x600; that size is a wish here, so the panel can
+  // also be made small when it shares the area with the editor).
+  QSize sizeHint() const { return QSize(800, 600); }
+
   // The selected instruction's address, if an instruction row is selected.
   bool currentInstruction(quint32* address) const;
   void selectAddress(quint32 address);
@@ -67,6 +72,7 @@ class EduTextView : public QTableView {
   bool restoring_;
   bool fontApplied_;
   QFont appliedFont_;
+  int instructionColumnMax_;
   bool hadSelection_;
   quint32 selectedAddress_;
   int scrollValue_;

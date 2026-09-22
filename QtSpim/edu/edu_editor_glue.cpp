@@ -6,6 +6,7 @@
 #include <QFileInfo>
 #include <QDir>
 #include <QLabel>
+#include <QDockWidget>
 #include <QMenu>
 #include <QMenuBar>
 #include <QPushButton>
@@ -86,6 +87,49 @@ void SpimView::eduSetupEditor() {
   QAction* toggle = eduEditor->toggleViewAction();
   toggle->setText("Editor");
   ui->menu_Window->insertAction(ui->action_Win_IntRegisters, toggle);
+
+  // Window > Message Log: the central text pane can be put away, and the
+  // panels take its room.  Ctrl+L: free upstream (F5, Shift-F5, F10) and in
+  // the editor (Ctrl+N/O/S, Ctrl+Shift+S, F3).  It comes back by itself
+  // when the simulator reports an error (SpimView::Error()).
+  ui->centralWidget->setMinimumHeight(120);  // never squeezed to a sliver
+  eduLogAction = new QAction("Message &Log", this);
+  eduLogAction->setObjectName("action_Edu_ToggleLog");
+  eduLogAction->setCheckable(true);
+  eduLogAction->setChecked(true);
+  eduLogAction->setShortcut(QKeySequence("Ctrl+L"));
+  connect(eduLogAction, SIGNAL(toggled(bool)), this, SLOT(eduToggleLog(bool)));
+  ui->menu_Window->insertAction(ui->action_Win_Console, eduLogAction);
+
+  // Window > Layout: how Editor, Text and Data share the right-hand area.
+  // Any arrangement can also be made by dragging a tab or a title bar
+  // (AllowNestedDocks in spimview.ui); these are the three that matter.
+  QMenu* layouts = new QMenu("&Layout", this);
+  layouts->setObjectName("menu_Edu_Layout");
+  struct {
+    const char* name;
+    const char* text;
+    const char* slot;
+  } const presets[] = {
+      {"action_Edu_LayoutTabs", "&Tabs (Editor, Text, Data in one group)", SLOT(eduLayoutTabs())},
+      {"action_Edu_LayoutSideBySide", "Editor &| Text  (side by side)", SLOT(eduLayoutSideBySide())},
+      {"action_Edu_LayoutStacked", "Editor &/ Text  (Editor above Text)", SLOT(eduLayoutStacked())},
+  };
+  for (unsigned i = 0; i < sizeof(presets) / sizeof(presets[0]); i += 1) {
+    QAction* action = new QAction(presets[i].text, this);
+    action->setObjectName(presets[i].name);
+    connect(action, SIGNAL(triggered(bool)), this, presets[i].slot);
+    layouts->addAction(action);
+  }
+  ui->menu_Window->insertMenu(ui->action_Win_Tile, layouts);
+  // The three panels can be moved and floated; closing is what the Window
+  // menu entries do.
+  QDockWidget* const movable[] = {eduEditor, ui->TextSegDockWidget, ui->DataSegDockWidget};
+  for (unsigned i = 0; i < sizeof(movable) / sizeof(movable[0]); i += 1) {
+    movable[i]->setFeatures(QDockWidget::DockWidgetClosable |
+                            QDockWidget::DockWidgetMovable |
+                            QDockWidget::DockWidgetFloatable);
+  }
 
   eduAssembleBadge = new QLabel(this);
   eduAssembleBadge->setObjectName("EduAssembleBadge");
@@ -215,6 +259,57 @@ void SpimView::eduEditorAtStartup() {
   }
 }
 
+//
+// Message log
+//
+
+void SpimView::eduSetLogVisible(bool on) {
+  ui->centralWidget->setVisible(on);
+  if (eduLogAction->isChecked() != on) {
+    eduLogAction->setChecked(on);  // triggers eduToggleLog(), harmless
+  }
+}
+
+void SpimView::eduToggleLog(bool on) { eduSetLogVisible(on); }
+
+void SpimView::eduShowLog() {
+  if (eduLogAction != 0 && ui->centralWidget->isHidden()) {
+    eduSetLogVisible(true);
+  }
+}
+
+//
+// Layout presets
+//
+
+// Each preset starts from the three docks re-added to the top area (which
+// takes them out of any tab group or split they were in), then arranges.
+void SpimView::eduArrangePanels(int layout) {
+  QDockWidget* const docks[] = {eduEditor, ui->TextSegDockWidget, ui->DataSegDockWidget};
+  for (unsigned i = 0; i < sizeof(docks) / sizeof(docks[0]); i += 1) {
+    docks[i]->setFloating(false);
+    docks[i]->show();
+    addDockWidget(Qt::TopDockWidgetArea, docks[i]);
+  }
+  if (layout == 0) {
+    tabifyDockWidget(ui->DataSegDockWidget, ui->TextSegDockWidget);
+    tabifyDockWidget(ui->TextSegDockWidget, eduEditor);
+    (eduProgramLoaded ? ui->TextSegDockWidget : eduEditor)->raise();
+    return;
+  }
+  const Qt::Orientation o = layout == 1 ? Qt::Horizontal : Qt::Vertical;
+  splitDockWidget(eduEditor, ui->TextSegDockWidget, o);
+  tabifyDockWidget(ui->TextSegDockWidget, ui->DataSegDockWidget);
+  ui->TextSegDockWidget->raise();
+  // Halves, whatever the size hints say (equal wishes, scaled to fit).
+  resizeDocks(QList<QDockWidget*>() << eduEditor << ui->TextSegDockWidget,
+              QList<int>() << 1000 << 1000, o);
+}
+
+void SpimView::eduLayoutTabs() { eduArrangePanels(0); }
+void SpimView::eduLayoutSideBySide() { eduArrangePanels(1); }
+void SpimView::eduLayoutStacked() { eduArrangePanels(2); }
+
 bool SpimView::eduEditorMaybeSave() { return eduEditor->maybeSave(); }
 
 void SpimView::eduEditorNew() {
@@ -255,7 +350,9 @@ void SpimView::eduEditorFileLoaded(const QString& file) {
     } else {
       eduEditor->openFile(file, !same);
     }
-    ui->TextSegDockWidget->raise();  // a program was loaded: look at it
+    if (ui->TextSegView->visibleRegion().isEmpty()) {
+      ui->TextSegDockWidget->raise();  // a program was loaded: look at it
+    }
     eduSyncedPath = QFileInfo(file).canonicalFilePath();
     eduUpdateStaleBanner();
   }
@@ -302,8 +399,12 @@ void SpimView::eduAssemble() {
   if (messages.isEmpty()) {
     eduAssembleBadge->hide();
     statusBar()->showMessage("Saved and assembled", 5000);
+    // On to the Text panel -- unless it is on screen already (side by side
+    // with the editor), where a "switch" would only take the editor away.
     ui->TextSegDockWidget->show();
-    ui->TextSegDockWidget->raise();
+    if (ui->TextSegView->visibleRegion().isEmpty()) {
+      ui->TextSegDockWidget->raise();
+    }
   } else {
     // The file is saved (the student's work is safe), but what ran before is
     // gone: Assemble reinitializes first, exactly as upstream's Reinitialize
@@ -315,6 +416,8 @@ void SpimView::eduAssemble() {
         QString(". Simulator was reset."));
     eduAssembleBadge->show();
     statusBar()->clearMessage();  // an earlier "Saved and assembled"
-    eduEditor->raise();
+    if (eduEditor->editor()->visibleRegion().isEmpty()) {
+      eduEditor->raise();
+    }
   }
 }

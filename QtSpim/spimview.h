@@ -120,6 +120,10 @@ class SpimView : public QMainWindow {
   EduEditorDock* eduEditor;
   void eduSetupEditor();
   void eduTileEditor();
+  void eduShowLog();                 // the message log, if hidden
+  void eduSetLogVisible(bool on);
+  QAction* eduLogAction;             // Window > Message Log
+  void eduArrangePanels(int layout); // 0 tabs, 1 side by side, 2 stacked
   void eduEditorAtStartup();
   bool eduEditorMaybeSave();                     // false = the user cancelled
   void eduEditorFileLoaded(const QString& file); // File > Load File, command line
@@ -377,6 +381,10 @@ class SpimView : public QMainWindow {
   void eduEditorOpen();
   void eduEditorSaveAs();
   void eduEditorOpenRecent();
+  void eduToggleLog(bool on);
+  void eduLayoutTabs();
+  void eduLayoutSideBySide();
+  void eduLayoutStacked();
   void eduEditorFileChanged();
 
 };

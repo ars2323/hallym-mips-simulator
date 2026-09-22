@@ -123,6 +123,7 @@ EduTextView::EduTextView(QWidget* parent)
       menuRow_(-1),
       restoring_(false),
       fontApplied_(false),
+      instructionColumnMax_(0),
       hadSelection_(false),
       selectedAddress_(0),
       scrollValue_(0) {
@@ -192,8 +193,9 @@ void EduTextView::applyPanelFont(const QFont& font) {
   setColumnWidth(EduTextModel::TypeColumn,
                  qMax(bold.horizontalAdvance("CP0") + 8,
                       metrics.horizontalAdvance("Type")) + pad);
-  setColumnWidth(EduTextModel::InstructionColumn,
-                 bold.horizontalAdvance(QString(38, QLatin1Char('0'))) + pad);
+  instructionColumnMax_ =
+      bold.horizontalAdvance(QString(38, QLatin1Char('0'))) + pad;
+  setColumnWidth(EduTextModel::InstructionColumn, instructionColumnMax_);
 }
 
 void EduTextView::setColumnsShown(bool code, bool source) {
@@ -244,6 +246,14 @@ void EduTextView::afterReset() {
   const QList<int> headers = model_->headerRows();
   for (int i = 0; i < headers.size(); i += 1) {
     setSpan(headers.at(i), 0, 1, EduTextModel::ColumnCount);
+  }
+  // The Instruction column is as wide as its widest text, at most the width
+  // set from the font (applyPanelFont): in a dock half the window wide, the
+  // Source column keeps its room.
+  const int fitted = sizeHintForColumn(EduTextModel::InstructionColumn) + 8;
+  if (instructionColumnMax_ > 0) {
+    setColumnWidth(EduTextModel::InstructionColumn,
+                   qBound(60, fitted, instructionColumnMax_));
   }
   restoring_ = true;
   if (hadSelection_) {

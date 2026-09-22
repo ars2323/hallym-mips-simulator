@@ -38,6 +38,7 @@ QString* eduOutputCapture = NULL;
 // inspector has to exist for restoreState() to place it).
 void SpimView::eduSetupPanels() {
   eduEditor = 0;  // until eduSetupEditor() at the end of this function
+  eduLogAction = 0;
   eduRegisterModel = new EduRegisterModel(this);
   ui->IntRegView->setRegisterModel(eduRegisterModel);
 

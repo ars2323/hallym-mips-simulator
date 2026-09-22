@@ -49,7 +49,7 @@
    <string>QtSpim</string>
   </property>
   <property name="dockOptions">
-   <set>QMainWindow::AnimatedDocks|QMainWindow::ForceTabbedDocks|QMainWindow::VerticalTabs</set>
+   <set>QMainWindow::AllowNestedDocks|QMainWindow::AllowTabbedDocks|QMainWindow::AnimatedDocks|QMainWindow::GroupedDragging|QMainWindow::VerticalTabs</set>
   </property>
   <widget class="QTextEdit" name="centralWidget">
    <property name="undoRedoEnabled">
@@ -221,8 +221,8 @@
    <widget class="EduTextView" name="TextSegView">
     <property name="minimumSize">
      <size>
-      <width>800</width>
-      <height>600</height>
+      <width>300</width>
+      <height>120</height>
      </size>
     </property>
    </widget>

@@ -737,6 +737,7 @@ void SpimView::win_Tile() {
   ui->DataSegDockWidget->setFloating(false);
   tabifyDockWidget(ui->DataSegDockWidget, ui->TextSegDockWidget);
   eduTileEditor();  // EDU: a third tab with Data and Text
+  eduShowLog();     // EDU: Tile restores the default layout, log included
 }
 
 // Help menu

@@ -43,6 +43,10 @@
 
 void SpimView::readSettings() {
   settings.beginGroup("MainWin");
+  // EDU: first start.  Upstream's window got its size from the text
+  // window's 800x600 minimum; that is a wish now (EduTextView::sizeHint),
+  // so the size is set here instead.  A saved geometry replaces it below.
+  resize(1300, 830);
   restoreGeometry(settings.value("Geometry").toByteArray());
   // EDU: the layout version.  A state saved by an earlier build is ignored
   // once and the default layout applies: 2 moved the register docks to the
@@ -51,6 +55,7 @@ void SpimView::readSettings() {
   // EDU: an inspector the user sized keeps its height; unlocked before the
   // state is restored, else the content's height would win.
   eduInspectorSizing(settings.value("InspectorUserSized", false).toBool());
+  eduSetLogVisible(settings.value("LogVisible", true).toBool());  // EDU
   restoreState(settings.value("WindowState").toByteArray(), 4);
   settings.endGroup();
 
@@ -152,6 +157,7 @@ void SpimView::writeSettings(bool omitWindowState) {
     settings.setValue("Geometry", saveGeometry());
     settings.setValue("WindowState", saveState(4));  // EDU: see readSettings
     settings.setValue("InspectorUserSized", eduInspectorUserSized);  // EDU
+    settings.setValue("LogVisible", !ui->centralWidget->isHidden());  // EDU
     settings.endGroup();
   }
 
