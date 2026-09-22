@@ -63,8 +63,8 @@ void TestInstructionText::branchInDefaultMode() {
       edu::decode(0x14200002u, 0x00400030u, edu::SpimNoDelaySlot),
       edu::SpimNoDelaySlot);
   QCOMPARE(notes.size(), 2);
-  QVERIFY(notes.at(0).startsWith(QString::fromUtf8("SPIM 기본 모드는")));
-  QVERIFY(notes.at(1).startsWith(QString("SPIM's default mode")));
+  QVERIFY(notes.at(0).startsWith(QString::fromUtf8("이 시뮬레이터의 기본 모드는")));
+  QVERIFY(notes.at(1).startsWith(QString("This simulator's default mode")));
 }
 
 void TestInstructionText::branchWithDelayedBranches() {
