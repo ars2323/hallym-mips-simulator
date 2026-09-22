@@ -32,6 +32,7 @@
 */
 
 #include "spimview.h"
+#include "edu/theme/edu_theme.h"  // EDU
 
 Console::Console(QWidget* parent) : QPlainTextEdit(parent) {
   setWindowTitle("Console");
@@ -40,8 +41,8 @@ Console::Console(QWidget* parent) : QPlainTextEdit(parent) {
   setUndoRedoEnabled(false);
   appendPlainText(QString(""));
 
-  QFont courier("Courier");
-  setFont(courier);
+  setObjectName("EduConsole");      // EDU: style sheet hook
+  setFont(edu::theme::codeFont());  // EDU: was QFont("Courier")
 }
 
 void Console::WriteOutput(QString out) {

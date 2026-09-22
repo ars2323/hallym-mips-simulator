@@ -2,6 +2,9 @@
 
 #include "edu/edu_inspector.h"
 
+#include "edu/theme/edu_theme.h"
+#include "edu/theme/tokens.h"
+
 #include <QAbstractTextDocumentLayout>
 #include <QApplication>
 #include <QEvent>
@@ -62,7 +65,7 @@ EduInspector::EduInspector(QWidget* parent)
   layout->addWidget(note_);
   body_->installEventFilter(this);  // a new width re-wraps the note
 
-  setPanelFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+  setPanelFont(edu::theme::codeFont());
   setWidget(body_);
   connect(view_->document()->documentLayout(),
           SIGNAL(documentSizeChanged(QSizeF)), this, SLOT(fitHeight()));
@@ -75,6 +78,12 @@ EduInspector::EduInspector(QWidget* parent)
 // that is a request, not a guarantee: if the system resolves it to a
 // proportional face, the system's fixed font is used at the same size.
 static QFont fixedPitchVersionOf(const QFont& requested) {
+  // The bundled code font declares itself monospaced (post table, PANOSE);
+  // fontconfig on Linux still reports it as "dual" spacing because Hangul is
+  // two cells wide, so the probe below would wrongly reject it.
+  if (requested.family() == QLatin1String(edu::theme::kCodeFamily)) {
+    return requested;
+  }
   QFont font = requested;
   font.setStyleHint(QFont::TypeWriter);
   font.setFixedPitch(true);

@@ -13,22 +13,27 @@
 #include <QStyledItemDelegate>
 
 #include "edu/edu_text_model.h"
+#include "edu/theme/tokens.h"
 #include "spimview.h"
 #include "ui_spimview.h"
 
 namespace {
 
-QColor badgeColor(const QString& type) {
-  if (type == "R") return QColor(46, 125, 50);     // green
-  if (type == "I") return QColor(21, 101, 192);    // blue
-  if (type == "J") return QColor(230, 81, 0);      // orange
-  if (type == "FR") return QColor(106, 27, 154);   // purple
-  if (type == "FI") return QColor(173, 20, 87);    // pink
-  return QColor(84, 110, 122);                     // CP0: blue grey
+using namespace edu::theme;
+
+const BadgeColors& badgeColors(const QString& type) {
+  for (unsigned i = 0; i < sizeof(kBadges) / sizeof(kBadges[0]); i += 1) {
+    if (type == QLatin1String(kBadges[i].type)) {
+      return kBadges[i];
+    }
+  }
+  return kBadges[sizeof(kBadges) / sizeof(kBadges[0]) - 1];  // CP0
 }
 
-// Paints the row background itself (the PC row stays cyan even when it is
-// selected), a red dot in the BP column and a badge in the Type column.
+// Paints the row background itself -- the PC row (blue tint, left bar) and
+// the selected row (darker tint, navy text; never white on blue) -- the
+// pseudo-expansion band bar, the breakpoint dot and the type badge.
+// docs/design/tokens.md 1.3 and 4.
 class TextRowDelegate : public QStyledItemDelegate {
  public:
   explicit TextRowDelegate(QObject* parent) : QStyledItemDelegate(parent) {}
@@ -41,28 +46,44 @@ class TextRowDelegate : public QStyledItemDelegate {
     const bool instruction = index.data(EduTextModel::RowKindRole).toInt() ==
                              int(EduTextModel::InstructionRow);
 
-    if (isPc) {
-      // Selection is shown by a darker cyan, so "this is the PC" survives.
-      opt.state &= ~QStyle::State_Selected;
-      painter->fillRect(opt.rect, selected ? QColor(0, 200, 215)
-                                           : QColor(Qt::cyan));
-    } else if (!selected) {
+    // The style's highlight is never used: selection is a tint with navy
+    // text, and the PC row keeps its bar when it is the selected row too.
+    opt.state &= ~QStyle::State_Selected;
+    if (selected) {
+      painter->fillRect(opt.rect, QColor(kBlueTint2));
+    } else {
       painter->fillRect(opt.rect,
                         index.data(Qt::BackgroundRole).value<QColor>());
     }
+    if (index.column() == 0) {
+      if (isPc) {
+        painter->fillRect(QRect(opt.rect.left(), opt.rect.top(), kPcBarWidth,
+                                opt.rect.height()),
+                          QColor(kBlue));
+      } else if (instruction &&
+                 index.data(Qt::BackgroundRole).value<QColor>() ==
+                     QColor(kWindow)) {
+        // A pseudo-instruction band: a bar down its left edge, broken at
+        // the first row of each expansion so neighbours stay apart.
+        const int gap = index.data(EduTextModel::BandStartRole).toBool() ? 2 : 0;
+        painter->fillRect(QRect(opt.rect.left(), opt.rect.top() + gap,
+                                kBandBarWidth, opt.rect.height() - gap),
+                          QColor(kGray));
+      }
+    }
+    if (selected || isPc) {
+      opt.palette.setColor(QPalette::Text, QColor(kNavy));
+    }
 
     if (instruction && index.column() == EduTextModel::BpColumn) {
-      if (selected && !isPc) {
-        QStyledItemDelegate::paint(painter, opt, index);
-      }
       if (index.data(EduTextModel::BreakpointRole).toBool()) {
-        const int d = qMin(opt.rect.height(), opt.rect.width()) - 6;
+        const int d = qMin(opt.rect.height(), opt.rect.width()) - 8;
         QRect dot(0, 0, d, d);
         dot.moveCenter(opt.rect.center());
         painter->save();
         painter->setRenderHint(QPainter::Antialiasing);
         painter->setPen(Qt::NoPen);
-        painter->setBrush(QColor(211, 47, 47));
+        painter->setBrush(QColor(kError));
         painter->drawEllipse(dot);
         painter->restore();
       }
@@ -70,22 +91,21 @@ class TextRowDelegate : public QStyledItemDelegate {
     }
 
     if (instruction && index.column() == EduTextModel::TypeColumn) {
-      if (selected && !isPc) {
-        QStyledItemDelegate::paint(painter, opt, index);
-      }
       const QString type = index.data(Qt::DisplayRole).toString();
+      const BadgeColors& colors = badgeColors(type);
       QFont font(opt.font);
-      font.setBold(true);
+      font.setPixelSize(kBadgePixelSize);
+      font.setWeight(QFont::DemiBold);
       const QFontMetrics metrics(font);
       QRect badge(0, 0, metrics.horizontalAdvance("CP0") + 8,
-                  qMin(opt.rect.height() - 2, metrics.height()));
+                  qMin(opt.rect.height() - 2, kBadgeHeight));
       badge.moveCenter(opt.rect.center());
       painter->save();
       painter->setRenderHint(QPainter::Antialiasing);
       painter->setPen(Qt::NoPen);
-      painter->setBrush(badgeColor(type));
-      painter->drawRoundedRect(badge, 3, 3);
-      painter->setPen(Qt::white);
+      painter->setBrush(QColor(colors.background));
+      painter->drawRoundedRect(badge, kBadgeRadius, kBadgeRadius);
+      painter->setPen(QColor(colors.text));
       painter->setFont(font);
       painter->drawText(badge, Qt::AlignCenter, type);
       painter->restore();
@@ -93,11 +113,8 @@ class TextRowDelegate : public QStyledItemDelegate {
     }
 
     // The background is already there; keep the style from painting the
-    // model's brush over a selected row's highlight.
+    // model's brush over it.
     opt.backgroundBrush = QBrush();
-    if (isPc) {
-      opt.palette.setColor(QPalette::Text, Qt::black);
-    }
     QStyledItemDelegate::paint(painter, opt, index);
   }
 
@@ -183,7 +200,7 @@ void EduTextView::applyPanelFont(const QFont& font) {
   const QFontMetrics bold(boldFont);
 
   verticalHeader()->setDefaultSectionSize(
-      qMax(metrics.height(), metrics.lineSpacing()) + 2);
+      qMax(qMax(metrics.height(), metrics.lineSpacing()) + 2, kRowHeight));
   const int pad = 14;
   setColumnWidth(EduTextModel::BpColumn, metrics.horizontalAdvance("BP") + pad);
   setColumnWidth(EduTextModel::AddressColumn,

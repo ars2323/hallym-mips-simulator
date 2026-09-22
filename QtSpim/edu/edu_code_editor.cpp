@@ -2,6 +2,8 @@
 
 #include "edu/edu_code_editor.h"
 
+#include "edu/theme/tokens.h"
+
 #include <QHelpEvent>
 #include <QPainter>
 #include <QTextBlock>
@@ -38,10 +40,11 @@ class Margin : public QWidget {
   EduCodeEditor* editor_;
 };
 
-QTextCharFormat colour(const QColor& c, bool bold = false, bool italic = false) {
+QTextCharFormat colour(const QColor& c, int weight = QFont::Normal,
+                       bool italic = false) {
   QTextCharFormat format;
   format.setForeground(c);
-  if (bold) format.setFontWeight(QFont::Bold);
+  if (weight != QFont::Normal) format.setFontWeight(weight);
   format.setFontItalic(italic);
   return format;
 }
@@ -56,15 +59,17 @@ EduMipsHighlighter::EduMipsHighlighter(QTextDocument* document)
     : QSyntaxHighlighter(document) {}
 
 void EduMipsHighlighter::highlightBlock(const QString& text) {
+  // docs/design/tokens.md 5, "문법 강조".
+  using namespace edu::theme;
   static const QTextCharFormat formats[] = {
-      colour(QColor(117, 117, 117), false, true),  // Comment: grey italic
-      colour(QColor(46, 125, 50)),                 // String: green
-      colour(QColor(106, 27, 154)),                // Directive: purple
-      colour(QColor(21, 101, 192), true),          // Instruction: blue bold
-      colour(QColor(191, 54, 12)),                 // Register: rust
-      colour(QColor(0, 0, 0), true),               // LabelDefinition: bold
-      colour(QColor(0, 96, 100)),                  // Identifier: teal
-      colour(QColor(173, 20, 87)),                 // Number: magenta
+      colour(QColor(kTextMuted), QFont::Normal, true),  // Comment
+      colour(QColor(kAmberText)),                       // String
+      colour(QColor(kBlue)),                            // Directive
+      colour(QColor(kNavy), QFont::Medium),             // Instruction
+      colour(QColor(kTealText)),                        // Register
+      colour(QColor(kNavy), QFont::DemiBold),           // LabelDefinition
+      colour(QColor(kText)),                            // Identifier
+      colour(QColor(kPurpleText)),                      // Number
   };
   const QList<edu::SyntaxToken> tokens = edu::tokenizeMipsLine(text);
   for (int i = 0; i < tokens.size(); i += 1) {
@@ -163,7 +168,7 @@ void EduCodeEditor::resizeEvent(QResizeEvent* event) {
 
 void EduCodeEditor::highlightCurrentLine() {
   QTextEdit::ExtraSelection line;
-  line.format.setBackground(QColor(255, 249, 196));  // pale yellow
+  line.format.setBackground(QColor(edu::theme::kWindow));
   line.format.setProperty(QTextFormat::FullWidthSelection, true);
   line.cursor = textCursor();
   line.cursor.clearSelection();
@@ -177,7 +182,7 @@ void EduCodeEditor::highlightCurrentLine() {
     const QTextBlock block = document()->findBlockByNumber(it.key() - 1);
     if (block.isValid()) {
       QTextEdit::ExtraSelection error;
-      error.format.setBackground(QColor(255, 205, 210));
+      error.format.setBackground(QColor(edu::theme::kErrorTint));
       error.format.setProperty(QTextFormat::FullWidthSelection, true);
       error.cursor = QTextCursor(block);
       selections << error;
@@ -188,7 +193,7 @@ void EduCodeEditor::highlightCurrentLine() {
 
 void EduCodeEditor::paintMargin(QPaintEvent* event) {
   QPainter painter(margin_);
-  painter.fillRect(event->rect(), QColor(240, 240, 240));
+  painter.fillRect(event->rect(), QColor(edu::theme::kWindow));
   painter.setFont(font());
 
   QTextBlock block = firstVisibleBlock();
@@ -203,11 +208,11 @@ void EduCodeEditor::paintMargin(QPaintEvent* event) {
       if (errors_.contains(number)) {
         painter.setRenderHint(QPainter::Antialiasing);
         painter.setPen(Qt::NoPen);
-        painter.setBrush(QColor(211, 47, 47));
+        painter.setBrush(QColor(edu::theme::kError));
         painter.drawEllipse(3, top + 3, dot, dot);
       }
-      painter.setPen(number == current ? QColor(33, 33, 33)
-                                       : QColor(140, 140, 140));
+      painter.setPen(number == current ? QColor(edu::theme::kNavy)
+                                       : QColor(edu::theme::kTextMuted));
       painter.drawText(0, top, margin_->width() - 4, fontMetrics().height(),
                        Qt::AlignRight, QString::number(number));
     }

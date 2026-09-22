@@ -2,6 +2,8 @@
 
 #include "edu/edu_register_model.h"
 
+#include "edu/theme/tokens.h"
+
 #include <QBrush>
 #include <QFont>
 
@@ -122,6 +124,9 @@ QVariant EduRegisterModel::data(const QModelIndex& index, int role) const {
       font.setBold(true);
       return font;
     }
+    if (role == Qt::ForegroundRole) {
+      return QBrush(QColor(edu::theme::kNavy));
+    }
     return QVariant();
   }
 
@@ -161,7 +166,7 @@ QVariant EduRegisterModel::data(const QModelIndex& index, int role) const {
     case Qt::FontRole:
       if (colorChanges_ && row->value != row->snapshot) {
         QFont font = panelFont_;
-        font.setBold(true);
+        font.setWeight(QFont::DemiBold);  // tokens.md: SemiBold, no background
         return font;
       }
       break;

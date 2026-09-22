@@ -39,7 +39,8 @@ class EduTextModel : public QAbstractTableModel {
   enum Role {
     RowKindRole = Qt::UserRole + 1,  // int (RowKind)
     IsPcRole,                        // bool
-    BreakpointRole                   // bool
+    BreakpointRole,                  // bool
+    BandStartRole                    // bool: first row of a pseudo expansion
   };
 
   struct Row {

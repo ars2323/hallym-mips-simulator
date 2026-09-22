@@ -2,6 +2,8 @@
 
 #include "edu/edu_register_view.h"
 
+#include "edu/theme/tokens.h"
+
 #include <QAction>
 #include <QContextMenuEvent>
 #include <QHeaderView>
@@ -30,11 +32,13 @@ class CompactRowDelegate : public QStyledItemDelegate {
     // glyphs need.  With the default Courier 10 pt that is 15-16 pixels a
     // row, which is what 47 rows + header + inspector can have in the left
     // dock column of a maximised window on a 1080-line screen.
+    // The token row height (docs/design/tokens.md 3), unless the font is
+    // taller than that (a user-chosen Register window font).
     const QFontMetrics& metrics = option.fontMetrics;
     const int glyphs =
         metrics.tightBoundingRect(QString("$0gyRSpj")).height() + 2;
     QSize size = QStyledItemDelegate::sizeHint(option, index);
-    size.setHeight(qMax(glyphs, metrics.height() - 3));
+    size.setHeight(qMax(glyphs, edu::theme::kRowHeight));
     return size;
   }
 };
@@ -102,9 +106,16 @@ void EduRegisterView::applyPanelFont(const QFont& font) {
   bold.setBold(true);
   const QFontMetrics metrics(bold);
   const int cellPadding = 12;
+  // The Name column holds the group titles too ("Return values" is wider
+  // than "BadVAddr" plus its extra indentation level).
+  int nameWidth = indentation() * 2 + metrics.horizontalAdvance("BadVAddr");
+  for (int g = 0; model_ != 0 && g < model_->rowCount(); g += 1) {
+    const QString title = model_->index(g, 0).data(Qt::DisplayRole).toString();
+    nameWidth = qMax(nameWidth,
+                     indentation() + metrics.horizontalAdvance(title));
+  }
   const int width =
-      indentation() * 2 + metrics.horizontalAdvance("BadVAddr") +
-      metrics.horizontalAdvance("R31") +
+      nameWidth + metrics.horizontalAdvance("R31") +
       metrics.horizontalAdvance("0x00000000") +
       metrics.horizontalAdvance("-2147483648") + 4 * cellPadding +
       2 * frameWidth() +

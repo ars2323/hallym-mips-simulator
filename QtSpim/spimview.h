@@ -136,6 +136,7 @@ class SpimView : public QMainWindow {
   void eduRebuildEditorRecentMenu();
   void eduBeginRunCommand();       // a Step/Run/Continue is about to start
   void eduResetRegisterChanges();  // Reinitialize / Load / Clear Registers
+  void eduInsetDockContent(QDockWidget* dock);  // 4 px under the title
   void eduRefreshRegisterPanel();
 
   // EDU: Text panel (edu/edu_text_model.h, edu/edu_text_view.h).

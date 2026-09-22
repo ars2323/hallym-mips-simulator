@@ -36,6 +36,8 @@
 
 #include "spimview.h"
 #include "ui_spimview.h"
+#include "edu/theme/tokens.h"  // EDU: settings defaults
+#include "edu/theme/edu_theme.h"
 
 //
 // Restore program settings and window positions
@@ -70,15 +72,16 @@ void SpimView::readSettings() {
 
   settings.beginGroup("RegWin");
   st_colorChangedRegisters = settings.value("ColorChangedRegs", true).toBool();
-  st_changedRegisterColor = settings.value("ChangedRegColor", "red").toString();
+  st_changedRegisterColor =  // EDU: default was "red"
+      settings.value("ChangedRegColor", edu::theme::color(edu::theme::kTealText).name()).toString();
   st_regDisplayBase = settings.value("RegisterDisplayBase", 16).toInt();
   st_regDisplayBase = setCheckedRegBase(st_regDisplayBase);
 
-  st_regWinFont = settings.value("Font", QFont("Courier", 10)).value<QFont>();
+  st_regWinFont = settings.value("Font", edu::theme::codeFont()).value<QFont>();
   st_regWinFontColor =
-      settings.value("FontColor", QColor("black")).value<QColor>();
+      settings.value("FontColor", edu::theme::color(edu::theme::kText)).value<QColor>();  // EDU
   st_regWinBackgroundColor =
-      settings.value("BackgroundColor", QColor("white")).value<QColor>();
+      settings.value("BackgroundColor", edu::theme::color(edu::theme::kWhite)).value<QColor>();  // EDU
 
   ui->action_Win_IntRegisters->setChecked(!ui->IntRegDockWidget->isHidden());
   ui->action_Win_FPRegisters->setChecked(!ui->FPRegDockWidget->isHidden());
@@ -94,11 +97,11 @@ void SpimView::readSettings() {
   st_showTextDisassembly = settings.value("ShowInstDisassembly", true).toBool();
   ui->action_Text_DisplayInstructionValue->setChecked(st_showTextDisassembly);
 
-  st_textWinFont = settings.value("Font", QFont("Courier", 10)).value<QFont>();
+  st_textWinFont = settings.value("Font", edu::theme::codeFont()).value<QFont>();
   st_textWinFontColor =
-      settings.value("FontColor", QColor("black")).value<QColor>();
+      settings.value("FontColor", edu::theme::color(edu::theme::kText)).value<QColor>();  // EDU
   st_textWinBackgroundColor =
-      settings.value("BackgroundColor", QColor("white")).value<QColor>();
+      settings.value("BackgroundColor", edu::theme::color(edu::theme::kWhite)).value<QColor>();  // EDU
 
   ui->action_Win_TextSegment->setChecked(!ui->TextSegDockWidget->isHidden());
   settings.endGroup();

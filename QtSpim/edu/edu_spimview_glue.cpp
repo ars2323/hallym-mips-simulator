@@ -9,10 +9,13 @@
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QVBoxLayout>
 #include <QStatusBar>
 #include <QTextEdit>
 
 #include "edu/core/edu_decoder.h"
+#include "edu/theme/edu_theme.h"
+#include "edu/theme/tokens.h"
 #include "edu/core/edu_instruction_text.h"
 #include "edu/core/edu_memory_text.h"
 #include "edu/core/edu_symbols.h"
@@ -57,17 +60,13 @@ void SpimView::eduSetupPanels() {
   // Which program and version this is, at the far right of the status bar
   // (a student's screenshot then says which build it came from).
   QLabel* version = new QLabel(QString(EDU_APP_NAME " " EDU_VERSION), this);
-  version->setObjectName("EduVersionLabel");
-  version->setStyleSheet("QLabel { color: #616161; padding: 0px 6px; }");
+  version->setObjectName("EduVersionLabel");  // styled by theme/light.qss
   statusBar()->addPermanentWidget(version);
 
   // Shown only while a setting that changes how files are assembled or run
   // differs from QtSpim's defaults.
   eduModeBadge = new QLabel(this);
-  eduModeBadge->setObjectName("EduModeBadge");
-  eduModeBadge->setStyleSheet(
-      "QLabel { background: #ffe082; color: black; border-radius: 3px;"
-      " padding: 1px 8px; font-weight: bold; }");
+  eduModeBadge->setObjectName("EduModeBadge");  // styled by theme/light.qss
   statusBar()->addPermanentWidget(eduModeBadge);
   eduModeBadge->hide();
 
@@ -121,6 +120,49 @@ void SpimView::eduSetupPanels() {
   eduDataLog->hide();
 
   eduSetupEditor();
+
+  // Tool bar and menu icons: Lucide, coloured from the tokens (tokens.md 5).
+  struct {
+    QAction* action;
+    const char* icon;
+  } const icons[] = {
+      {ui->action_File_Load, "folder-open"},
+      {ui->action_File_Reload, "refresh-cw"},
+      {ui->action_File_SaveLog, "save"},
+      {ui->action_File_Print, "printer"},
+      {ui->action_Sim_ClearRegisters, "eraser"},
+      {ui->action_Sim_Reinitialize, "rotate-ccw"},
+      {ui->action_Sim_Run, "play"},
+      {ui->action_Sim_Pause, "pause"},
+      {ui->action_Sim_Stop, "square"},
+      {ui->action_Sim_SingleStep, "step-forward"},
+      {ui->action_Sim_Settings, "settings"},
+      {ui->action_Help_ViewHelp, "circle-question-mark"},
+      {findChild<QAction*>("action_Edu_Assemble"), "hammer"},
+      {findChild<QAction*>("action_Edu_New"), "file-plus"},
+      {findChild<QAction*>("action_Edu_Open"), "file-text"},
+  };
+  for (unsigned i = 0; i < sizeof(icons) / sizeof(icons[0]); i += 1) {
+    if (icons[i].action != 0) {
+      icons[i].action->setIcon(edu::theme::toolIcon(icons[i].icon));
+    }
+  }
+
+  // The register docks show their table right under the title; the token
+  // layout wants a 4 px breath between the title bar and the header.
+  eduInsetDockContent(ui->IntRegDockWidget);
+  eduInsetDockContent(ui->FPRegDockWidget);
+}
+
+// Re-parents a dock's content into a box with the token's top margin.
+void SpimView::eduInsetDockContent(QDockWidget* dock) {
+  QWidget* content = dock->widget();
+  QWidget* box = new QWidget(dock);
+  QVBoxLayout* layout = new QVBoxLayout(box);
+  layout->setContentsMargins(0, edu::theme::kSpace1, 0, 0);
+  layout->setSpacing(0);
+  layout->addWidget(content, 1);
+  dock->setWidget(box);
 }
 
 // The register column lives in the LEFT dock area, not in upstream's top

@@ -2,18 +2,14 @@
 
 #include "edu/edu_text_model.h"
 
+#include "edu/theme/tokens.h"
+
 #include "edu/core/edu_decoder.h"
 #include "edu/core/edu_format.h"
 #include "edu/core/edu_source_text.h"
 #include "spimview.h"  // the core's headers (they have no include guards)
 
 namespace {
-
-QColor blend(const QColor& base, const QColor& tint, int percent) {
-  return QColor((base.red() * (100 - percent) + tint.red() * percent) / 100,
-                (base.green() * (100 - percent) + tint.green() * percent) / 100,
-                (base.blue() * (100 - percent) + tint.blue() * percent) / 100);
-}
 
 // The core's line for one instruction (ARCHITECTURE 3.5):
 //   "[0x00400000]\t0x8fa40000  lw $4, 0($29)      ; 183: lw $a0 0($sp)\n"
@@ -300,6 +296,9 @@ QVariant EduTextModel::data(const QModelIndex& index, int role) const {
     case BreakpointRole:
       return !header && inst_is_breakpoint(row->address);
 
+    case BandStartRole:
+      return !header && row->band != 0 && row->startsSourceLine;
+
     case Qt::DisplayRole:
       if (header) {
         return index.column() == 0 ? headerText(*row) : QVariant();
@@ -327,27 +326,23 @@ QVariant EduTextModel::data(const QModelIndex& index, int role) const {
       }
       return int(Qt::AlignLeft | Qt::AlignVCenter);
 
+    // Colours: docs/design/tokens.md 1.3.  The PC row and the pseudo bands
+    // are token colours whatever the Text window's settings colours are.
     case Qt::ForegroundRole:
-      if (isPc) {
-        return QColor(Qt::black);  // on cyan, whatever the window's colours
+      if (isPc || header) {
+        return QColor(edu::theme::kNavy);
       }
-      if (!header && index.column() == SourceColumn) {
-        return blend(text_, background_, 35);
+      if (index.column() == SourceColumn) {
+        return QColor(edu::theme::kText2);
       }
       return text_;
 
     case Qt::BackgroundRole:
       if (isPc) {
-        return QColor(Qt::cyan);  // upstream's highlight
+        return QColor(edu::theme::kBlueTint);
       }
-      if (header) {
-        return blend(background_, text_, 12);
-      }
-      if (row->band == 1) {
-        return blend(background_, QColor(255, 193, 7), 22);   // amber
-      }
-      if (row->band == 2) {
-        return blend(background_, QColor(3, 155, 229), 16);   // light blue
+      if (header || row->band != 0) {
+        return QColor(edu::theme::kWindow);
       }
       return background_;
 

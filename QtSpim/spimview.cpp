@@ -35,6 +35,8 @@
 #include "ui_spimview.h"
 
 // EDU: fork identity.
+#include "edu/theme/tokens.h"  // EDU
+#include "edu/theme/edu_theme.h"  // EDU
 #include "edu/edu_version.h"
 // EDU: warn before passing a path the core cannot open.
 #include "edu/edu_path_check.h"
@@ -266,10 +268,12 @@ QString SpimView::WriteOutput(QString message) {
   message.replace("\n", "<br>");
   message.replace(" ", "&nbsp;");
 
+  // EDU: the display font and colour come from the theme tokens; the text
+  // itself is untouched, so Save Log File (toPlainText) is byte-identical.
   Window->ui->centralWidget->append(
-      QString("<span style=\"font-family:Courier;color:" + outputColor +
-              "\">") +
-      message + QString("</span>"));
+      QString("<span style=\"font-family:") + edu::theme::kCodeFamily +
+      ";font-size:" + QString::number(edu::theme::kCodePointSize) +
+      "pt;color:" + outputColor + "\">" + message + QString("</span>"));
   Window->ui->centralWidget->ensureCursorVisible();
 
   return message;
@@ -278,7 +282,11 @@ QString SpimView::WriteOutput(QString message) {
 void SpimView::SetOutputColor(QString color) { outputColor = color; }
 
 void SpimView::Error(QString message, bool fatal) {
+  // EDU: errors in the log stand out in the error colour (display only).
+  const QString normalColor = outputColor;
+  outputColor = edu::theme::color(edu::theme::kError).name();
   WriteOutput(message);
+  outputColor = normalColor;
   eduShowLog();  // EDU: a hidden message log comes back for an error
 
   // EDU: while the editor assembles, errors go to its list instead of one

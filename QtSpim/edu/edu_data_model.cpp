@@ -2,6 +2,8 @@
 
 #include "edu/edu_data_model.h"
 
+#include "edu/theme/tokens.h"
+
 #include "edu/core/edu_format.h"
 #include "edu/core/edu_memory_rows.h"
 #include "edu/core/edu_registers.h"
@@ -13,20 +15,6 @@ namespace {
 // $gp (CPU/reg.h) but not $fp, which is register 30 (int_reg_names[]).
 const int kFramePointer = 30;
 const int kMarked[] = {REG_SP, kFramePointer, REG_GP};
-
-QColor blend(const QColor& base, const QColor& tint, int percent) {
-  return QColor((base.red() * (100 - percent) + tint.red() * percent) / 100,
-                (base.green() * (100 - percent) + tint.green() * percent) / 100,
-                (base.blue() * (100 - percent) + tint.blue() * percent) / 100);
-}
-
-QColor markerColor(int reg) {
-  switch (reg) {
-    case REG_SP: return QColor(46, 125, 50);   // green
-    case kFramePointer: return QColor(21, 101, 192);  // blue
-    default:     return QColor(230, 81, 0);    // $gp: orange
-  }
-}
 
 class CoreMemory : public edu::MemoryReader {
  public:
@@ -541,28 +529,32 @@ QVariant EduDataModel::data(const QModelIndex& index, int role) const {
       }
       return QVariant();
 
+    // Colours: docs/design/tokens.md 1.3 and 5 ("Data").
     case Qt::ForegroundRole:
+      if (row->kind == SegmentHeader) {
+        return QColor(edu::theme::kNavy);
+      }
       if (row->kind == ZeroRunRow || row->kind == EnvironmentFold ||
           (words && (column == AsciiColumn || column == AddressColumn))) {
-        return blend(text_, background_, 35);
+        return QColor(edu::theme::kText2);
       }
       if (words && column == LabelColumn) {
-        return QColor(106, 27, 154);  // labels stand out from values
+        return QColor(edu::theme::kBlue);  // labels stand out from values
+      }
+      if (isWord && pointerInto(address, address + 4) >= 0) {
+        return QColor(edu::theme::kTealText);  // the word $sp/$fp/$gp points to
       }
       return text_;
 
     case Qt::BackgroundRole:
       if (row->kind == SegmentHeader) {
-        return blend(background_, text_, 12);
+        return QColor(edu::theme::kWindow);
       }
       if (row->kind == EnvironmentFold) {
-        return blend(background_, text_, 6);
+        return QColor(edu::theme::kHover);
       }
-      if (isWord) {
-        const int reg = pointerInto(address, address + 4);
-        if (reg >= 0) {
-          return blend(background_, markerColor(reg), 30);
-        }
+      if (isWord && pointerInto(address, address + 4) >= 0) {
+        return QColor(edu::theme::kTealTint);
       }
       return background_;
 

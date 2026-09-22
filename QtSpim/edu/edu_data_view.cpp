@@ -2,6 +2,8 @@
 
 #include "edu/edu_data_view.h"
 
+#include "edu/theme/tokens.h"
+
 #include <QAction>
 #include <QActionGroup>
 #include <QContextMenuEvent>
@@ -159,8 +161,8 @@ void EduDataView::applyPanelFont(const QFont& font) {
   setFont(font);
   horizontalHeader()->setFont(font);  // the application style sheet resets it
   const QFontMetrics metrics(font);
-  verticalHeader()->setDefaultSectionSize(
-      qMax(metrics.height(), metrics.lineSpacing()) + 2);
+  verticalHeader()->setDefaultSectionSize(qMax(
+      qMax(metrics.height(), metrics.lineSpacing()) + 2, edu::theme::kRowHeight));
   fitColumns();
 }
 

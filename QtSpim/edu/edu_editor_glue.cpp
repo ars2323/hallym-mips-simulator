@@ -10,11 +10,13 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QPushButton>
+#include <QToolButton>
 #include <QStatusBar>
 #include <QToolBar>
 #include <QVBoxLayout>
 
 #include "edu/core/edu_asm_errors.h"
+#include "edu/theme/tokens.h"
 #include "edu/edu_code_editor.h"
 #include "edu/edu_editor_dock.h"
 #include "spimview.h"
@@ -80,8 +82,15 @@ void SpimView::eduSetupEditor() {
 
   ui->menu_Simulator->insertAction(ui->menu_Simulator->actions().value(0), assemble);
   ui->menu_Simulator->insertSeparator(ui->menu_Simulator->actions().value(1));
+  // The one primary button of the tool bar: icon and caption, filled blue
+  // (theme/light.qss, QToolButton#EduAssembleButton).
   ui->toolBar->insertAction(ui->action_Sim_Run, assemble);
-  ui->toolBar->insertSeparator(ui->action_Sim_Run);
+  QToolButton* assembleButton =
+      qobject_cast<QToolButton*>(ui->toolBar->widgetForAction(assemble));
+  if (assembleButton != 0) {
+    assembleButton->setObjectName("EduAssembleButton");
+    assembleButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+  }
 
   // Window > Editor, with the other panels.
   QAction* toggle = eduEditor->toggleViewAction();
@@ -132,10 +141,7 @@ void SpimView::eduSetupEditor() {
   }
 
   eduAssembleBadge = new QLabel(this);
-  eduAssembleBadge->setObjectName("EduAssembleBadge");
-  eduAssembleBadge->setStyleSheet(
-      "QLabel { background: #ffcdd2; color: black; border-radius: 3px;"
-      " padding: 1px 8px; font-weight: bold; }");
+  eduAssembleBadge->setObjectName("EduAssembleBadge");  // styled by theme/light.qss
   statusBar()->addPermanentWidget(eduAssembleBadge);
   eduAssembleBadge->hide();
 
@@ -147,20 +153,16 @@ void SpimView::eduSetupEditor() {
     QWidget* panel = docks[i]->widget();
     QWidget* box = new QWidget(docks[i]);
     QVBoxLayout* layout = new QVBoxLayout(box);
-    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setContentsMargins(0, edu::theme::kSpace1, 0, 0);  // under the title
     layout->setSpacing(0);
     QPushButton* banner = new QPushButton(
         QString("Source changed ") + QChar(0x2014) +
             QString(" save (Ctrl+S) to assemble"),
         box);
-    banner->setObjectName("EduStaleBanner");
+    banner->setObjectName("EduStaleBanner");  // styled by theme/light.qss
     banner->setFlat(true);
     banner->setCursor(Qt::PointingHandCursor);
     banner->setFocusPolicy(Qt::NoFocus);
-    banner->setStyleSheet(
-        "QPushButton { background: #ffe082; color: black; border: none;"
-        " padding: 3px 8px; text-align: left; font-weight: bold; }"
-        "QPushButton:hover { background: #ffd54f; }");
     banner->hide();
     connect(banner, SIGNAL(clicked()), this, SLOT(eduAssemble()));
     layout->addWidget(banner);
