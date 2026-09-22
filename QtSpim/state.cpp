@@ -44,10 +44,14 @@
 void SpimView::readSettings() {
   settings.beginGroup("MainWin");
   restoreGeometry(settings.value("Geometry").toByteArray());
-  // EDU: version 2.  The register docks moved to the left dock area; a
-  // layout saved by an earlier build (version 1) would put them back in the
-  // top row, so it is ignored once and the default layout applies.
-  restoreState(settings.value("WindowState").toByteArray(), 3);
+  // EDU: the layout version.  A state saved by an earlier build is ignored
+  // once and the default layout applies: 2 moved the register docks to the
+  // left area, 3 added the Editor dock, 4 allows nested docks (a state saved
+  // with ForceTabbedDocks would keep the three panels tabbed).
+  // EDU: an inspector the user sized keeps its height; unlocked before the
+  // state is restored, else the content's height would win.
+  eduInspectorSizing(settings.value("InspectorUserSized", false).toBool());
+  restoreState(settings.value("WindowState").toByteArray(), 4);
   settings.endGroup();
 
   // If the size of the restored window exceeds the current screen size, resize
@@ -146,7 +150,8 @@ void SpimView::writeSettings(bool omitWindowState) {
   if (!omitWindowState) {
     settings.beginGroup("MainWin");
     settings.setValue("Geometry", saveGeometry());
-    settings.setValue("WindowState", saveState(3));  // EDU: see readSettings
+    settings.setValue("WindowState", saveState(4));  // EDU: see readSettings
+    settings.setValue("InspectorUserSized", eduInspectorUserSized);  // EDU
     settings.endGroup();
   }
 

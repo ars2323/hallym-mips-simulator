@@ -7,11 +7,15 @@
    All numbers come from edu/core/ (edu_format.h, edu_instruction_text.h);
    this class only shows them.
 
-   Height: as many lines as the content needs, never fewer than kMinLines
-   (what a register takes, so that selecting registers never moves the
-   register list above) and never more than kMaxLines (beyond that the
-   text scrolls).  Every line the inspector takes is a row the register
-   list loses.
+   Height: while "locked" (the default) the dock is exactly as tall as its
+   content asks: never fewer than kMinLines (what a register takes, so that
+   selecting registers never moves the register list above) and never more
+   than kMaxLines (beyond that the text scrolls).  The main window unlocks
+   it the moment the user presses the separator above it, and leaves it
+   unlocked once they have dragged (SpimView::eventFilter,
+   eduInspectorSizing): from then on the height is theirs, anything from
+   kFloorLines lines up, and it is kept with the window state.  Window >
+   Tile locks it again.
 */
 
 #ifndef EDU_INSPECTOR_H
@@ -32,7 +36,7 @@ class EduInspector : public QDockWidget {
  public:
   explicit EduInspector(QWidget* parent = 0);
 
-  enum { kMinLines = 6, kMaxLines = 16 };
+  enum { kFloorLines = 3, kMinLines = 6, kMaxLines = 16 };
 
   void showNothing();
   void showRegister(const edu::RegisterRef& reg, quint32 value, bool changed,
@@ -47,8 +51,16 @@ class EduInspector : public QDockWidget {
 
   void setPanelFont(const QFont& font);
 
-  // How many text lines tall the inspector currently is.
+  // How many text lines the content asks for (kMinLines..kMaxLines).
   int shownLines() const { return shownLines_; }
+  // The height the content asks for, chrome included.
+  int preferredHeight() const { return preferredHeight_; }
+
+  // Locked: exactly preferredHeight() tall, following the content.
+  // Unlocked: at least kFloorLines lines, otherwise whatever the layout
+  // (the user's separator) gives.
+  void setHeightLocked(bool locked);
+  bool isHeightLocked() const { return heightLocked_; }
 
   // The text being shown, for tests and the screenshot harness.
   QString text() const;
@@ -56,6 +68,7 @@ class EduInspector : public QDockWidget {
   // Pure layout, exposed so it can be checked without a widget.
   static QString registerText(const edu::RegisterRef& reg, quint32 value,
                               bool changed, const QString& groupTitle);
+
 
  private slots:
   void fitHeight();
@@ -70,6 +83,9 @@ class EduInspector : public QDockWidget {
   QPlainTextEdit* view_;  // fixed pitch: values, bit tables
   QLabel* note_;          // proportional, word-wrapped; hidden when empty
   int shownLines_;
+  int preferredHeight_;
+  int floorHeight_;
+  bool heightLocked_;
 };
 
 #endif  // EDU_INSPECTOR_H

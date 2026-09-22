@@ -22,7 +22,10 @@ EduInspector::EduInspector(QWidget* parent)
       body_(new QFrame(this)),
       view_(new QPlainTextEdit(body_)),
       note_(new QLabel(body_)),
-      shownLines_(kMinLines) {
+      shownLines_(kMinLines),
+      preferredHeight_(0),
+      floorHeight_(0),
+      heightLocked_(true) {
   setObjectName("InspectorDockWidget");  // saveState()/restoreState() key
   setAllowedAreas(Qt::LeftDockWidgetArea | Qt::TopDockWidgetArea |
                   Qt::BottomDockWidgetArea);
@@ -33,9 +36,9 @@ EduInspector::EduInspector(QWidget* parent)
   // wrap; a branch's destination line and note do.
   view_->setLineWrapMode(QPlainTextEdit::WidgetWidth);
   view_->setWordWrapMode(QTextOption::WordWrap);
-  view_->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  view_->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
   view_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-  view_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+  view_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
   view_->setFrameStyle(QFrame::NoFrame);  // body_ draws the one frame
 
   // Prose (the branch note) reads badly in a fixed-pitch face at 44
@@ -51,7 +54,7 @@ EduInspector::EduInspector(QWidget* parent)
   body_->setFrameStyle(QFrame::StyledPanel | QFrame::Sunken);
   body_->setAutoFillBackground(true);
   body_->setBackgroundRole(QPalette::Base);
-  body_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+  body_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
   QVBoxLayout* layout = new QVBoxLayout(body_);
   layout->setContentsMargins(0, 0, 0, 0);
   layout->setSpacing(0);
@@ -108,11 +111,11 @@ void EduInspector::setPanelFont(const QFont& font) {
   fitHeight();
 }
 
-// Exactly as tall as its content, within [kMinLines, kMaxLines]: the
-// inspector never needs more, and every pixel it does not take goes to the
-// register list above.  A text line is height() tall; lineSpacing() adds the
-// leading, which is negative for some fonts (Nimbus Mono: -2) and would clip
-// the last line.
+// The height the content asks for, within [kMinLines, kMaxLines] lines.
+// While locked, the widget is fixed to it: the main window's layout then
+// has no say, and the register list above gets everything else.  A text
+// line is height() tall; lineSpacing() adds the leading, which is negative
+// for some fonts (Nimbus Mono: -2) and would clip the last line.
 void EduInspector::fitHeight() {
   const QFontMetrics metrics = view_->fontMetrics();
   const int lineHeight = qMax(metrics.height(), metrics.lineSpacing());
@@ -141,19 +144,25 @@ void EduInspector::fitHeight() {
       qMax(kMinLines * lineHeight, kMaxLines * lineHeight - noteHeight);
   const int content =
       qBound(kMinLines * lineHeight, int(needed + 0.999), budget);
-  view_->setVerticalScrollBarPolicy(needed > budget ? Qt::ScrollBarAsNeeded
-                                                    : Qt::ScrollBarAlwaysOff);
-  const int chrome = int(2 * view_->document()->documentMargin());
-  const int viewHeight = content + chrome + 2;
+  const int chrome = int(2 * view_->document()->documentMargin()) + 2;
   shownLines_ = (content + noteHeight + lineHeight - 1) / lineHeight;
-  if (view_->minimumHeight() != viewHeight ||
-      view_->maximumHeight() != viewHeight) {
-    view_->setFixedHeight(viewHeight);
-  }
-  const int bodyHeight = viewHeight + noteHeight + 2 * body_->frameWidth();
-  if (body_->minimumHeight() != bodyHeight ||
-      body_->maximumHeight() != bodyHeight) {
-    body_->setFixedHeight(bodyHeight);
+
+  view_->setMinimumHeight(kFloorLines * lineHeight + chrome);
+  floorHeight_ = kFloorLines * lineHeight + chrome + 2 * body_->frameWidth();
+  preferredHeight_ = content + chrome + noteHeight + 2 * body_->frameWidth();
+  setHeightLocked(heightLocked_);
+}
+
+void EduInspector::setHeightLocked(bool locked) {
+  heightLocked_ = locked;
+  if (locked) {
+    if (body_->minimumHeight() != preferredHeight_ ||
+        body_->maximumHeight() != preferredHeight_) {
+      body_->setFixedHeight(preferredHeight_);
+    }
+  } else {
+    body_->setMinimumHeight(floorHeight_);
+    body_->setMaximumHeight(QWIDGETSIZE_MAX);
   }
 }
 

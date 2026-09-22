@@ -108,6 +108,11 @@ class SpimView : public QMainWindow {
   EduInspector* eduInspector;
   void eduSetupPanels();
   void eduTileInspector();
+  void eduInspectorSizing(bool byUser);  // false: follow the content again
+  bool eduInspectorUserSized;
+  bool eduInspectorSeparatorPressed;
+  int eduInspectorPressHeight;
+  bool eventFilter(QObject* watched, QEvent* event);
   void eduUpdateModeBadge();  // status bar: settings that change assembling
 
   // EDU: the editor (edu/edu_editor_dock.h); implemented in

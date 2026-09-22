@@ -2,6 +2,9 @@
    upstream main window.  Kept out of the upstream .cpp files so that those
    only carry one-line hooks (each marked "// EDU:"). */
 
+#include <QApplication>
+#include <QEvent>
+#include <QMouseEvent>
 #include <QLabel>
 #include <QMessageBox>
 #include <QPlainTextEdit>
@@ -46,6 +49,10 @@ void SpimView::eduSetupPanels() {
 
   eduInspector = new EduInspector(this);
   addDockWidget(Qt::LeftDockWidgetArea, eduInspector);
+  eduInspectorUserSized = false;  // readSettings() restores the saved flag
+  eduInspectorSeparatorPressed = false;
+  eduInspectorPressHeight = 0;
+  installEventFilter(this);  // the separator drags, which the main window sees
   // Which program and version this is, at the far right of the status bar
   // (a student's screenshot then says which build it came from).
   QLabel* version = new QLabel(QString(EDU_APP_NAME " " EDU_VERSION), this);
@@ -133,6 +140,42 @@ void SpimView::eduTileInspector() {
   eduInspector->show();
   splitDockWidget(ui->FPRegDockWidget, eduInspector, Qt::Vertical);
   addDockWidget(Qt::LeftDockWidgetArea, ui->IntRegDockWidget);
+  eduInspectorSizing(false);  // back to the content's height
+}
+
+// The inspector's height: the content's (the dock is locked to it), until
+// the user drags the separator above the dock; then theirs, kept with the
+// window state (MainWin/InspectorUserSized and saveState(), state.cpp).
+// Window > Tile locks it to the content again.
+void SpimView::eduInspectorSizing(bool byUser) {
+  eduInspectorUserSized = byUser;  // saved with the window state (state.cpp)
+  eduInspector->setHeightLocked(!byUser);
+}
+
+// QMainWindow gets the mouse events on a separator itself (a separator is a
+// gap, not a child widget).  A locked inspector could not follow the drag,
+// so it is unlocked on the press; if the release finds its height changed,
+// the user has sized it, otherwise it is locked again.
+bool SpimView::eventFilter(QObject* watched, QEvent* event) {
+  if (watched == this && !eduInspectorUserSized && !eduInspector->isFloating()) {
+    if (event->type() == QEvent::MouseButtonPress) {
+      QMouseEvent* mouse = static_cast<QMouseEvent*>(event);
+      if (mouse->button() == Qt::LeftButton && childAt(mouse->pos()) == 0) {
+        eduInspectorSeparatorPressed = true;
+        eduInspectorPressHeight = eduInspector->height();
+        eduInspector->setHeightLocked(false);
+      }
+    } else if (event->type() == QEvent::MouseButtonRelease &&
+               eduInspectorSeparatorPressed) {
+      eduInspectorSeparatorPressed = false;
+      if (eduInspector->height() != eduInspectorPressHeight) {
+        eduInspectorSizing(true);
+      } else {
+        eduInspector->setHeightLocked(true);
+      }
+    }
+  }
+  return QMainWindow::eventFilter(watched, event);
 }
 
 void SpimView::eduBeginRunCommand() { eduRegisterModel->beginRunCommand(); }
