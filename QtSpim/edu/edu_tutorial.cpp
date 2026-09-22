@@ -876,10 +876,13 @@ QRect EduTutorial::tipBubbleRect() const {
 void EduTutorial::placeCard() {
   // The card's width is fixed, so the wrapped labels decide its height.
   // QLabel::sizeHint() does not know that width yet; ask it directly.
+  // A window event can reach us between show() and the first step, while
+  // both labels are still empty; QLabel then answers -1 and a negative
+  // fixed height is a warning and no layout at all.
   const int inner = kCardWidth - 2 * kSpace4;
-  title_->setFixedHeight(
-      title_->heightForWidth(inner - language_->sizeHint().width() - kSpace2));
-  body_->setFixedHeight(body_->heightForWidth(inner));
+  title_->setFixedHeight(qMax(
+      0, title_->heightForWidth(inner - language_->sizeHint().width() - kSpace2)));
+  body_->setFixedHeight(qMax(0, body_->heightForWidth(inner)));
   card_->layout()->activate();
   card_->adjustSize();
 
