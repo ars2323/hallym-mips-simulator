@@ -43,9 +43,11 @@ main:
 # sum_array($a0 = 배열 주소, $a1 = 개수) -> $v0 = 합
 # sum_array(address, count) -> the sum, in $v0
 sum_array:
-        addiu   $sp, $sp, -12       # 스택 프레임 만들기 / make a stack frame
-        sw      $ra, 8($sp)         # 돌아갈 주소 저장 / save the return address
-        sw      $s0, 4($sp)         # 부른 쪽의 $s0 저장 / save the caller's $s0
+        # 스택은 8바이트 단위로 맞춥니다 / keep the stack 8-byte aligned
+        addiu   $sp, $sp, -16       # 스택 프레임 만들기 / make a stack frame
+        sw      $ra, 12($sp)        # 돌아갈 주소 저장 / save the return address
+        sw      $s0, 8($sp)         # 부른 쪽의 $s0 저장 / save the caller's $s0
+                                    # 0($sp), 4($sp): 지역 변수 자리 / room for locals
         move    $s0, $zero          # 누계 / the running total
         li      $t0, 0              # 인덱스 / the index
 
@@ -61,7 +63,7 @@ sum_loop:
 
 sum_done:
         move    $v0, $s0            # 합을 반환값으로 / the answer
-        lw      $s0, 4($sp)         # $s0 복원 / restore the caller's $s0
-        lw      $ra, 8($sp)         # $ra 복원 / restore the return address
-        addiu   $sp, $sp, 12        # 프레임 반납 / drop the frame
+        lw      $s0, 8($sp)         # $s0 복원 / restore the caller's $s0
+        lw      $ra, 12($sp)        # $ra 복원 / restore the return address
+        addiu   $sp, $sp, 16        # 프레임 반납 / drop the frame
         jr      $ra                 # 돌아가기 / return

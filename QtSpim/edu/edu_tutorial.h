@@ -91,7 +91,15 @@ class EduTutorial : public QWidget {
   void setProgramLoaded(bool loaded);
 
   // The card's text, for the harness.
+  QString titleText() const;
   QString bodyText() const;
+
+  // Between start() and finish(), whatever the window manager is doing.
+  bool isRunning() const { return running_; }
+
+  // The language the card is in.  The harness reads both, so it does not
+  // depend on the locale the check happens to run under.
+  void setKorean(bool korean);
 
   // Steps that were left out because what they point at was not on the
   // screen, by name.  Empty is the expected result with the example open.

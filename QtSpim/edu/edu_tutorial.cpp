@@ -235,12 +235,15 @@ const EduTutorial::Step EduTutorial::kStepData[] = {
 
     {EduTutorial::DataStack, "Data", "Data",
      "스택과 $sp가 가리키는 곳",
-     "함수가 프레임을 잡아 $sp가 내려왔습니다. $sp 표시가 붙은 줄이 그 프레임이고, 그 안에 함수가 저장한 돌아갈 주소 "
-     "$ra와 부른 쪽의 $s0 값 42가 들어 있습니다. $sp 단추를 누르면 언제든 이 자리로 옵니다.",
+     "함수가 프레임을 잡아 $sp가 16바이트 내려왔습니다. 밝힌 네 워드가 "
+     "그 프레임입니다. 위쪽 두 워드에 돌아갈 주소 $ra와 부른 쪽의 $s0 값 "
+     "42가 저장되어 있고, 아래 두 워드는 지역 변수 자리입니다. $sp 단추를 "
+     "누르면 언제든 이 자리로 옵니다.",
      "The stack, and where $sp points",
-     "The function made a frame, so $sp has come down. The row marked $sp is "
-     "that frame, and inside it are the return address the function saved and "
-     "the caller's $s0, 42. The $sp button jumps here at any time."},
+     "The function made a frame, so $sp has come down by sixteen bytes. The "
+     "four words lit up are that frame: the upper two hold the return address "
+     "and the caller's $s0, 42, and the lower two are room for locals. The "
+     "$sp button jumps here at any time."},
 
     {EduTutorial::DataEnvironment, "Data", "Data",
      "환경변수 영역은 접어 둔다",
@@ -404,7 +407,18 @@ EduTutorial::EduTutorial(SpimView* window)
 
 void EduTutorial::setProgramLoaded(bool loaded) { programLoaded_ = loaded; }
 
+QString EduTutorial::titleText() const { return title_->text(); }
+
 QString EduTutorial::bodyText() const { return body_->text(); }
+
+void EduTutorial::setKorean(bool korean) {
+  if (korean_ == korean || steps_.isEmpty()) {
+    korean_ = korean;
+    return;
+  }
+  korean_ = korean;
+  showStep(current_);
+}
 
 QRect EduTutorial::cardRect() const { return card_->geometry(); }
 
@@ -924,16 +938,32 @@ bool EduTutorial::collectSpots(StepId id, QList<QRect>* spots, QString* tip,
         ui->DataSegPanel->goTo("$sp");
         QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
         const QRect marker = dataLabelCellAt(pointer);
-        QRect saved;
-        for (int offset = 4; offset <= 8; offset += 4) {
-          const QRect cell = dataCellAt(pointer + quint32(offset));
-          saved = saved.isEmpty() ? cell : saved.united(cell);
+        // The frame itself, from $sp up: four words for the example's
+        // sixteen-byte frame, wherever inside it the saved values sit.  A
+        // frame straddles two rows of sixteen bytes as often as not, and
+        // one rectangle around both would cover words outside it, so each
+        // row is lit on its own.
+        QList<QRect> frame;
+        int lastRow = -1;
+        for (int offset = 0; offset < 16; offset += 4) {
+          const quint32 address = pointer + quint32(offset);
+          const QModelIndex word = model->reveal(address);
+          const QRect cell = dataCellAt(address);
+          if (!word.isValid() || cell.isEmpty()) {
+            continue;
+          }
+          if (word.row() == lastRow && !frame.isEmpty()) {
+            frame.last() = frame.last().united(cell);
+          } else {
+            frame << cell;
+            lastRow = word.row();
+          }
         }
-        if (marker.isEmpty() && saved.isEmpty()) {
+        if (marker.isEmpty() && frame.isEmpty()) {
           return false;
         }
-        if (!saved.isEmpty()) {
-          *spots << saved.adjusted(-2, -1, 2, 1);
+        for (int i = 0; i < frame.size(); i += 1) {
+          *spots << frame.at(i).adjusted(-2, -1, 2, 1);
         }
         if (!marker.isEmpty()) {
           *spots << marker.adjusted(-2, -1, 2, 1);
