@@ -97,9 +97,15 @@ Lesser General Public License version 3 and version 2.1.
 Developed by Hakhyeon Kim, AIAC Lab, Hallym University.
 
 The bundled fonts Pretendard and D2Coding are under the SIL Open Font License
-1.1 and the Lucide icons under the ISC license (Help > About > License). The
-university symbol, logotype, emblem and signature belong to Hallym University
-and are used under its UI regulations for non-commercial university purposes.
+1.1 and the Lucide icons under the ISC license (Help > About > License).
+
+The university symbol, logotype, emblem and signature belong to Hallym
+University. They are used whole, scaled and spaced only, never redrawn or
+recoloured, under the university's UI regulations: the identity is made for
+promoting the university and may not be used commercially. Questions about it
+go to the Communications Team (033-248-1333, de1330@hallym.ac.kr). The source
+files and the regulations as published are kept in
+[`assets/ci/`](assets/ci/).
 
 This is a modified version of QtSpim (through [QtSpim-Edu](https://github.com/ars2323/qtspim-edu),
 whose history this repository continues) and is not endorsed by the original author.
