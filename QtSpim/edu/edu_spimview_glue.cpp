@@ -7,6 +7,8 @@
 #include <QUrl>
 #include <QFileInfo>
 #include <QDesktopServices>
+#include <QTabBar>
+#include <QTimer>
 #include <QMouseEvent>
 #include <QLabel>
 #include <QMessageBox>
@@ -26,6 +28,7 @@
 #include "edu/edu_data_view.h"
 #include "edu/edu_editor_dock.h"
 #include "edu/edu_inspector.h"
+#include "edu/edu_tutorial.h"
 #include "edu/edu_loader.h"
 #include "edu/edu_register_model.h"
 #include "edu/edu_register_view.h"
@@ -45,6 +48,7 @@ QString* eduOutputCapture = NULL;
 void SpimView::eduSetupPanels() {
   eduEditor = 0;  // until eduSetupEditor() at the end of this function
   eduLogAction = 0;
+  eduTutorial = 0;  // built on the first run of the tour
   eduRegisterModel = new EduRegisterModel(this);
   ui->IntRegView->setRegisterModel(eduRegisterModel);
 
@@ -178,7 +182,63 @@ void SpimView::eduSetupHelpMenu() {
       "and the MIPS instruction set");
   connect(reference, SIGNAL(triggered(bool)), this, SLOT(help_ViewHelp()));
   ui->menu_Help->insertAction(ui->action_Help_AboutSPIM, reference);
+
+  // The first-run tour, from the menu at any time.  The label is English
+  // like the rest of the menu bar; the tour itself follows the system
+  // language and can be switched inside it.
+  QAction* tutorial = new QAction("&Tutorial", this);
+  tutorial->setObjectName("action_Edu_Tutorial");
+  tutorial->setToolTip("Show what differs from the standard simulator, "
+                       "panel by panel");
+  connect(tutorial, SIGNAL(triggered(bool)), this, SLOT(eduShowTutorial()));
+  ui->menu_Help->insertAction(ui->action_Help_AboutSPIM, tutorial);
   ui->menu_Help->insertSeparator(ui->action_Help_AboutSPIM);
+}
+
+// The windows come up when the splash closes (main.cpp), and the tour --
+// once, on the first run -- after them.
+void SpimView::eduRevealWindows() {
+  SpimConsole->show();
+  show();
+  raise();
+  activateWindow();
+  eduElideDockTabs();
+  if (!settings.value("Tutorial/Shown", false).toBool()) {
+    QTimer::singleShot(250, this, SLOT(eduShowTutorial()));
+  }
+}
+
+void SpimView::eduShowTutorial() {
+  if (eduTutorial == 0) {
+    eduTutorial = new EduTutorial(this);
+  }
+  settings.setValue("Tutorial/Shown", true);
+  eduTutorial->start();
+}
+
+// The title bar names the file the editor has open, as editors do:
+// "helloworld.s \u2014 Hallym MIPS Simulator".
+void SpimView::eduUpdateWindowTitle() {
+  QString name;
+  if (eduEditor != 0 && !eduEditor->filePath().isEmpty()) {
+    name = QFileInfo(eduEditor->filePath()).fileName();
+  }
+  setWindowTitle(name.isEmpty()
+                     ? QString(EDU_APP_NAME)
+                     : name + QString::fromUtf8(" \xe2\x80\x94 ") + EDU_APP_NAME);
+}
+
+// A dock tab whose title does not fit is cut off in the middle of a word;
+// an ellipsis says that there is more.  The tab bars are made by
+// QMainWindow when docks are tabbed together, so this runs after every
+// arrangement as well as at start-up.
+void SpimView::eduElideDockTabs() {
+  const QList<QTabBar*> bars = findChildren<QTabBar*>();
+  for (int i = 0; i < bars.size(); i += 1) {
+    if (bars.at(i)->elideMode() != Qt::ElideRight) {
+      bars.at(i)->setElideMode(Qt::ElideRight);
+    }
+  }
 }
 
 // The student guide that ships with the program: the PDFs in the Windows

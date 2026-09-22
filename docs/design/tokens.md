@@ -115,7 +115,7 @@ H1에서 확인한 Qt 동작: 코드가 `setFont()`를 다시 부르는 위젯(�
 | 토큰 | px | 쓰임 |
 |---|---|---|
 | `font.xs` | 11 | 타입 배지, 상태바 배지 |
-| `font.s` | 12 | 상태바, 툴팁, 표 헤더(코드 글꼴) |
+| `font.s` | 12 | 상태바, 툴팁, 표 헤더(코드 글꼴), 스플래시의 버전 줄 |
 | `font.m` | 13 | UI 기본, 메뉴, 도크 제목(600), 코드 표 본문(D2Coding 10pt ≈ 13.3px) |
 | `font.l` | 15 | 다이얼로그 제목, About 이름 |
 | `font.xl` | 20 | About "Hallym MIPS Simulator" |
@@ -164,9 +164,10 @@ R/I/J는 배경으로, FR/FI는 같은 배경에 진남 글자로 "부동소수�
 | Data 마커 | $sp/$fp/$gp 셀 `teal.tint` 배경 + `teal.text` 글자; Labels 열 `blue` |
 | 메시지 로그 | 본문 `text.log` #2B3440, 오류 `error`, 배경 흰색, D2Coding 10pt |
 | 세로 탭(Int/FP Regs) | 유지, `text.2` → 선택 `blue` 600, 왼쪽 2px `blue` |
-| 스플래시 | 흰 바탕, 시그니처 국영문 좌우조합(A4 A-5-1), 1.2초, 클릭 시 닫힘 |
+| 스플래시 | 흰 바탕 480×300 카드(1px `border`, 8px 라운드): 시그니처 국영문 좌우조합(A4 A-5-1) · 제품명 20px SemiBold `navy` · 버전 12px `text.2` · 구분선 · `AIAC Lab · Hallym University` 11px · 바닥 2px 진행 바(`blue`, 불확정). 1.5초 또는 클릭 시 닫히고, 그때 메인 창이 나타난다 |
 | About | 엠블럼 A(진남) + 로고타입 국영문 + "Hallym MIPS Simulator 1.0.0" + License 탭(원본 고지 그대로) |
-| 앱 아이콘 | 심볼 기본형만 (16/32에서 엠블럼·시그니처는 뭉개짐 — `docs/design/mockups/icon-sizes.png`) |
+| 앱 아이콘 | 16px = 심볼 기본형, 24·32·48·64·256px = 원형 엠블럼 A (16px에서 엠블럼의 글자 링이 뭉개짐 — `docs/design/captures/app-icon-options.png`) |
+| 튜토리얼 | 오버레이 검정 45%, 스포트라이트 2px `blue` 테두리·6px 라운드, 카드 흰 배경·1px `border`·8px 라운드·최대 폭 360px, 제목 15px SemiBold `navy`, 본문 13px `text`, 진행·언어 12px `text.2`, 다음 버튼 `blue` 채움 |
 
 ## 6. 구현 (H2)
 

@@ -6,12 +6,11 @@
 #include <QDir>
 #include <QFile>
 #include <QFontDatabase>
-#include <QMouseEvent>
 #include <QPainter>
 #include <QScreen>
-#include <QSplashScreen>
 #include <QTimer>
 
+#include "edu/theme/edu_splash.h"
 #include "edu/theme/tokens.h"
 
 namespace edu {
@@ -116,55 +115,21 @@ void apply(QApplication* app) {
   app->setFont(uiFont());
   app->setStyleSheet(styleSheet());
 
+  // Every size the .ico carries, so that Windows and the window manager
+  // pick the right mark: the symbol at 16, the emblem above it
+  // (tools/make-theme-icons.py, docs/design/captures/app-icon-options.png).
   QIcon appIcon;
-  const int sizes[] = {16, 32, 48, 256};
+  const int sizes[] = {16, 24, 32, 48, 64, 256};
   for (unsigned i = 0; i < sizeof(sizes) / sizeof(sizes[0]); i += 1) {
     appIcon.addFile(QString(":/theme/brand/app-%1.png").arg(sizes[i]));
   }
   app->setWindowIcon(appIcon);
 }
 
-QPixmap splashPixmap() {
-  const qreal dpr = qApp->devicePixelRatio();
-  // The signature (symbol + Korean and English logotype) on a white card:
-  // the mark takes 8.5a of the 10a symbol width in the manual's proportions,
-  // so the margins here are roughly a symbol width.
-  const int width = 320;
-  const QPixmap mark = brandPixmap("signature-h-ko-en", width, dpr);
-  const int margin = 48;
-  const QSize card(width + 2 * margin, mark.height() / dpr + 2 * margin);
-  QPixmap canvas(card.width() * dpr, card.height() * dpr);
-  canvas.setDevicePixelRatio(dpr);
-  canvas.fill(color(kWhite));
-  QPainter painter(&canvas);
-  painter.drawPixmap(margin, margin, mark);
-  painter.setPen(color(kBorder));
-  painter.drawRect(QRectF(0.5, 0.5, card.width() - 1, card.height() - 1));
-  return canvas;
-}
-
-namespace {
-
-// QSplashScreen only hides on a click; this one closes, and deletes itself.
-class Splash : public QSplashScreen {
- public:
-  explicit Splash(const QPixmap& pixmap)
-      : QSplashScreen(pixmap, Qt::WindowStaysOnTopHint) {
-    setObjectName("EduSplash");
-    setAttribute(Qt::WA_DeleteOnClose);
-  }
-
- protected:
-  void mousePressEvent(QMouseEvent*) { close(); }
-};
-
-}  // namespace
-
-QSplashScreen* showSplash() {
-  QSplashScreen* splash = new Splash(splashPixmap());
-  splash->show();
+EduSplash* showSplash() {
+  EduSplash* splash = new EduSplash;
+  splash->showCentred();
   qApp->processEvents();
-  QTimer::singleShot(kSplashMillis, splash, SLOT(close()));
   return splash;
 }
 

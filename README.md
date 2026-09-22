@@ -15,7 +15,7 @@ the same 1600×900 window and the same environment. **The simulation is
 identical; only what you see changes.**
 
 **Registers** — after *Run*. Grouped by role, `$name` and number together, hex
-and decimal side by side, and everything the run changed in red; upstream is
+and decimal side by side, and everything the run changed in bold teal; upstream is
 one flat list in one base at a time.
 
 ![Registers: standard QtSpim and Hallym MIPS Simulator side by side](docs/images/compare/en/01-registers.png)
@@ -44,6 +44,9 @@ instead of being the first thing in every screenshot.
 list with markers on their lines. Standard QtSpim has no editor.
 
 ![Editor with error list; standard QtSpim has none](docs/images/compare/en/05-editor.png)
+
+**A tour on the first run** — seven steps over the real window, one panel at a
+time, in Korean or English; Help > Tutorial brings it back.
 
 Also: File > Load File asks before loading on top of a loaded program, a
 status-bar badge shows while Bare Machine or a similar setting is on, and the

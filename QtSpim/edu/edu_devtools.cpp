@@ -45,6 +45,8 @@
 #include "edu/edu_register_view.h"
 #include "edu/edu_text_model.h"
 #include "edu/edu_text_view.h"
+#include "edu/edu_tutorial.h"
+#include "edu/theme/edu_splash.h"
 #include "edu/theme/edu_theme.h"
 
 namespace {
@@ -81,6 +83,7 @@ EduDevtools::EduDevtools(QObject* parent)
       reportTime_(false),
       redisplay_(false),
       steps_(0),
+      tutorialStep_(0),
       window_(0),
       dialogTimer_(0),
       dismissedDialogs_(0),
@@ -88,7 +91,7 @@ EduDevtools::EduDevtools(QObject* parent)
 
 QString EduDevtools::usage() {
   return QString(
-      "QtSpim-Edu development options (CONFIG+=edu_devtools builds only):\n"
+      "Development options (CONFIG+=edu_devtools builds only):\n"
       "  --load <file.s>        File > Load File: the real menu action and its\n"
       "                         file dialog, as a user does it (repeatable,\n"
       "                         in command-line order together with --reload)\n"
@@ -148,6 +151,9 @@ QString EduDevtools::usage() {
       "  --reg-base <2|10|16>   choose Registers > Binary/Decimal/Hex\n"
       "  --local-codec <name>   pretend the system text encoding is <name>\n"
       "  --dialog-shots <dir>   save a PNG of every dialog answered\n"
+      "  --tutorial-step <n>    open the first-run tour at step n (1-based)\n"
+      "                         before capturing; it never starts by itself\n"
+      "                         in this mode\n"
       "  --qss <file>           use this application style sheet (theme mock-ups)\n"
       "  --font-dir <dir>       register every .ttf/.otf in <dir>; repeatable\n"
       "  --ui-font <family,Npx> application font, e.g. \"Pretendard,13px\"\n"
@@ -440,6 +446,17 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
         return rest;
       }
       selectRegister_ = args.at(i + 1);
+      i += 1;
+      continue;
+    }
+
+    if (arg == "--tutorial-step") {
+      if (i + 1 >= args.size()) {
+        err() << arg << " needs a step number\n" << usage() << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      tutorialStep_ = args.at(i + 1).toInt();
       i += 1;
       continue;
     }
@@ -1188,6 +1205,18 @@ void EduDevtools::run() {
           << Qt::flush;
   }
 
+  // The first-run tour, at one step, for a screenshot of it.
+  if (tutorialStep_ > 0) {
+    window_->eduShowTutorial();
+    if (window_->eduTutorial != 0) {
+      window_->eduTutorial->start(tutorialStep_ - 1);
+      out() << "tutorial: step " << tutorialStep_ << " of "
+            << window_->eduTutorial->stepCount() << "\n" << Qt::flush;
+    }
+    settle();
+    settle();  // a raised tab needs one more turn before its geometry is right
+  }
+
   // Stop before the captures: the About box below is a modal dialog this
   // harness opens on purpose and must not answer for itself.
   if (dialogTimer_ != 0) {
@@ -1209,8 +1238,13 @@ void EduDevtools::run() {
       continue;
     }
 
-    if (capture.panel == "splash") {  // the image main() shows at start-up
-      const QPixmap pixmap = edu::theme::splashPixmap();
+    if (capture.panel == "splash") {  // the screen main() shows at start-up
+      edu::theme::EduSplash splash;
+      splash.setAttribute(Qt::WA_DontShowOnScreen);
+      splash.show();
+      settle();
+      const QPixmap pixmap = splash.grab();
+      splash.close();
       if (!pixmap.save(capture.out, "PNG")) {
         err() << "cannot write " << capture.out << "\n" << Qt::flush;
         status_ = 1;

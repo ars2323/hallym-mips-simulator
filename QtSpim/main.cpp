@@ -39,7 +39,10 @@
 // EDU: warn before passing a path the core cannot open.
 #include "edu/edu_path_check.h"
 #include "edu/theme/edu_theme.h"  // EDU: fonts, style sheet, splash
-#include <QSplashScreen>
+#include "edu/theme/edu_splash.h"
+#ifdef Q_OS_WIN
+#include <shobjidl.h>  // EDU: SetCurrentProcessExplicitAppUserModelID
+#endif
 
 #ifdef EDU_DEVTOOLS
 // EDU: scripted screenshot mode, development builds only.
@@ -67,14 +70,19 @@ int main(int argc, char* argv[]) {
   App = &a;
   edu::theme::apply(&a);  // EDU: before any widget exists
 
-  // EDU: the university signature while the window is built; it stays up
-  // for kSplashMillis or until it is clicked.  Not in the scripted capture
-  // mode (a screenshot run must not wait for it).
+#ifdef Q_OS_WIN
+  // EDU: without an explicit identity Windows groups the task bar button
+  // under whatever launched the program and shows that program's icon.
+  SetCurrentProcessExplicitAppUserModelID(L"HallymMIPS.Simulator");
+#endif
+
+  // EDU: the start-up screen, while the window is built behind it.  Not in
+  // the scripted capture mode (a screenshot run must not wait for it).
   // The arguments are decoded once, here: --local-codec (below) changes the
   // locale codec, and QCoreApplication::arguments() decodes with it anew on
   // every call.
   const QStringList rawArguments = a.arguments();
-  QSplashScreen* splash = 0;
+  edu::theme::EduSplash* splash = 0;
 #ifdef EDU_DEVTOOLS
   if (!EduDevtools::wantsCaptureMode(rawArguments)) {
     splash = edu::theme::showSplash();
@@ -91,8 +99,11 @@ int main(int argc, char* argv[]) {
   message_out.i = 1;
   console_out.i = 2;
 
-  win.SpimConsole->show();
-  win.show();
+  // EDU: with a splash up, the windows appear when it closes, so that
+  // nothing of the program shows behind it.
+  if (splash == 0) {
+    win.eduRevealWindows();
+  }
 
   QStringList arguments = rawArguments;
 
@@ -134,10 +145,13 @@ int main(int argc, char* argv[]) {
   win.DisplayTextSegments(true);
   win.UpdateDataDisplay();
 
-  // EDU: the whole appearance -- fonts, colours, icons -- comes from
-  // edu/theme (docs/design/tokens.md); upstream's tab style sheet is gone.
-  // The splash closes by itself (edu::theme::showSplash()).
-  (void)splash;
+  // EDU: the splash closes itself after edu::theme::kSplashMillis, or at
+  // once when it is clicked; the windows come up then, and the first-run
+  // tutorial after them (SpimView::eduRevealWindows).
+  if (splash != 0) {
+    QObject::connect(splash, SIGNAL(finished()), &win,
+                     SLOT(eduRevealWindows()));
+  }
 
 #ifdef EDU_DEVTOOLS
   // EDU: run the capture script from inside the event loop, then exit.

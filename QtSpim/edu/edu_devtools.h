@@ -193,6 +193,7 @@ class EduDevtools : public QObject {
   bool reportTime_;
   bool redisplay_;
   int steps_;
+  int tutorialStep_;  // --tutorial-step: 1-based, 0 = do not show the tour
   SpimView* window_;
   QString modalOut_;
   QString dialogShotDir_;

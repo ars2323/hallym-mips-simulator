@@ -17,7 +17,21 @@ the same results as in standard QtSpim.** You can check your work in either.
 Standard QtSpim may be installed on the same PC. The executable name and the
 settings location differ, so neither affects the other.
 
-## 2. The basic loop
+## 2. The first run: a tour of the screen
+
+The first time you start the program a **seven-step tour** appears. It dims
+the window and lights up one panel at a time, saying what that panel does and
+how it differs from the standard QtSpim: registers, inspector, text, editor,
+data.
+
+- **Next** and **Back** move through it; **Skip** or **Esc** ends it.
+- The **EN / 한국어** switch at the top right of the card changes the language.
+- To see it again: **Help > Tutorial**.
+
+A step whose panel you have closed is left out, and the tour never rearranges
+your panels.
+
+## 3. The basic loop
 
 1. Write code in the **Editor** tab. (Editor > New / Open; recent files under
    Editor > Open Recent.)
@@ -34,7 +48,7 @@ and Data tabs means that what you are looking at is not the code in the editor.
 Press Ctrl+S or click the strip. You also see it right after starting the
 program: the last file is reopened, but nothing is assembled for you.
 
-## 3. What differs from standard QtSpim
+## 4. What differs from standard QtSpim
 
 In the pictures both programs were given **the same file (helloworld.s), the
 same steps and the same window size**: standard QtSpim 9.1.24 on the left,
@@ -43,7 +57,7 @@ differs.
 
 **Registers** — after Run. Grouped by role (Arguments, Temporaries, Saved …),
 `$name` and number `R8` together, hex and decimal side by side, what the run
-changed in red. Int Regs / FP Regs are **vertical tabs** on the left.
+changed in bold teal. Int Regs / FP Regs are **vertical tabs** on the left.
 
 ![Registers compared](images/compare/en/01-registers.png)
 
@@ -80,7 +94,7 @@ loads on top without asking). An amber status-bar badge shows while a setting
 such as Bare Machine is on, and the version is at the right end of the status
 bar.
 
-## 4. Good to know
+## 5. Good to know
 
 - **Branch offsets differ from the textbook by one.** In its default mode SPIM
   has no delay slots and encodes the offset of `beq`, `bne`, … from the
@@ -99,7 +113,7 @@ bar.
 - A source file is saved in the encoding (UTF-8 or CP949) and with the line
   ends (CRLF / LF) it was opened with.
 
-## 5. Known issues (the same in standard QtSpim)
+## 6. Known issues (the same in standard QtSpim)
 
 - A line with a breakpoint looks garbled in the Text log written by **File >
   Save Log File** (`N [x0040002] …`). On screen it is fine.
@@ -109,7 +123,7 @@ bar.
 - Assembling **stops at the first syntax error** in a file; later errors show up
   once it is fixed.
 
-## 6. Window layout
+## 7. Window layout
 
 - **Editor and Text side by side**: Window > Layout.
   - **Tabs** — Editor, Text and Data in one tab group (the initial state).

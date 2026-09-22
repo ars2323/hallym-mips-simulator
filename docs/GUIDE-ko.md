@@ -11,7 +11,17 @@
 
 표준 QtSpim이 이미 설치되어 있어도 됩니다. 실행 파일 이름과 설정 저장 위치가 달라서 서로 영향을 주지 않습니다.
 
-## 2. 기본 흐름
+## 2. 처음 실행 — 화면 안내 투어
+
+처음 실행하면 **7단계 안내 투어**가 뜹니다. 화면을 어둡게 하고 패널을 하나씩 밝혀 가며, 그 패널이 표준 QtSpim과 무엇이 다른지 짚어 줍니다. 레지스터 → 인스펙터 → Text → 에디터 → Data 순서입니다.
+
+- **다음 / 이전**으로 이동하고, **건너뛰기**나 **Esc**로 언제든 끝냅니다.
+- 카드 오른쪽 위의 **EN / 한국어**로 언어를 바꿀 수 있습니다.
+- 다시 보려면 **Help > Tutorial**을 누릅니다.
+
+닫아 둔 패널의 단계는 건너뜁니다. 투어가 화면 배치를 바꾸지는 않습니다.
+
+## 3. 기본 흐름
 
 1. **Editor** 탭에 코드를 씁니다. (Editor > New / Open, 최근 파일은 Editor > Open Recent)
 2. **Ctrl+S** — 저장과 어셈블을 한 번에 합니다. F3, 툴바의 Assemble도 같은 동작입니다.
@@ -21,11 +31,11 @@
 
 Text·Data 탭 위에 띠 "**Source changed — save (Ctrl+S) to assemble**"가 보이면, 지금 보고 있는 내용이 에디터의 코드와 다르다는 뜻입니다. Ctrl+S를 누르거나 띠를 누르면 반영됩니다. 프로그램을 다시 켰을 때도 마지막 파일이 열린 채로 이 띠가 보입니다(자동으로 어셈블하지는 않습니다).
 
-## 3. 표준 QtSpim과 다른 점
+## 4. 표준 QtSpim과 다른 점
 
 아래 그림은 두 프로그램에 **같은 파일(helloworld.s), 같은 실행 단계, 같은 창 크기**를 준 것입니다. 왼쪽이 표준 QtSpim 9.1.24, 오른쪽이 Hallym MIPS Simulator입니다. 값은 같고, 보여 주는 방식만 다릅니다.
 
-**레지스터** — Run이 끝난 뒤. 용도별 그룹(Arguments, Temporaries, Saved …), `$이름`과 번호 `R8`, 16진수와 10진수 두 열, 이번 실행으로 바뀐 값은 빨강. Int Regs / FP Regs는 왼쪽의 **세로 탭**입니다.
+**레지스터** — Run이 끝난 뒤. 용도별 그룹(Arguments, Temporaries, Saved …), `$이름`과 번호 `R8`, 16진수와 10진수 두 열, 이번 실행으로 바뀐 값은 청록색 굵은 글씨. Int Regs / FP Regs는 왼쪽의 **세로 탭**입니다.
 
 ![레지스터 비교](images/compare/01-registers.png)
 
@@ -47,7 +57,7 @@ Text·Data 탭 위에 띠 "**Source changed — save (Ctrl+S) to assemble**"가 
 
 그 밖에: 프로그램이 이미 올라와 있을 때 **File > Load File**을 누르면 "**Reinitialize and load / Add to current program / Cancel**"을 묻습니다(표준 QtSpim은 묻지 않고 위에 얹습니다). Bare Machine 같은 설정이 켜져 있으면 상태바에 표시가 뜨고, 상태바 오른쪽 끝에 버전이 나옵니다.
 
-## 4. 알아둘 것
+## 5. 알아둘 것
 
 - **분기 명령의 offset이 교재와 1 다릅니다.** SPIM은 기본 모드에서 지연 분기(delay slot)가 없어서 `beq`, `bne` 등의 offset을 **분기 명령 자신의 주소(PC)** 기준으로 넣습니다. 교재의 MIPS는 PC+4 기준입니다. Inspector가 목적지 계산식을 함께 보여 줍니다. 표준 QtSpim도 똑같이 인코딩합니다.
 - **Load File과 Reinitialize and Load File은 다릅니다.** Load File은 지금 올라와 있는 프로그램 **위에 더합니다**. 같은 파일을 다시 올리면 `Label is defined for the second time … main` 에러가 납니다. 다시 올릴 때는 Reinitialize and Load File(또는 Ctrl+S)을 쓰세요.
@@ -55,13 +65,13 @@ Text·Data 탭 위에 띠 "**Source changed — save (Ctrl+S) to assemble**"가 
 - 폴더 이름에 한글이 있어도 한국어 Windows에서는 문제없습니다. 영문 Windows처럼 시스템 언어가 한국어가 아니면 시뮬레이터가 그 경로를 열지 못하는데, 이때는 경고를 띄우고 로드를 건너뜁니다. 파일을 영문 경로로 옮기세요.
 - 소스 파일은 열었을 때의 인코딩(UTF-8 또는 CP949)과 줄바꿈(CRLF / LF) 그대로 저장됩니다.
 
-## 5. 알려진 문제 (표준 QtSpim과 같음)
+## 6. 알려진 문제 (표준 QtSpim과 같음)
 
 - 브레이크포인트가 걸린 줄은 **File > Save Log File로 저장한 Text 로그에서 글자가 깨져** 보입니다(`N [x0040002] …`). 화면에서는 정상입니다.
 - 어셈블 에러 중 일부(범위를 벗어난 상수 등)는 아래 메시지 창에 **한 줄 뒤의 번호**로 찍힙니다. 에디터의 에러 목록과 빨간 점은 실제 줄을 가리킵니다.
 - 어셈블 에러는 파일의 **첫 syntax error에서 멈춥니다.** 그 뒤의 에러는 고치고 나서야 보입니다.
 
-## 6. 화면 배치
+## 7. 화면 배치
 
 - **Editor와 Text를 나란히 보기**: Window > Layout에서 고릅니다.
   - **Tabs** — Editor, Text, Data가 한 탭 묶음(처음 상태).

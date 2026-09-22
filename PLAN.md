@@ -281,7 +281,7 @@ QtSpim-Edu 1.0.1(`v1.0.1`)에서 갈라진 저장소 `ars2323/hallym-mips-simula
 - [x] 시안 A "Campus" / B "Studio" 캡처 각 3장 + 1366×768 → `docs/design/mockups/`
 - [x] 사람 체크포인트: A 선택 + §7 결정 (2026-09-22)
 
-### H2. 시안 A 구현 — 사람 체크포인트 대기
+### H2. 시안 A 구현 ✅
 - [x] 코드 색 전면 교체(tokens.md §6 목록 전부) — 위 결정 표. QSS가 안 먹는 위젯은 `applyPanelFont()`/`setPalette` 경로로
 - QSS 한 파일(`QtSpim/edu/theme/light.qss`) + 토큰 헤더(`theme/tokens.h`). 하드코딩 색·글꼴 리터럴 전부 토큰으로; grep으로 잔여 `QColor(`/`QFont(`/`setStyleSheet(` 리터럴 0건
 - 브랜딩: 앱 아이콘(16·32·48·256 .ico/.png/.icns), 창 제목, 작업표시줄, 스플래시(시그니처, 1.2초, 클릭 시 닫힘), About(엠블럼 A + 로고타입 + "Hallym MIPS Simulator 1.0.0" + License 탭), 설정 저장소 `HallymMIPS/HallymMIPS`, 실행 파일 `HallymMIPS`, MSI ProductName/UpgradeCode 새로, 설치 경로 `Program Files\Hallym MIPS Simulator`
@@ -291,7 +291,9 @@ QtSpim-Edu 1.0.1(`v1.0.1`)에서 갈라진 저장소 `ars2323/hallym-mips-simula
 - `regress.sh`, `check-menu-load.sh`, `check-editor.sh`, 단위 테스트 통과. 로그 저장·인쇄 바이트 동일
 - 문서: GUIDE-ko/GUIDE, README에서 QtSpim/Edu 표기 제거(라이선스 절 제외). 비교 이미지 5장 오른쪽 라벨 "Hallym MIPS Simulator", 왼쪽 "표준 QtSpim" 유지
 - `docs/ARCHITECTURE.md` §12에 이 파생판의 차이(이름·설정 저장소·테마)
-- 사람 체크포인트(Linux) → 태그 `v1.0.0`, 릴리스는 사용자 확인 후
+- [x] 시작 화면(스플래시), 크기별 앱 아이콘(16 심볼 / 24+ 엠블럼), 창 제목, AppUserModelID
+- [x] 최초 실행 튜토리얼 7단계(한/영, Help > Tutorial로 재실행), 도크 탭 말줄임
+- 사람 체크포인트(Linux·Windows) → 태그 `v1.0.0`, 릴리스
 
 ## 미결정
 

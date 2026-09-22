@@ -63,6 +63,7 @@ const int kUiPixelSize = 13;
 const char* const kCodeFamily = "D2Coding";  // bundled, OFL; Hangul = 2 cells
 const int kCodePointSize = 10;               // ~13 px at 96 dpi
 const int kBadgePixelSize = 11;
+const int kFontSmall = 12;        // status bar, splash version line
 const int kTitlePixelSize = 15;   // About: name
 const int kDisplayPixelSize = 20; // About: product name
 
@@ -78,7 +79,7 @@ const int kBadgeHeight = 16;
 const int kPcBarWidth = 3;       // left bar of the PC row
 const int kBandBarWidth = 2;     // left bar of a pseudo-instruction band
 const int kToolIconSize = 20;
-const int kSplashMillis = 1200;
+const int kSplashMillis = 1500;
 
 // ---- Type badges (tokens.md 4) --------------------------------------------
 

@@ -101,13 +101,17 @@
      <file>icons/png/step-forward-normal.png</file>
      <file>icons/png/step-forward-normal@2x.png</file>
      <file>brand/app-16.png</file>
+     <file>brand/app-24.png</file>
      <file>brand/app-256.png</file>
      <file>brand/app-32.png</file>
      <file>brand/app-48.png</file>
+     <file>brand/app-64.png</file>
      <file>brand/emblem-a-navy-112.png</file>
      <file>brand/emblem-a-navy-112@2x.png</file>
      <file>brand/logotype-ko-en-220.png</file>
      <file>brand/logotype-ko-en-220@2x.png</file>
+     <file>brand/signature-h-ko-en-260.png</file>
+     <file>brand/signature-h-ko-en-260@2x.png</file>
      <file>brand/signature-h-ko-en-320.png</file>
      <file>brand/signature-h-ko-en-320@2x.png</file>
      <file>brand/symbol-basic-64.png</file>

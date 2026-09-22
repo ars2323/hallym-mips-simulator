@@ -17,10 +17,11 @@
 
 class QApplication;
 class QAction;
-class QSplashScreen;
 
 namespace edu {
 namespace theme {
+
+class EduSplash;
 
 // Registers the bundled fonts, sets the application font, the style sheet
 // and the window icon.  Call once, before the main window is created.
@@ -43,11 +44,10 @@ QIcon toolIcon(const QString& lucideName);
 // symbol-basic 64), with the @2x file when the device pixel ratio asks.
 QPixmap brandPixmap(const QString& name, int width, qreal devicePixelRatio);
 
-// The splash image: the university signature on a white card.
-QPixmap splashPixmap();
-
-// Shows it for kSplashMillis, or until it is clicked; it deletes itself.
-QSplashScreen* showSplash();
+// The start-up screen (edu/theme/edu_splash.h), centred and shown.  It
+// deletes itself when it closes; connect to its finished() signal to know
+// when the main window may appear.
+EduSplash* showSplash();
 
 inline QColor color(QRgb rgb) { return QColor(rgb); }
 

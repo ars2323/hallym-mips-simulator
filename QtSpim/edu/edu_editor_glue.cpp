@@ -209,6 +209,7 @@ void SpimView::eduTileEditor() {
 // kept in the settings under Editor/RecentFiles.
 void SpimView::eduEditorFileChanged() {
   eduUpdateStaleBanner();
+  eduUpdateWindowTitle();  // EDU: the title bar names the open file
   const QString path = eduEditor->filePath();
   if (path != settings.value("Editor/LastFile").toString()) {
     settings.setValue("Editor/LastFile", path);  // reopened at the next start
@@ -306,6 +307,7 @@ void SpimView::eduArrangePanels(int layout) {
   // Halves, whatever the size hints say (equal wishes, scaled to fit).
   resizeDocks(QList<QDockWidget*>() << eduEditor << ui->TextSegDockWidget,
               QList<int>() << 1000 << 1000, o);
+  eduElideDockTabs();  // EDU: the tab bars are remade by the arrangement
 }
 
 void SpimView::eduLayoutTabs() { eduArrangePanels(0); }

@@ -59,6 +59,7 @@ class SpimView;
 
 // EDU: new panels (QtSpim/edu/).
 class EduDataModel;
+class EduTutorial;
 class EduEditorDock;
 class EduInspector;
 class EduRegisterModel;
@@ -106,6 +107,7 @@ class SpimView : public QMainWindow {
   // edu/edu_spimview_glue.cpp.
   EduRegisterModel* eduRegisterModel;
   EduInspector* eduInspector;
+  EduTutorial* eduTutorial;  // EDU: the first-run tour (edu/edu_tutorial.h)
   void eduSetupPanels();
   void eduTileInspector();
   void eduInspectorSizing(bool byUser);  // false: follow the content again
@@ -138,6 +140,8 @@ class SpimView : public QMainWindow {
   void eduResetRegisterChanges();  // Reinitialize / Load / Clear Registers
   void eduInsetDockContent(QDockWidget* dock);  // 4 px under the title
   void eduSetupHelpMenu();                      // User Guide, MIPS Reference
+  void eduElideDockTabs();                      // long tab titles get an ellipsis
+  void eduUpdateWindowTitle();                  // "file.s -- Hallym MIPS Simulator"
   void eduRefreshRegisterPanel();
 
   // EDU: Text panel (edu/edu_text_model.h, edu/edu_text_view.h).
@@ -369,6 +373,8 @@ class SpimView : public QMainWindow {
 
   void help_ViewHelp();          // EDU: Help > MIPS Reference
   void eduShowUserGuide();       // EDU: Help > User Guide ("?" in the tool bar)
+  void eduRevealWindows();       // EDU: after the splash closes
+  void eduShowTutorial();        // EDU: Help > Tutorial
   void help_AboutSPIM();
 
   void continueBreakpoint();
