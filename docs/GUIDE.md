@@ -38,7 +38,8 @@ registers, inspector, text, data, editor.
   with **Simulator > Reinitialize**.
 
 The example adds up an array in a function, so everything the tour points at
-is there: a stack frame (`addiu $sp, $sp, -12`), a loop with a branch, `jal`
+is there: a stack frame (`addiu $sp, $sp, -16`, kept 8-byte aligned), a loop
+with a branch, `jal`
 and `j`, a write back into `.data`, and syscalls. A step whose panel you have
 closed is left out and the rest are renumbered.
 
