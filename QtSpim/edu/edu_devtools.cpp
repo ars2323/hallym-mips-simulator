@@ -123,6 +123,10 @@ QString EduDevtools::usage() {
       "  --assemble             Simulator > Assemble (the real action)\n"
       "                         editor steps run in command-line order, after\n"
       "                         --load / --reload and before --trigger\n"
+      "  --drag-inspector <dy>  drag the separator above the Inspector by dy\n"
+      "                         pixels with real mouse events, then report\n"
+      "  --inspector-report     print the Inspector dock's height, the content's\n"
+      "                         preferred height and whether the user sized it\n"
       "  --save-settings        write the settings file on exit, as closing the\n"
       "                         window does (the script otherwise leaves none)\n"
       "  --raise <panel>        bring that dock's tab to the front\n"
@@ -342,6 +346,24 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
         arg == "--editor-report" || arg == "--editor-click-banner") {
       editorSteps_ << (arg == "--assemble" ? QString("assemble=")
                                            : arg.mid(9) + QString("="));
+      continue;
+    }
+
+    if (arg == "--drag-inspector") {
+      bool parsed = false;
+      if (i + 1 < args.size()) {
+        dragInspector_ << args.at(i + 1).toInt(&parsed);
+      }
+      if (!parsed) {
+        err() << "--drag-inspector needs a pixel count (negative = up)\n" << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      i += 1;
+      continue;
+    }
+    if (arg == "--inspector-report") {
+      dragInspector_ << 0;  // a drag of nothing: just the report
       continue;
     }
 
@@ -949,6 +971,44 @@ void EduDevtools::run() {
       status_ = 2;
     }
   }
+  for (int i = 0; i < dragInspector_.size(); i += 1) {
+    const int dy = dragInspector_.at(i);
+    EduInspector* dock = window_->eduInspector;
+    if (dy != 0) {
+      // The separator is the gap just above the dock; QMainWindow handles
+      // the mouse events on it itself (no child widget there).
+      const QPoint top = dock->mapTo(window_, QPoint(dock->width() / 2, 0));
+      const QPoint from(top.x(), top.y() - 2);
+      const QPoint to(from.x(), from.y() + dy);
+      const QPoint fromG = window_->mapToGlobal(from);
+      const QPoint toG = window_->mapToGlobal(to);
+      if (window_->childAt(from) != 0) {
+        err() << "no separator at " << from.x() << "," << from.y() << "\n"
+              << Qt::flush;
+        status_ = 2;
+      }
+      QMouseEvent press(QEvent::MouseButtonPress, from, fromG, Qt::LeftButton,
+                        Qt::LeftButton, Qt::NoModifier);
+      QMouseEvent move(QEvent::MouseMove, to, toG, Qt::NoButton, Qt::LeftButton,
+                       Qt::NoModifier);
+      QMouseEvent release(QEvent::MouseButtonRelease, to, toG, Qt::LeftButton,
+                          Qt::NoButton, Qt::NoModifier);
+      QApplication::sendEvent(window_, &press);
+      QApplication::sendEvent(window_, &move);
+      settle();
+      QApplication::sendEvent(window_, &release);
+      settle();
+    }
+    settle();
+    out() << "inspector: height=" << dock->widget()->height()
+          << " preferred=" << dock->preferredHeight()
+          << " locked=" << (dock->isHeightLocked() ? 1 : 0)
+          << " userSized=" << (window_->eduInspectorUserSized ? 1 : 0)
+          << " intregs_height=" << window_->ui->IntRegDockWidget->height()
+          << " column_width=" << dock->width()
+          << "\n" << Qt::flush;
+  }
+
   if (expandEnvironment_) {
     window_->eduDataModel->setEnvironmentExpanded(true);
   }

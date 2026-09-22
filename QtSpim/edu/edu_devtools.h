@@ -122,7 +122,9 @@ class EduDevtools : public QObject {
   // True when --capture or --dump was given, i.e. when the program should
   // run the script and exit instead of waiting for the user.
   bool isActive() const {
-    return !captures_.isEmpty() || !dumps_.isEmpty() || reportTime_;
+    return !captures_.isEmpty() || !dumps_.isEmpty() || reportTime_ ||
+           !dragInspector_.isEmpty() || !editorSteps_.isEmpty() ||
+           !menuLoads_.isEmpty();
   }
 
   // Starts answering modal dialogs.  Call as soon as the mode is known and
@@ -166,6 +168,7 @@ class EduDevtools : public QObject {
   bool expandKernel_;
   bool hasSelectInstruction_;
   quint32 selectInstruction_;  // Text panel row to select before capturing
+  QList<int> dragInspector_;  // separator drags (0 = report only)
   bool saveSettings_;
   bool expandEnvironment_;
   bool expandKernelData_;
