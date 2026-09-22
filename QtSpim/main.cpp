@@ -38,6 +38,8 @@
 #include "edu/edu_version.h"
 // EDU: warn before passing a path the core cannot open.
 #include "edu/edu_path_check.h"
+#include "edu/theme/edu_theme.h"  // EDU: fonts, style sheet, splash
+#include <QSplashScreen>
 
 #ifdef EDU_DEVTOOLS
 // EDU: scripted screenshot mode, development builds only.
@@ -64,6 +66,24 @@ int main(int argc, char* argv[]) {
   QCoreApplication::setApplicationVersion(EDU_VERSION);
 
   App = &a;
+  edu::theme::apply(&a);  // EDU: before any widget exists
+
+  // EDU: the university signature while the window is built; it stays up
+  // for kSplashMillis or until it is clicked.  Not in the scripted capture
+  // mode (a screenshot run must not wait for it).
+  // The arguments are decoded once, here: --local-codec (below) changes the
+  // locale codec, and QCoreApplication::arguments() decodes with it anew on
+  // every call.
+  const QStringList rawArguments = a.arguments();
+  QSplashScreen* splash = 0;
+#ifdef EDU_DEVTOOLS
+  if (!EduDevtools::wantsCaptureMode(rawArguments)) {
+    splash = edu::theme::showSplash();
+  }
+#else
+  splash = edu::theme::showSplash();
+#endif
+
   SpimView win;
   Window = &win;
 
@@ -75,7 +95,7 @@ int main(int argc, char* argv[]) {
   win.SpimConsole->show();
   win.show();
 
-  QStringList arguments = a.arguments();
+  QStringList arguments = rawArguments;
 
 #ifdef EDU_DEVTOOLS
   // EDU: strip the development options before the vanilla parser sees them;
@@ -115,61 +135,10 @@ int main(int argc, char* argv[]) {
   win.DisplayTextSegments(true);
   win.UpdateDataDisplay();
 
-  a.setStyleSheet(
-      "  QTabWidget::pane { /* The tab widget frame */"
-      "         border-top: 2px solid #C2C7CB;"
-      "     }"
-      ""
-      "     QTabWidget::tab-bar {"
-      "         left: 5px; /* move to the right by 5px */"
-      "     }"
-      ""
-      "     /* Style the tab using the tab sub-control. Note that"
-      "         it reads QTabBar _not_ QTabWidget */"
-      "     QTabBar::tab {"
-      "         background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,"
-      "                                     stop: 0 #E1E1E1, stop: 0.4 #DDDDDD,"
-      "                                     stop: 0.5 #D8D8D8, stop: 1.0 "
-      "#D3D3D3);"
-      "         border: 2px solid #C4C4C3;"
-      "         border-bottom-color: #C2C7CB; /* same as the pane color */"
-      "         border-top-left-radius: 4px;"
-      "         border-top-right-radius: 4px;"
-#ifdef _WIN32
-      "         min-width: 32ex;"
-      "         padding: 2px;"
-#else
-      "         min-width: 8ex;"
-      "         padding: 2px; padding-left:10px; padding-right:10px;"
-#endif
-      "         font: bold 12px"
-      "     }"
-      ""
-      "     QTabBar::tab:selected, QTabBar::tab:hover {"
-      "         background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,"
-      "                                     stop: 0 #fafafa, stop: 0.4 #f4f4f4,"
-      "                                     stop: 0.5 #e7e7e7, stop: 1.0 "
-      "#fafafa);"
-      "     }"
-      ""
-      "     QTabBar::tab:selected {"
-      "         border: 2px solid #FF9933;"
-      "         border-bottom-color: #C2C7CB; /* same as pane color */"
-      "     }"
-      ""
-      "     QTabBar::tab:!selected {"
-      "         margin-top: 2px; /* make non-selected tabs look smaller */"
-      "     }");
-
-  // EDU: the register docks now sit in the left dock area, whose tabs are
-  // vertical (QMainWindow::VerticalTabs in spimview.ui).  The rules above
-  // give every tab "min-width: 8ex" plus side padding, which for a vertical
-  // tab is its thickness and made the tab strip 80 pixels wide.
-  a.setStyleSheet(a.styleSheet() +
-                  " QTabBar::tab:left, QTabBar::tab:right {"
-                  "     min-width: 0px; min-height: 8ex;"
-                  "     padding: 10px 2px 10px 2px;"
-                  " }");
+  // EDU: the whole appearance -- fonts, colours, icons -- comes from
+  // edu/theme (docs/design/tokens.md); upstream's tab style sheet is gone.
+  // The splash closes by itself (edu::theme::showSplash()).
+  (void)splash;
 
 #ifdef EDU_DEVTOOLS
   // EDU: run the capture script from inside the event loop, then exit.

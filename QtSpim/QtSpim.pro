@@ -43,7 +43,7 @@ QT       += core widgets printsupport
 # EDU: different executable name so this build can be installed next to the
 # standard QtSpim. The name lives in edu/edu_version.h (EDU_TARGET_NAME) too;
 # keep the two in sync.
-TARGET = QtSpimEdu
+TARGET = HallymMIPS
 TEMPLATE = app
 
 
@@ -76,6 +76,8 @@ SOURCES += main.cpp\
         edu/edu_register_view.cpp\
         edu/edu_inspector.cpp\
         edu/edu_spimview_glue.cpp\
+        edu/theme/edu_theme.cpp\
+        edu/edu_about.cpp\
         spimview.cpp\
         menu.cpp\
         regwin.cpp\
@@ -120,6 +122,9 @@ HEADERS  += spimview.h\
         edu/edu_register_model.h\
         edu/edu_register_view.h\
         edu/edu_inspector.h\
+        edu/theme/tokens.h\
+        edu/theme/edu_theme.h\
+        edu/edu_about.h\
         regtextedit.h\
         texttextedit.h\
         datatextedit.h\
@@ -140,9 +145,13 @@ FORMS    += spimview.ui\
 INCLUDEPATH = ../CPU ../QtSpim
 
 
-RESOURCES = windows_images.qrc exception.qrc
+RESOURCES = exception.qrc edu/theme/theme.qrc  # EDU: windows_images.qrc (upstream bitmaps) replaced by the theme
 
-win32:RC_FILE = qtspim.rc
+# EDU: the theme resource carries the two bundled font families (15 MB);
+# resources_big makes rcc emit them in a form MSVC compiles without choking.
+CONFIG += resources_big
+
+win32:RC_FILE = edu/theme/brand/HallymMIPS.rc  # EDU: was qtspim.rc
 
 
 # EDU: development-only build option.
@@ -182,7 +191,7 @@ QMAKE_LEXFLAGS      = -I -8 --outfile=lex.scanner.c
 # resulting .qhc registers the documentation as plain "qtspim.qch" (no partial
 # paths), so the help files stay relocatable at install time.
 #
-HELP_PROJ           = help/qtspim.qhp
+HELP_PROJ           = help/HallymMIPS.qhp
 buildcompressedhelp.name    = Build compressed help
 buildcompressedhelp.input   = HELP_PROJ
 buildcompressedhelp.output  = help/${QMAKE_FILE_BASE}.qch
@@ -194,24 +203,24 @@ buildcompressedhelp.CONFIG  = no_link recursive
 # qmake is required after editing help/qtspim.qhcp; QMAKE_INTERNAL_INCLUDED_FILES
 # makes make do that automatically.
 #
-HELP_COL_SRC        = $$PWD/help/qtspim.qhcp
-HELP_COL_GEN        = $$OUT_PWD/help/qtspim.qhcp
+HELP_COL_SRC        = $$PWD/help/HallymMIPS.qhcp
+HELP_COL_GEN        = $$OUT_PWD/help/HallymMIPS.qhcp
 QMAKE_INTERNAL_INCLUDED_FILES += $$HELP_COL_SRC
 mkpath($$OUT_PWD/help)
 HELP_COL_TEXT       = $$cat($$HELP_COL_SRC, blob)
-HELP_COL_TEXT       = $$replace(HELP_COL_TEXT, "\\.\\./windows_images/", "$$PWD/windows_images/")
+HELP_COL_TEXT       = $$replace(HELP_COL_TEXT, "\\.\\./edu/theme/brand/", "$$PWD/edu/theme/brand/")
 write_file($$HELP_COL_GEN, HELP_COL_TEXT)|error("Cannot write $$HELP_COL_GEN")
 
-HELP_COL_PROJ       = help/qtspim.qhcp
+HELP_COL_PROJ       = help/HallymMIPS.qhcp
 buildhelpcollection.name    = Build help collection
 buildhelpcollection.input   = HELP_COL_PROJ
 buildhelpcollection.output  = help/${QMAKE_FILE_BASE}.qhc
 buildhelpcollection.commands= qhelpgenerator help/${QMAKE_FILE_BASE}.qhcp -o ${QMAKE_FILE_OUT}
-buildhelpcollection.depends = help/qtspim.qch
+buildhelpcollection.depends = help/HallymMIPS.qch
 buildhelpcollection.CONFIG  = no_link recursive
 
 QMAKE_EXTRA_COMPILERS       += buildcompressedhelp buildhelpcollection
-POST_TARGETDEPS             += help/qtspim.qch help/qtspim.qhc
+POST_TARGETDEPS             += help/HallymMIPS.qch help/HallymMIPS.qhc
 
 
 # Microsoft Visual C compiler flags
@@ -345,7 +354,7 @@ macx-g++ {
   QMAKE_DEL_FILE = rm -f
   QMAKE_INFO_PLIST = macinfo.plist
 
-  ICON = NewIcon.icns
+  ICON = edu/theme/brand/HallymMIPS.icns  # EDU
 }
 
 macx-clang {
@@ -362,5 +371,5 @@ macx-clang {
   QMAKE_DEL_FILE = rm -f
   QMAKE_INFO_PLIST = macinfo.plist
 
-  ICON = NewIcon.icns
+  ICON = edu/theme/brand/HallymMIPS.icns  # EDU
 }

@@ -45,6 +45,7 @@
 #include "edu/edu_register_view.h"
 #include "edu/edu_text_model.h"
 #include "edu/edu_text_view.h"
+#include "edu/theme/edu_theme.h"
 
 namespace {
 
@@ -153,10 +154,17 @@ QString EduDevtools::usage() {
       "  --icon-dir <dir>       give each QAction the icon <dir>/<objectName>.svg\n"
       "                         (+ .active.svg / .disabled.svg) if it exists\n"
       "\n"
-      "  panels:  intregs fpregs text data console log window about\n"
+      "  panels:  intregs fpregs text data console log window about splash\n"
       "           inspector\n"
       "  streams: console log regs intregs-log text-log data-log\n"
       "           (*-log = what Save Log File writes for that window)\n");
+}
+
+bool EduDevtools::wantsCaptureMode(const QStringList& args) {
+  EduDevtools probe;
+  bool ok = true;
+  probe.takeOptions(args, &ok);
+  return ok && probe.isActive();
 }
 
 QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
@@ -1198,6 +1206,18 @@ void EduDevtools::run() {
       modalOut_ = capture.out;
       QTimer::singleShot(100, this, SLOT(captureModalDialog()));
       window_->help_AboutSPIM();  // blocks until captureModalDialog closes it
+      continue;
+    }
+
+    if (capture.panel == "splash") {  // the image main() shows at start-up
+      const QPixmap pixmap = edu::theme::splashPixmap();
+      if (!pixmap.save(capture.out, "PNG")) {
+        err() << "cannot write " << capture.out << "\n" << Qt::flush;
+        status_ = 1;
+      } else {
+        out() << "wrote " << QFileInfo(capture.out).absoluteFilePath() << " ("
+              << pixmap.width() << "x" << pixmap.height() << ")\n" << Qt::flush;
+      }
       continue;
     }
 

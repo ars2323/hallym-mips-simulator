@@ -1,0 +1,126 @@
+/* Hallym MIPS Simulator -- application style sheet ("Campus", docs/design).
+   @name@ placeholders are filled in from edu/theme/tokens.h by
+   edu::theme::styleSheet(); do not write colours here. */
+
+* { outline: none; }
+
+QMainWindow { background: @window@; }
+QMainWindow::separator { background: @window@; width: @space-2@px; height: @space-2@px; }
+
+/* Menus */
+QMenuBar { background: @white@; border-bottom: 1px solid @border@; color: @navy@;
+           padding: 2px @space-1@px; }
+QMenuBar::item { padding: 5px 10px; border-radius: 4px; background: transparent; }
+QMenuBar::item:selected { background: @blue-tint@; color: @navy@; }
+QMenuBar::item:pressed { background: @blue-tint2@; }
+QMenu { background: @white@; border: 1px solid @border@; border-radius: 6px;
+        padding: @space-1@px; color: @text@; }
+QMenu::item { padding: 5px 28px 5px @space-3@px; border-radius: 4px; }
+QMenu::item:selected { background: @blue-tint2@; color: @navy@; }
+QMenu::item:disabled { color: @gray@; }
+QMenu::separator { height: 1px; background: @border@; margin: @space-1@px @space-2@px; }
+QMenu::indicator { width: 14px; height: 14px; }
+
+/* Tool bar: icons only, except the primary Assemble button. */
+QToolBar { background: @white@; border: none; border-bottom: 1px solid @border@;
+           padding: @space-1@px @space-2@px; spacing: @space-1@px; icon-size: @icon-size@px; }
+QToolBar::separator { width: 1px; background: @border@; margin: 6px @space-1@px; }
+QToolButton { border: 1px solid transparent; border-radius: 4px; padding: 3px;
+              color: @navy@; font-weight: 600; }
+QToolButton:hover { background: @blue-tint@; }
+QToolButton:pressed { background: @blue-tint2@; }
+QToolButton:disabled { color: @gray@; }
+QToolButton#EduAssembleButton { background: @blue@; color: @white@; border: none;
+              border-radius: 6px; padding: 0px @space-3@px 0px @space-2@px; height: 28px; }
+QToolButton#EduAssembleButton:hover { background: @navy@; }
+QToolButton#EduAssembleButton:pressed { background: @navy@; }
+QToolButton#EduAssembleButton:disabled { background: @gray@; color: @white@; }
+
+/* Docks as cards */
+QDockWidget { background: @white@; color: @navy@; font-weight: 600;
+              border: 1px solid @border@; border-radius: 6px; }
+QDockWidget::title { background: @white@; padding: @space-2@px @space-3@px; text-align: left;
+                     border-bottom: 1px solid @border@;
+                     border-top-left-radius: 6px; border-top-right-radius: 6px; }
+QDockWidget::close-button, QDockWidget::float-button {
+    subcontrol-position: top right; subcontrol-origin: margin;
+    top: @space-2@px; width: 16px; height: 16px; border: none; border-radius: 3px; }
+QDockWidget::close-button { right: @space-2@px; }
+QDockWidget::float-button { right: 28px; }
+QDockWidget::close-button:hover, QDockWidget::float-button:hover { background: @blue-tint@; }
+
+/* Tab strips of the tabified docks (Text | Data on top, Int | FP Regs on the left) */
+QTabBar { background: transparent; }
+QTabBar::tab { background: #EAEEF3; color: @text-2@; border: 1px solid @border@;
+               border-bottom: none; padding: 6px 14px; margin-right: 2px; min-width: 56px;
+               border-top-left-radius: 6px; border-top-right-radius: 6px; }
+QTabBar::tab:selected { background: @white@; color: @blue@; font-weight: 600;
+                        border-top: 2px solid @blue@; }
+QTabBar::tab:hover:!selected { background: @hover@; color: @navy@; }
+QTabBar::tab:left, QTabBar::tab:right { min-width: 0px; min-height: 56px; padding: 14px 6px;
+               margin: 0px 0px 2px 0px; border: 1px solid @border@; border-right: none;
+               border-top-left-radius: 6px; border-bottom-left-radius: 6px;
+               border-top-right-radius: 0px; }
+QTabBar::tab:left:selected, QTabBar::tab:right:selected { border-left: 2px solid @blue@;
+               border-top: 1px solid @border@; }
+
+/* Code panels: registers, text, data, inspector, editor, error list, log */
+QTreeView, QTableView, QListWidget, QPlainTextEdit, QTextEdit {
+    background: @white@; border: none; color: @text@;
+    selection-background-color: @blue-tint2@; selection-color: @navy@;
+    alternate-background-color: @white@; }
+QTreeView::item:hover, QTableView::item:hover, QListWidget::item:hover { background: @hover@; }
+QTreeView::item:selected, QTableView::item:selected, QListWidget::item:selected {
+    background: @blue-tint2@; color: @navy@; }
+QTreeView::branch { background: @white@; }
+QHeaderView::section { background: @white@; color: @navy@; font-weight: 600;
+    border: none; border-bottom: 1px solid @border@; padding: 3px 6px; }
+QTextEdit#centralWidget { border: 1px solid @border@; border-radius: 6px; padding: 6px; }
+QListWidget#EditorErrorList { border-top: 1px solid @border@; color: @error-text@; }
+QPlainTextEdit#EduConsole { padding: @space-1@px; }
+
+QScrollBar:vertical { background: transparent; width: 12px; margin: 0px; border: none; }
+QScrollBar::handle:vertical { background: @scroll@; min-height: 24px; border-radius: 4px; margin: 2px; }
+QScrollBar::handle:vertical:hover { background: @scroll-hover@; }
+QScrollBar:horizontal { background: transparent; height: 12px; margin: 0px; border: none; }
+QScrollBar::handle:horizontal { background: @scroll@; min-width: 24px; border-radius: 4px; margin: 2px; }
+QScrollBar::handle:horizontal:hover { background: @scroll-hover@; }
+QScrollBar::add-line, QScrollBar::sub-line { width: 0px; height: 0px; }
+QScrollBar::add-page, QScrollBar::sub-page { background: none; }
+
+/* Inputs and buttons */
+QLineEdit { background: @white@; border: 1px solid @border@; border-radius: 4px;
+            padding: 3px @space-2@px; selection-background-color: @blue-tint2@;
+            selection-color: @navy@; color: @text@; }
+QLineEdit:focus { border-color: @blue@; }
+QComboBox { border: 1px solid @border@; border-radius: 4px; padding: 3px @space-2@px; background: @white@; }
+QSpinBox { border: 1px solid @border@; border-radius: 4px; padding: 2px 6px; background: @white@; }
+QPushButton { background: @white@; color: @navy@; border: 1px solid @border@; border-radius: 4px;
+              padding: 5px 14px; font-weight: 600; }
+QPushButton:hover { background: @hover@; }
+QPushButton:default { background: @blue@; color: @white@; border-color: @blue@; }
+QPushButton:default:hover { background: @navy@; border-color: @navy@; }
+QPushButton:disabled { color: @gray@; }
+QCheckBox, QRadioButton, QLabel { color: @text@; }
+QGroupBox { border: 1px solid @border@; border-radius: 6px; margin-top: 10px; padding-top: @space-2@px; }
+QGroupBox::title { color: @navy@; font-weight: 600; subcontrol-origin: margin; left: @space-2@px; padding: 0px @space-1@px; }
+QTabWidget::pane { border: 1px solid @border@; border-radius: 6px; top: -1px; }
+QDialog { background: @window@; }
+
+/* Status bar and its badges */
+QStatusBar { background: @white@; border-top: 1px solid @border@; color: @text@; font-size: 12px; }
+QStatusBar::item { border: none; }
+QStatusBar QLabel { font-size: 12px; }
+QLabel#EduVersionLabel { color: @text-2@; padding: 0px @space-2@px; }
+QLabel#EduModeBadge { background: @amber-tint@; color: @amber-text@; border-radius: 4px;
+                      padding: 1px @space-2@px; font-weight: 600; font-size: @badge-px@px; }
+QLabel#EduAssembleBadge { background: @error-tint@; color: @error-text@; border-radius: 4px;
+                          padding: 1px @space-2@px; font-weight: 600; font-size: @badge-px@px; }
+
+/* "Source changed" strip across the top of the Text and Data panels */
+QPushButton#EduStaleBanner { background: @amber-tint@; color: @amber-text@; border: none;
+    border-bottom: 1px solid #F1DDB4; border-radius: 0px; padding: @space-1@px @space-3@px;
+    text-align: left; font-weight: 600; }
+QPushButton#EduStaleBanner:hover { background: #F8E8C8; }
+
+QToolTip { background: @navy@; color: @white@; border: none; padding: 5px @space-2@px; font-size: 12px; }

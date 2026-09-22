@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8" ?>
+ <QHelpCollectionProject version="1.0">
+     <assistant>
+         <title>Hallym MIPS Simulator Help</title>
+         <startPage>qthelp://kr.ac.hallym.mips.1.0/doc/manual.html</startPage>
+         <applicationIcon>../edu/theme/brand/HallymMIPS.ico</applicationIcon>
+         <enableFilterFunctionality>false</enableFilterFunctionality>
+         <enableDocumentationManager>false</enableDocumentationManager>
+         <enableAddressBar visible="true">true</enableAddressBar>
+         <cacheDirectory>hallym/mips</cacheDirectory>
+         <aboutMenuText>
+             <text>About Hallym MIPS Simulator</text>
+             <text language="en">Hallym MIPS Simulator runs a MIPS32 assembly program and displays the processor's registers and memory.</text>
+         </aboutMenuText>
+     </assistant>
+     <!-- EDU: the <generate> block was removed so that nothing is written into
+          the source tree.  HallymMIPS.qch is built into the shadow-build directory
+          by the buildcompressedhelp rule in QtSpim.pro, and QtSpim.pro copies a
+          rewritten version of this file next to it before running the help
+          collection generator.  Do not run qhelpgenerator on this file in
+          place; use "make" in the build directory. -->
+     <docFiles>
+         <register>
+             <file>HallymMIPS.qch</file>
+         </register>
+     </docFiles>
+ </QHelpCollectionProject>

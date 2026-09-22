@@ -10,13 +10,13 @@
 
    Usage:
 
-       QtSpimEdu --load prog.s --steps 3 \
+       HallymMIPS --load prog.s --steps 3 \
                  --capture intregs --out regs.png \
                  --capture text    --out text.png
 
-       QtSpimEdu --load prog.s --run --dump console out.txt
+       HallymMIPS --load prog.s --run --dump console out.txt
 
-       QtSpimEdu --local-codec ISO-8859-1 --load "/tmp/한글/prog.s" ...
+       HallymMIPS --local-codec ISO-8859-1 --load "/tmp/한글/prog.s" ...
 
    --load and --reload go through the REAL menu actions (File > Load File,
    File > Reinitialize and Load File): the action is triggered, the file
@@ -25,7 +25,7 @@
    order.  (Until stage 6 --load handed the file to main.cpp as a command-
    line argument, which skips file_LoadFile() altogether; a bug there could
    not have been seen.  That way in still exists as --load-cmdline, because
-   the log goldens were captured through it and because "QtSpimEdu prog.s" is
+   the log goldens were captured through it and because "HallymMIPS prog.s" is
    something users do as well.)
 
    --capture/--out may be repeated; each --capture must be followed by its
@@ -118,6 +118,10 @@ class EduDevtools : public QObject {
   // same path as a file named on the command line.  Sets *ok to false and
   // writes to stderr if an option is malformed.
   QStringList takeOptions(const QStringList& args, bool* ok);
+
+  // True when these arguments would put the program into the scripted mode
+  // (isActive() after takeOptions()); main() then skips the splash screen.
+  static bool wantsCaptureMode(const QStringList& args);
 
   // True when --capture or --dump was given, i.e. when the program should
   // run the script and exit instead of waiting for the user.
