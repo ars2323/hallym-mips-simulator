@@ -125,13 +125,13 @@ if ($Install) {
            ((Get-ItemProperty "HKCU:\Software\HallymMIPS\HallymMIPS").StandIn -eq "untouched")
   }
 
-  $log = Join-Path $env:TEMP "qtspimedu-install.log"
+  $log = Join-Path $env:TEMP "hallymmips-install.log"
   $p = Start-Process msiexec.exe -ArgumentList "/i `"$Msi`" /qn /norestart /l*v `"$log`"" -Wait -PassThru
   Check ($p.ExitCode -eq 0) "msiexec /i exit code $($p.ExitCode)"
   if ($p.ExitCode -ne 0) { Get-Content $log -Tail 40 }
   Check (Test-Path (Join-Path $ours "HallymMIPS.exe")) "installed $ours\HallymMIPS.exe"
   Check (Test-Path (Join-Path $ours "platforms\qwindows.dll")) "installed the Qt platform plugin"
-  Check (Test-Path (Join-Path $ours "help\qtspim.qhc")) "installed the help collection"
+  Check (Test-Path (Join-Path $ours "help\HallymMIPS.qhc")) "installed the help collection"
   Check (Test-Path (Join-Path $menu "Hallym MIPS Simulator\Hallym MIPS Simulator.lnk")) "Start menu: Hallym MIPS Simulator\Hallym MIPS Simulator"
   Check (-not (Test-Path (Join-Path ([Environment]::GetFolderPath("CommonDesktopDirectory")) "Hallym MIPS Simulator.lnk"))) "no desktop shortcut"
   $assoc = cmd /c "assoc .s 2>nul"
