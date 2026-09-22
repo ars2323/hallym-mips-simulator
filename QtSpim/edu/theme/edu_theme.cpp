@@ -10,6 +10,11 @@
 #include <QScreen>
 #include <QTimer>
 
+#ifdef Q_OS_WIN
+#include <dwmapi.h>
+#include <windows.h>
+#endif
+
 #include "edu/theme/edu_splash.h"
 #include "edu/theme/tokens.h"
 
@@ -108,6 +113,31 @@ QPixmap brandPixmap(const QString& name, int width, qreal devicePixelRatio) {
   // Only the widths make-theme-icons.py rendered exist; see BRAND there.
   return pixmapAt(QString(":/theme/brand/%1-%2.png").arg(name).arg(width),
                   devicePixelRatio);
+}
+
+void applyWindowChrome(QWidget* window) {
+#ifdef Q_OS_WIN
+  if (window == 0 || !window->isVisible()) {
+    return;
+  }
+  const HWND handle = reinterpret_cast<HWND>(window->winId());
+  // A light title bar, on Windows 10 (attribute 19) and 11 (attribute 20).
+  // Both calls are refused on builds that do not know the attribute, which
+  // is the "do nothing" we want.
+  BOOL dark = FALSE;
+  DwmSetWindowAttribute(handle, 20, &dark, sizeof(dark));
+  DwmSetWindowAttribute(handle, 19, &dark, sizeof(dark));
+  // Windows 11 22H2 and later can be told the exact colours.  COLORREF is
+  // 0x00bbggrr, so the tokens are written back to front here.
+  const COLORREF caption = RGB(qRed(kWhite), qGreen(kWhite), qBlue(kWhite));
+  const COLORREF text = RGB(qRed(kNavy), qGreen(kNavy), qBlue(kNavy));
+  const COLORREF border = RGB(qRed(kBorder), qGreen(kBorder), qBlue(kBorder));
+  DwmSetWindowAttribute(handle, 35, &caption, sizeof(caption));
+  DwmSetWindowAttribute(handle, 36, &text, sizeof(text));
+  DwmSetWindowAttribute(handle, 34, &border, sizeof(border));
+#else
+  Q_UNUSED(window);
+#endif
 }
 
 void apply(QApplication* app) {

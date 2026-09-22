@@ -33,8 +33,8 @@ const QRgb kWindow = 0xfff5f7fa;     // window background, current line, band ro
 const QRgb kBorder = 0xffe1e5ea;     // 1 px lines
 const QRgb kHover = 0xfff3f6f9;      // table row hover
 const QRgb kText = 0xff1f2933;       // body text
-const QRgb kText2 = 0xff5b6b7b;      // secondary text (source column, version)
-const QRgb kTextMuted = 0xff8a94a0;  // line numbers, comments
+const QRgb kText2 = 0xff5a6472;      // secondary text (source column, version)
+const QRgb kTextMuted = 0xff65707e;  // line numbers, comments (AA on the tinted rows)
 const QRgb kTextLog = 0xff2b3440;    // message log body
 const QRgb kScroll = 0xffc9d0d8;
 const QRgb kScrollHover = 0xffaeb7c2;
@@ -66,6 +66,7 @@ const int kBadgePixelSize = 11;
 const int kFontSmall = 12;        // status bar, splash version line
 const int kTitlePixelSize = 15;   // About: name
 const int kDisplayPixelSize = 20; // About: product name
+const int kSplashTitleSize = 22;  // the start-up screen: product name (Bold)
 
 // ---- Metrics (tokens.md 3) ------------------------------------------------
 

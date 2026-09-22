@@ -87,8 +87,15 @@ CI 세 색만으로는 표·배지·상태 표시가 안 되므로, 아래는 CI
 | #00736F | #E6F6F5 | 5.12 | AA | 변경된 값(배경 있을 때), 배지 J·FI |
 | #00205B | #E6F6F5 | 13.90 | AAA | 배지 FR |
 | #4A5560 | #EEF0F2 | 6.66 | AA | 배지 CP0 |
-| #5B6B7B | #FFFFFF | 5.48 | AA | 보조 글자 |
-| #5B6B7B | #F5F7FA | 5.10 | AA | 보조 글자(A) |
+| #5A6472 | #FFFFFF | 6.00 | AA | 보조 글자 |
+| #5A6472 | #F5F7FA | 5.59 | AA | 보조 글자(창 배경 위) |
+| #65707E | #FFFFFF | 5.03 | AA | 줄 번호·주석 |
+| #65707E | #F5F7FA | 4.69 | AA | 줄 번호·주석(현재 줄 위) |
+| #65707E | #F3F6F9 | 4.64 | AA | 줄 번호·주석(hover 행 위) |
+| #2B3440 | #FFFFFF | 12.59 | AAA | 메시지 로그 본문 |
+| #4A5560 | #EEF0F2 | 6.66 | AA | 배지 CP0 |
+| #6B4C9A | #FFFFFF | 6.72 | AAA | 숫자(문법 강조) |
+| #8A5A00 | #FFFFFF | 5.93 | AA | 문자열(문법 강조), 배지 J |
 | #C0392B | #FFFFFF | 5.44 | AA | 에러 글자 |
 | #8E2A1F | #FBEAE8 | 7.21 | AAA | 에러 배지 |
 | #7A4E0C | #FCF3E3 | 6.52 | AA | 경고 배지·띠 |
@@ -115,7 +122,7 @@ H1에서 확인한 Qt 동작: 코드가 `setFont()`를 다시 부르는 위젯(�
 | 토큰 | px | 쓰임 |
 |---|---|---|
 | `font.xs` | 11 | 타입 배지, 상태바 배지 |
-| `font.s` | 12 | 상태바, 툴팁, 표 헤더(코드 글꼴), 스플래시의 버전 줄 |
+| `font.s` | 12 | 상태바, 툴팁, 표 헤더(코드 글꼴), 투어의 진행 표시, 스플래시의 연구실 줄 |
 | `font.m` | 13 | UI 기본, 메뉴, 도크 제목(600), 코드 표 본문(D2Coding 10pt ≈ 13.3px) |
 | `font.l` | 15 | 다이얼로그 제목, About 이름 |
 | `font.xl` | 20 | About "Hallym MIPS Simulator" |
@@ -164,10 +171,11 @@ R/I/J는 배경으로, FR/FI는 같은 배경에 진남 글자로 "부동소수�
 | Data 마커 | $sp/$fp/$gp 셀 `teal.tint` 배경 + `teal.text` 글자; Labels 열 `blue` |
 | 메시지 로그 | 본문 `text.log` #2B3440, 오류 `error`, 배경 흰색, D2Coding 10pt |
 | 세로 탭(Int/FP Regs) | 유지, `text.2` → 선택 `blue` 600, 왼쪽 2px `blue` |
-| 스플래시 | 흰 바탕 480×300 카드(1px `border`, 8px 라운드): 시그니처 국영문 좌우조합(A4 A-5-1) · 제품명 20px SemiBold `navy` · 버전 12px `text.2` · 구분선 · `AIAC Lab · Hallym University` 11px · 바닥 2px 진행 바(`blue`, 불확정). 1.5초 또는 클릭 시 닫히고, 그때 메인 창이 나타난다 |
+| 스플래시 | 흰 바탕 480×300 카드(1px `border`, 8px 라운드): 시그니처 국영문 좌우조합(A4 A-5-1) · 제품명 **22px Bold** `navy` · 버전 13px `text.2` · 구분선 · `AIAC Lab · Hallym University` 12px `text.2` · 바닥 2px 진행 바(`blue`, 불확정). 1.5초 또는 클릭 시 닫히고, 그때 메인 창이 나타난다 |
 | About | 엠블럼 A(진남) + 로고타입 국영문 + "Hallym MIPS Simulator 1.0.0" + License 탭(원본 고지 그대로) |
-| 앱 아이콘 | 16·24·32px = 심볼 기본형, 48·64·256px = 원형 엠블럼 A (48px 아래에서는 엠블럼의 글자 고리가 얼룩 — `docs/design/captures/app-icon-options.png`) |
-| 튜토리얼 | 오버레이 검정 45%, 스포트라이트 2px `blue` 테두리·6px 라운드, 카드 흰 배경·1px `border`·8px 라운드·최대 폭 360px, 제목 15px SemiBold `navy`, 본문 13px `text`, 진행·언어 12px `text.2`, 다음 버튼 `blue` 채움 |
+| 앱 아이콘 | 흰 둥근 사각형 타일(라운드 18%, 1px `border`)에 심볼 기본형을 타일 폭 76%로 중앙 배치. 16~256px 동일 — `docs/design/captures/app-icon-taskbar.png`(작업표시줄 비교), `app-icon-options.png`(마크만 썼을 때의 크기별 비교) |
+| Windows 제목 표시줄 | 배경 `white`, 글자 `navy`, 테두리 `border` (`DwmSetWindowAttribute`) |
+| 튜토리얼 | 오버레이 검정 45%(카드와 스포트라이트는 제외), 스포트라이트 2px `blue`·6px 라운드(부대상은 1px), 카드 흰 배경·1px `border`·8px 라운드·폭 360px, 제목 15px Bold `navy`, 본문 13px `text`, 진행·언어 12px `text.2`, 다음 버튼 `blue` 채움, 그려 주는 툴팁은 `navy` 바탕에 흰 글자 |
 
 ## 6. 구현 (H2)
 

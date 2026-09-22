@@ -44,6 +44,12 @@ QIcon toolIcon(const QString& lucideName);
 // symbol-basic 64), with the @2x file when the device pixel ratio asks.
 QPixmap brandPixmap(const QString& name, int width, qreal devicePixelRatio);
 
+// Windows only: makes the title bar match the program, which is light.
+// Without this, a machine set to the dark system theme gets a black title
+// bar over a white window.  Does nothing on other platforms, and nothing on
+// Windows builds too old for the attribute (the call is simply refused).
+void applyWindowChrome(QWidget* window);
+
 // The start-up screen (edu/theme/edu_splash.h), centred and shown.  It
 // deletes itself when it closes; connect to its finished() signal to know
 // when the main window may appear.

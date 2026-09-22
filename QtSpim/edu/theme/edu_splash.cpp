@@ -115,21 +115,21 @@ void EduSplash::paintEvent(QPaintEvent*) {
 
   y += kSpace4 + kSpace2;
   QFont title = uiFont();
-  title.setPixelSize(kDisplayPixelSize);
-  title.setWeight(QFont::DemiBold);
+  title.setPixelSize(kSplashTitleSize);
+  title.setWeight(QFont::Bold);
   painter.setFont(title);
   painter.setPen(color(kNavy));
-  painter.drawText(QRect(0, y, width(), kDisplayPixelSize + 8),
+  painter.drawText(QRect(0, y, width(), kSplashTitleSize + 8),
                    Qt::AlignHCenter | Qt::AlignTop, EDU_APP_NAME);
-  y += kDisplayPixelSize + 10;
+  y += kSplashTitleSize + 10;
 
   QFont small = uiFont();
-  small.setPixelSize(kFontSmall);
+  small.setPixelSize(kUiPixelSize);
   painter.setFont(small);
   painter.setPen(color(kText2));
-  painter.drawText(QRect(0, y, width(), kFontSmall + 6),
+  painter.drawText(QRect(0, y, width(), kUiPixelSize + 6),
                    Qt::AlignHCenter | Qt::AlignTop, "Version " EDU_VERSION);
-  y += kFontSmall + kSpace3;
+  y += kUiPixelSize + kSpace3;
 
   const int ruleWidth = 320;
   painter.setPen(color(kBorder));
@@ -137,10 +137,10 @@ void EduSplash::paintEvent(QPaintEvent*) {
   y += kSpace3;
 
   QFont tiny = uiFont();
-  tiny.setPixelSize(kBadgePixelSize);
+  tiny.setPixelSize(kFontSmall);
   painter.setFont(tiny);
   painter.setPen(color(kText2));
-  painter.drawText(QRect(0, y, width(), kBadgePixelSize + 6),
+  painter.drawText(QRect(0, y, width(), kFontSmall + 6),
                    Qt::AlignHCenter | Qt::AlignTop,
                    QString::fromUtf8("AIAC Lab \xc2\xb7 Hallym University"));
 

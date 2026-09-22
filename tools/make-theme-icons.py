@@ -36,12 +36,17 @@ STATES = {"normal": "kNavy", "active": "kBlue", "disabled": "kGray"}
 BRAND = {"emblem-a-navy": [112], "logotype-ko-en": [220],
          "signature-h-ko-en": [260, 320], "symbol-basic": [64]}
 
-# The application icon.  Below 48 px the emblem's ring of lettering is a
-# smudge, so the title bar (16) and the task bar (24, 32) get the plain
-# symbol; the circular emblem is used where it can be read, from 48 px up.
-# Both are official marks, used whole -- only scaled and padded.
-APPICON = [(16, "symbol-basic"), (24, "symbol-basic"), (32, "symbol-basic"),
-           (48, "emblem-a-navy"), (64, "emblem-a-navy"), (256, "emblem-a-navy")]
+# The application icon: the symbol on a white rounded tile that fills the
+# square.  A bare symbol is wide and flat with transparent space around it,
+# which on a dark task bar reads as a small pale smudge next to everybody
+# else's full-square icons.  The tile gives it the same footprint as the
+# rest without touching the mark, which is only scaled and centred inside
+# it (docs/design/captures/app-icon-taskbar.png compares the ways).
+APPICON = [16, 24, 32, 48, 64, 256]
+TILE_MARK = "symbol-basic"
+TILE_RADIUS = 0.18   # of the icon's width
+TILE_MARK_WIDTH = 0.76
+TILE_BORDER = "#E1E5EA"
 
 
 def tokens():
@@ -50,6 +55,25 @@ def tokens():
                for m in re.finditer(r"const QRgb (k\w+) = 0xff([0-9a-f]{6});", text)}
     size = int(re.search(r"const int kToolIconSize = (\d+);", text).group(1))
     return colours, size
+
+
+def tile_icon(mark, size, radius=TILE_RADIUS, mark_width=TILE_MARK_WIDTH):
+    """The shipped icon: a white rounded tile filling the square, with the
+    mark centred on it.  Drawn at 8x and resampled so the corners and the
+    hairline border stay clean at 16 px."""
+    scale = 8
+    big = size * scale
+    tile = Image.new("RGBA", (big, big), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(tile)
+    draw.rounded_rectangle([0, 0, big - 1, big - 1], radius=int(big * radius),
+                           fill="#FFFFFF", outline=TILE_BORDER,
+                           width=max(1, int(scale * 0.8)))
+    png = cairosvg.svg2png(url=os.path.join(THEME, "brand", mark + ".svg"),
+                           output_width=int(big * mark_width))
+    art = Image.open(io.BytesIO(png)).convert("RGBA")
+    art.thumbnail((int(big * mark_width), int(big * mark_width)), Image.LANCZOS)
+    tile.paste(art, ((big - art.width) // 2, (big - art.height) // 2), art)
+    return tile.resize((size, size), Image.LANCZOS)
 
 
 def app_icon(mark, size):
@@ -124,6 +148,57 @@ def comparison_sheet(path):
     sheet.save(path)
 
 
+def taskbar_sheet(path):
+    """The icon as a task bar shows it: on a dark strip and a light one, at
+    the sizes Windows uses, with two plain squares at the end for scale."""
+    sizes = [32, 40, 48]
+    ways = [("(1) mark alone (1.0.0)",
+             lambda s: app_icon("symbol-basic" if s < 48 else "emblem-a-navy", s)),
+            ("(2) white tile + symbol", lambda s: tile_icon("symbol-basic", s)),
+            ("(3) white tile + emblem", lambda s: tile_icon("emblem-a-navy", s))]
+    strips = [("dark task bar", "#202020"), ("light task bar", "#F3F3F3")]
+    gap, head, label, pad = 22, 46, 150, 16
+    column_w = sum(sizes) + gap * (len(sizes) + 1)
+    scale_w = 40 * 2 + gap * 3
+    width = label + len(ways) * column_w + scale_w
+    row_h = max(sizes) + 2 * pad
+    height = head + len(strips) * (row_h + 30) + 30
+    sheet = Image.new("RGB", (width, height), "#FFFFFF")
+    draw = ImageDraw.Draw(sheet)
+    font = ImageFont.truetype(os.path.join(THEME, "fonts", "Pretendard-Medium.otf"), 15)
+    small = ImageFont.truetype(os.path.join(THEME, "fonts", "Pretendard-Regular.otf"), 12)
+
+    for c, (title, _) in enumerate(ways):
+        draw.text((label + c * column_w + gap, 10), title, fill="#00205B", font=font)
+        if c == 1:
+            draw.text((label + c * column_w + gap, 28), "in use", fill="#0055A5",
+                      font=small)
+    draw.text((label + len(ways) * column_w + gap, 10), "other apps",
+              fill="#5A6472", font=small)
+
+    y = head
+    for name, colour in strips:
+        draw.text((12, y + row_h // 2 - 9), name, fill="#1F2933", font=font)
+        draw.rectangle([label - 12, y, width - 1, y + row_h], fill=colour)
+        for c, (_, make) in enumerate(ways):
+            x = label + c * column_w + gap
+            for size in sizes:
+                icon = make(size)
+                sheet.paste(icon, (x, y + (row_h - size) // 2), icon)
+                x += size + gap
+        x = label + len(ways) * column_w + gap
+        for fill in ("#4C6EF5", "#E8590C"):
+            square = Image.new("RGBA", (40, 40), fill)
+            sheet.paste(square, (x, y + (row_h - 40) // 2), square)
+            x += 40 + gap
+        y += row_h + 30
+    draw.text((12, height - 24),
+              "32 / 40 / 48 px, the sizes a Windows task bar asks for; the two "
+              "squares stand in for other programs' icons",
+              fill="#5A6472", font=small)
+    sheet.save(path)
+
+
 def main():
     colours, size = tokens()
     out = os.path.join(THEME, "icons", "png")
@@ -139,12 +214,12 @@ def main():
                 cairosvg.svg2png(bytestring=coloured.encode("utf-8"),
                                  write_to=os.path.join(out, "%s-%s%s.png" % (name, state, suffix)),
                                  output_width=size * scale, output_height=size * scale)
-    for size, mark in APPICON:
-        app_icon(mark, size).save(os.path.join(THEME, "brand", "app-%d.png" % size))
-    write_ico([(size, app_icon(mark, size)) for size, mark in APPICON],
+    for size in APPICON:
+        tile_icon(TILE_MARK, size).save(
+            os.path.join(THEME, "brand", "app-%d.png" % size))
+    write_ico([(size, tile_icon(TILE_MARK, size)) for size in APPICON],
               os.path.join(THEME, "brand", "HallymMIPS.ico"))
-    icns = [app_icon("emblem-a-navy" if s >= 48 else "symbol-basic", s)
-            for s in (1024, 512, 256, 128, 64, 32, 16)]
+    icns = [tile_icon(TILE_MARK, s) for s in (1024, 512, 256, 128, 64, 32, 16)]
     icns[0].save(os.path.join(THEME, "brand", "HallymMIPS.icns"),
                  append_images=icns[1:])
     for name, widths in BRAND.items():
@@ -156,6 +231,8 @@ def main():
                                  output_width=width * scale)
     comparison_sheet(os.path.join(ROOT, "docs", "design", "captures",
                                   "app-icon-options.png"))
+    taskbar_sheet(os.path.join(ROOT, "docs", "design", "captures",
+                               "app-icon-taskbar.png"))
     print("%d icons x %d states x 2, %d brand marks" % (len(ICONS), len(STATES), len(BRAND)))
 
 
