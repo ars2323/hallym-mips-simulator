@@ -31,7 +31,11 @@ inspector, text, data, editor.
 - To see it again: **Help > Tutorial**. It opens the sample **only when the
   editor is empty and unnamed**. With a file of your own open, or anything
   typed, it walks that instead: nothing is asked and nothing of yours is
-  touched. Empty the editor and start it again to see it with the sample.
+  touched.
+- The first step then offers **Use the example**. It swaps in the sample
+  program and starts the tour again with all eighteen steps. Unsaved text is
+  the one thing it asks about first, and cancelling that question changes
+  nothing.
 - The keyboard works too: Enter, Space or the right arrow for the next step,
   the left arrow to go back, Escape to leave.
 
