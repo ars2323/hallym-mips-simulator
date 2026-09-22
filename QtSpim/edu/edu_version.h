@@ -36,7 +36,6 @@
    window layouts, so sharing a settings store would make each one restore
    the other's dock state. */
 #define EDU_SETTINGS_ORG "HallymMIPS"
-#define EDU_SETTINGS_DOMAIN "hallym.ac.kr"
 #define EDU_SETTINGS_APP "HallymMIPS"
 
 #endif  // EDU_VERSION_H

@@ -137,6 +137,7 @@ class SpimView : public QMainWindow {
   void eduBeginRunCommand();       // a Step/Run/Continue is about to start
   void eduResetRegisterChanges();  // Reinitialize / Load / Clear Registers
   void eduInsetDockContent(QDockWidget* dock);  // 4 px under the title
+  void eduSetupHelpMenu();                      // User Guide, MIPS Reference
   void eduRefreshRegisterPanel();
 
   // EDU: Text panel (edu/edu_text_model.h, edu/edu_text_view.h).
@@ -366,7 +367,8 @@ class SpimView : public QMainWindow {
   void win_Tile();
   void win_Restore();
 
-  void help_ViewHelp();
+  void help_ViewHelp();          // EDU: Help > MIPS Reference
+  void eduShowUserGuide();       // EDU: Help > User Guide ("?" in the tool bar)
   void help_AboutSPIM();
 
   void continueBreakpoint();

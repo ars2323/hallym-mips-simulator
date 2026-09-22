@@ -7,7 +7,7 @@
        StageDir        the staged zip folder; its files are harvested into
                        the component group AppFiles (heat) -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Product Id="*" Name="Hallym MIPS Simulator" Manufacturer="Hallym University"
+  <Product Id="*" Name="Hallym MIPS Simulator" Manufacturer="AIAC Lab, Hallym University"
            Language="1033" Codepage="1252" Version="$(var.ProductVersion)"
            UpgradeCode="BF8A162B-8D89-43B4-9166-46E6EFEF30A9">
     <Package InstallerVersion="301" Compressed="yes" InstallScope="perMachine"

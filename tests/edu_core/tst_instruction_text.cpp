@@ -122,7 +122,7 @@ void TestInstructionText::coprocessorFormats() {
 
 void TestInstructionText::unknownWord() {
   const QStringList lines = detail(0xfc000000u, 0, "", "", edu::SpimNoDelaySlot);
-  QVERIFY(lines.at(0).startsWith("(not an instruction SPIM implements)"));
+  QVERIFY(lines.at(0).startsWith("(not an instruction this simulator implements)"));
   QVERIFY(lines.at(0).endsWith("I-type"));
   QCOMPARE(lines.at(1), QString("0xfc000000  at 0x00000000"));
   QCOMPARE(lines.size(), 7);

@@ -36,6 +36,7 @@
 
 #include "spimview.h"
 #include "ui_spimview.h"
+#include "edu/edu_version.h"  // EDU
 #include "edu/theme/tokens.h"  // EDU: settings defaults
 #include "edu/theme/edu_theme.h"
 
@@ -229,8 +230,8 @@ void SpimView::writeSettings(bool omitWindowState) {
 void SpimView::win_Restore() {
   QMessageBox msgBox;
   msgBox.setText(
-      "QtSpim will now exit. Restart QtSpim and the windows will be restored "
-      "to default configuration.");
+      EDU_APP_NAME " will now exit. Start it again and the windows will be "  // EDU
+      "restored to their default configuration.");
   msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Abort);
   msgBox.setDefaultButton(QMessageBox::Ok);
   if (msgBox.exec() == QMessageBox::Ok) {

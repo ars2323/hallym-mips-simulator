@@ -61,7 +61,6 @@ int main(int argc, char* argv[]) {
   // and run next to the standard QtSpim without the two overwriting each
   // other's window layout.
   QCoreApplication::setOrganizationName(EDU_SETTINGS_ORG);
-  QCoreApplication::setOrganizationDomain(EDU_SETTINGS_DOMAIN);
   QCoreApplication::setApplicationName(EDU_SETTINGS_APP);
   QCoreApplication::setApplicationVersion(EDU_VERSION);
 

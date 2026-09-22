@@ -91,6 +91,8 @@ is kept as it is. The changes in this repository are offered under the same
 terms. The program links to the Qt library, which is distributed under the GNU
 Lesser General Public License version 3 and version 2.1.
 
+Developed by Hakhyeon Kim, AIAC Lab, Hallym University.
+
 The bundled fonts Pretendard and D2Coding are under the SIL Open Font License
 1.1 and the Lucide icons under the ISC license (Help > About > License). The
 university symbol, logotype, emblem and signature belong to Hallym University

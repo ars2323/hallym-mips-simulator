@@ -174,7 +174,7 @@ QVariant EduRegisterModel::data(const QModelIndex& index, int role) const {
     case Qt::ToolTipRole: {
       QString tip = edu::registerName(row->reg);
       if (row->reg.kind == edu::RegisterRef::General) {
-        tip += QString("  (R%1, \"%2\" in SPIM's own listings)")
+        tip += QString("  (R%1, \"%2\" in the simulator's own listings)")
                    .arg(row->reg.number)
                    .arg(edu::generalRegisterCoreName(row->reg.number));
       }

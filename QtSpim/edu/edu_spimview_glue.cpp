@@ -4,6 +4,9 @@
 
 #include <QApplication>
 #include <QEvent>
+#include <QUrl>
+#include <QFileInfo>
+#include <QDesktopServices>
 #include <QMouseEvent>
 #include <QLabel>
 #include <QMessageBox>
@@ -87,6 +90,7 @@ void SpimView::eduSetupPanels() {
   // Window > Inspector, next to the other panels' entries.
   QAction* toggle = eduInspector->toggleViewAction();
   toggle->setText("Inspector");
+  toggle->setObjectName("action_Edu_ToggleInspector");  // devtools --trigger
   ui->menu_Window->insertAction(ui->action_Win_Console, toggle);
 
   // Never shown.  It receives exactly the HTML upstream put into the
@@ -152,6 +156,55 @@ void SpimView::eduSetupPanels() {
   // layout wants a 4 px breath between the title bar and the header.
   eduInsetDockContent(ui->IntRegDockWidget);
   eduInsetDockContent(ui->FPRegDockWidget);
+
+  eduSetupHelpMenu();
+}
+
+// Help > User Guide (also the "?" tool bar button) and Help > MIPS
+// Reference.  Upstream had one entry, "View Help", which opened the QtSpim
+// manual; that manual describes another program's windows, so the students'
+// own guide takes its place and the original SPIM documentation -- the
+// assembler, linker and instruction-set appendix by James Larus -- stays
+// reachable under its own name.
+void SpimView::eduSetupHelpMenu() {
+  ui->action_Help_ViewHelp->setText("&User Guide");
+  ui->action_Help_ViewHelp->setToolTip(
+      "How to use this program, and what differs from the standard simulator");
+
+  QAction* reference = new QAction("MIPS &Reference", this);
+  reference->setObjectName("action_Edu_MipsReference");
+  reference->setToolTip(
+      "The original SPIM documentation by James Larus: assemblers, linkers "
+      "and the MIPS instruction set");
+  connect(reference, SIGNAL(triggered(bool)), this, SLOT(help_ViewHelp()));
+  ui->menu_Help->insertAction(ui->action_Help_AboutSPIM, reference);
+  ui->menu_Help->insertSeparator(ui->action_Help_AboutSPIM);
+}
+
+// The student guide that ships with the program: the PDFs in the Windows
+// zip, or the Markdown sources in a development checkout.
+void SpimView::eduShowUserGuide() {
+  const QString appDir = QCoreApplication::applicationDirPath();
+  const char* const dirs[] = {"", "/docs", "/../docs", "/../../docs"};
+  const char* const names[] = {"HallymMIPS-GUIDE-ko.pdf", "HallymMIPS-GUIDE.pdf",
+                               "GUIDE-ko.md", "GUIDE.md"};
+  for (unsigned d = 0; d < sizeof(dirs) / sizeof(dirs[0]); d += 1) {
+    for (unsigned n = 0; n < sizeof(names) / sizeof(names[0]); n += 1) {
+      const QFileInfo guide(appDir + QString(dirs[d]) + "/" + names[n]);
+      if (guide.exists()) {
+        QDesktopServices::openUrl(QUrl::fromLocalFile(guide.absoluteFilePath()));
+        return;
+      }
+    }
+  }
+  QMessageBox box(this);
+  box.setObjectName("EduGuideMissing");
+  box.setIcon(QMessageBox::Information);
+  box.setWindowTitle("User Guide");
+  box.setText(QString("The user guide is not next to the program.\n\n"
+                      "It is on the release page of ") + EDU_APP_NAME +
+              " as HallymMIPS-GUIDE-ko.pdf.");
+  box.exec();
 }
 
 // Re-parents a dock's content into a box with the token's top margin.

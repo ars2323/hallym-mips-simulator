@@ -127,6 +127,9 @@ bar.
   (Window > Tile gives it back).
 
 Questions and bugs: <https://github.com/ars2323/hallym-mips-simulator/issues>
+Developed by Hakhyeon Kim, AIAC Lab, Hallym University. The Hallym University
+UI is used under the university's UI guidelines (non-commercial).
+
 SPIM is the work of James R. Larus, distributed under a BSD license. Hallym MIPS
 Simulator is a modified version of QtSpim (through QtSpim-Edu) and is not
 affiliated with the SPIM project. The bundled fonts Pretendard and D2Coding are

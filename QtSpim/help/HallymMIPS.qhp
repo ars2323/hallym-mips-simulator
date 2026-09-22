@@ -3,16 +3,8 @@
      <namespace>kr.ac.hallym.mips.1.0</namespace>
      <virtualFolder>doc</virtualFolder>
      <filterSection>
-         <filterAttribute>hallymmips</filterAttribute>
+         <filterAttribute>mipsreference</filterAttribute>
          <toc>
-             <section title="QtSpim Manual" ref="manual.html#qtspim/">
-               <section title="Getting Started with QtSpim" ref="manual.html#getting/" />
-               <section title="Loading a Program" ref="manual.html#loading/" />
-               <section title="Running a Program" ref="manual.html#running/" />
-               <section title="Display Options" ref="manual.html#display/" />
-               <section title="Changing Registers and Memory" ref="manual.html#changing/" />
-               <section title="Settings" ref="manual.html#settings/" />
-             </section>
              <section title="Assemblers, Linkers, and the SPIM Simulator" ref="HP_AppA.html#book/">
                <section title="Introduction" ref="HP_AppA.html#intro/" >
                   <section title="When to Use Assembly Language" ref="HP_AppA.html#when/" />

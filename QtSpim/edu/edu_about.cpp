@@ -114,6 +114,15 @@ EduAboutDialog::EduAboutDialog(QWidget* parent) : QDialog(parent) {
       about);
   blurb->setWordWrap(true);
 
+  QLabel* credit = new QLabel(
+      "Developed by Hakhyeon Kim, AIAC Lab, Hallym University.<br>"
+      "Hallym University UI used under the university's UI guidelines "
+      "(non-commercial).",
+      about);
+  credit->setWordWrap(true);
+  credit->setTextFormat(Qt::RichText);
+  credit->setPalette(muted);
+
   QVBoxLayout* text = new QVBoxLayout;
   text->setSpacing(edu::theme::kSpace2);
   text->addWidget(logotype);
@@ -122,6 +131,8 @@ EduAboutDialog::EduAboutDialog(QWidget* parent) : QDialog(parent) {
   text->addWidget(version);
   text->addSpacing(edu::theme::kSpace1);
   text->addWidget(blurb);
+  text->addSpacing(edu::theme::kSpace3);
+  text->addWidget(credit);
   text->addStretch(1);
 
   QHBoxLayout* row = new QHBoxLayout(about);

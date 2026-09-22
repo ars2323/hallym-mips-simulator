@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8" ?>
  <QHelpCollectionProject version="1.0">
      <assistant>
-         <title>Hallym MIPS Simulator Help</title>
-         <startPage>qthelp://kr.ac.hallym.mips.1.0/doc/manual.html</startPage>
+         <title>MIPS Reference — original SPIM documentation</title>
+         <startPage>qthelp://kr.ac.hallym.mips.1.0/doc/HP_AppA.html</startPage>
          <applicationIcon>../edu/theme/brand/HallymMIPS.ico</applicationIcon>
          <enableFilterFunctionality>false</enableFilterFunctionality>
          <enableDocumentationManager>false</enableDocumentationManager>
          <enableAddressBar visible="true">true</enableAddressBar>
          <cacheDirectory>hallym/mips</cacheDirectory>
          <aboutMenuText>
-             <text>About Hallym MIPS Simulator</text>
-             <text language="en">Hallym MIPS Simulator runs a MIPS32 assembly program and displays the processor's registers and memory.</text>
+             <text>About this reference</text>
+             <text language="en">The original SPIM documentation by James R. Larus: assemblers, linkers, and the MIPS instruction set. It describes the simulator core, which this program uses unmodified.</text>
          </aboutMenuText>
      </assistant>
      <!-- EDU: the <generate> block was removed so that nothing is written into

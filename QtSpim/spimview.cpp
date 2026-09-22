@@ -58,7 +58,8 @@ SpimView::SpimView(QWidget *parent)
   eduSetupPanels();              // EDU: register tree, inspector dock
   SpimConsole = new Console(0);
 
-  stdExceptionHandler = QString("<<SPIM Exception Handler>>");
+  // EDU: sentinel for "use the built-in handler"; it is shown in Settings.
+  stdExceptionHandler = QString("<<Built-in Exception Handler>>");
 
   // Set style parameters for docking widgets
   //
@@ -171,8 +172,10 @@ void SpimView::wireCommands() {
   QObject::connect(ui->action_Win_Restore, SIGNAL(triggered(bool)), this,
                    SLOT(win_Restore()));
 
+  // EDU: the "?" action opens the student guide; the original SPIM
+  // documentation is Help > MIPS Reference (eduSetupHelpMenu).
   QObject::connect(ui->action_Help_ViewHelp, SIGNAL(triggered(bool)), this,
-                   SLOT(help_ViewHelp()));
+                   SLOT(eduShowUserGuide()));
   QObject::connect(ui->action_Help_AboutSPIM, SIGNAL(triggered(bool)), this,
                    SLOT(help_AboutSPIM()));
 

@@ -7,7 +7,7 @@ touch each other:
 
 | | Hallym MIPS Simulator | upstream QtSpim |
 |---|---|---|
-| ProductName | `Hallym MIPS Simulator` | `QtSpim` |
+| ProductName | `Hallym MIPS Simulator` (Manufacturer `AIAC Lab, Hallym University`) | `QtSpim` |
 | UpgradeCode | `BF8A162B-8D89-43B4-9166-46E6EFEF30A9` (**never change it**; QtSpim-Edu 1.0.x used `8B69C2A5-F331-48CE-A04C-1462CE02A3C8`) | `acf14497-9bbe-4d3d-b0b2-7b599eb18984` |
 | Install folder | `%ProgramFiles%\Hallym MIPS Simulator` (64-bit) | `%ProgramFiles(x86)%\QtSpim.` |
 | Start menu | `Hallym MIPS Simulator\Hallym MIPS Simulator`, `Hallym MIPS Simulator\User Guide` | `QtSpim\QtSpim` |

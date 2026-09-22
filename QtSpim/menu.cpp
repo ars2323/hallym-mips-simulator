@@ -238,13 +238,21 @@ void SpimView::sim_ReinitializeSimulator() {
   SpimConsole->Clear();
   initStack();
 
-  SetOutputColor(edu::theme::color(edu::theme::kTextLog).name());  // EDU: was "green"
-  write_startup_message();
-  write_output(
-      message_out,
-      "QtSPIM is linked to the Qt library, which is distributed under the GNU "
-      "Lesser General Public License version 3 and version 2.1.\n");
-  SetOutputColor(edu::theme::color(edu::theme::kTextLog).name());  // EDU: was "black"
+  // EDU: our own banner.  Upstream called the core's write_startup_message()
+  // (CPU/spim-utils.cpp) and then printed a Qt notice, which named SPIM and
+  // QtSPIM in the log pane on every start and every Reinitialize.  CPU/ is
+  // untouched: that function is simply not called from here, and the full
+  // copyright, BSD and LGPL notices are in Help > About > License and in the
+  // LICENSE file that ships with the program.  This is display only -- Save
+  // Log File and Print write the register, text, data and console windows,
+  // never this pane.
+  SetOutputColor(edu::theme::color(edu::theme::kTextLog).name());
+  write_output(message_out, "%s\n", EDU_APP_NAME " " EDU_VERSION);
+  write_output(message_out, "%s\n",
+               "MIPS32 assembler and simulator \xc2\xb7 AIAC Lab, Hallym University");
+  write_output(message_out, "%s\n",
+               "Based on SPIM " EDU_BASE_VERSION " by James Larus (BSD). "
+               "See Help > About > License.");
 
   CaptureIntRegisters();
   CaptureSFPRegisters();
@@ -766,14 +774,10 @@ void SpimView::help_ViewHelp() {
     portableAssistant = QString("assistant");
   }
 
-  QString helpFile[] = {
-      appDir + QString("/help/HallymMIPS.qhc"),  // EDU: portable, first
-      qgetenv("PROGRAMFILES(x86)") +
-          QString("/QtSpim/help/qtspim.qhc"),  // Windows
-      QString(
-          "/Applications/QtSpim.app/Contents/Resources/doc/qtspim.qhc"),  // Mac
-      QString("/usr/lib/qtspim/help/qtspim.qhc"),  // Linux
-      0};
+  // EDU: only the collection that ships next to the executable.  Upstream
+  // also looked into a standard QtSpim installation; this program does not
+  // borrow another product's files.
+  QString helpFile[] = {appDir + QString("/help/HallymMIPS.qhc"), 0};
 
   int i;
   for (i = 0; helpFile[i] != 0; i += 1) {
@@ -786,17 +790,14 @@ void SpimView::help_ViewHelp() {
 
   if (helpFile[i] == 0) {
     QMessageBox msgBox;
-    msgBox.setText("Cannot find the help file. Check installation.");  // EDU
+    msgBox.setText("Cannot find the MIPS reference. Check installation.");  // EDU
     msgBox.exec();
     return;
   }
 
-  QString assistant[] = {
-      portableAssistant,                                             // EDU
-      QString("assistant"),                                          // Windows
-      QString("/Applications/QtSpim.app/Contents/MacOS/Assistant"),  // Mac
-      QString("/usr/lib/qtspim/bin/assistant"),                      // Linux
-  };
+  // EDU: assistant next to the executable (the Windows zip), else the one
+  // on PATH.  Upstream also looked inside a standard QtSpim installation.
+  QString assistant[] = {portableAssistant, 0};
 
   process->start(assistant[i], args);
   if (!process->waitForStarted()) {

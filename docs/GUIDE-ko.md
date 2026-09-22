@@ -72,4 +72,6 @@ Text·Data 탭 위에 띠 "**Source changed — save (Ctrl+S) to assemble**"가 
 - **Inspector 높이**: Inspector 위의 경계를 끌어 높이를 바꿀 수 있습니다. 손대기 전에는 선택한 내용에 맞춰 저절로 커지고 작아지며, 한 번 끌면 그 높이가 유지됩니다(Window > Tile로 원래대로).
 
 문의·버그: <https://github.com/ars2323/hallym-mips-simulator/issues>
+만든 사람: 김학현, AIAC Lab, 한림대학교. 한림대학교 UI는 학교의 UI 사용 규정(비상업)에 따라 사용했습니다.
+
 SPIM은 James R. Larus의 저작물이며 BSD 라이선스로 배포됩니다. Hallym MIPS Simulator는 QtSpim-Edu를 거친 QtSpim의 수정판으로, SPIM 프로젝트와 무관합니다. 동봉 글꼴 Pretendard·D2Coding은 SIL Open Font License 1.1, 아이콘 Lucide는 ISC 라이선스입니다(Help > About > License).

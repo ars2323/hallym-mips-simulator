@@ -168,7 +168,7 @@ QStringList instructionDetailLines(const DecodedInstruction& d,
 
   const QString type = formatName(d.format) + QString("-type");
   const QString what =
-      d.known ? disassembly : QString("(not an instruction SPIM implements)");
+      d.known ? disassembly : QString("(not an instruction this simulator implements)");
   const int gap = qMax(2, kInstructionTextColumns - what.size() - type.size());
 
   QStringList lines;
@@ -203,10 +203,10 @@ QStringList instructionNoteLines(const DecodedInstruction& d,
   if (d.hasDestination && d.kind == DecodedInstruction::Branch &&
       convention == SpimNoDelaySlot) {
     notes << QString::fromUtf8(
-        "SPIM 기본 모드는 지연 분기가 없어 PC 기준으로 인코딩합니다. "
+        "이 시뮬레이터의 기본 모드는 지연 분기가 없어 PC 기준으로 인코딩합니다. "
         "교재의 MIPS(PC+4 기준)와 offset 값이 1 다릅니다.");
     notes << QString(
-        "SPIM's default mode has no delayed branches and encodes from PC. "
+        "This simulator's default mode has no delayed branches and encodes from PC. "
         "Textbook MIPS encodes from PC+4, so its offset is 1 less.");
   }
   return notes;
