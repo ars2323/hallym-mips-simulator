@@ -1,0 +1,102 @@
+/* Shared rules of both mock-ups.  Colour tokens are substituted by
+   tools/capture-theme.sh from the at-sign placeholders (docs/design/tokens.md). */
+* { outline: none; }
+
+QMainWindow { background: @window@; }
+QMainWindow::separator { background: @window@; width: @gap@px; height: @gap@px; }
+
+QMenuBar { background: @bar@; border-bottom: 1px solid @border@; color: @navy@;
+           padding: 2px 4px; font-size: 13px; }
+QMenuBar::item { padding: 5px 10px; border-radius: 4px; background: transparent; }
+QMenuBar::item:selected { background: @select-tint@; color: @navy@; }
+QMenuBar::item:pressed { background: @pc-tint@; }
+
+QMenu { background: #FFFFFF; border: 1px solid @border@; border-radius: 6px;
+        padding: 4px; color: @text@; font-size: 13px; }
+QMenu::item { padding: 5px 28px 5px 12px; border-radius: 4px; }
+QMenu::item:selected { background: @blue@; color: #FFFFFF; }
+QMenu::item:disabled { color: @gray@; }
+QMenu::separator { height: 1px; background: @border@; margin: 4px 8px; }
+QMenu::indicator { width: 14px; height: 14px; }
+
+QToolBar { background: @bar@; border: none; border-bottom: 1px solid @border@;
+           padding: 4px 8px; spacing: 4px; icon-size: 20px; }
+QToolBar::separator { width: 1px; background: @border@; margin: 6px 4px; }
+QToolButton { border: 1px solid transparent; border-radius: 4px; padding: 3px;
+              color: @navy@; font-size: 13px; font-weight: 600; }
+QToolButton:hover { background: @select-tint@; }
+QToolButton:pressed { background: @pc-tint@; }
+QToolButton:disabled { color: @gray@; }
+
+QDockWidget { background: #FFFFFF; color: @navy@; font-size: 13px; font-weight: 600;
+              border: @dock-border@; border-radius: @radius@px; }
+QDockWidget::title { background: @title-bg@; padding: 8px 12px; text-align: left;
+                     border-bottom: 1px solid @border@;
+                     border-top-left-radius: @radius@px; border-top-right-radius: @radius@px; }
+QDockWidget::close-button, QDockWidget::float-button {
+    subcontrol-position: top right; subcontrol-origin: margin;
+    top: 8px; width: 16px; height: 16px; border: none; border-radius: 3px; }
+QDockWidget::close-button { right: 8px; }
+QDockWidget::float-button { right: 28px; }
+QDockWidget::close-button:hover, QDockWidget::float-button:hover { background: @select-tint@; }
+
+/* Tab strips of the tabified docks (Text | Data on top, Int | FP Regs on the left). */
+QTabBar { background: transparent; font-size: 13px; }
+QTabBar::tab { background: @tab-bg@; color: @text-2@; border: @tab-border@;
+               border-bottom: none; padding: 6px 14px; margin-right: 2px; min-width: 56px;
+               border-top-left-radius: @radius@px; border-top-right-radius: @radius@px; }
+QTabBar::tab:selected { background: #FFFFFF; color: @blue@; font-weight: 600;
+                        border-top: 2px solid @blue@; }
+QTabBar::tab:hover:!selected { background: @hover@; color: @navy@; }
+QTabBar::tab:left, QTabBar::tab:right { min-width: 0px; min-height: 56px; padding: 14px 6px;
+               margin: 0px 0px 2px 0px; border: @tab-border@; border-right: none;
+               border-top-left-radius: @radius@px; border-bottom-left-radius: @radius@px;
+               border-top-right-radius: 0px; }
+QTabBar::tab:left:selected, QTabBar::tab:right:selected { border-left: 2px solid @blue@;
+               border-top: @tab-border@; }
+
+/* Code panels: registers, text, data, inspector, editor, error list, log. */
+QTreeView, QTableView, QListWidget, QPlainTextEdit, QTextEdit {
+    background: #FFFFFF; border: none; color: @text@;
+    selection-background-color: @blue@; selection-color: #FFFFFF;
+    alternate-background-color: #FFFFFF; }
+QTreeView::item:hover, QTableView::item:hover { background: @hover@; }
+QTreeView::item:selected, QTableView::item:selected { background: @blue@; color: #FFFFFF; }
+QTreeView::branch { background: #FFFFFF; }
+QHeaderView::section { background: @header-bg@; color: @navy@; font-weight: 600;
+    border: none; border-bottom: 1px solid @border@; border-right: 1px solid @header-border@;
+    padding: 3px 6px; }
+QHeaderView::section:last { border-right: none; }
+QTextEdit#centralWidget { border: @dock-border@; border-radius: @radius@px; padding: 6px; }
+
+QScrollBar:vertical { background: transparent; width: 12px; margin: 0px; border: none; }
+QScrollBar::handle:vertical { background: @scroll@; min-height: 24px; border-radius: 4px; margin: 2px; }
+QScrollBar::handle:vertical:hover { background: @scroll-hover@; }
+QScrollBar:horizontal { background: transparent; height: 12px; margin: 0px; border: none; }
+QScrollBar::handle:horizontal { background: @scroll@; min-width: 24px; border-radius: 4px; margin: 2px; }
+QScrollBar::handle:horizontal:hover { background: @scroll-hover@; }
+QScrollBar::add-line, QScrollBar::sub-line { width: 0px; height: 0px; }
+QScrollBar::add-page, QScrollBar::sub-page { background: none; }
+
+QLineEdit { background: #FFFFFF; border: 1px solid @border@; border-radius: 4px;
+            padding: 3px 8px; selection-background-color: @blue@; color: @text@; }
+QLineEdit:focus { border-color: @blue@; }
+QComboBox { border: 1px solid @border@; border-radius: 4px; padding: 3px 8px; background: #FFFFFF; }
+QPushButton { background: #FFFFFF; color: @navy@; border: 1px solid @border@; border-radius: 4px;
+              padding: 5px 14px; font-size: 13px; font-weight: 600; }
+QPushButton:hover { background: @hover@; }
+QPushButton:default { background: @blue@; color: #FFFFFF; border-color: @blue@; }
+QPushButton:disabled { color: @gray@; }
+QCheckBox, QRadioButton, QLabel { color: @text@; }
+
+QStatusBar { background: @bar@; border-top: 1px solid @border@; color: @text@; font-size: 12px; }
+QStatusBar::item { border: none; }
+QStatusBar QLabel { font-size: 12px; }
+
+QToolTip { background: @navy@; color: #FFFFFF; border: none; padding: 5px 8px; font-size: 12px; }
+
+
+/* The left dock's width is computed from the inspector's font (44 columns);
+   with D2Coding 10pt that is narrower than the register table's four
+   columns.  Stage H2 sizes the dock from both; the mock-up pins it. */
+QDockWidget#IntRegDockWidget, QDockWidget#InspectorDockWidget { min-width: 404px; }

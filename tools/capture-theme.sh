@@ -15,6 +15,12 @@
 # without -c one is made with D2Coding 10pt and the teal changed-value colour.
 # Needs a CONFIG+=edu_devtools build and the bundled fonts under
 # QtSpim/edu/theme/fonts.
+#
+# Linux only: fontconfig classes D2Coding as "dual" spacing (Hangul is two
+# cells wide), so Qt's QFontInfo::fixedPitch() is false and the inspector
+# falls back to another font.  The font itself says it is monospaced
+# (post.isFixedPitch=1, PANOSE proportion 9), which is what Windows reads, so
+# a private fonts.conf declares it mono here to match.
 
 set -euo pipefail
 
@@ -69,7 +75,28 @@ Font="D2Coding,10,-1,5,50,0,0,0,1,0"
 CONF
 fi
 
-theme=(--font-dir "$repo/QtSpim/edu/theme/fonts" --ui-font "Pretendard,13px"
+# A copy of the fonts: fontconfig writes a .uuid file into every directory it
+# scans, which must not land in the source tree.
+fonts="$out/fonts"
+mkdir -p "$fonts" "$out/fc-cache"
+cp "$repo"/QtSpim/edu/theme/fonts/*.ttf "$repo"/QtSpim/edu/theme/fonts/*.otf "$fonts/"
+fontsconf="$out/fonts.conf"
+cat > "$fontsconf" <<CONF
+<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+<fontconfig>
+  <include ignore_missing="yes">/etc/fonts/fonts.conf</include>
+  <dir>$fonts</dir>
+  <cachedir>$out/fc-cache</cachedir>
+  <match target="scan">
+    <test name="family"><string>D2Coding</string></test>
+    <edit name="spacing" mode="assign"><const>mono</const></edit>
+  </match>
+</fontconfig>
+CONF
+export FONTCONFIG_FILE="$fontsconf"
+
+theme=(--font-dir "$fonts" --ui-font "Pretendard,13px"
        --qss "$qss" --icon-dir "$icons")
 state=(--editor-open "$repo/helloworld.s" --assemble
        --trigger action_Edu_LayoutSideBySide --run --select-instruction 00400028)
