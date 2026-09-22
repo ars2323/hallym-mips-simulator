@@ -19,29 +19,28 @@ settings location differ, so neither affects the other.
 
 ## 2. The first run: a tour of the screen
 
-The first time you start the program a **tour** appears. It opens the sample
-program (`samples/tutorial.s`), runs a few instructions and then dims the
-window and lights up one thing at a time -- a group of tool bar buttons, two
-column headings, a single badge or cell -- saying what it does and how it
-differs from the standard QtSpim. Eighteen steps: tool bar, registers,
-inspector, text, data, editor.
+The first time you start the program a **tour** appears. It opens the example
+program (`samples/tutorial.s`), runs it into the middle of a function, then
+dims the window and lights up one real thing at a time -- a group of tool bar
+buttons, the machine word of one instruction, a format badge, a label in the
+data panel, the values the function saved on the stack -- saying what it does
+and how it differs from the standard QtSpim. Nineteen steps: tool bar,
+registers, inspector, text, data, editor.
 
 - **Next** and **Back** move through it; **Skip** or **Esc** ends it.
 - The **EN / 한국어** switch at the top right of the card changes the language.
-- To see it again: **Help > Tutorial**. It opens the sample **only when the
-  editor is empty and unnamed**. With a file of your own open, or anything
-  typed, it walks that instead: nothing is asked and nothing of yours is
-  touched.
-- The first step then offers **Use the example**. It swaps in the sample
-  program and starts the tour again with all eighteen steps. Unsaved text is
-  the one thing it asks about first, and cancelling that question changes
-  nothing.
 - The keyboard works too: Enter, Space or the right arrow for the next step,
   the left arrow to go back, Escape to leave.
+- To see it again: **Help > Tutorial**. The tour **always opens the example**.
+  If the editor holds unsaved work it asks about that first, and **Cancel**
+  means the tour does not start and nothing changes.
+- The example stays open when the tour ends: change it, or clear everything
+  with **Simulator > Reinitialize**.
 
-A step whose panel you have closed is left out and the rest are renumbered,
-and the tour never rearranges your panels. The sample it opened stays open;
-**Simulator > Reinitialize** clears everything.
+The example adds up an array in a function, so everything the tour points at
+is there: a stack frame (`addiu $sp, $sp, -12`), a loop with a branch, `jal`
+and `j`, a write back into `.data`, and syscalls. A step whose panel you have
+closed is left out and the rest are renumbered.
 
 ## 3. The basic loop
 
