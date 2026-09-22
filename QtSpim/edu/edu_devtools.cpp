@@ -1307,24 +1307,35 @@ void EduDevtools::run() {
     lopsided << 1700 << 220;
     window_->resizeDocks(pair, lopsided, horizontal ? Qt::Horizontal
                                                     : Qt::Vertical);
+    const char* const axis = horizontal ? "horizontal" : "vertical";
+    out() << "dock drop " << axis << " requested: editor " << lopsided.at(0)
+          << " text " << lopsided.at(1) << "\n" << Qt::flush;
+
+    // The move itself is what the program answers, through
+    // dockLocationChanged: by the time the events have been delivered it
+    // has evened the two out by itself.  That is the behaviour under test,
+    // so it is measured first and on its own.
     settle();
     QRect text = window_->ui->TextSegDockWidget->geometry();
     QRect editor = window_->eduEditor->geometry();
-    out() << "dock drop " << (horizontal ? "horizontal" : "vertical")
-          << " as dropped: editor "
-          << (horizontal ? editor.width() : editor.height()) << " text "
-          << (horizontal ? text.width() : text.height()) << "\n"
+    int a = horizontal ? text.width() : text.height();
+    int b = horizontal ? editor.width() : editor.height();
+    out() << "dock drop " << axis << " after the drop: editor " << b
+          << " text " << a << " difference " << qAbs(a - b) << "\n"
           << Qt::flush;
+    if (qAbs(a - b) > 2) {
+      status_ = 1;
+    }
 
+    // And again on demand, which must not move anything further.
     window_->eduEqualiseDocks();
     settle();
     text = window_->ui->TextSegDockWidget->geometry();
     editor = window_->eduEditor->geometry();
-    const int a = horizontal ? text.width() : text.height();
-    const int b = horizontal ? editor.width() : editor.height();
-    out() << "dock drop " << (horizontal ? "horizontal" : "vertical")
-          << " evened out: editor " << b << " text " << a << " difference "
-          << qAbs(a - b) << "\n" << Qt::flush;
+    a = horizontal ? text.width() : text.height();
+    b = horizontal ? editor.width() : editor.height();
+    out() << "dock drop " << axis << " asked again: editor " << b << " text "
+          << a << " difference " << qAbs(a - b) << "\n" << Qt::flush;
     if (qAbs(a - b) > 2) {
       status_ = 1;
     }
