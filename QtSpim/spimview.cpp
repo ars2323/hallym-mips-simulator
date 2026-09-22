@@ -265,6 +265,18 @@ void SpimView::SaveStateAndExit(int val) {
 }
 
 QString SpimView::WriteOutput(QString message) {
+  // EDU: the core prefixes an assembler error with the name of the program
+  // it was written for ("spim: (parser) syntax error on line ...",
+  // CPU/parser.y).  Strip that one word where the pane draws it; the
+  // message itself is untouched, so the editor's error list still parses
+  // the original format (edu/core/edu_asm_errors.h) and Save Log File,
+  // which never writes this pane, is unaffected.  The "(parser)" tag stays:
+  // it says which stage reported the error.
+  if (message.startsWith("spim: ")) {
+    message.remove(0, 6);
+  }
+  message.replace("\nspim: ", "\n");
+
   if (message.endsWith("\n")) {
     message.chop(1);  // Appending adds a <br>, so avoid doubling last newline
   }

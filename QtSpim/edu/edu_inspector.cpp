@@ -43,6 +43,10 @@ EduInspector::EduInspector(QWidget* parent)
   view_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   view_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
   view_->setFrameStyle(QFrame::NoFrame);  // body_ draws the one frame
+  // Two pixels of text margin instead of Qt's four: the dock is the tightest
+  // thing on screen, and every pixel here is a register row the list above
+  // loses (docs/ARCHITECTURE.md 12, 54).
+  view_->document()->setDocumentMargin(2);
 
   // Prose (the branch note) reads badly in a fixed-pitch face at 44
   // columns; it gets the application's proportional font and wraps at
@@ -54,7 +58,8 @@ EduInspector::EduInspector(QWidget* parent)
   note_->setContentsMargins(4, 0, 4, 3);
   note_->hide();
 
-  body_->setFrameStyle(QFrame::StyledPanel | QFrame::Sunken);
+  // No inner frame: the dock already draws the card's border (theme/light.qss).
+  body_->setFrameStyle(QFrame::NoFrame);
   body_->setAutoFillBackground(true);
   body_->setBackgroundRole(QPalette::Base);
   body_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
