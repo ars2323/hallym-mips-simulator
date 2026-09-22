@@ -1,16 +1,16 @@
-# QtSpim-Edu 1.0.1 — User Guide
+# Hallym MIPS Simulator 1.0.0 — User Guide
 
-QtSpim-Edu is an educational build of the MIPS simulator **QtSpim 9.1.24 with a
+Hallym MIPS Simulator is the Hallym University build of the MIPS simulator **QtSpim 9.1.24 with a
 new interface only**. The simulator itself (assembler and execution) is the
 unmodified original, so **the same program assembles the same way and produces
 the same results as in standard QtSpim.** You can check your work in either.
 
 ## 1. Installing
 
-1. Unzip `QtSpimEdu-1.0.1-win64.zip` anywhere. (There is an MSI installer too,
+1. Unzip `HallymMIPS-1.0.0-win64.zip` anywhere. (There is an MSI installer too,
    but the zip is recommended: no administrator rights, and removing it is
    deleting the folder.)
-2. Run `QtSpimEdu.exe`.
+2. Run `HallymMIPS.exe`.
 3. If "Windows protected your PC" appears, click **More info → Run anyway**. The
    program is not code-signed.
 
@@ -29,7 +29,7 @@ settings location differ, so neither affects the other.
 3. **F5** runs, **F10** single-steps. Click the BP cell of a Text row to set a
    breakpoint.
 
-A yellow strip **"Source changed — save (Ctrl+S) to assemble"** above the Text
+An amber strip **"Source changed — save (Ctrl+S) to assemble"** above the Text
 and Data tabs means that what you are looking at is not the code in the editor.
 Press Ctrl+S or click the strip. You also see it right after starting the
 program: the last file is reopened, but nothing is assembled for you.
@@ -38,7 +38,7 @@ program: the last file is reopened, but nothing is assembled for you.
 
 In the pictures both programs were given **the same file (helloworld.s), the
 same steps and the same window size**: standard QtSpim 9.1.24 on the left,
-QtSpim-Edu on the right. The values are the same; only the presentation
+Hallym MIPS Simulator on the right. The values are the same; only the presentation
 differs.
 
 **Registers** — after Run. Grouped by role (Arguments, Temporaries, Saved …),
@@ -76,7 +76,7 @@ as a list, with a red marker on each line, instead of one dialog each.
 
 Also: with a program already loaded, **File > Load File** asks
 "**Reinitialize and load / Add to current program / Cancel**" (standard QtSpim
-loads on top without asking). A yellow status-bar badge shows while a setting
+loads on top without asking). An amber status-bar badge shows while a setting
 such as Bare Machine is on, and the version is at the right end of the status
 bar.
 
@@ -92,7 +92,7 @@ bar.
   Ctrl+S).
 - **With Simulator > Settings > Bare Machine on,** pseudo instructions such as
   `li`, `la` and `move` are all syntax errors. The setting survives a restart.
-  If the status bar shows a yellow "Bare Machine", turn it off.
+  If the status bar shows an amber "Bare Machine", turn it off.
 - Non-ASCII folder names are fine when the Windows system language covers them
   (Korean names on a Korean Windows). Otherwise the simulator cannot open the
   path; the program says so and skips the load. Move the file to an ASCII path.
@@ -126,6 +126,9 @@ bar.
   grows and shrinks with what is selected; once dragged, the height is kept
   (Window > Tile gives it back).
 
-Questions and bugs: <https://github.com/ars2323/qtspim-edu/issues>
-SPIM is the work of James R. Larus, distributed under a BSD license. QtSpim-Edu
-is an unofficial modification and is not affiliated with the SPIM project.
+Questions and bugs: <https://github.com/ars2323/hallym-mips-simulator/issues>
+SPIM is the work of James R. Larus, distributed under a BSD license. Hallym MIPS
+Simulator is a modified version of QtSpim (through QtSpim-Edu) and is not
+affiliated with the SPIM project. The bundled fonts Pretendard and D2Coding are
+under the SIL Open Font License 1.1 and the Lucide icons under the ISC license
+(Help > About > License).

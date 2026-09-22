@@ -771,6 +771,14 @@ DisplayIntRegisters()  QtSpim/regwin.cpp
 | 48 | **Editor·Text·Data를 나란히 놓을 수 있다**: `dockOptions`가 `ForceTabbedDocks` 대신 `AllowNestedDocks | AllowTabbedDocks | GroupedDragging`. 탭 하나를 끌어내어 옆·위·아래에 붙이거나 띄우고, 제목줄을 다른 탭 위에 놓으면 다시 탭이 된다. Window > Layout에 프리셋 3개(Tabs / Editor \| Text / Editor / Text), 창 상태 버전 4 | 세 패널이 항상 한 탭 묶음 | VS Code처럼 코드와 결과를 같이 보게 | 1.0.1 · `spimview.ui`, `edu_editor_glue.cpp` `eduArrangePanels` |
 | 49 | Assemble 뒤 Text로 "전환"은 Text가 이미 보이면(나란히 배치) 하지 않는다. 에러 때 Editor로 전환도 같다. Text 패널의 Instruction 열은 내용 폭에 맞춘다(최대 38자) — 반쪽 폭에서 Source 열이 남게 | — | 나란히 배치의 의미를 지키려고 | 1.0.1 · `eduAssemble`, `edu_text_view.cpp` `afterReset` |
 | 50 | Text 패널의 최소 크기가 300×120(원본 .ui는 800×600 최소). 800×600은 `sizeHint`로 남기고, 첫 실행 창 크기는 1300×830 | 800×600 최소 | 나란히 놓으려면 패널이 작아질 수 있어야 한다 | 1.0.1 · `spimview.ui`, `edu_text_view.h`, `state.cpp` |
+| 51 | **이름**: 표시명 "Hallym MIPS Simulator", 실행 파일·설정 저장소 `HallymMIPS`/`HallymMIPS`, 헬프 컬렉션 `help/HallymMIPS.qhc`, MSI ProductName "Hallym MIPS Simulator"·새 UpgradeCode·설치 폴더 `Program Files\Hallym MIPS Simulator`. 화면·문서·파일명에 QtSpim/Edu 표기 없음(About → License 탭, LICENSE, 이 문서의 원본 참조 제외) | "QtSpim", `LarusStone`/`QtSpim` | 한림대학교 수업용 파생판. QtSpim-Edu 1.0.1의 설정 저장소와도 다르므로 셋을 나란히 설치할 수 있다 | H2 · `edu/edu_version.h`, `QtSpim.pro`, `Setup/HallymMIPS_Win_Deployment` |
+| 52 | **테마**: 색·글꼴·간격은 전부 `edu/theme/tokens.h`(`docs/design/tokens.md`가 근거)에서 온다. 앱 스타일시트 `edu/theme/light.qss`는 `@name@` 자리를 토큰으로 채워 적용(`edu::theme::styleSheet()`), UI 글꼴 Pretendard 13px는 `QApplication::setFont`, 코드 글꼴 D2Coding 10pt는 설정 기본값(`state.cpp`)이라 Settings 대화상자로 바꿀 수 있다. 위젯이 직접 그리는 색(타입 배지, PC 행 틴트+왼쪽 3px 막대, 선택 행 틴트+진남 글자, pseudo 묶음 띠, 변경값 SemiBold #00736F, 에디터 문법·현재 줄·여백, Data 마커, 에러 목록)도 같은 토큰. 툴바 아이콘은 Lucide SVG를 `tools/make-theme-icons.py`가 토큰 색으로 PNG 렌더한 것(`edu::theme::toolIcon`), 원본 비트맵(`windows_images.qrc`)은 빌드에서 뺐다 | Courier 10pt, 시스템 스타일, 원본 아이콘 | tokens.md. QSS `font-family`는 `setFont()`를 다시 부르는 위젯(표·에디터·인스펙터)에 먹지 않아 코드 글꼴은 `applyPanelFont()` 경로 | H2 · `edu/theme/`, `edu_text_view.cpp`, `edu_register_model.cpp`, `edu_data_model.cpp`, `edu_code_editor.cpp` |
+| 53 | 메시지 로그의 **표시** 글꼴·색: `WriteOutput()`의 HTML `font-family:Courier` → 토큰 코드 글꼴, 시작 배너의 초록 → `kTextLog`, `Error()`의 메시지는 `kError`. 저장 로그(`toPlainText`)는 바이트 동일 | Courier, 초록/검정 | tokens.md 5 | H2 · `spimview.cpp`(`// EDU:`), `menu.cpp` `SetOutputColor` |
+| 54 | 코드 표 행 높이 **20px**(레지스터 트리·Text·Data), 도크 제목 아래 4px 여백(`eduInsetDockContent`, Text/Data 상자 여백). 1080줄 화면에서 레지스터 47행이 다 보이지 않고 Reserved·CP0는 스크롤(H1 결정 ④: 1366×768도 스크롤 허용) | 15~16px(3단계: 47행이 1080에 들어가게) | 토큰 | H2 · `edu_register_view.cpp` `CompactRowDelegate`, `edu_text_view.cpp`, `edu_data_view.cpp` |
+| 55 | 인스펙터의 고정폭 검사(`fixedPitchVersionOf`)는 **동봉 코드 글꼴이면 건너뛴다** | (3단계에서 추가한 검사) | fontconfig가 D2Coding을 dual spacing으로 분류해 Linux에서 `QFontInfo::fixedPitch()`가 false. 글꼴 자체는 고정폭 선언(post, PANOSE) | H2 · `edu_inspector.cpp` |
+| 56 | **스플래시**: 시작 시 시그니처(국영문 좌우조합) 카드를 1.2초 또는 클릭까지. 스크립트 캡처 모드에서는 띄우지 않는다(`EduDevtools::wantsCaptureMode`). **About**: 엠블럼 A + 로고타입 + 이름·버전 + License 탭(원본 고지·Qt LGPL·OFL·ISC). 앱 아이콘은 심볼 기본형 16/32/48/256 | 없음 / `QMessageBox` | 브랜딩 | H2 · `edu/theme/edu_theme.cpp` `showSplash`, `edu/edu_about.cpp`, `edu/theme/brand/` |
+| 57 | 툴바: Assemble이 아이콘+글자 주요 버튼(`QToolButton#EduAssembleButton`, 2945 채움), 나머지 아이콘만. 구분선으로 파일 / 실행 / 도움말 세 묶음 | 6묶음 | tokens.md | H2 · `spimview.ui` toolBar, `edu_editor_glue.cpp` |
+| 58 | 상태바 배지·"Source changed" 띠·버전 라벨·에러 목록은 위젯 스타일시트가 아니라 앱 스타일시트의 객체 이름 규칙(`QLabel#EduModeBadge` 등) | 위젯 `setStyleSheet` 리터럴 | 색 리터럴 0 | H2 · `light.qss` |
 
 **다르지 않은 것** (확인된 것만): 시뮬레이터 코어 전체(`CPU/` 바이트 동일, `tools/regress.sh` 1·2·3번),
 Save Log File의 Int Regs·Text·Data 출력(4번 — 17·18번의 경우 포함해 골든과 바이트 동일), 브레이크포인트 다이얼로그(Continue / Single Step / Abort),
@@ -1137,3 +1145,25 @@ SpimView 쪽 연결: edu/edu_editor_glue.cpp (메뉴·툴바 항목, Assemble, �
 
 Qt로 되는 것과 안 되는 것은 `docs/GUIDE-ko.md` 6절과 이번 보고의 표 참고.
 
+---
+
+## 19. H단계 — Hallym MIPS Simulator (겉모습만 바꾼 파생판)
+
+`docs/design/tokens.md`가 디자인의 근거, 위 §12 51~58번이 코드에서 달라진 곳의 목록이다. 구조만 적는다.
+
+```
+QtSpim/edu/theme/
+  tokens.h        색(QRgb)·글꼴·간격 상수 + QSS용 이름표(kNamedColors)  ← 유일한 값의 출처
+  light.qss       앱 스타일시트. @navy@ 같은 자리를 styleSheet()가 채운다
+  edu_theme.*     apply(): 글꼴 등록·앱 글꼴·스타일시트·창 아이콘 / codeFont() / toolIcon() / brandPixmap() / showSplash()
+  theme.qrc       글꼴(Pretendard 4종, D2Coding 2종, OFL), 아이콘 PNG(15종×3상태×1x/2x), 브랜드 PNG, light.qss — CONFIG += resources_big
+  fonts/ icons/lucide/(SVG 원본+ISC) icons/png/ brand/(SVG 원본, PNG, .ico, .icns, .rc)
+tools/make-theme-icons.py   SVG → PNG (색·크기는 tokens.h에서 읽는다). 결과 PNG는 커밋한다
+tools/capture-theme.sh      시안 캡처(H1). devtools --qss --font-dir --ui-font --icon-dir
+```
+
+- 적용 순서: `main.cpp`에서 `edu::theme::apply(&a)` → 스플래시 → `SpimView` 생성. 설정 글꼴 기본값(`state.cpp`)이 `codeFont()`라 처음 실행은 D2Coding, 사용자가 Settings에서 바꾸면 그 글꼴.
+- 색 리터럴 검사: `grep -rn "QColor(\|QFont(\|setStyleSheet(" QtSpim/*.cpp QtSpim/edu` 에서 토큰 참조(`QColor(edu::theme::k…)`, `QColor(k…)`)와 설정값 변환(`QColor(st_…)`)만 남아야 한다 — H2 완료 시 0건 확인.
+- 이름: `edu_version.h`의 `EDU_APP_NAME`/`EDU_TARGET_NAME`/`EDU_SETTINGS_*`. 코드 식별자 `edu_*`/`EDU_*`는 이름이 아니라 코드라 그대로.
+- 헬프 컬렉션: `help/HallymMIPS.qhcp`/`.qhp`(네임스페이스 `kr.ac.hallym.mips.1.0`), 본문 `help/manual.html`은 원본 QtSpim 설명서 그대로(§7).
+- 비교 이미지(`docs/images/compare/`): 왼쪽 표준 QtSpim 절반은 1.0.0 때의 캡처를 그대로 쓰고 오른쪽만 다시 찍는다 — `tools/make-compare-images.py`.

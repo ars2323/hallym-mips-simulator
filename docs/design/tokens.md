@@ -168,17 +168,9 @@ R/I/J는 배경으로, FR/FI는 같은 배경에 진남 글자로 "부동소수�
 | About | 엠블럼 A(진남) + 로고타입 국영문 + "Hallym MIPS Simulator 1.0.0" + License 탭(원본 고지 그대로) |
 | 앱 아이콘 | 심볼 기본형만 (16/32에서 엠블럼·시그니처는 뭉개짐 — `docs/design/mockups/icon-sizes.png`) |
 
-## 6. 시안 캡처에 아직 안 들어간 것 (위젯 코드 → H2)
+## 6. 구현 (H2)
 
-시안은 QSS·글꼴·아이콘·설정값만 바꿔 찍었다. 다음은 코드에 색이 박혀 있어 캡처에서는 옛 모습 그대로다.
-
-- 타입 배지 색(초록·주황·보라 등), PC 행 시안(cyan), pseudo 묶음 배경(호박색), 브레이크포인트 점(빨강)
-- 에디터: 현재 줄 노랑, 줄 번호 여백 회색, 문법 강조 팔레트, 에러 줄 분홍
-- Data 패널 $sp/$fp/$gp 마커 색, 라벨 보라
-- 상태바 배지·"Source changed" 띠·버전 라벨 (위젯 자체 스타일시트가 앱 스타일시트보다 우선)
-- 메시지 로그 글꼴 (원본이 HTML에 `font-family:Courier`를 박음 — `spimview.cpp:270`, GUI만이라 H2에서 `// EDU:`로 교체)
-- 코드 표 행 높이 26 → 20 px
-- 창 제목·상태바의 "QtSpim-Edu 1.0.1" (브랜딩은 H2)
+`QtSpim/edu/theme/tokens.h`가 이 문서의 값을 담고, `theme/light.qss`는 `@name@` 자리를 그 값으로 채워 적용된다. H1 시안 캡처에서 옛 색으로 남아 있던 것(타입 배지, PC 행, pseudo 묶음, 에디터 팔레트, Data 마커, 상태바 배지·띠, 로그 글꼴, 행 높이, 이름)은 전부 H2에서 토큰으로 바뀌었다 — `docs/ARCHITECTURE.md` §12 51~58, 캡처는 `docs/design/captures/`. 코드에 남은 색·글꼴 리터럴은 0건(`grep -rn "QColor(\|QFont(\|setStyleSheet(" QtSpim/*.cpp QtSpim/edu`에 토큰·설정값 참조만).
 
 ## 7. 결정 (2026-09-22, PLAN.md H단계 결정 표로 옮김)
 

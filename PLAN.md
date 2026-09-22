@@ -281,8 +281,8 @@ QtSpim-Edu 1.0.1(`v1.0.1`)에서 갈라진 저장소 `ars2323/hallym-mips-simula
 - [x] 시안 A "Campus" / B "Studio" 캡처 각 3장 + 1366×768 → `docs/design/mockups/`
 - [x] 사람 체크포인트: A 선택 + §7 결정 (2026-09-22)
 
-### H2. 시안 A 구현
-- 코드 색 전면 교체(tokens.md §6 목록 전부) — 위 결정 표. QSS가 안 먹는 위젯은 `applyPanelFont()`/`setPalette` 경로로
+### H2. 시안 A 구현 — 사람 체크포인트 대기
+- [x] 코드 색 전면 교체(tokens.md §6 목록 전부) — 위 결정 표. QSS가 안 먹는 위젯은 `applyPanelFont()`/`setPalette` 경로로
 - QSS 한 파일(`QtSpim/edu/theme/light.qss`) + 토큰 헤더(`theme/tokens.h`). 하드코딩 색·글꼴 리터럴 전부 토큰으로; grep으로 잔여 `QColor(`/`QFont(`/`setStyleSheet(` 리터럴 0건
 - 브랜딩: 앱 아이콘(16·32·48·256 .ico/.png/.icns), 창 제목, 작업표시줄, 스플래시(시그니처, 1.2초, 클릭 시 닫힘), About(엠블럼 A + 로고타입 + "Hallym MIPS Simulator 1.0.0" + License 탭), 설정 저장소 `HallymMIPS/HallymMIPS`, 실행 파일 `HallymMIPS`, MSI ProductName/UpgradeCode 새로, 설치 경로 `Program Files\Hallym MIPS Simulator`
 - 인쇄·로그 저장은 원본과 바이트 동일 유지(`regress.sh`)
