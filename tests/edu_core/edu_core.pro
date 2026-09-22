@@ -24,7 +24,8 @@ SOURCES += ../../QtSpim/edu/core/edu_path_encoding.cpp \
            ../../QtSpim/edu/core/edu_memory_text.cpp \
            ../../QtSpim/edu/core/edu_mips_syntax.cpp \
            ../../QtSpim/edu/core/edu_asm_errors.cpp \
-           ../../QtSpim/edu/core/edu_text_file.cpp
+           ../../QtSpim/edu/core/edu_text_file.cpp \
+           ../../QtSpim/edu/core/edu_tutorial_layout.cpp
 HEADERS += ../../QtSpim/edu/core/edu_path_encoding.h \
            ../../QtSpim/edu/core/edu_format.h \
            ../../QtSpim/edu/core/edu_registers.h \
@@ -37,6 +38,7 @@ HEADERS += ../../QtSpim/edu/core/edu_path_encoding.h \
            ../../QtSpim/edu/core/edu_mips_syntax.h \
            ../../QtSpim/edu/core/edu_asm_errors.h \
            ../../QtSpim/edu/core/edu_text_file.h \
+           ../../QtSpim/edu/core/edu_tutorial_layout.h \
            ../../QtSpim/edu/edu_version.h
 
 # Tests.
@@ -53,7 +55,8 @@ SOURCES += tst_edu_core.cpp \
            tst_memory_text.cpp \
            tst_mips_syntax.cpp \
            tst_asm_errors.cpp \
-           tst_text_file.cpp
+           tst_text_file.cpp \
+           tst_tutorial_layout.cpp
 
 # tst_registers.cpp reads the core's tables out of CPU/*.
 DEFINES += EDU_SOURCE_ROOT=\\\"$$clean_path($$PWD/../..)\\\"

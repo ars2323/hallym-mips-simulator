@@ -266,7 +266,37 @@ Qt::ItemFlags EduTextModel::flags(const QModelIndex& index) const {
 
 QVariant EduTextModel::headerData(int section, Qt::Orientation orientation,
                                   int role) const {
-  if (orientation != Qt::Horizontal || role != Qt::DisplayRole) {
+  if (orientation != Qt::Horizontal) {
+    return QVariant();
+  }
+  if (role == Qt::ToolTipRole) {
+    switch (section) {
+      case BpColumn:
+        return QString::fromUtf8(
+            "Click to set or clear a breakpoint on that instruction\n"
+            "눌러서 그 명령에 브레이크포인트를 걸거나 해제");
+      case AddressColumn:
+        return QString::fromUtf8("Where the instruction is in memory\n"
+                                 "명령어가 놓인 메모리 주소");
+      case CodeColumn:
+        return QString::fromUtf8("The 32-bit machine word, in hexadecimal\n"
+                                 "32비트 기계어를 16진수로");
+      case TypeColumn:
+        return QString::fromUtf8(
+            "The instruction format: R, I, J, FR, FI or CP0\n"
+            "명령어 형식: R, I, J, FR, FI, CP0");
+      case InstructionColumn:
+        return QString::fromUtf8(
+            "What the machine word means, as the simulator reads it\n"
+            "시뮬레이터가 읽은 기계어의 뜻");
+      case SourceColumn:
+        return QString::fromUtf8("The line of your file it came from\n"
+                                 "이 명령이 나온 소스 줄");
+      default:
+        return QVariant();
+    }
+  }
+  if (role != Qt::DisplayRole) {
     return QVariant();
   }
   switch (section) {
@@ -347,6 +377,29 @@ QVariant EduTextModel::data(const QModelIndex& index, int role) const {
       return background_;
 
     case Qt::ToolTipRole:
+      if (!header && index.column() == TypeColumn) {
+        const QString type = edu::formatName(edu::formatOf(row->word));
+        QString meaning;
+        if (type == "R") {
+          meaning = QString::fromUtf8(
+              "R: register to register; the fields are rd, shamt and funct\n"
+              "R 형식: 레지스터끼리. 필드는 rd·shamt·funct");
+        } else if (type == "I") {
+          meaning = QString::fromUtf8(
+              "I: a 16-bit constant is packed into the word\n"
+              "I 형식: 16비트 상수가 명령어 안에 들어간다");
+        } else if (type == "J") {
+          meaning = QString::fromUtf8("J: a jump, with a 26-bit target\n"
+                                      "J 형식: 26비트 목적지를 가진 점프");
+        } else if (type == "FR" || type == "FI") {
+          meaning = QString::fromUtf8(
+              "Floating point (coprocessor 1)\n부동소수점 (코프로세서 1)");
+        } else {
+          meaning = QString::fromUtf8("Coprocessor 0: the system registers\n"
+                                      "코프로세서 0: 시스템 레지스터");
+        }
+        return meaning;
+      }
       if (!header && row->band != 0) {
         int first = index.row();
         while (first > 0 && !rows_.at(first).startsSourceLine &&

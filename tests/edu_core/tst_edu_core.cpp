@@ -23,6 +23,7 @@ QObject* createTestMemoryText();    // tst_memory_text.cpp
 QObject* createTestMipsSyntax();    // tst_mips_syntax.cpp
 QObject* createTestAsmErrors();     // tst_asm_errors.cpp
 QObject* createTestTextFile();      // tst_text_file.cpp
+QObject* createTestTutorialLayout();   // tst_tutorial_layout.cpp
 
 typedef QObject* (*TestFactory)();
 
@@ -40,6 +41,7 @@ static const TestFactory kTests[] = {
     createTestMipsSyntax,
     createTestAsmErrors,
     createTestTextFile,
+    createTestTutorialLayout,
 };
 
 int main(int argc, char* argv[]) {

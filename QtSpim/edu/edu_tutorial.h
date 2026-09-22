@@ -1,14 +1,34 @@
 /* Hallym MIPS Simulator -- the first-run tour.
 
-   An overlay over the main window that dims everything except one panel,
-   with a card beside it saying what that panel does and how it differs from
-   the standard simulator.  Seven steps; a step whose panel the user has
-   closed is left out and the rest are renumbered.
+   An overlay over the main window.  Everything is dimmed except the thing
+   the current step is about -- a panel, a group of tool bar buttons, two
+   column headers, one cell -- and a card beside it says what that thing
+   does and how it differs from the standard simulator.  Some steps also
+   draw the tool tip of what they point at, so the reader sees it rather
+   than being told about it.
 
-   It runs once, after the splash has closed and the window is up, and can
-   be started again from Help > Tutorial.  The scripted capture mode never
-   starts it by itself; --tutorial-step N opens it at one step so that the
-   spotlight and the card can be reviewed in a screenshot. */
+   The overlay is a frameless window of its own, not a child of the main
+   window.  A child would be a sibling of the dock widgets, and on Windows a
+   dock that has been promoted to a native window covers every non-native
+   sibling whatever Qt's stacking says -- which is why 1.0.0 showed the
+   spotlight and the card but no dim at all, and lost the card entirely in
+   the tabbed layout.  A top-level window is above all of that, on every
+   platform.  It follows the main window's position and size, never takes
+   the focus, and hides while the main window is minimised or inactive.
+
+   Two rules the card obeys, both of which were broken in 1.0.0 on Windows
+   (docs/ARCHITECTURE.md 12, 70):
+
+     - it is always completely inside the window (edu/core/edu_tutorial_layout.h),
+     - it is opaque: the dim is painted around it, never under it.
+
+   Enter, Space and the right arrow move on, the left arrow goes back and
+   Escape leaves, so the tour can be finished from the keyboard even if the
+   card were ever unreachable.
+
+   It runs once, after the splash, and again from Help > Tutorial.  The
+   scripted capture mode never starts it by itself; --tutorial-step N opens
+   it at one step for a screenshot. */
 
 #ifndef EDU_TUTORIAL_H
 #define EDU_TUTORIAL_H
@@ -18,27 +38,69 @@
 #include <QString>
 #include <QWidget>
 
+#include "edu/core/edu_tutorial_layout.h"
+
 class QLabel;
 class QPushButton;
 class QTimer;
 class QFrame;
+class SpimView;
 
 class EduTutorial : public QWidget {
   Q_OBJECT
 
  public:
-  // The overlay lives on top of the main window and follows its size.
-  explicit EduTutorial(QWidget* mainWindow);
+  // What a step is about.  The order is the order of the tour.
+  enum StepId {
+    Welcome,
+    ToolbarFile,
+    ToolbarAssemble,
+    ToolbarRun,
+    RegisterGroups,
+    RegisterColumns,
+    RegisterChanged,
+    InspectorBits,
+    TextColumns,
+    TextBadge,
+    TextFields,
+    TextPcAndBreakpoints,
+    DataHeader,
+    DataLabels,
+    DataStack,
+    DataEnvironment,
+    EditorPanel,
+    Finish
+  };
 
-  // Opens the tour at the given step (1-based, 0 = the first one).  Steps
-  // whose panel is closed are dropped first, so the number is an index into
-  // what is actually shown.
+  struct Step {
+    StepId id;
+    const char* sectionKo;
+    const char* sectionEn;
+    const char* titleKo;
+    const char* bodyKo;
+    const char* titleEn;
+    const char* bodyEn;
+  };
+
+  explicit EduTutorial(SpimView* window);
+
+  // Whether a program is loaded: the steps about instructions, labels and
+  // the stack are left out when there is nothing to point at.
+  void setProgramLoaded(bool loaded);
+
+  // Opens the tour at the given step (0-based, counted after the steps with
+  // nothing to show were dropped).
   void start(int step = 0);
 
-  // How many steps this run has, after the closed panels were dropped.
   int stepCount() const { return steps_.size(); }
 
-  // True while the user has Korean as their system language.
+  // The card, in overlay coordinates.  The capture harness checks that it is
+  // inside the window at every step and every window size.
+  QRect cardRect() const;
+
+  // "Registers/Eight groups by role", for the harness's report.
+  QString stepName(int index) const;
+
   static bool systemIsKorean();
 
  signals:
@@ -59,26 +121,34 @@ class EduTutorial : public QWidget {
   void reposition();
 
  private:
-  struct Step {
-    const char* target;  // object name of the dock, or "" for the centre
-    const char* titleKo;
-    const char* bodyKo;
-    const char* titleEn;
-    const char* bodyEn;
-  };
+  static const Step kStepData[];
+  static const int kStepCount;
 
   void buildSteps();
   void showStep(int index);
-  QWidget* targetWidget(const Step& step) const;
-  QRect spotlightRect() const;
-  void placeCard(const QRect& spot);
+  // Puts the program into the state the step talks about (raises a panel,
+  // selects a row, scrolls something into view) and collects what to light
+  // up.  False means the step has nothing to show and is skipped.
+  bool collectSpots(StepId id, QList<QRect>* spots, QString* tip,
+                    QRect* tipAnchor);
+  QRect rectOf(QWidget* widget) const;  // in overlay coordinates
+  bool dockIsOpen(const char* name) const;
+  void raiseDock(const char* name) const;
+  void placeCard();
+  QRect tipBubbleRect() const;  // the drawn tool tip, or empty
+  void followWindow();          // sit exactly over the main window
+  bool handleTourKey(int key);  // the keys the tour answers to
 
-  QWidget* window_;
+  SpimView* window_;
   QList<Step> steps_;
   int current_;
   bool korean_;
-  QRect spot_;       // in overlay coordinates; empty for a centred step
-  QRect arrowFrom_;  // the card's edge the arrow leaves from
+  bool programLoaded_;
+  QList<QRect> spots_;  // what is lit; the first one is what the arrow means
+  QString tip_;         // a tool tip drawn next to tipAnchor_, or empty
+  QRect tipAnchor_;
+  QRect tipBubble_;  // where tipBubbleRect() put it, for the card to avoid
+  edu::CardSide side_;
 
   QFrame* card_;
   QLabel* title_;
@@ -88,7 +158,7 @@ class EduTutorial : public QWidget {
   QPushButton* skip_;
   QPushButton* back_;
   QPushButton* next_;
-  QTimer* follow_;  // panels can be dragged while the tour is up
+  QTimer* follow_;
 };
 
 #endif  // EDU_TUTORIAL_H

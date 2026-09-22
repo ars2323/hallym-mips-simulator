@@ -448,7 +448,36 @@ Qt::ItemFlags EduDataModel::flags(const QModelIndex& index) const {
 
 QVariant EduDataModel::headerData(int section, Qt::Orientation orientation,
                                   int role) const {
-  if (orientation != Qt::Horizontal || role != Qt::DisplayRole) {
+  if (orientation != Qt::Horizontal) {
+    return QVariant();
+  }
+  if (role == Qt::ToolTipRole) {
+    switch (section) {
+      case AddressColumn:
+        return QString::fromUtf8(
+            "The address the row starts at, always a multiple of 16\n"
+            "그 줄이 시작하는 주소. 항상 16의 배수");
+      case Word0Column:
+      case Word1Column:
+      case Word2Column:
+      case Word3Column:
+        return QString::fromUtf8(
+            "The word this many bytes after the row's address\n"
+            "줄의 주소에서 이만큼 떨어진 워드");
+      case AsciiColumn:
+        return QString::fromUtf8(
+            "The same bytes read as characters; a dot is one that does not "
+            "print\n같은 바이트를 글자로 읽은 것. 점은 출력할 수 없는 문자");
+      case LabelColumn:
+        return QString::fromUtf8(
+            "Labels declared in the source at these addresses, and the "
+            "registers pointing here\n소스에서 이 주소에 선언한 라벨과, "
+            "여기를 가리키는 레지스터");
+      default:
+        return QVariant();
+    }
+  }
+  if (role != Qt::DisplayRole) {
     return QVariant();
   }
   switch (section) {
@@ -512,9 +541,22 @@ QVariant EduDataModel::data(const QModelIndex& index, int role) const {
           }
           if (!info.pointers.isEmpty()) {
             tip += QString("  <- ") + info.pointers.join(", ");
+            tip += QString::fromUtf8(
+                "\nA register points at this word / 레지스터가 가리키는 워드");
           }
           return tip;
         }
+      }
+      if (row->kind == EnvironmentFold) {
+        return QString::fromUtf8(
+            "The environment strings the program was started with; click to "
+            "unfold\n프로그램이 받은 환경변수 문자열. 눌러서 펼칩니다");
+      }
+      if (words && column == LabelColumn &&
+          !index.data(Qt::DisplayRole).toString().trimmed().isEmpty()) {
+        return QString::fromUtf8(
+            "A name declared in your source, at this address\n"
+            "소스에서 선언한 이름이 이 주소에 있습니다");
       }
       return QVariant();
 

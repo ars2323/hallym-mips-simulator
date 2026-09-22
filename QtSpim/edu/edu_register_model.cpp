@@ -189,7 +189,33 @@ QVariant EduRegisterModel::data(const QModelIndex& index, int role) const {
 
 QVariant EduRegisterModel::headerData(int section, Qt::Orientation orientation,
                                       int role) const {
-  if (orientation != Qt::Horizontal || role != Qt::DisplayRole) {
+  if (orientation != Qt::Horizontal) {
+    return QVariant();
+  }
+  // Every column says what it is, in both languages the students read.
+  if (role == Qt::ToolTipRole) {
+    switch (section) {
+      case NameColumn:
+        return QString::fromUtf8(
+            "The name used in assembly, $t0 or $sp\n"
+            "어셈블리에서 쓰는 이름 ($t0, $sp …)");
+      case NumberColumn:
+        return QString::fromUtf8(
+            "The register number: R8 is $t0, and CP0 registers show as $12\n"
+            "레지스터 번호. R8이 $t0, CP0는 $12 형식");
+      case BaseColumn:
+        return QString::fromUtf8(
+            "The value in the base chosen in the Registers menu\n"
+            "Registers 메뉴에서 고른 진법으로 본 값");
+      case DecimalColumn:
+        return QString::fromUtf8(
+            "The same value as a signed decimal number\n"
+            "같은 값을 부호 있는 10진수로");
+      default:
+        return QVariant();
+    }
+  }
+  if (role != Qt::DisplayRole) {
     return QVariant();
   }
   switch (section) {

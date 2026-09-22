@@ -101,6 +101,8 @@ Copy-Item "$BuildDir\help\HallymMIPS.qch" (Join-Path $stage "help")
 Copy-Item "$BuildDir\help\HallymMIPS.qhc" (Join-Path $stage "help")
 
 Copy-Item (Join-Path $repo "helloworld.s") $stage
+New-Item -ItemType Directory -Force (Join-Path $stage "samples") | Out-Null
+Copy-Item (Join-Path $repo "samples\tutorial.s") (Join-Path $stage "samples")
 Copy-Item (Join-Path $repo "README") (Join-Path $stage "README-SPIM.txt")
 Copy-Item (Join-Path $repo "Setup\QtSpim_License.rtf") (Join-Path $stage "QtSpim_License.rtf")
 
@@ -135,6 +137,7 @@ $required = @("HallymMIPS.exe", "assistant.exe", "Qt5Core.dll", "Qt5Gui.dll",
               "platforms\qwindows.dll", "sqldrivers\qsqlite.dll",
               "msvcp140.dll", "vcruntime140.dll",
               "help\HallymMIPS.qch", "help\HallymMIPS.qhc", "helloworld.s",
+              "samples\tutorial.s",
               "README-HallymMIPS.txt") + $guides
 $missing = $required | Where-Object { -not (Test-Path (Join-Path $stage $_)) }
 if ($missing) { Fail ("zip would be incomplete, missing: " + ($missing -join ", ")) }
