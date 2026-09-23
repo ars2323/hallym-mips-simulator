@@ -24,8 +24,8 @@ program (`samples/tutorial.s`), runs it into the middle of a function, then
 dims the window and lights up one real thing at a time -- a group of tool bar
 buttons, the machine word of one instruction, a format badge, a label in the
 data panel, the values the function saved on the stack -- saying what it does
-and how it differs from the standard QtSpim. Nineteen steps: tool bar,
-registers, inspector, text, data, editor.
+and says what it is for and how to use it. Twenty steps: tool bar,
+registers, editor, console, text, instruction inspector, data.
 
 - **Next** and **Back** move through it; **Skip** or **Esc** ends it.
 - The **EN / 한국어** switch at the top right of the card changes the language.
@@ -88,10 +88,13 @@ several instructions (`li`, `la`) are banded; kernel code is one folded row
 
 ![Text compared](images/compare/en/02-text.png)
 
-**Instruction fields** — select an instruction and the Inspector (bottom left)
-splits the word into **opcode, rs, rt, immediate (or rd, shamt, funct)**, names
-the registers and shows where a branch or jump goes. For a register or a memory
-word it shows hex, decimal and binary. Standard QtSpim has nothing like it.
+**Instruction fields** — select an instruction in the Text panel and the
+**Instruction Inspector** (bottom right) spreads its word over thirty-two
+boxes, one per bit, MSB on the left and LSB on the right, with each field in
+its own colour. Under the grid every field gives its bit range, its bits, its
+value and what that value means, and a branch or a jump also gets the sum that
+produced its destination. What a word of memory holds is in the tool tip of
+its cell in the Data panel. Standard QtSpim has nothing like either.
 
 ![Inspector compared](images/compare/en/03-inspector.png)
 
@@ -138,27 +141,33 @@ bar.
 - A line with a breakpoint looks garbled in the Text log written by **File >
   Save Log File** (`N [x0040002] …`). On screen it is fine.
 - Some assembler errors (a constant out of range, for one) are printed in the
-  message pane with the number of the **following** line. The editor's error
+  Messages tab with the number of the **following** line. The editor's error
   list and red markers point at the real line.
 - Assembling **stops at the first syntax error** in a file; later errors show up
   once it is fixed.
 
 ## 7. Window layout
 
-- **Editor and Text side by side**: Window > Layout.
-  - **Tabs** — Editor, Text and Data in one tab group (the initial state).
-  - **Editor | Text** — Editor on the left, Text on the right (Data behind
-    Text). After Ctrl+S the editor stays where it is; only Text is redrawn.
-  - **Editor / Text** — Editor above, Text below.
-  - You can also drag a tab and drop it beside, above or below another panel,
-    and drop a title bar onto a tab to make it a tab again. The arrangement
-    is kept for the next start; Window > Tile restores the initial one.
-- **Hiding the message log**: Window > Message Log (**Ctrl+L**). The message
-  pane at the bottom goes away and the panels take its room. It comes back by
-  itself on an assembler error or a run-time exception.
-- **Inspector height**: drag the edge above the Inspector. Until you do, it
-  grows and shrinks with what is selected; once dragged, the height is kept
-  (Window > Tile gives it back).
+The window is three columns. On the left the registers (**Int Regs** and **FP
+Regs** tabs); in the middle the editor with **Console / Messages** under it;
+on the right **Text / Data** with the **Instruction Inspector** under that.
+
+- **Console / Messages**: what your program prints (Console) and the
+  simulator's own log (Messages) are two tabs of one panel. A syscall that
+  waits for input, such as `read_int`, brings the Console tab forward and
+  gives it the keyboard; an assembler or run-time error brings Messages
+  forward. A message that arrives while you are on the other tab puts a dot
+  on it.
+- **Folding the panel**: **Ctrl+L** puts the whole Console / Messages panel
+  away and brings it back. An error opens it again by itself.
+- **Swapping sides**: Window > Layout has two arrangements.
+  - **Editor | Text / Data** -- as described above (the initial one).
+  - **Text / Data | Editor** -- the columns swap, and the panels below them
+    swap with them (Inspector in the middle, Console / Messages on the right).
+- You can also drag a tab or a title bar to build your own arrangement; two
+  panels dropped side by side share the room evenly. The arrangement is kept
+  for the next start, and **Window > Tile** restores the initial one.
+- A panel you have closed comes back from the **Window** menu.
 
 Questions and bugs: <https://github.com/ars2323/hallym-mips-simulator/issues>
 Developed by Hakhyeon Kim, AIAC Lab, Hallym University. The Hallym University

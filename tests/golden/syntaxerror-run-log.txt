@@ -2,7 +2,7 @@
 
 Memory and registers cleared
 
-Hallym MIPS Simulator 1.0.4
+Hallym MIPS Simulator 1.1.0
 MIPS32 assembler and simulator · AIAC Lab, Hallym University
 Based on SPIM 9.1.24 by James Larus (BSD). See Help > About > License.
 (parser) syntax error on line 10 of file tests/samples/syntax-error-midfile.s

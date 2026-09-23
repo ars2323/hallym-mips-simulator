@@ -26,10 +26,12 @@ segment is one folded row until you want it.
 
 ![Text segment: standard QtSpim and Hallym MIPS Simulator side by side](docs/images/compare/en/02-text.png)
 
-**Instruction fields** — select an instruction and the inspector splits the
-word into opcode, rs, rt, immediate (or rd, shamt, funct), names the registers
-and shows where a branch or jump goes. Upstream shows the word as hex and
-nothing more.
+**Instruction Inspector** — select an instruction and the panel under Text
+spreads its word over thirty-two boxes, one per bit, MSB on the left and LSB
+on the right, each field in its own colour, with a line per field giving its
+bit range, its bits, its value and what that value means -- and, for a branch
+or a jump, the sum that produced its destination. Upstream shows the word as
+hex and nothing more.
 
 ![Inspector: field breakdown of lw, not available in standard QtSpim](docs/images/compare/en/03-inspector.png)
 
@@ -42,6 +44,11 @@ instead of being the first thing in every screenshot.
 
 **Editor** — write, press Ctrl+S to save *and* assemble, get the errors as a
 list with markers on their lines. Standard QtSpim has no editor.
+
+**Console and Messages** — what your program prints and what the simulator
+says are two tabs of one panel along the bottom, not a second window to lose
+behind the first. A syscall that waits for input brings the Console tab
+forward and gives it the keyboard; an error brings Messages forward.
 
 ![Editor with error list; standard QtSpim has none](docs/images/compare/en/05-editor.png)
 
