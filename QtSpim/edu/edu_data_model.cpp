@@ -533,16 +533,26 @@ QVariant EduDataModel::data(const QModelIndex& index, int role) const {
 
     case Qt::ToolTipRole:
       if (isWord) {
+        // What the inspector used to say about a word of memory is said
+        // here instead, where the word is: its address, its value in
+        // hexadecimal and in decimal, the names the source gave it and any
+        // register pointing at it.
         WordInfo info;
         if (wordInfo(address, &info)) {
-          QString tip = edu::hex32(address);
+          QString tip = edu::hex32(address) + "\n" + edu::hex32(info.value) +
+                        "  " + edu::signedDec32(info.value);
+          const QString unsignedText = edu::unsignedDec32(info.value);
+          if (unsignedText != edu::signedDec32(info.value)) {
+            tip += QString::fromUtf8(" (unsigned ") + unsignedText + ")";
+          }
           if (!info.labels.isEmpty()) {
-            tip += QString("  ") + info.labels.join(", ");
+            tip += "\n" + info.labels.join(", ");
           }
           if (!info.pointers.isEmpty()) {
-            tip += QString("  <- ") + info.pointers.join(", ");
-            tip += QString::fromUtf8(
-                "\nA register points at this word / 레지스터가 가리키는 워드");
+            tip += QString::fromUtf8("\n<- ") + info.pointers.join(", ") +
+                   QString::fromUtf8(
+                       "\nA register points at this word / 레지스터가 "
+                       "가리키는 워드");
           }
           return tip;
         }
