@@ -44,6 +44,8 @@
 #      Reset Layout gives the same state back without a restart.
 #  20. One step draws one vertical position, and a step that needs no
 #      scrolling does not repaint the whole panel.
+#  21. Reset clears and assembles the file again: no strip, F5 runs at
+#      once, breakpoints kept, one line per reset.
 #  17. Assemble is one cycle -- save, clear, assemble -- that says one line,
 #      keeps the breakpoints on their statements and leaves the editor and
 #      the panels where they were.  Running with nothing loaded says so.
@@ -916,6 +918,59 @@ for what in run goto assemble; do
     *) pass "${line#vscroll: }" ;;
   esac
 done
+
+echo "== 21. Reset starts the same program again"
+cp "$repo/helloworld.s" "$work/reset.s"
+resets=""
+for i in 1 2 3 4 5 6 7 8 9 10; do
+  resets="$resets --editor-trigger action_Sim_Reinitialize"
+done
+# shellcheck disable=SC2086
+run reset10 --editor-open "$work/reset.s" --assemble $resets \
+    --editor-report --dump log "$work/reset10.log"
+if grep -q 'banner=0' "$work/reset10.out"; then
+  pass "ten resets: the strip over Text never appears"
+else
+  fail "$(grep -m1 -oE 'bannertext="[^"]*"' "$work/reset10.out")"
+fi
+again=$(grep -c "reset.s assembled again" "$work/reset10.log" || true)
+cleared=$(grep -c "Memory and registers cleared" "$work/reset10.log" || true)
+if [ "$again" -eq 10 ] && [ "$cleared" -le 1 ]; then
+  pass "ten resets: ten lines in Messages, no pile of clearings"
+else
+  fail "ten resets left $again lines and $cleared clearings"
+fi
+run resetRun --editor-open "$work/reset.s" --assemble \
+    --editor-trigger action_Sim_Reinitialize --run \
+    --dump console "$work/resetRun.console"
+if grep -q "Hello World" "$work/resetRun.console"; then
+  pass "and the program runs straight away after a reset"
+else
+  fail "the program did not run after a reset"
+fi
+run resetBp --editor-open "$work/reset.s" --assemble \
+    --editor-breakpoint 00400024 \
+    --editor-trigger action_Sim_Reinitialize --editor-breakpoint 00400024
+if grep -q "breakpoint at 00400024 is now clear" "$work/resetBp.out"; then
+  pass "a breakpoint is still set after a reset"
+else
+  fail "the breakpoint was lost by the reset"
+fi
+# The strip is for things that are true.
+run resetEdited --editor-open "$work/reset.s" --assemble \
+    --editor-trigger action_Sim_Reinitialize --editor-type 'x' --editor-report
+if grep -q 'bannertext="Source changed' "$work/resetEdited.out"; then
+  pass "an edit after a reset does bring the strip back"
+else
+  fail "$(grep -m1 -oE 'bannertext="[^"]*"' "$work/resetEdited.out")"
+fi
+run resetUnsaved --editor-open "$work/reset.s" --assemble --editor-type 'x' \
+    --editor-trigger action_Sim_Reinitialize --editor-report
+if grep -q 'bannertext="Unsaved changes' "$work/resetUnsaved.out"; then
+  pass "a reset with unsaved changes says so"
+else
+  fail "$(grep -m1 -oE 'bannertext="[^"]*"' "$work/resetUnsaved.out")"
+fi
 
 echo
 if [ "$failures" -eq 0 ]; then

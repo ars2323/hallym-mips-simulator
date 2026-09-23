@@ -284,7 +284,18 @@ void SpimView::eduUpdateStaleBanner() {
   if (!empty) {
     if (eduSyncedPath.isEmpty()) {
       // Nothing of this editor's is in the simulator.
-      if (eduEverAssembled) {
+      if (eduEditor->isModified()) {
+        // The one case where a cleared simulator is the student's own
+        // doing and they have to choose: their unsaved text cannot be
+        // assembled without saving it (HH).
+        message = QString::fromUtf8(
+            "Unsaved changes \xe2\x80\x94 save (Ctrl+S) to assemble this "
+            "file");
+        explanation = QString::fromUtf8(
+            "The editor has changes that have not been saved, so the "
+            "simulator has nothing to run.\n에디터에 저장하지 않은 수정이 "
+            "있어 시뮬레이터에 올릴 것이 없습니다");
+      } else if (eduEverAssembled) {
         message = QString::fromUtf8(
             "Simulator was reinitialized \xe2\x80\x94 save (Ctrl+S) to "
             "assemble this file");
@@ -593,7 +604,32 @@ void SpimView::eduAssemble() {
       !eduEditor->save()) {
     return;
   }
+  eduAssembleCycleNow(true);
+}
 
+// Simulator > Reinitialize.  "Reset" means start this program again from
+// the beginning, not throw it away (HH): memory and registers are cleared
+// and the file the editor holds is assembled again, so F5 runs it at once
+// and there is nothing for the strip over the Text panel to complain
+// about.  With an empty editor there is nothing to put back, and with
+// unsaved changes the student has to say what they want, so both of those
+// clear and stop.
+void SpimView::eduReinitialize() {
+  const bool haveFile = eduEditor != 0 && !eduEditor->filePath().isEmpty() &&
+                        !eduEditor->startScreenShown();
+  if (!haveFile || eduEditor->isModified()) {
+    sim_ReinitializeSimulator();
+    eduForgetLoadedLabels();
+    eduUpdateStaleBanner();
+    return;
+  }
+  eduAssembleCycleNow(false);
+}
+
+// Clear, then assemble the file the editor holds.  `saved` only decides
+// what is said afterwards: Ctrl+S saved the file first, Reinitialize did
+// not.
+void SpimView::eduAssembleCycleNow(bool saved) {
   // What the student had, to be given back at the end of the cycle.
   const QList<EduBreakpointMark> breakpoints = eduBreakpointMarks();
   const int cursor = eduEditor->editor()->textCursor().position();
@@ -633,11 +669,15 @@ void SpimView::eduAssemble() {
 
   if (messages.isEmpty()) {
     eduAssembleBadge->hide();
-    statusBar()->showMessage("Saved and assembled", 5000);
+    statusBar()->showMessage(saved ? "Saved and assembled"
+                                   : "Memory and registers cleared, assembled",
+                             5000);
     // One line for the cycle, in place of the clear's own.
     write_output(message_out, "%s\n",
                  qPrintable(QFileInfo(eduEditor->filePath()).fileName() +
-                            QString(" assembled") +
+                            QString(saved ? " assembled"
+                                          : " assembled again (memory and "
+                                            "registers cleared)") +
                             (breakpoints.isEmpty()
                                  ? QString()
                                  : QString(" (%1 breakpoint(s) kept)")

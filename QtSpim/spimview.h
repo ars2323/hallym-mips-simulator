@@ -339,6 +339,7 @@ class SpimView : public QMainWindow {
     int line;
     QString text;
   };
+  void eduAssembleCycleNow(bool saved);  // EDU: clear, then assemble (HH)
   QList<EduBreakpointMark> eduBreakpointMarks() const;
   void eduRestoreBreakpointMarks(const QList<EduBreakpointMark>& marks);
   bool eduBannerShown;           // EDU: the start-up banner, once per run
@@ -481,6 +482,7 @@ class SpimView : public QMainWindow {
   void eduInstructionSelected();
   void eduMemorySelected();
   void eduAssemble();
+  void eduReinitialize();      // EDU: Simulator > Reinitialize (HH)
   void eduEditorNew();
   void eduEditorOpen();
   void eduEditorSaveAs();

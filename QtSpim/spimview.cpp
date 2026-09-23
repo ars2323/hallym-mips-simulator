@@ -113,8 +113,11 @@ void SpimView::wireCommands() {
 
   QObject::connect(ui->action_Sim_ClearRegisters, SIGNAL(triggered(bool)), this,
                    SLOT(sim_ClearRegisters()));
+  // EDU: the menu's Reinitialize clears and then assembles the file the
+  // editor holds again (HH); sim_ReinitializeSimulator() is the bare
+  // clearing step, which the other routes still use.
   QObject::connect(ui->action_Sim_Reinitialize, SIGNAL(triggered(bool)), this,
-                   SLOT(sim_ReinitializeSimulator()));
+                   SLOT(eduReinitialize()));
   QObject::connect(ui->action_Sim_SetRunParameters, SIGNAL(triggered(bool)),
                    this, SLOT(sim_SetRunParameters()));
   QObject::connect(ui->action_Sim_Run, SIGNAL(triggered(bool)), this,
