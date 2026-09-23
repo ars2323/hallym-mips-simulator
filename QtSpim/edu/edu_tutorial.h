@@ -1,4 +1,4 @@
-/* Hallym MIPS Simulator -- the first-run tour.
+/* Hallym MIPS Simulator -- the first-run tutorial.
 
    An overlay over the main window.  Everything is dimmed except the thing
    the current step is about -- a panel, a group of tool bar buttons, two
@@ -23,7 +23,7 @@
      - it is opaque: the dim is painted around it, never under it.
 
    Enter, Space and the right arrow move on, the left arrow goes back and
-   Escape leaves, so the tour can be finished from the keyboard even if the
+   Escape leaves, so the tutorial can be finished from the keyboard even if the
    card were ever unreachable.
 
    It runs once, after the splash, and again from Help > Tutorial.  The
@@ -51,7 +51,7 @@ class EduTutorial : public QWidget {
   Q_OBJECT
 
  public:
-  // What a step is about.  The order is the order of the tour.
+  // What a step is about.  The order is the order of the tutorial.
   enum StepId {
     Welcome,
     ToolbarFile,
@@ -106,7 +106,7 @@ class EduTutorial : public QWidget {
   // screen, by name.  Empty is the expected result with the example open.
   QStringList skippedSteps() const { return skipped_; }
 
-  // Opens the tour at the given step (0-based, counted after the steps with
+  // Opens the tutorial at the given step (0-based, counted after the steps with
   // nothing to show were dropped).
   void start(int step = 0);
 
@@ -172,7 +172,7 @@ class EduTutorial : public QWidget {
   void placeCard();
   QRect tipBubbleRect() const;  // the drawn tool tip, or empty
   void followWindow();          // sit exactly over the main window
-  bool handleTourKey(int key);  // the keys the tour answers to
+  bool handleTutorialKey(int key);  // the keys the tutorial answers to
 
   SpimView* window_;
   QList<Step> steps_;

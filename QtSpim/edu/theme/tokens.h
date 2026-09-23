@@ -65,8 +65,8 @@ const int kCodePointSize = 10;               // ~13 px at 96 dpi
 const int kBadgePixelSize = 11;
 const int kFontSmall = 12;        // status bar, splash version line
 const int kTitlePixelSize = 15;   // About: name
-const int kCardTitleSize = 16;    // tour card: the step's title
-const int kCardBodySize = 15;     // tour card: the step's text
+const int kCardTitleSize = 16;    // tutorial card: the step's title
+const int kCardBodySize = 15;     // tutorial card: the step's text
 // Korean is denser than Latin at the same size: more strokes in the same
 // square, and Windows renders them thinner than X11 does.  Pretendard has
 // a real SemiBold, so asking for one costs nothing in width (unlike

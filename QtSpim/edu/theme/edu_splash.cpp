@@ -58,25 +58,39 @@ EduSplash::EduSplash(QWidget* parent)
   straight_->setCursor(Qt::PointingHandCursor);
   tutorial_->setToolTip(QString::fromUtf8(
       "화면을 하나씩 짚어 가며 사용법을 알려 줍니다\n"
-      "A guided tour of the window"));
+      "A guided tutorial: what each part of the window is for"));
   straight_->setToolTip(QString::fromUtf8(
-      "바로 시작합니다. 투어는 Help > Tutorial에서 언제든 볼 수 있습니다\n"
-      "Start now; the tour is in Help > Tutorial whenever you want it"));
+      "바로 시작합니다. 튜토리얼은 Help > Tutorial에서 언제든 볼 수 있습니다\n"
+      "Start now; the tutorial is in Help > Tutorial whenever you want it"));
+  // The border is always two pixels wide and only changes colour with the
+  // focus.  A border that appears with the focus takes those two pixels
+  // from the text instead, and on Windows the first and last letters of
+  // the focused button were cut off (T).
   tutorial_->setStyleSheet(
-      QString("QPushButton { background: %1; color: %2; border: 1px solid %3;"
+      QString("QPushButton { background: %1; color: %2; border: 2px solid %3;"
               " border-radius: 6px; padding: 8px 18px; }"
               "QPushButton:hover { background: %4; }"
-              "QPushButton:focus { border: 2px solid %5; }")
+              "QPushButton:focus { border-color: %5; }")
           .arg(QColor(kWhite).name(), QColor(kNavy).name(),
                QColor(kBorder).name(), QColor(kHover).name(),
                QColor(kBlue).name()));
   straight_->setStyleSheet(
-      QString("QPushButton { background: %1; color: %2; border: none;"
+      QString("QPushButton { background: %1; color: %2; border: 2px solid %1;"
               " border-radius: 6px; padding: 8px 18px; }"
-              "QPushButton:hover { background: %3; }"
-              "QPushButton:focus { border: 2px solid %4; }")
+              "QPushButton:hover { background: %3; border-color: %3; }"
+              "QPushButton:focus { border-color: %4; }")
           .arg(QColor(kBlue).name(), QColor(kWhite).name(),
                QColor(kNavy).name(), QColor(kNavy).name()));
+
+  // Two buttons of one size: the question they answer is one question, and
+  // neither is the smaller choice.  A few pixels over what the widest text
+  // asks for, so that a font that measures differently still has room.
+  const int buttonWidth =
+      qMax(tutorial_->sizeHint().width(), straight_->sizeHint().width()) + 8;
+  const int buttonHeight =
+      qMax(tutorial_->sizeHint().height(), straight_->sizeHint().height());
+  tutorial_->setFixedSize(buttonWidth, buttonHeight);
+  straight_->setFixedSize(buttonWidth, buttonHeight);
 
   QHBoxLayout* buttons = new QHBoxLayout;
   buttons->setSpacing(kSpace2);
@@ -212,7 +226,7 @@ void EduSplash::paintEvent(QPaintEvent*) {
   painter.drawText(
       QRect(0, height() - 92, width(), kUiPixelSize + 8),
       Qt::AlignHCenter | Qt::AlignTop,
-      QString::fromUtf8("처음이라면 투어를 보고 시작하세요"));
+      QString::fromUtf8("처음이라면 튜토리얼을 보고 시작하세요"));
 
   painter.setClipping(false);
   painter.setPen(color(kBorder));

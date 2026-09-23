@@ -17,11 +17,11 @@ the same results as in standard QtSpim.** You can check your work in either.
 Standard QtSpim may be installed on the same PC. The executable name and the
 settings location differ, so neither affects the other.
 
-## 2. The first run: a tour of the screen
+## 2. The first run: a tutorial of the screen
 
-Every start asks, on the start-up card, whether to **take the tour** or to
+Every start asks, on the start-up card, whether to **take the tutorial** or to
 **start now** -- every time, because a lab machine has a different student in
-front of it every hour. Choosing the tour opens it. It opens the example
+front of it every hour. Choosing the tutorial opens it. It opens the example
 program (`samples/tutorial.s`), runs it into the middle of a function, then
 dims the window and lights up one real thing at a time -- a group of tool bar
 buttons, the machine word of one instruction, a format badge, a label in the
@@ -33,15 +33,15 @@ registers, editor, console, text, instruction inspector, data.
 - The **EN / 한국어** switch at the top right of the card changes the language.
 - The keyboard works too: Enter, Space or the right arrow for the next step,
   the left arrow to go back, Escape to leave.
-- To see it again: **Help > Tutorial**. The tour **always opens the example**.
+- To see it again: **Help > Tutorial**. The tutorial **always opens the example**.
   If the editor holds unsaved work it asks about that first, and **Cancel**
-  means the tour does not start and nothing changes.
-- While the tour runs the example is **read-only**, and the bases, the memory
+  means the tutorial does not start and nothing changes.
+- While the tutorial runs the example is **read-only**, and the bases, the memory
   unit and the arrangement are set to their defaults so that what the cards
-  say matches what is on the screen. When the tour ends your settings come
+  say matches what is on the screen. When the tutorial ends your settings come
   back, the example is closed, and the editor shows its start screen.
 
-The example adds up an array in a function, so everything the tour points at
+The example adds up an array in a function, so everything the tutorial points at
 is there: a stack frame (`addiu $sp, $sp, -16`, kept 8-byte aligned), a loop
 with a branch, `jal`
 and `j`, a write back into `.data`, and syscalls. A step whose panel you have
@@ -66,11 +66,28 @@ program: the last file is reopened, but nothing is assembled for you.
 
 ### Text size
 
-**Ctrl +** and **Ctrl -** change the editor's text size and **Ctrl 0** puts it
-back (Ctrl and the wheel work too). Eight to thirty-two points, remembered
-for the next time, and the same as Zoom In / Zoom Out / Reset Zoom in the
-Editor menu. Only the editor changes; the text, data and inspector panels
-keep the font from the settings.
+**Ctrl +** and **Ctrl -** change the text size and **Ctrl 0** puts it back
+(Ctrl and the wheel work too). Eight to thirty-two points, remembered for
+the next time, and the same as Zoom In / Zoom Out / Reset Zoom in the right
+click menu. Each panel has its own size -- the keys go to the panel the
+mouse or the focus is in, and the editor, Text, Data, the Instruction
+Inspector and Console/Messages each remember theirs. To change them all at
+once there is "All panels text size" in **Simulator > Settings**.
+
+### Panels wider than they look
+
+Text, Data and Registers all hold more than fits sometimes -- binary
+values, memory by the byte, a source line with its comment. The
+**horizontal scroll bar** along the bottom fetches the rest.
+
+Scrolled sideways, the **left columns stay where they are**: the name and
+number in Registers, Address in Data, BP and Address in Text. You never
+end up looking at numbers without knowing which register or which address
+they belong to, and the BP cell stays under the mouse however far right
+you are, so a breakpoint is always one click away. Stepping, moving the
+selection and refreshing the panels leave the sideways position alone.
+The tutorial may scroll -- it has to reach what it points at -- but it
+puts the position back when it ends.
 
 ## 4. What differs from standard QtSpim
 
@@ -81,7 +98,7 @@ differs.
 
 **Registers** — after Run. Grouped by role (Arguments, Temporaries, Saved …),
 `$name` and number `R8` together, hex and decimal side by side, what the run
-changed in bold teal. Int Regs / FP Regs are **vertical tabs** on the left.
+changed on a teal background. Int Regs / FP Regs are **vertical tabs** on the left.
 
 ![Registers compared](images/compare/en/01-registers.png)
 

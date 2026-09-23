@@ -54,12 +54,12 @@ class EduEditorDock : public QDockWidget {
   void showStartScreen();
   bool startScreenShown() const;
 
-  // The tour opens its example here and must not have it edited.
+  // The tutorial opens its example here and must not have it edited.
   void setReadOnly(bool readOnly);
   bool isReadOnly() const { return readOnly_; }
 
   // Closes whatever is open and goes back to the start screen.  Asks
-  // about unsaved work unless told not to (the tour's example is
+  // about unsaved work unless told not to (the tutorial's example is
   // read-only, so there is never anything to ask about).
   bool closeFile(bool ask = true);
   // The question has been answered and the text is about to be replaced:

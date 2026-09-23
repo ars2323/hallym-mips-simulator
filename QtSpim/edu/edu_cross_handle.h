@@ -4,7 +4,7 @@
    column, text and inspector in the other -- there are three ways to
    change their sizes: the line down the middle, the line across, and the
    point where they meet.  Qt gives the first two (they are dock
-   separators, and the tour of this program keeps the two horizontal ones
+   separators, and the tutorial of this program keeps the two horizontal ones
    in step, see SpimView::eduSyncSplits), but not the third: there is no
    widget at the crossing, so a drag there would catch one line or the
    other.

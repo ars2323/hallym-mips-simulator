@@ -122,6 +122,27 @@ if [ "$file" = "$repo/helloworld.s" ]; then
   done
   eshot layout-nolog --editor-open "$file" --assemble \
     --trigger action_Edu_LayoutPrimary --trigger action_Edu_ToggleLog
+
+  # Wide panels (1.2.1): the horizontal scroll bar, and the frozen columns
+  # that stay put when it is dragged to the far right.
+  wide() {  # wide NAME PANEL [app options...]
+    local name=$1 panel=$2; shift 2
+    QT_QPA_PLATFORM=offscreen "$app" --load "$file" --steps 5 \
+      --window-size 1600x1000 "$@" \
+      --capture "$panel" --out "$out/$name.png"
+  }
+  wide wide-intregs-binary  intregs --reg-base 2
+  wide wide-data-binary     data    --trigger action_Data_DisplayBinary
+  wide wide-text            text
+  wide wide-intregs-scrolled intregs --reg-base 2 --hscroll intregs=max
+  wide wide-data-scrolled   data    --trigger action_Data_DisplayBinary \
+    --hscroll data=max
+  wide wide-text-scrolled   text    --hscroll text=max
+
+  # The start-up card, with the focus on each of its two buttons (1.2.1).
+  QT_QPA_PLATFORM=offscreen "$app" \
+    --capture splash --out "$out/splash-straight-focused.png" \
+    --capture splash-tutorial --out "$out/splash-tutorial-focused.png"
 fi
 
 echo

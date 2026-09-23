@@ -123,19 +123,20 @@ class EduDevtools : public QObject {
   // (isActive() after takeOptions()); main() then skips the splash screen.
   static bool wantsCaptureMode(const QStringList& args);
 
-  // --tutorial-first-run: take the start-up route into the tour (the one
-  // the start-up card's "take the tour" button opens) instead of calling
+  // --tutorial-first-run: take the start-up route into the tutorial (the one
+  // the start-up card's "take the tutorial" button opens) instead of calling
   // it as Help > Tutorial does, so the two can be compared.
-  static bool wantsFirstRunTour(const QStringList& args);
+  static bool wantsFirstRunTutorial(const QStringList& args);
 
   // True when --capture or --dump was given, i.e. when the program should
   // run the script and exit instead of waiting for the user.
   bool isActive() const {
     return !captures_.isEmpty() || !dumps_.isEmpty() || reportTime_ ||
-           inspectorReport_ || !editorSteps_.isEmpty() || layoutReport_ ||
+           inspectorReport_ || hscrollReport_ || !hscroll_.isEmpty() ||
+           !editorSteps_.isEmpty() || layoutReport_ ||
            tutorialReport_ || !dockDrop_.isEmpty() || !menuLoads_.isEmpty() ||
-           clickThrough_ || firstRunTour_ || !clickTabs_.isEmpty() ||
-           !tourExit_.isEmpty() || !consoleType_.isEmpty() ||
+           clickThrough_ || firstRunTutorial_ || !clickTabs_.isEmpty() ||
+           !tutorialExit_.isEmpty() || !consoleType_.isEmpty() ||
            !splitDrags_.isEmpty();
   }
 
@@ -145,10 +146,10 @@ class EduDevtools : public QObject {
   // dialog runs its own event loop, so the timer fires there too.
   void beginHeadless();
 
-  // One of the tour card's buttons, pressed as a mouse does it -- including
+  // One of the tutorial card's buttons, pressed as a mouse does it -- including
   // the activation a window manager sends when the overlay is clicked,
-  // which is what used to end the tour (docs/ARCHITECTURE.md 12, 83).
-  bool clickTourButton(const char* objectName);
+  // which is what used to end the tutorial (docs/ARCHITECTURE.md 12, 83).
+  bool clickTutorialButton(const char* objectName);
 
   // Whether the panel behind a dock tab of that title is really on screen.
   bool panelOnScreen(const QString& title) const;
@@ -192,6 +193,9 @@ class EduDevtools : public QObject {
   quint32 selectInstruction_;  // Text panel row to select before capturing
   bool saveSettings_;
   bool inspectorReport_;  // --inspector-report: what the inspector shows
+  bool hscrollReport_;    // --hscroll-report: sideways scrolling, and that
+                          // nothing moves the panels sideways by itself
+  QStringList hscroll_;   // --hscroll <panel>=<n>: scroll one sideways
   bool layoutReport_;
   bool expandEnvironment_;
   bool expandKernelData_;
@@ -210,18 +214,18 @@ class EduDevtools : public QObject {
   bool reportTime_;
   bool redisplay_;
   int steps_;
-  int tutorialStep_;  // --tutorial-step: 1-based, 0 = do not show the tour
+  int tutorialStep_;  // --tutorial-step: 1-based, 0 = do not show the tutorial
   bool tutorialReport_;  // --tutorial-report: every step's card, and whether
                          // it is inside the window
   QString dockDrop_;     // --dock-drop: simulate a drop, report the split
   QString saveAnswer_;   // --editor-answer: how the "unsaved changes"
                          // question is answered (discard by default)
-  bool clickThrough_;    // --tutorial-click-through: walk the tour with the
+  bool clickThrough_;    // --tutorial-click-through: walk the tutorial with the
                          // mouse, on the card's own buttons
-  bool firstRunTour_;    // --tutorial-first-run: let the start-up route open
-                         // the tour, and report on that one
+  bool firstRunTutorial_;    // --tutorial-first-run: let the start-up route open
+                         // the tutorial, and report on that one
   QStringList clickTabs_;  // --click-tab: a dock tab pressed with the mouse
-  QString tourExit_;       // --tutorial-exit: how to leave the tour before
+  QString tutorialExit_;       // --tutorial-exit: how to leave the tutorial before
                            // the rest of the script runs
   QString consoleType_;    // --console-type: keys typed into the Console tab
                            // before the program runs, for an input syscall

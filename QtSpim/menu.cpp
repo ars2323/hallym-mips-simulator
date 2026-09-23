@@ -253,7 +253,7 @@ void SpimView::sim_ReinitializeSimulator() {
   // Log File and Print write the register, text, data and console windows,
   // never this pane.
   // EDU: once per run.  Reinitialize happens on every assemble, on every
-  // Reinitialize and every time the tour opens its example, and three
+  // Reinitialize and every time the tutorial opens its example, and three
   // lines of banner each time bury what the student is looking for.
   if (!eduBannerShown) {
     eduBannerShown = true;

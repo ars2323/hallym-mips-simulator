@@ -12,7 +12,9 @@
 #include <QScrollBar>
 #include <QStyledItemDelegate>
 
+#include "edu/edu_frozen_columns.h"
 #include "edu/edu_text_model.h"
+#include "edu/edu_view_scroll.h"
 #include "edu/theme/tokens.h"
 #include "edu/edu_panel_zoom.h"
 #include "spimview.h"
@@ -37,7 +39,11 @@ const BadgeColors& badgeColors(const QString& type) {
 // docs/design/tokens.md 1.3 and 4.
 class TextRowDelegate : public QStyledItemDelegate {
  public:
-  explicit TextRowDelegate(QObject* parent) : QStyledItemDelegate(parent) {}
+  // `frozen` is the copy that paints the strip of BP and Address cells.
+  // A segment header is one text across the whole row, so the strip
+  // leaves it to the table underneath and paints only its background.
+  TextRowDelegate(EduTextView* view, bool frozen)
+      : QStyledItemDelegate(view), view_(view), frozen_(frozen) {}
 
   void paint(QPainter* painter, const QStyleOptionViewItem& option,
              const QModelIndex& index) const {
@@ -113,6 +119,19 @@ class TextRowDelegate : public QStyledItemDelegate {
       return;
     }
 
+    if (!instruction) {
+      if (frozen_) {
+        return;  // the background, drawn above, is all the strip says here
+      }
+      // A header spans every column, so its text would start under the
+      // frozen strip; it begins after it instead, and stays there when
+      // the panel is scrolled sideways.
+      const int strip = view_ != 0 ? view_->frozenWidth() : 0;
+      if (opt.rect.left() < strip) {
+        opt.rect.setLeft(strip);
+      }
+    }
+
     // The background is already there; keep the style from painting the
     // model's brush over it.
     opt.backgroundBrush = QBrush();
@@ -131,6 +150,10 @@ class TextRowDelegate : public QStyledItemDelegate {
       }
     }
   }
+
+ private:
+  EduTextView* view_;
+  bool frozen_;
 };
 
 }  // namespace
@@ -138,6 +161,8 @@ class TextRowDelegate : public QStyledItemDelegate {
 EduTextView::EduTextView(QWidget* parent)
     : QTableView(parent),
       model_(0),
+      frozen_(new QTableView(this)),
+      frozenColumns_(0),
       menuRow_(-1),
       restoring_(false),
       fontApplied_(false),
@@ -145,7 +170,7 @@ EduTextView::EduTextView(QWidget* parent)
       hadSelection_(false),
       selectedAddress_(0),
       scrollValue_(0) {
-  setItemDelegate(new TextRowDelegate(this));
+  setItemDelegate(new TextRowDelegate(this, false));
   setSelectionBehavior(QAbstractItemView::SelectRows);
   setSelectionMode(QAbstractItemView::SingleSelection);
   setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -157,7 +182,10 @@ EduTextView::EduTextView(QWidget* parent)
   verticalHeader()->hide();
   verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
   horizontalHeader()->setHighlightSections(false);
-  horizontalHeader()->setStretchLastSection(true);
+  // The last column is Source, which is sized to its contents so that a
+  // long line runs off the right and can be scrolled to (R); stretching
+  // it would elide the line instead.
+  horizontalHeader()->setStretchLastSection(false);
   horizontalHeader()->setSectionsClickable(false);
   horizontalHeader()->setDefaultAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 
@@ -184,7 +212,31 @@ void EduTextView::setTextModel(EduTextModel* model) {
   connect(selectionModel(),
           SIGNAL(currentRowChanged(QModelIndex, QModelIndex)), this,
           SLOT(onCurrentChanged()));
+
+  // BP and Address stay put.  BP is where a breakpoint is clicked and
+  // Address is what says which instruction a row is; with Comments shown
+  // the Source column is long enough to push both off the left edge (R).
+  frozen_->setObjectName("EduTextFrozen");
+  frozen_->setItemDelegate(new TextRowDelegate(this, true));
+  frozenColumns_ =
+      new EduFrozenColumns(this, frozen_, EduTextModel::CodeColumn, this);
+  frozenColumns_->attach();
+  connect(frozen_, SIGNAL(clicked(QModelIndex)), this,
+          SLOT(onClicked(QModelIndex)));
+  connect(frozenColumns_, SIGNAL(contextMenuRequested(QModelIndex, QPoint)),
+          this, SLOT(showMenuAt(QModelIndex, QPoint)));
   afterReset();
+}
+
+int EduTextView::frozenWidth() const {
+  return frozenColumns_ != 0 ? frozenColumns_->width() : 0;
+}
+
+void EduTextView::resizeEvent(QResizeEvent* event) {
+  QTableView::resizeEvent(event);
+  if (frozenColumns_ != 0) {
+    frozenColumns_->sync();
+  }
 }
 
 void EduTextView::applyPanelFont(const QFont& font) {
@@ -216,11 +268,15 @@ void EduTextView::applyPanelFont(const QFont& font) {
   instructionColumnMax_ =
       metrics.horizontalAdvance(QString(38, QLatin1Char('0'))) + pad;
   setColumnWidth(EduTextModel::InstructionColumn, instructionColumnMax_);
+  if (frozenColumns_ != 0) {
+    frozenColumns_->sync();
+  }
 }
 
 void EduTextView::setColumnsShown(bool code, bool source) {
   setColumnHidden(EduTextModel::CodeColumn, !code);
   setColumnHidden(EduTextModel::SourceColumn, !source);
+  fitSourceColumn();
   // With the last column hidden the instruction column takes the stretch.
 }
 
@@ -240,6 +296,11 @@ bool EduTextView::currentInstruction(quint32* address) const {
 void EduTextView::selectAddress(quint32 address) {
   const int row = model_ != 0 ? model_->rowOfAddress(address) : -1;
   if (row >= 0) {
+    // The row, not the sideways position: stepping must not slide the
+    // columns out from under the reader (S).  setCurrentIndex() also
+    // scrolls -- that is how the arrow keys follow the selection -- so
+    // the guard covers it too.
+    EduKeepHorizontalScroll keepSideways(this);
     setCurrentIndex(model_->index(row, EduTextModel::InstructionColumn));
     scrollTo(currentIndex(), QAbstractItemView::PositionAtCenter);
   }
@@ -248,8 +309,8 @@ void EduTextView::selectAddress(quint32 address) {
 void EduTextView::showAddress(quint32 address) {
   const int row = model_ != 0 ? model_->rowOfAddress(address) : -1;
   if (row >= 0) {
-    scrollTo(model_->index(row, EduTextModel::AddressColumn),
-             QAbstractItemView::EnsureVisible);
+    eduScrollRowOnly(this, model_->index(row, EduTextModel::AddressColumn),
+                     QAbstractItemView::EnsureVisible);
   }
 }
 
@@ -262,6 +323,7 @@ void EduTextView::afterReset() {
   if (model_ == 0) {
     return;
   }
+  EduKeepHorizontalScroll keepSideways(this);  // a refresh moves nothing (S)
   clearSpans();
   const QList<int> headers = model_->headerRows();
   for (int i = 0; i < headers.size(); i += 1) {
@@ -275,6 +337,7 @@ void EduTextView::afterReset() {
     setColumnWidth(EduTextModel::InstructionColumn,
                    qBound(60, fitted, instructionColumnMax_));
   }
+  fitSourceColumn();
   restoring_ = true;
   if (hadSelection_) {
     const int row = model_->rowOfAddress(selectedAddress_);
@@ -324,8 +387,26 @@ void EduTextView::setBreakpoint(int rowNumber, bool on) {
   model_->breakpointChanged(row->address);
 }
 
+// The Source column holds whole lines of the program, comment and all.
+// Letting it stretch to the panel elided every long line with no way to
+// read the rest; sized to its contents, it runs off the right and the
+// horizontal scroll bar fetches it (R).
+void EduTextView::fitSourceColumn() {
+  if (model_ == 0 || isColumnHidden(EduTextModel::SourceColumn)) {
+    return;
+  }
+  const int fitted = sizeHintForColumn(EduTextModel::SourceColumn) + 12;
+  setColumnWidth(EduTextModel::SourceColumn, qMax(80, fitted));
+}
+
 void EduTextView::contextMenuEvent(QContextMenuEvent* event) {
-  menuRow_ = indexAt(event->pos()).row();
+  showMenuAt(indexAt(event->pos()), event->globalPos());
+}
+
+// Also reached from the frozen BP/Address strip, which has no menu.
+void EduTextView::showMenuAt(const QModelIndex& index,
+                             const QPoint& globalPos) {
+  menuRow_ = index.row();
   const EduTextModel::Row* row = model_ != 0 ? model_->rowAt(menuRow_) : 0;
   const bool instruction = row != 0 && row->kind == EduTextModel::InstructionRow;
   const bool isSet = instruction && inst_is_breakpoint(row->address);
@@ -342,7 +423,7 @@ void EduTextView::contextMenuEvent(QContextMenuEvent* event) {
   if (Window != 0 && Window->eduTextZoom != 0) {
     Window->eduTextZoom->addMenuActions(&menu);  // Zoom In / Out / Reset
   }
-  menu.exec(event->globalPos());
+  menu.exec(globalPos);
 }
 
 void EduTextView::setBreakpointAtMenuRow() { setBreakpoint(menuRow_, true); }

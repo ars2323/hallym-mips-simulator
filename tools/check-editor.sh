@@ -18,17 +18,19 @@
 #      Text tab; the "Source changed" strip comes and goes; a failed assemble
 #      keeps the file saved and says the simulator was reset.
 #   7. The last file is reopened at the next start and not assembled.
-#   9. The tour always opens the example program, asking first when the
+#   9. The tutorial always opens the example program, asking first when the
 #      editor holds unsaved work (Cancel means it does not start), and every
 #      one of its buttons works when clicked with the mouse.
-#  10. The first-run route and Help > Tutorial produce the same tour, line
+#  10. The first-run route and Help > Tutorial produce the same tutorial, line
 #      for line.
 #  11. The Console tab takes typed input for a read syscall, and an error
 #      brings the Messages tab forward.
 #  12. The three lines between the four panels: the vertical one moves both
 #      rows, the horizontal one both columns, the crossing handle both.
-#  13. The tour's example is read-only, the display settings are the ones
+#  13. The tutorial's example is read-only, the display settings are the ones
 #      its cards describe, and all four exits give everything back.
+#  14. Each panel can be scrolled sideways, and nothing the simulator does
+#      moves it there by itself; the tutorial puts the position back.
 
 set -euo pipefail
 
@@ -296,14 +298,14 @@ else
 fi
 
 echo
-echo "== 9. the tour always opens the example, and asks before taking the editor"
-# The tour replaces whatever the editor holds with samples/tutorial.s.  That
+echo "== 9. the tutorial always opens the example, and asks before taking the editor"
+# The tutorial replaces whatever the editor holds with samples/tutorial.s.  That
 # is worth one question when there is unsaved work, and no question at all
-# otherwise; Cancel means the tour does not start and nothing changes.
+# otherwise; Cancel means the tutorial does not start and nothing changes.
 printf '\t.text\nmain:\tli $v0, 10\n\tsyscall\n' >"$work/mine.s"
 before=$(md5sum <"$work/mine.s")
 
-tour_case() {  # tour_case NAME ANSWER WANT_STARTED WANT_ASKS ARGS...
+tutorial_case() {  # tutorial_case NAME ANSWER WANT_STARTED WANT_ASKS ARGS...
   local name=$1 answer=$2 wantStarted=$3 wantAsks=$4; shift 4
   run "$name" "$@" --editor-answer "$answer" --window-size 1600x900 \
       --tutorial-report
@@ -313,9 +315,9 @@ tour_case() {  # tour_case NAME ANSWER WANT_STARTED WANT_ASKS ARGS...
   asked=$(grep -c '^editor question:' "$out" || true)
   if [ "$wantStarted" = "0" ]; then
     if [ -z "$steps" ]; then
-      pass "$name: cancelled, the tour did not start"
+      pass "$name: cancelled, the tutorial did not start"
     else
-      fail "$name: cancelled but the tour ran ($steps steps)"
+      fail "$name: cancelled but the tutorial ran ($steps steps)"
     fi
   else
     if [ "$steps" = "20" ] && [ "$skipped" = "0" ]; then
@@ -332,55 +334,55 @@ tour_case() {  # tour_case NAME ANSWER WANT_STARTED WANT_ASKS ARGS...
   fi
 }
 
-tour_case tourEmpty   discard 1 0
-tour_case tourSaved   discard 1 0 --editor-open "$work/mine.s"
-tour_case tourTyped   discard 1 1 --editor-type '# mine\n'
-tour_case tourCancel  cancel  0 1 --editor-type '# mine\n'
+tutorial_case tutorialEmpty   discard 1 0
+tutorial_case tutorialSaved   discard 1 0 --editor-open "$work/mine.s"
+tutorial_case tutorialTyped   discard 1 1 --editor-type '# mine\n'
+tutorial_case tutorialCancel  cancel  0 1 --editor-type '# mine\n'
 
 if [ "$before" = "$(md5sum <"$work/mine.s")" ]; then
   pass "the file the editor held is unchanged on disk"
 else
-  fail "the tour wrote to $work/mine.s"
+  fail "the tutorial wrote to $work/mine.s"
 fi
 
-# Every button, with the mouse: the tour used to end at the first click of
+# Every button, with the mouse: the tutorial used to end at the first click of
 # Next because clicking the overlay deactivated the main window.
-run tourClicks --window-size 1600x900 --tutorial-click-through
-clicks=$(grep -c '^tutorial click Next: visible=1' "$work/tourClicks.out" || true)
+run tutorialClicks --window-size 1600x900 --tutorial-click-through
+clicks=$(grep -c '^tutorial click Next: visible=1' "$work/tutorialClicks.out" || true)
 if [ "$clicks" = "19" ]; then
   pass "Next, clicked with the mouse, walks all 20 steps"
 else
   fail "expected 19 mouse clicks on Next, got $clicks"
 fi
 for what in "click Back: visible=1" "click finish: visible=0" "click Skip: visible=0"; do
-  if grep -q "^tutorial $what" "$work/tourClicks.out"; then
+  if grep -q "^tutorial $what" "$work/tutorialClicks.out"; then
     pass "mouse $what"
   else
     fail "mouse $what not reported"
-    grep '^tutorial click' "$work/tourClicks.out" | tail -3
+    grep '^tutorial click' "$work/tutorialClicks.out" | tail -3
   fi
 done
 
 echo
-echo "== 10. the first run and Help > Tutorial give exactly the same tour"
+echo "== 10. the first run and Help > Tutorial give exactly the same tutorial"
 # Both routes call SpimView::eduShowTutorial(); the start-up one only adds
 # the "Tutorial/Shown" check and a delay.  This proves it from the outside:
 # the same window size, the same fresh settings, and every line of
 # --tutorial-report compared -- the example loaded, where it stopped (PC and
 # $sp), the step count, each card's rectangle, and every title and body in
 # both languages.
-run tourMenu  --window-size 1600x900 --tutorial-report
-run tourFirst --window-size 1600x900 --tutorial-first-run --tutorial-report
-grep '^tutorial ' "$work/tourMenu.out"  >"$work/tour-menu.txt" || true
-grep '^tutorial ' "$work/tourFirst.out" >"$work/tour-first.txt" || true
-if [ ! -s "$work/tour-first.txt" ]; then
-  fail "the start-up route reported nothing (did the tour open?)"
-elif diff -u "$work/tour-menu.txt" "$work/tour-first.txt" >"$work/tour.diff"; then
-  pass "both routes: $(wc -l <"$work/tour-menu.txt") identical lines of report"
-  pass "$(sed -n 's/^tutorial state /state: /p' "$work/tour-menu.txt")"
+run tutorialMenu  --window-size 1600x900 --tutorial-report
+run tutorialFirst --window-size 1600x900 --tutorial-first-run --tutorial-report
+grep '^tutorial ' "$work/tutorialMenu.out"  >"$work/tutorial-menu.txt" || true
+grep '^tutorial ' "$work/tutorialFirst.out" >"$work/tutorial-first.txt" || true
+if [ ! -s "$work/tutorial-first.txt" ]; then
+  fail "the start-up route reported nothing (did the tutorial open?)"
+elif diff -u "$work/tutorial-menu.txt" "$work/tutorial-first.txt" >"$work/tutorial.diff"; then
+  pass "both routes: $(wc -l <"$work/tutorial-menu.txt") identical lines of report"
+  pass "$(sed -n 's/^tutorial state /state: /p' "$work/tutorial-menu.txt")"
 else
   fail "the two routes differ:"
-  head -20 "$work/tour.diff"
+  head -20 "$work/tutorial.diff"
 fi
 
 echo
@@ -481,40 +483,71 @@ else
 fi
 
 echo
-echo "== 13. the tour borrows the screen and gives it back"
+echo "== 13. the tutorial borrows the screen and gives it back"
 # While it runs, the example is read-only and the display settings are the
 # ones the cards describe.  However it ends, the settings come back, the
 # example is closed and the editor shows its start screen -- and the file
 # in the installation folder is untouched.
 sample_before=$(md5sum <"$repo/samples/tutorial.s")
-run tourReadOnly --reg-base 2 --window-size 1600x900 --tutorial-report \
+run tutorialReadOnly --reg-base 2 --window-size 1600x900 --tutorial-report \
     --layout-report
-if grep -q '^tutorial state .* readonly=1 base=16' "$work/tourReadOnly.out"; then
-  pass "during the tour: the example is read-only and the base is hexadecimal"
+if grep -q '^tutorial state .* readonly=1 base=16' "$work/tutorialReadOnly.out"; then
+  pass "during the tutorial: the example is read-only and the base is hexadecimal"
 else
-  fail "during the tour: $(grep -m1 '^tutorial state' "$work/tourReadOnly.out")"
+  fail "during the tutorial: $(grep -m1 '^tutorial state' "$work/tutorialReadOnly.out")"
 fi
-# (The layout report runs before the tour opens, so what it prints is the
-# state the tour was handed -- which is the thing the exits below restore.)
+# (The layout report runs before the tutorial opens, so what it prints is the
+# state the tutorial was handed -- which is the thing the exits below restore.)
 
 for exit in finish skip escape close; do
-  run "tourBack-$exit" --reg-base 2 --window-size 1600x900 \
+  run "tutorialBack-$exit" --reg-base 2 --window-size 1600x900 \
       --tutorial-exit "$exit" --editor-report --layout-report
-  if grep -q 'start_screen=1 readonly=0' "$work/tourBack-$exit.out"; then
+  if grep -q 'start_screen=1 readonly=0' "$work/tutorialBack-$exit.out"; then
     pass "$exit: the editor is back to its start screen"
   else
-    fail "$exit: $(grep -m1 '^editor:' "$work/tourBack-$exit.out")"
+    fail "$exit: $(grep -m1 '^editor:' "$work/tutorialBack-$exit.out")"
   fi
-  if grep -q '^bases: reg=2 ' "$work/tourBack-$exit.out"; then
+  if grep -q '^bases: reg=2 ' "$work/tutorialBack-$exit.out"; then
     pass "$exit: the register base the student had is back"
   else
-    fail "$exit: $(grep -m1 '^bases:' "$work/tourBack-$exit.out")"
+    fail "$exit: $(grep -m1 '^bases:' "$work/tutorialBack-$exit.out")"
   fi
 done
 if [ "$sample_before" = "$(md5sum <"$repo/samples/tutorial.s")" ]; then
   pass "the example in the installation folder is unchanged"
 else
-  fail "the tour wrote to samples/tutorial.s"
+  fail "the tutorial wrote to samples/tutorial.s"
+fi
+
+echo "== 14. the panels do not move sideways on their own"
+# All three have somewhere to go sideways (in binary they are far wider
+# than the panel), and a step, a selection and a refresh of the model all
+# leave them where the student put them.  The tutorial is allowed to scroll --
+# it has to reach the cell it points at -- but gives the position back.
+run hscroll --window-size 1600x900 --load "$repo/helloworld.s" --steps 5 \
+    --reg-base 2 --trigger action_Data_DisplayBinary --hscroll-report
+for panel in text data intregs; do
+  line=$(grep -m1 "^hscroll: $panel max=" "$work/hscroll.out" || true)
+  case "$line" in
+    "hscroll: $panel max=0 "*) fail "$panel has nothing to scroll sideways" ;;
+    "") fail "$panel: no horizontal scroll report" ;;
+    *) pass "${line#hscroll: }" ;;
+  esac
+done
+moved=$(grep -c MOVED "$work/hscroll.out" || true)
+if [ "$moved" -eq 0 ]; then
+  pass "a step, a selection and a refresh leave all three where they were"
+else
+  fail "$(grep -m1 MOVED "$work/hscroll.out")"
+fi
+
+run hscrollTutorial --window-size 1600x900 --load "$repo/helloworld.s" \
+    --reg-base 2 --hscroll text=60 --hscroll intregs=5 \
+    --tutorial-exit finish
+if grep -q 'hscroll .* MOVED' "$work/hscrollTutorial.out"; then
+  fail "$(grep -m1 'hscroll .* MOVED' "$work/hscrollTutorial.out")"
+else
+  pass "the tutorial gives the sideways position back when it ends"
 fi
 
 echo

@@ -112,12 +112,12 @@ class SpimView : public QMainWindow {
   EduRegisterModel* eduRegisterModel;
   EduInstructionInspector* eduInspector;  // EDU: follows the Text panel
   EduBottomPanel* eduBottom;              // EDU: Console / Messages tabs
-  EduTutorial* eduTutorial;  // EDU: the first-run tour (edu/edu_tutorial.h)
+  EduTutorial* eduTutorial;  // EDU: the first-run tutorial (edu/edu_tutorial.h)
   bool eduLayoutSettled;     // EDU: start-up is over; dock moves are the user's
   bool eduLayoutFromDefaults;  // EDU: no saved layout; ours is in force
   int eduLayoutPreset;         // EDU: which arrangement is in force
   bool eduLayoutSizesPending;  // EDU: waiting for the real window size
-  bool eduTourOnStart;       // EDU: false in the scripted capture mode
+  bool eduTutorialOnStart;       // EDU: false in the scripted capture mode
   void eduSetupPanels();
   // EDU: the two arrangements of the window (Window > Layout).  0 is the
   // one the program starts with, 1 is its mirror image.
@@ -179,16 +179,16 @@ class SpimView : public QMainWindow {
   void eduUpdateWindowTitle();                  // "file.s -- Hallym MIPS Simulator"
   QByteArray eduEditorDigest() const;           // the editor text, hashed
   void eduRestoreEditorZoom();                  // the saved editor text size
-  bool eduLoadTutorialSample();                 // samples/tutorial.s, for the tour
+  bool eduLoadTutorialSample();                 // samples/tutorial.s, for the tutorial
   QString eduTutorialSamplePath() const;        // where it is, or empty
   void eduRunToTutorialStop();                  // into sum_array, third turn
-  // EDU: the tour explains what it points at, so what it points at has to
+  // EDU: the tutorial explains what it points at, so what it points at has to
   // be in the state the explanation describes: hexadecimal, words, both
   // text segments, the first arrangement.  Whatever the student had is put
-  // back when the tour ends.
-  void eduTourTakeSettings();
-  void eduTourPutSettingsBack();
-  struct EduTourSettings {
+  // back when the tutorial ends.
+  void eduTutorialTakeSettings();
+  void eduTutorialPutSettingsBack();
+  struct EduTutorialSettings {
     bool saved;
     int registerBase;
     int dataBase;
@@ -196,8 +196,12 @@ class SpimView : public QMainWindow {
     bool showUserText;
     bool showKernelText;
     int layoutPreset;
+    int textSideways;      // how far each panel was scrolled sideways: the
+    int dataSideways;      // tutorial scrolls to reach what it points at, and
+    int registerSideways;  // puts the student's own position back (S)
   };
-  EduTourSettings eduTourSettings;
+  EduTutorialSettings eduTutorialSettings;
+  int eduTutorialScrollTries;  // how often the restore above has come back
   void eduRefreshRegisterPanel();
 
   // EDU: Text panel (edu/edu_text_model.h, edu/edu_text_view.h).
@@ -431,7 +435,7 @@ class SpimView : public QMainWindow {
   void eduShowUserGuide();       // EDU: Help > User Guide ("?" in the tool bar)
   void eduRevealWindows(bool withTutorial = false);  // EDU: the card was answered
   void eduShowTutorial();        // EDU: Help > Tutorial
-  void eduTourFinished();        // EDU: the tour ended, whichever way
+  void eduTutorialFinished();        // EDU: the tutorial ended, whichever way
   void eduDockMoved();           // EDU: a dock was dragged somewhere new
   void eduEqualiseDocks();       // EDU: after a drag, share the room evenly
   void eduEditorFontSizeChanged(int points);  // EDU: remember the zoom
@@ -453,6 +457,7 @@ class SpimView : public QMainWindow {
   void eduEditorOpenRecent();
   void eduToggleLog(bool on);
   void eduApplyLayoutSizes();  // the proportions, once the splits are in
+  void eduTutorialPutScrollBack(); // where the panels were sideways (S)
   void eduSyncSplits();        // the second horizontal line follows the first
   void eduFollowCrossHandle();  // the handle sits on the crossing
   void eduLayoutPrimary();    // Editor | Text/Data

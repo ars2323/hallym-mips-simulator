@@ -1,6 +1,6 @@
-/* edu/core/edu_tutorial_layout: the tour's card must always be inside the
+/* edu/core/edu_tutorial_layout: the tutorial's card must always be inside the
    window.  In 1.0.0 it could land outside on Windows, where the card's size
-   differs from the one measured here, and the tour was then stuck because
+   differs from the one measured here, and the tutorial was then stuck because
    its buttons could not be reached (docs/ARCHITECTURE.md 12, 70). */
 
 #include <QtTest>

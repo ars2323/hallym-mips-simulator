@@ -16,6 +16,7 @@
 
 #include <QTableView>
 
+class EduFrozenColumns;
 class EduTextModel;
 class QAction;
 
@@ -39,6 +40,10 @@ class EduTextView : public QTableView {
   QSize sizeHint() const { return QSize(800, 600); }
 
   // The selected instruction's address, if an instruction row is selected.
+  // The width of the frozen BP/Address strip: a segment header's text
+  // starts after it, so the strip never cuts one in half.
+  int frozenWidth() const;
+
   bool currentInstruction(quint32* address) const;
   void selectAddress(quint32 address);
   void showAddress(quint32 address);  // scroll just enough to see it
@@ -49,10 +54,12 @@ class EduTextView : public QTableView {
 
  protected:
   void contextMenuEvent(QContextMenuEvent* event);
+  void resizeEvent(QResizeEvent* event);
   void hideEvent(QHideEvent* event);
   void showEvent(QShowEvent* event);
 
  private slots:
+  void showMenuAt(const QModelIndex& index, const QPoint& globalPos);
   void onClicked(const QModelIndex& index);
   void onCurrentChanged();
   void beforeReset();
@@ -63,8 +70,11 @@ class EduTextView : public QTableView {
 
  private:
   void setBreakpoint(int row, bool on);
+  void fitSourceColumn();
 
   EduTextModel* model_;
+  QTableView* frozen_;
+  EduFrozenColumns* frozenColumns_;
   QAction* setBreakpointAction_;
   QAction* clearBreakpointAction_;
   QAction* copyAction_;

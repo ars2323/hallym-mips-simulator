@@ -3,6 +3,8 @@
 #include "edu/edu_devtools.h"
 
 #include <QAbstractButton>
+#include <QAbstractItemView>
+#include <QAbstractScrollArea>
 #include <QApplication>
 #include <QCloseEvent>
 #include <QDir>
@@ -23,9 +25,12 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPixmap>
+#include <QPushButton>
+#include <QScrollBar>
 #include <QStatusBar>
 #include <QTextDocument>
 #include <QTextCodec>
+#include <QTableView>
 #include <QTextStream>
 #include <QThread>
 #include <QTimer>
@@ -83,6 +88,7 @@ EduDevtools::EduDevtools(QObject* parent)
       selectInstruction_(0),
       saveSettings_(false),
       inspectorReport_(false),
+      hscrollReport_(false),
       layoutReport_(false),
       expandEnvironment_(false),
       expandKernelData_(false),
@@ -92,7 +98,7 @@ EduDevtools::EduDevtools(QObject* parent)
       tutorialStep_(0),
       tutorialReport_(false),
       clickThrough_(false),
-      firstRunTour_(false),
+      firstRunTutorial_(false),
       window_(0),
       dialogTimer_(0),
       dismissedDialogs_(0),
@@ -149,6 +155,11 @@ QString EduDevtools::usage() {
       "  --layout-report        print each panel's geometry and whether it is on\n"
       "                         screen (Editor, Text, Data, message log)\n"
       "  --inspector-report     print what the Instruction Inspector shows\n"
+      "  --hscroll <panel>=<n>  scroll a panel sideways (text, data, intregs);\n"
+      "                         n may be \"max\" (repeatable)\n"
+      "  --hscroll-report       print each panel's horizontal scroll range, then\n"
+      "                         scroll all three sideways and check that a step,\n"
+      "                         a selection and a refresh leave them there\n"
       "  --save-settings        write the settings file on exit, as closing the\n"
       "                         window does (the script otherwise leaves none)\n"
       "  --raise <panel>        bring that dock's tab to the front\n"
@@ -162,13 +173,13 @@ QString EduDevtools::usage() {
       "  --reg-base <2|10|16>   choose Registers > Binary/Decimal/Hex\n"
       "  --local-codec <name>   pretend the system text encoding is <name>\n"
       "  --dialog-shots <dir>   save a PNG of every dialog answered\n"
-      "  --tutorial-step <n>    open the first-run tour at step n (1-based)\n"
+      "  --tutorial-step <n>    open the first-run tutorial at step n (1-based)\n"
       "  --dock-drop <h|v>      drop the editor beside (h) or under (v) the\n"
       "                         text panel, as a drag does, and report the two\n"
       "                         sizes: they should come out equal\n"
       "  --editor-answer <discard|save|cancel>  how to answer the editor's\n"
       "                         \"unsaved changes\" question (discard)\n"
-      "  --tutorial-click-through  walk the whole tour by clicking the card's\n"
+      "  --tutorial-click-through  walk the whole tutorial by clicking the card's\n"
       "                         buttons with the mouse, reporting each step\n"
       "  --drag-split <what>    drag one of the lines between the four\n"
       "                         panels with the mouse: vertical=<dx>,\n"
@@ -177,16 +188,16 @@ QString EduDevtools::usage() {
       "  --console-type <text>  type that into the Console tab (\\n = Enter)\n"
       "                         before the program runs, for read_int and\n"
       "                         friends; reports where the focus went\n"
-      "  --tutorial-exit <finish|skip|escape|close>  run the tour and leave\n"
+      "  --tutorial-exit <finish|skip|escape|close>  run the tutorial and leave\n"
       "                         it that way, then report what it left behind\n"
       "  --click-tab <title>    press that dock tab with the mouse and report\n"
       "                         which panel came forward; repeatable\n"
-      "  --tutorial-first-run   open the tour the way a first start does (the\n"
+      "  --tutorial-first-run   open the tutorial the way a first start does (the\n"
       "                         route the start-up card opens)\n"
       "                         rather than the way Help > Tutorial does;\n"
       "                         with --tutorial-report the two can be\n"
       "                         compared line for line\n"
-      "  --tutorial-report      walk every step of the tour and print each\n"
+      "  --tutorial-report      walk every step of the tutorial and print each\n"
       "                         card's rectangle and whether it is inside the\n"
       "                         window (the check for docs/ARCHITECTURE 12, 70)\n"
       "                         before capturing; it never starts by itself\n"
@@ -198,6 +209,7 @@ QString EduDevtools::usage() {
       "                         (+ .active.svg / .disabled.svg) if it exists\n"
       "\n"
       "  panels:  intregs fpregs text data console log window about splash\n"
+      "           splash-tutorial editor inspector\n"
       "           inspector\n"
       "  streams: console log regs intregs-log text-log data-log\n"
       "           (*-log = what Save Log File writes for that window)\n");
@@ -210,7 +222,7 @@ bool EduDevtools::wantsCaptureMode(const QStringList& args) {
   return ok && probe.isActive();
 }
 
-bool EduDevtools::wantsFirstRunTour(const QStringList& args) {
+bool EduDevtools::wantsFirstRunTutorial(const QStringList& args) {
   return args.contains("--tutorial-first-run");
 }
 
@@ -459,6 +471,22 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
       continue;
     }
 
+    if (arg == "--hscroll-report") {
+      hscrollReport_ = true;
+      continue;
+    }
+
+    if (arg == "--hscroll") {
+      if (i + 1 >= args.size() || !args.at(i + 1).contains('=')) {
+        err() << "--hscroll needs <panel>=<value>\n" << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      hscroll_ << args.at(i + 1);
+      i += 1;
+      continue;
+    }
+
     if (arg == "--save-settings") {
       saveSettings_ = true;
       continue;
@@ -526,7 +554,7 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
     }
 
     if (arg == "--tutorial-first-run") {
-      firstRunTour_ = true;
+      firstRunTutorial_ = true;
       continue;
     }
 
@@ -562,9 +590,9 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
         *ok = false;
         return rest;
       }
-      tourExit_ = args.at(i + 1);
-      if (tourExit_ != "finish" && tourExit_ != "skip" &&
-          tourExit_ != "escape" && tourExit_ != "close") {
+      tutorialExit_ = args.at(i + 1);
+      if (tutorialExit_ != "finish" && tutorialExit_ != "skip" &&
+          tutorialExit_ != "escape" && tutorialExit_ != "close") {
         err() << arg << " takes finish, skip, escape or close\n" << usage()
               << Qt::flush;
         *ok = false;
@@ -722,20 +750,20 @@ void EduDevtools::scheduleRun(SpimView* window) {
 // A real press and release on one of the card's buttons.  The two
 // activation events are what a window manager sends when a click lands on
 // the overlay: the main window goes inactive and the overlay becomes the
-// active window.  Hiding the tour on that was the bug this reproduces.
-bool EduDevtools::clickTourButton(const char* objectName) {
-  EduTutorial* tour = window_->eduTutorial;
+// active window.  Hiding the tutorial on that was the bug this reproduces.
+bool EduDevtools::clickTutorialButton(const char* objectName) {
+  EduTutorial* tutorial = window_->eduTutorial;
   QAbstractButton* button =
-      tour == 0 ? 0 : tour->findChild<QAbstractButton*>(objectName);
+      tutorial == 0 ? 0 : tutorial->findChild<QAbstractButton*>(objectName);
   if (button == 0 || !button->isVisible()) {
-    err() << "the tour has no visible " << objectName << "\n" << Qt::flush;
+    err() << "the tutorial has no visible " << objectName << "\n" << Qt::flush;
     status_ = 1;
     return false;
   }
   QEvent deactivate(QEvent::WindowDeactivate);
   QApplication::sendEvent(window_, &deactivate);
   QEvent activate(QEvent::WindowActivate);
-  QApplication::sendEvent(tour, &activate);
+  QApplication::sendEvent(tutorial, &activate);
   const QPoint centre = button->rect().center();
   const QPoint global = button->mapToGlobal(centre);
   QMouseEvent press(QEvent::MouseButtonPress, centre, global, Qt::LeftButton,
@@ -804,7 +832,7 @@ QWidget* EduDevtools::panelWidget(const QString& name) const {
 
 bool EduDevtools::grabToFile(QWidget* widget, const QString& path) {
   QPixmap pixmap = widget->grab();
-  // The tour is a window of its own (edu/edu_tutorial.h), so a grab of the
+  // The tutorial is a window of its own (edu/edu_tutorial.h), so a grab of the
   // main window does not contain it.  For a screenshot of the whole window
   // the two are put back together, which is what the person sees.
   if (widget == window_ && window_->eduTutorial != 0 &&
@@ -1377,13 +1405,19 @@ void EduDevtools::run() {
     const QModelIndex cell =
         window_->eduTextModel->index(row, EduTextModel::BpColumn);
     view->scrollTo(cell);
-    const QPoint at = view->visualRect(cell).center();
+    // The BP column is under the frozen strip, which is what a mouse
+    // reaches; the click has to go there, as a student's does (R).
+    QAbstractItemView* target = view->findChild<QTableView*>("EduTextFrozen");
+    if (target == 0) {
+      target = view;
+    }
+    const QPoint at = target->visualRect(cell).center();
     QMouseEvent press(QEvent::MouseButtonPress, at, Qt::LeftButton,
                       Qt::LeftButton, Qt::NoModifier);
     QMouseEvent release(QEvent::MouseButtonRelease, at, Qt::LeftButton,
                         Qt::NoButton, Qt::NoModifier);
-    QApplication::sendEvent(view->viewport(), &press);
-    QApplication::sendEvent(view->viewport(), &release);
+    QApplication::sendEvent(target->viewport(), &press);
+    QApplication::sendEvent(target->viewport(), &release);
     out() << "clicked BP cell of 0x" << edu::hex32Digits(address) << ": "
           << (inst_is_breakpoint(address) ? "breakpoint set" : "no breakpoint")
           << "\n" << Qt::flush;
@@ -1447,6 +1481,82 @@ void EduDevtools::run() {
           << window_->ui->TextSegView->columnWidth(EduTextModel::InstructionColumn)
           << " source column " << window_->ui->TextSegView->columnWidth(EduTextModel::SourceColumn)
           << "\n" << Qt::flush;
+  }
+
+  for (int i = 0; i < hscroll_.size(); i += 1) {
+    const QString name = hscroll_.at(i).section('=', 0, 0);
+    const QString value = hscroll_.at(i).section('=', 1);
+    QAbstractScrollArea* view = 0;
+    if (name == "text") {
+      view = window_->ui->TextSegView;
+    } else if (name == "data") {
+      view = window_->ui->DataSegPanel->view();
+    } else if (name == "intregs") {
+      view = window_->ui->IntRegView;
+    }
+    if (view == 0) {
+      err() << "--hscroll: unknown panel " << name << "\n" << Qt::flush;
+      status_ = 2;
+      continue;
+    }
+    settle();
+    QScrollBar* bar = view->horizontalScrollBar();
+    bar->setValue(value == "max" ? bar->maximum() : value.toInt());
+    out() << "hscroll: " << name << " at " << bar->value() << " of "
+          << bar->maximum() << "\n" << Qt::flush;
+  }
+
+  // Sideways scrolling: each panel has somewhere to go, and nothing the
+  // simulator does moves it there by itself (R, S).
+  if (hscrollReport_) {
+    settle();
+    struct { const char* name; QAbstractScrollArea* view; } const panels[] = {
+        {"text", window_->ui->TextSegView},
+        {"data", window_->ui->DataSegPanel->view()},
+        {"intregs", window_->ui->IntRegView},
+    };
+    const unsigned count = sizeof(panels) / sizeof(panels[0]);
+    for (unsigned i = 0; i < count; i += 1) {
+      QScrollBar* bar = panels[i].view->horizontalScrollBar();
+      out() << "hscroll: " << panels[i].name << " max=" << bar->maximum()
+            << " policy=" << int(panels[i].view->horizontalScrollBarPolicy())
+            << " shown=" << (bar->isVisible() ? 1 : 0) << "\n" << Qt::flush;
+    }
+    // Put each panel somewhere in the middle of its range and see whether
+    // it is still there after the three things that used to move it.
+    int wanted[3] = {0, 0, 0};
+    for (unsigned i = 0; i < count; i += 1) {
+      QScrollBar* bar = panels[i].view->horizontalScrollBar();
+      wanted[i] = bar->maximum() / 2;
+      bar->setValue(wanted[i]);
+    }
+    const char* const stages[] = {"step", "select", "refresh"};
+    for (unsigned stage = 0; stage < 3; stage += 1) {
+      if (stage == 0) {
+        window_->sim_SingleStep();
+      } else if (stage == 1) {
+        window_->ui->TextSegView->selectAddress(PC);
+        window_->ui->DataSegPanel->view()->goToAddress(R[REG_SP]);
+        edu::RegisterRef reg;
+        if (edu::findRegister("$sp", &reg)) {
+          window_->ui->IntRegView->selectRegister(reg);
+        }
+      } else {
+        window_->DisplayTextSegments(true);
+        window_->DisplayDataSegments(true);
+        window_->DisplayIntRegisters();
+      }
+      settle();
+      for (unsigned i = 0; i < count; i += 1) {
+        const int now = panels[i].view->horizontalScrollBar()->value();
+        out() << "hscroll: " << panels[i].name << " after " << stages[stage]
+              << " " << now << " of " << wanted[i]
+              << (now == wanted[i] ? " ok" : " MOVED") << "\n" << Qt::flush;
+        if (now != wanted[i]) {
+          status_ = 2;
+        }
+      }
+    }
   }
 
   // What the Instruction Inspector is showing, as text.
@@ -1542,54 +1652,54 @@ void EduDevtools::run() {
     }
   }
 
-  // The whole tour, driven with the mouse on the card's own buttons.  The
-  // keyboard route already worked when clicking Next ended the tour
+  // The whole tutorial, driven with the mouse on the card's own buttons.  The
+  // keyboard route already worked when clicking Next ended the tutorial
   // instead of advancing it, so this check uses nothing but mouse events.
   if (clickThrough_) {
     window_->eduShowTutorial();
-    EduTutorial* tour = window_->eduTutorial;
-    if (tour == 0) {
-      err() << "the tour did not start\n" << Qt::flush;
+    EduTutorial* tutorial = window_->eduTutorial;
+    if (tutorial == 0) {
+      err() << "the tutorial did not start\n" << Qt::flush;
       status_ = 2;
     } else {
       settle();
-      const int steps = tour->stepCount();
+      const int steps = tutorial->stepCount();
       out() << "tutorial click-through: steps=" << steps << "\n" << Qt::flush;
       for (int i = 0; i + 1 < steps; i += 1) {
-        const int before = tour->currentStep();
-        if (!clickTourButton("EduTutorialNext")) {
+        const int before = tutorial->currentStep();
+        if (!clickTutorialButton("EduTutorialNext")) {
           break;
         }
-        const bool up = tour->isVisible();
+        const bool up = tutorial->isVisible();
         out() << "tutorial click Next: visible=" << (up ? 1 : 0) << " step="
-              << (tour->currentStep() + 1) << "/" << steps << "\n"
+              << (tutorial->currentStep() + 1) << "/" << steps << "\n"
               << Qt::flush;
-        if (!up || tour->currentStep() != before + 1) {
-          err() << "the tour did not advance on a mouse click\n" << Qt::flush;
+        if (!up || tutorial->currentStep() != before + 1) {
+          err() << "the tutorial did not advance on a mouse click\n" << Qt::flush;
           status_ = 1;
           break;
         }
       }
       // Back, then forward again, still with the mouse.
-      if (status_ == 0 && tour->isVisible() && tour->currentStep() > 0) {
-        const int before = tour->currentStep();
-        clickTourButton("EduTutorialBack");
-        out() << "tutorial click Back: visible=" << (tour->isVisible() ? 1 : 0)
-              << " step=" << (tour->currentStep() + 1) << "/" << steps << "\n"
+      if (status_ == 0 && tutorial->isVisible() && tutorial->currentStep() > 0) {
+        const int before = tutorial->currentStep();
+        clickTutorialButton("EduTutorialBack");
+        out() << "tutorial click Back: visible=" << (tutorial->isVisible() ? 1 : 0)
+              << " step=" << (tutorial->currentStep() + 1) << "/" << steps << "\n"
               << Qt::flush;
-        if (!tour->isVisible() || tour->currentStep() != before - 1) {
+        if (!tutorial->isVisible() || tutorial->currentStep() != before - 1) {
           err() << "Back did not go back on a mouse click\n" << Qt::flush;
           status_ = 1;
         }
-        clickTourButton("EduTutorialNext");
+        clickTutorialButton("EduTutorialNext");
       }
-      // The last step's button ends the tour.
-      if (status_ == 0 && tour->isVisible()) {
-        clickTourButton("EduTutorialNext");
+      // The last step's button ends the tutorial.
+      if (status_ == 0 && tutorial->isVisible()) {
+        clickTutorialButton("EduTutorialNext");
         out() << "tutorial click finish: visible="
-              << (tour->isVisible() ? 1 : 0) << "\n" << Qt::flush;
-        if (tour->isVisible()) {
-          err() << "the last step did not finish the tour\n" << Qt::flush;
+              << (tutorial->isVisible() ? 1 : 0) << "\n" << Qt::flush;
+        if (tutorial->isVisible()) {
+          err() << "the last step did not finish the tutorial\n" << Qt::flush;
           status_ = 1;
         }
       }
@@ -1597,25 +1707,25 @@ void EduDevtools::run() {
       if (status_ == 0) {
         window_->eduShowTutorial();
         settle();
-        clickTourButton("EduTutorialSkip");
-        out() << "tutorial click Skip: visible=" << (tour->isVisible() ? 1 : 0)
+        clickTutorialButton("EduTutorialSkip");
+        out() << "tutorial click Skip: visible=" << (tutorial->isVisible() ? 1 : 0)
               << "\n" << Qt::flush;
-        if (tour->isVisible()) {
-          err() << "Skip did not end the tour\n" << Qt::flush;
+        if (tutorial->isVisible()) {
+          err() << "Skip did not end the tutorial\n" << Qt::flush;
           status_ = 1;
         }
       }
     }
   }
 
-  // Every step of the tour, with the card's rectangle: the harness checks
+  // Every step of the tutorial, with the card's rectangle: the harness checks
   // that it never leaves the window (docs/ARCHITECTURE.md 12, 70).
   if (tutorialReport_) {
-    // --tutorial-first-run leaves the start-up route to open the tour on
+    // --tutorial-first-run leaves the start-up route to open the tutorial on
     // its timer; waiting for that is the point of the option.  Anything
     // else opens it the way Help > Tutorial does.
-    if (firstRunTour_) {
-      // The start-up route opens the tour on a timer, so this really has
+    if (firstRunTutorial_) {
+      // The start-up route opens the tutorial on a timer, so this really has
       // to wait rather than just pumping whatever is already queued.
       QElapsedTimer waited;
       waited.start();
@@ -1626,23 +1736,23 @@ void EduDevtools::run() {
         QThread::msleep(10);
       }
       if (window_->eduTutorial == 0 || !window_->eduTutorial->isRunning()) {
-        err() << "the start-up route did not open the tour\n" << Qt::flush;
+        err() << "the start-up route did not open the tutorial\n" << Qt::flush;
         status_ = 2;
       }
     } else {
       window_->eduShowTutorial();
     }
-    EduTutorial* tour = window_->eduTutorial;
-    if (tour == 0) {
+    EduTutorial* tutorial = window_->eduTutorial;
+    if (tutorial == 0) {
       err() << "no tutorial\n" << Qt::flush;
       status_ = 2;
     } else {
-      // Which program the tour is walking through, and what its first step
+      // Which program the tutorial is walking through, and what its first step
       // says about it: the sample only opens over an empty editor.
-      tour->start(0);
+      tutorial->start(0);
       settle();
       // Everything the two entry points have to agree on: what was loaded,
-      // where it stopped, and what the tour made of it.
+      // where it stopped, and what the tutorial made of it.
       edu::RegisterRef sp;
       const quint32 pointer =
           edu::findRegister("sp", &sp) ? EduRegisterModel::readRegister(sp) : 0;
@@ -1658,25 +1768,25 @@ void EduDevtools::run() {
                                                                            : 0)
             << " base=" << window_->eduRegisterModel->base() << "\n"
             << Qt::flush;
-      const QStringList skipped = tour->skippedSteps();
-      out() << "tutorial steps=" << tour->stepCount() << " skipped="
+      const QStringList skipped = tutorial->skippedSteps();
+      out() << "tutorial steps=" << tutorial->stepCount() << " skipped="
             << skipped.size() << "\n" << Qt::flush;
       for (int i = 0; i < skipped.size(); i += 1) {
         out() << "tutorial skipped: " << skipped.at(i) << "\n" << Qt::flush;
       }
-      out() << "tutorial welcome: " << tour->bodyText().simplified() << "\n"
+      out() << "tutorial welcome: " << tutorial->bodyText().simplified() << "\n"
             << Qt::flush;
       const QRect window(QPoint(0, 0), window_->size());
-      for (int i = 0; i < tour->stepCount(); i += 1) {
-        tour->start(i);
+      for (int i = 0; i < tutorial->stepCount(); i += 1) {
+        tutorial->start(i);
         settle();
-        const QRect card = tour->cardRect();
+        const QRect card = tutorial->cardRect();
         const bool inside = window.contains(card);
-        out() << "tutorial step " << (i + 1) << "/" << tour->stepCount()
+        out() << "tutorial step " << (i + 1) << "/" << tutorial->stepCount()
               << " card " << card.x() << "," << card.y() << " "
               << card.width() << "x" << card.height() << " window "
               << window.width() << "x" << window.height() << " inside="
-              << (inside ? 1 : 0) << " " << tour->stepName(i) << "\n"
+              << (inside ? 1 : 0) << " " << tutorial->stepName(i) << "\n"
               << Qt::flush;
         if (!inside) {
           status_ = 1;
@@ -1686,19 +1796,19 @@ void EduDevtools::run() {
       // between the two entry points would show.
       for (int language = 0; language < 2; language += 1) {
         const bool korean = language == 0;
-        tour->setKorean(korean);
-        for (int i = 0; i < tour->stepCount(); i += 1) {
-          tour->start(i);
+        tutorial->setKorean(korean);
+        for (int i = 0; i < tutorial->stepCount(); i += 1) {
+          tutorial->start(i);
           settle();
           out() << "tutorial text " << (i + 1) << (korean ? " ko: " : " en: ")
-                << tour->titleText().simplified() << " :: "
-                << tour->bodyText().simplified() << "\n" << Qt::flush;
+                << tutorial->titleText().simplified() << " :: "
+                << tutorial->bodyText().simplified() << "\n" << Qt::flush;
         }
       }
     }
   }
 
-  // The first-run tour, at one step, for a screenshot of it.
+  // The first-run tutorial, at one step, for a screenshot of it.
   if (tutorialStep_ > 0) {
     window_->eduShowTutorial();
     if (window_->eduTutorial != 0) {
@@ -1710,44 +1820,67 @@ void EduDevtools::run() {
     settle();  // a raised tab needs one more turn before its geometry is right
   }
 
-  // The tour, left by one of its four exits.  What matters is what is
-  // left behind: a tour that is gone but still holds the application's
+  // The tutorial, left by one of its four exits.  What matters is what is
+  // left behind: a tutorial that is gone but still holds the application's
   // event filter, or still puts its step's panel in front on a timer,
   // leaves the window unusable until the program is restarted.
-  if (!tourExit_.isEmpty()) {
+  if (!tutorialExit_.isEmpty()) {
+    // Where the panels were sideways before the tutorial borrowed them: it
+    // scrolls to reach what it points at and has to give this back (S).
+    struct { const char* name; QAbstractScrollArea* view; int was; } sideways[] = {
+        {"text", window_->ui->TextSegView, 0},
+        {"data", window_->ui->DataSegPanel->view(), 0},
+        {"intregs", window_->ui->IntRegView, 0}};
+    const unsigned ways = sizeof(sideways) / sizeof(sideways[0]);
+    for (unsigned i = 0; i < ways; i += 1) {
+      sideways[i].was = sideways[i].view->horizontalScrollBar()->value();
+    }
     window_->eduShowTutorial();
-    EduTutorial* tour = window_->eduTutorial;
-    if (tour == 0 || !tour->isRunning()) {
-      err() << "the tour did not start\n" << Qt::flush;
+    EduTutorial* tutorial = window_->eduTutorial;
+    if (tutorial == 0 || !tutorial->isRunning()) {
+      err() << "the tutorial did not start\n" << Qt::flush;
       status_ = 2;
     } else {
-      if (tourExit_ == "finish") {
+      if (tutorialExit_ == "finish") {
         // To the last step, then its button.
-        while (tour->currentStep() + 1 < tour->stepCount()) {
-          if (!clickTourButton("EduTutorialNext")) {
+        while (tutorial->currentStep() + 1 < tutorial->stepCount()) {
+          if (!clickTutorialButton("EduTutorialNext")) {
             break;
           }
         }
-        clickTourButton("EduTutorialNext");
-      } else if (tourExit_ == "skip") {
-        clickTourButton("EduTutorialSkip");
-      } else if (tourExit_ == "escape") {
+        clickTutorialButton("EduTutorialNext");
+      } else if (tutorialExit_ == "skip") {
+        clickTutorialButton("EduTutorialSkip");
+      } else if (tutorialExit_ == "escape") {
         QKeyEvent escape(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
         QApplication::sendEvent(window_, &escape);
       } else {
-        tour->close();  // what a window manager's close button does
+        tutorial->close();  // what a window manager's close button does
       }
       settle();
       settle();
-      out() << "tour exit " << tourExit_ << ": running="
-            << (tour->isRunning() ? 1 : 0) << " visible="
-            << (tour->isVisible() ? 1 : 0) << "\n" << Qt::flush;
-      if (tour->isRunning() || tour->isVisible()) {
-        err() << "the tour is still there after " << tourExit_ << "\n"
+      out() << "tutorial exit " << tutorialExit_ << ": running="
+            << (tutorial->isRunning() ? 1 : 0) << " visible="
+            << (tutorial->isVisible() ? 1 : 0) << "\n" << Qt::flush;
+      for (unsigned i = 0; i < ways; i += 1) {
+        QScrollBar* bar = sideways[i].view->horizontalScrollBar();
+        // The tutorial unloads the program it borrowed, so a panel may have
+        // less to scroll than it had; the left-most it can be is right.
+        const int wanted = qMin(sideways[i].was, bar->maximum());
+        out() << "tutorial exit " << tutorialExit_ << ": hscroll " << sideways[i].name
+              << " " << bar->value() << " of " << wanted
+              << (bar->value() == wanted ? " ok" : " MOVED") << "\n"
+              << Qt::flush;
+        if (bar->value() != wanted) {
+          status_ = 1;
+        }
+      }
+      if (tutorial->isRunning() || tutorial->isVisible()) {
+        err() << "the tutorial is still there after " << tutorialExit_ << "\n"
               << Qt::flush;
         status_ = 1;
       }
-      // The keys the tour took while it was up must reach the editor again.
+      // The keys the tutorial took while it was up must reach the editor again.
       if (window_->eduEditor != 0) {
         window_->eduEditor->show();
         window_->eduEditor->raise();
@@ -1759,7 +1892,7 @@ void EduDevtools::run() {
         QApplication::sendEvent(window_->eduEditor->editor(), &typed);
         settle();
         const bool reaches = window_->eduEditor->isModified();
-        out() << "tour exit " << tourExit_ << ": keys reach the editor="
+        out() << "tutorial exit " << tutorialExit_ << ": keys reach the editor="
               << (reaches ? 1 : 0) << "\n" << Qt::flush;
         if (!reaches) {
           status_ = 1;
@@ -1878,10 +2011,34 @@ void EduDevtools::run() {
       continue;
     }
 
-    if (capture.panel == "splash") {  // the screen main() shows at start-up
+    // The screen main() shows at start-up; "splash-tutorial" is the same
+    // card with the focus on the other button, so that both can be seen
+    // with their focus ring (T).
+    if (capture.panel == "splash" || capture.panel == "splash-tutorial") {
       edu::theme::EduSplash splash;
       splash.setAttribute(Qt::WA_DontShowOnScreen);
       splash.show();
+      settle();
+      QPushButton* button = splash.findChild<QPushButton*>(
+          capture.panel == "splash" ? "EduSplashStraight"
+                                    : "EduSplashTutorial");
+      splash.activateWindow();
+      QApplication::setActiveWindow(&splash);  // else :focus never applies
+      if (button != 0) {
+        button->setFocus(Qt::TabFocusReason);
+        // The two buttons are one size and their border is always two
+        // pixels, so the focus ring cannot take room from the text (T).
+        const QPushButton* other = splash.findChild<QPushButton*>(
+            capture.panel == "splash" ? "EduSplashTutorial"
+                                      : "EduSplashStraight");
+        out() << "splash: focus on \"" << button->text() << "\" "
+              << button->width() << "x" << button->height() << ", \""
+              << other->text() << "\" " << other->width() << "x"
+              << other->height() << ", text needs "
+              << QFontMetrics(button->font()).horizontalAdvance(button->text())
+              << " of " << (button->width() - 2 * (2 + 18)) << "\n"
+              << Qt::flush;
+      }
       settle();
       const QPixmap pixmap = splash.grab();
       splash.close();

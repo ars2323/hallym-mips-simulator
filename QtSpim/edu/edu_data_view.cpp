@@ -22,6 +22,8 @@
 #include "edu/core/edu_format.h"
 #include "edu/core/edu_registers.h"
 #include "edu/edu_data_model.h"
+#include "edu/edu_frozen_columns.h"
+#include "edu/edu_view_scroll.h"
 #include "edu/edu_register_model.h"
 #include "edu/edu_panel_zoom.h"
 #include "spimview.h"
@@ -35,8 +37,11 @@ namespace {
 // that the pieces line up, clipped to itself.
 class DataRowDelegate : public QStyledItemDelegate {
  public:
-  explicit DataRowDelegate(QTableView* view)
-      : QStyledItemDelegate(view), view_(view) {}
+  // `frozen` is the copy that paints the strip of Address cells: it shows
+  // the addresses and nothing else, so that the one full-row text is
+  // drawn once, by the table underneath, and not cut in two.
+  DataRowDelegate(EduDataView* view, bool frozen)
+      : QStyledItemDelegate(view), view_(view), frozen_(frozen) {}
 
   void paint(QPainter* painter, const QStyleOptionViewItem& option,
              const QModelIndex& index) const {
@@ -53,19 +58,28 @@ class DataRowDelegate : public QStyledItemDelegate {
       QStyledItemDelegate::paint(painter, opt, index);
       return;
     }
+    if (frozen_) {
+      return;  // the background, drawn above, is all the strip says here
+    }
     if (index.column() == EduDataModel::LabelColumn &&
         !index.data(Qt::DisplayRole).toString().isEmpty()) {
       QStyledItemDelegate::paint(painter, opt, index);  // a run's labels
       return;
     }
 
-    const int left = view_->columnViewportPosition(0) + 4;
+    // Past the frozen Address strip, so the text is never half under it,
+    // and it stays where it is when the panel is scrolled sideways.
+    const int left =
+        qMax(view_->frozenWidth(), view_->columnViewportPosition(0)) + 4;
     // Stop before the Labels column when that has something to say.
     int right = view_->viewport()->width();
     const QModelIndex labels =
         index.sibling(index.row(), EduDataModel::LabelColumn);
     if (!labels.data(Qt::DisplayRole).toString().isEmpty()) {
       right = view_->columnViewportPosition(EduDataModel::LabelColumn) - 8;
+    }
+    if (right - left < 24) {
+      return;  // scrolled until the labels are against the strip: no room
     }
     painter->save();
     painter->setClipRect(opt.rect);
@@ -79,7 +93,8 @@ class DataRowDelegate : public QStyledItemDelegate {
   }
 
  private:
-  QTableView* view_;
+  EduDataView* view_;
+  bool frozen_;
 };
 
 }  // namespace
@@ -89,6 +104,8 @@ EduDataView::EduDataView(QWidget* parent)
       model_(0),
       changeValueAction_(new QAction(this)),
       unitGroup_(new QActionGroup(this)),
+      frozen_(new QTableView(this)),
+      frozenColumns_(0),
       restoring_(false),
       fontApplied_(false),
       fittedBase_(0),
@@ -98,7 +115,7 @@ EduDataView::EduDataView(QWidget* parent)
       scrollValue_(0),
       menuAddress_(0),
       menuHasAddress_(false) {
-  setItemDelegate(new DataRowDelegate(this));
+  setItemDelegate(new DataRowDelegate(this, false));
   setSelectionBehavior(QAbstractItemView::SelectItems);
   setSelectionMode(QAbstractItemView::SingleSelection);
   setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -151,6 +168,32 @@ void EduDataView::setDataModel(EduDataModel* model) {
   connect(selectionModel(),
           SIGNAL(currentChanged(QModelIndex, QModelIndex)), this,
           SLOT(onCurrentChanged()));
+
+  // The Address column stays put: in binary one row of memory is well
+  // over a hundred characters and the address is the first thing to go
+  // off the left edge (R).
+  frozen_->setObjectName("EduDataFrozen");
+  frozen_->setItemDelegate(new DataRowDelegate(this, true));
+  frozenColumns_ = new EduFrozenColumns(
+      this, frozen_, EduDataModel::AddressColumn + 1, this);
+  frozenColumns_->attach();
+  connect(frozen_, SIGNAL(clicked(QModelIndex)), this,
+          SLOT(onClicked(QModelIndex)));
+  connect(frozen_, SIGNAL(doubleClicked(QModelIndex)), this,
+          SLOT(onDoubleClicked(QModelIndex)));
+  connect(frozenColumns_, SIGNAL(contextMenuRequested(QModelIndex, QPoint)),
+          this, SLOT(showMenuAt(QModelIndex, QPoint)));
+}
+
+int EduDataView::frozenWidth() const {
+  return frozenColumns_ != 0 ? frozenColumns_->width() : 0;
+}
+
+void EduDataView::resizeEvent(QResizeEvent* event) {
+  QTableView::resizeEvent(event);
+  if (frozenColumns_ != 0) {
+    frozenColumns_->sync();
+  }
 }
 
 void EduDataView::applyPanelFont(const QFont& font) {
@@ -192,6 +235,9 @@ void EduDataView::fitColumns() {
   }
   setColumnWidth(EduDataModel::AsciiColumn,
                  metrics.horizontalAdvance(QString(16, digit)) + pad);
+  if (frozenColumns_ != 0) {
+    frozenColumns_->sync();
+  }
 }
 
 bool EduDataView::currentWord(quint32* address) const {
@@ -208,6 +254,11 @@ bool EduDataView::goToAddress(quint32 address) {
   if (!cell.isValid()) {
     return false;
   }
+  // The row, not the sideways position: the Address column is frozen, so
+  // there is nothing to fetch from the right (S).  setCurrentIndex() also
+  // scrolls -- that is how the arrow keys follow the selection -- so the
+  // guard covers it too.
+  EduKeepHorizontalScroll keepSideways(this);
   setCurrentIndex(cell);
   scrollTo(cell, QAbstractItemView::PositionAtCenter);
   emit memorySelectionChanged();
@@ -223,6 +274,7 @@ void EduDataView::afterReset() {
   if (model_ == 0) {
     return;
   }
+  EduKeepHorizontalScroll keepSideways(this);  // a refresh moves nothing (S)
   restoring_ = true;
   if (hadSelection_) {
     const QModelIndex cell = model_->indexOfAddress(selectedAddress_);
@@ -281,7 +333,12 @@ void EduDataView::onUnitAction(QAction* action) {
 }
 
 void EduDataView::contextMenuEvent(QContextMenuEvent* event) {
-  const QModelIndex index = indexAt(event->pos());
+  showMenuAt(indexAt(event->pos()), event->globalPos());
+}
+
+// Also reached from the frozen Address strip, which has no menu of its own.
+void EduDataView::showMenuAt(const QModelIndex& index,
+                             const QPoint& globalPos) {
   const EduDataModel::Row* row = model_ != 0 ? model_->rowAt(index.row()) : 0;
   menuHasAddress_ = model_ != 0 && model_->wordAt(index, &menuAddress_);
   if (!menuHasAddress_ && row != 0 && row->kind == EduDataModel::ZeroRunRow) {
@@ -305,7 +362,7 @@ void EduDataView::contextMenuEvent(QContextMenuEvent* event) {
   if (Window != 0 && Window->eduDataZoom != 0) {
     Window->eduDataZoom->addMenuActions(&menu);  // Zoom In / Out / Reset
   }
-  menu.exec(event->globalPos());
+  menu.exec(globalPos);
   menuHasAddress_ = false;
 }
 

@@ -88,18 +88,18 @@ int main(int argc, char* argv[]) {
   const bool scripted = false;
 #endif
 #ifdef EDU_DEVTOOLS
-  const bool firstRunTour = EduDevtools::wantsFirstRunTour(rawArguments);
+  const bool firstRunTutorial = EduDevtools::wantsFirstRunTutorial(rawArguments);
 #else
-  const bool firstRunTour = false;
+  const bool firstRunTutorial = false;
 #endif
   edu::theme::EduSplash* splash = scripted ? 0 : edu::theme::showSplash();
 
   SpimView win;
   Window = &win;
-  // EDU: a scripted run never opens the tour by itself -- it would load the
+  // EDU: a scripted run never opens the tutorial by itself -- it would load the
   // sample over whatever the script is doing.  --tutorial-step still does,
   // and --tutorial-first-run asks for exactly the start-up route.
-  win.eduTourOnStart = !scripted || firstRunTour;
+  win.eduTutorialOnStart = !scripted || firstRunTutorial;
 
   // Initialize Spim
   //
@@ -110,8 +110,8 @@ int main(int argc, char* argv[]) {
   // nothing of the program shows behind it.
   if (splash == 0) {
     // EDU: a scripted run has no card to answer; --tutorial-first-run asks
-    // for the route the card's "take the tour" button takes.
-    win.eduRevealWindows(firstRunTour);
+    // for the route the card's "take the tutorial" button takes.
+    win.eduRevealWindows(firstRunTutorial);
   }
 
   QStringList arguments = rawArguments;
@@ -154,8 +154,8 @@ int main(int argc, char* argv[]) {
   win.DisplayTextSegments(true);
   win.UpdateDataDisplay();
 
-  // EDU: the start-up card asks whether to take the tour and waits for an
-  // answer; the window comes up when it has one, and the tour with it if
+  // EDU: the start-up card asks whether to take the tutorial and waits for an
+  // answer; the window comes up when it has one, and the tutorial with it if
   // that is what was asked for (SpimView::eduRevealWindows).
   if (splash != 0) {
     QObject::connect(splash, SIGNAL(finished(bool)), &win,

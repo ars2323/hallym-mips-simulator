@@ -52,7 +52,7 @@ forward and gives it the keyboard; an error brings Messages forward.
 
 ![Editor with error list; standard QtSpim has none](docs/images/compare/en/05-editor.png)
 
-**A tour on the first run** — seven steps over the real window, one panel at a
+**A tutorial on the first run** — seven steps over the real window, one panel at a
 time, in Korean or English; Help > Tutorial brings it back.
 
 Also: File > Load File asks before loading on top of a loaded program, a

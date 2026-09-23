@@ -14,7 +14,9 @@
 #include <QStyledItemDelegate>
 
 #include "edu/core/edu_format.h"
+#include "edu/edu_frozen_columns.h"
 #include "edu/edu_register_model.h"
+#include "edu/edu_view_scroll.h"
 #include "spimview.h"
 #include "ui_spimview.h"
 
@@ -51,6 +53,7 @@ EduRegisterView::EduRegisterView(QWidget* parent)
       model_(0),
       contentWidth_(0),
       frozen_(new QTreeView(this)),
+      frozenColumns_(0),
       changeValueAction_(new QAction(this)) {
   // The column can be dragged to any width the student wants: in binary a
   // value is thirty-nine characters, which the default width cannot show.
@@ -80,73 +83,27 @@ void EduRegisterView::initFrozen() {
   // Both views scroll the same way, or the names slide out of step with
   // the values they belong to.
   setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+  setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
   setUniformRowHeights(true);
   frozen_->setObjectName("EduRegisterFrozen");
-  frozen_->setFrameShape(QFrame::NoFrame);
-  frozen_->setFocusPolicy(Qt::NoFocus);
-  frozen_->setRootIsDecorated(rootIsDecorated());
-  frozen_->setIndentation(indentation());
-  frozen_->setUniformRowHeights(true);
-  frozen_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-  frozen_->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-  frozen_->setSelectionMode(selectionMode());
-  frozen_->setSelectionBehavior(selectionBehavior());
-  frozen_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
-  frozen_->setExpandsOnDoubleClick(false);
-  frozen_->header()->setSectionsClickable(false);
-  frozen_->header()->setSectionsMovable(false);
-  viewport()->stackUnder(frozen_);
-
-  connect(verticalScrollBar(), SIGNAL(valueChanged(int)),
-          frozen_->verticalScrollBar(), SLOT(setValue(int)));
-  connect(frozen_->verticalScrollBar(), SIGNAL(valueChanged(int)),
-          verticalScrollBar(), SLOT(setValue(int)));
-  connect(this, SIGNAL(expanded(QModelIndex)), frozen_,
-          SLOT(expand(QModelIndex)));
-  connect(this, SIGNAL(collapsed(QModelIndex)), frozen_,
-          SLOT(collapse(QModelIndex)));
-  connect(frozen_, SIGNAL(expanded(QModelIndex)), this,
-          SLOT(expand(QModelIndex)));
-  connect(frozen_, SIGNAL(collapsed(QModelIndex)), this,
-          SLOT(collapse(QModelIndex)));
-  connect(header(), SIGNAL(sectionResized(int, int, int)), this,
-          SLOT(syncFrozenGeometry()));
-  connect(this, SIGNAL(doubleClicked(QModelIndex)), this,
+  frozen_->setItemDelegate(new CompactRowDelegate(frozen_));
+  frozenColumns_ =
+      new EduFrozenColumns(this, frozen_, EduRegisterModel::BaseColumn, this);
+  frozenColumns_->attach();
+  connect(frozen_, SIGNAL(doubleClicked(QModelIndex)), this,
           SLOT(onDoubleClicked(QModelIndex)));
+  connect(frozenColumns_, SIGNAL(contextMenuRequested(QModelIndex, QPoint)),
+          this, SLOT(showMenuAt(QModelIndex, QPoint)));
 }
 
 int EduRegisterView::frozenWidth() const {
-  if (model_ == 0) {
-    return 0;
-  }
-  return columnWidth(EduRegisterModel::NameColumn) +
-         columnWidth(EduRegisterModel::NumberColumn);
+  return frozenColumns_ != 0 ? frozenColumns_->width() : 0;
 }
 
 void EduRegisterView::syncFrozenGeometry() {
-  if (model_ == 0 || frozen_->model() == 0) {
-    return;
+  if (frozenColumns_ != 0) {
+    frozenColumns_->sync();
   }
-  // The same fonts, or the rows are different heights and the names slide
-  // away from the values they belong to.
-  frozen_->setFont(font());
-  frozen_->header()->setFont(header()->font());
-  frozen_->setIndentation(indentation());
-  for (int column = 0; column < model_->columnCount(); column += 1) {
-    const bool frozenColumn = column == EduRegisterModel::NameColumn ||
-                              column == EduRegisterModel::NumberColumn;
-    frozen_->setColumnHidden(column, !frozenColumn);
-    if (frozenColumn) {
-      frozen_->setColumnWidth(column, columnWidth(column));
-    }
-  }
-  const int width = frozenWidth();
-  frozen_->setGeometry(frameWidth(), frameWidth(), width,
-                       viewport()->height() + header()->height());
-  frozen_->setVisible(width > 0);
-  // The names cover the left of the table, so the table must not draw its
-  // own copy of them underneath as it scrolls sideways.
-  frozen_->verticalScrollBar()->setValue(verticalScrollBar()->value());
 }
 
 void EduRegisterView::resizeEvent(QResizeEvent* event) {
@@ -169,11 +126,6 @@ void EduRegisterView::setRegisterModel(EduRegisterModel* model) {
 
   // The frozen name column follows the same model and the same selection.
   initFrozen();
-  frozen_->setModel(model);
-  frozen_->setSelectionModel(selectionModel());
-  frozen_->expandAll();
-  frozen_->header()->setStretchLastSection(false);
-  syncFrozenGeometry();
 }
 
 bool EduRegisterView::currentRegister(edu::RegisterRef* reg) const {
@@ -186,6 +138,9 @@ void EduRegisterView::selectRegister(const edu::RegisterRef& reg) {
   }
   const QModelIndex index = model_->indexOf(reg);
   if (index.isValid()) {
+    // The row, not the sideways position (S); setCurrentIndex() scrolls
+    // as well, so the guard covers it too.
+    EduKeepHorizontalScroll keepSideways(this);
     expand(index.parent());
     setCurrentIndex(index);
     scrollTo(index);
@@ -249,7 +204,12 @@ QSize EduRegisterView::sizeHint() const {
 void EduRegisterView::onCurrentChanged() { emit registerSelectionChanged(); }
 
 void EduRegisterView::contextMenuEvent(QContextMenuEvent* event) {
-  const QModelIndex index = indexAt(event->pos());
+  showMenuAt(indexAt(event->pos()), event->globalPos());
+}
+
+// Also reached from the frozen name strip, which has no menu of its own.
+void EduRegisterView::showMenuAt(const QModelIndex& index,
+                                 const QPoint& globalPos) {
   if (index.isValid()) {
     setCurrentIndex(index);
   }
@@ -264,7 +224,7 @@ void EduRegisterView::contextMenuEvent(QContextMenuEvent* event) {
   edu::RegisterRef reg;
   changeValueAction_->setEnabled(currentRegister(&reg));
   menu.addAction(changeValueAction_);
-  menu.exec(event->globalPos());
+  menu.exec(globalPos);
 }
 
 void EduRegisterView::onDoubleClicked(const QModelIndex& index) {

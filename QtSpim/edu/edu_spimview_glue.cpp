@@ -15,6 +15,7 @@
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QScrollBar>
 #include <QVBoxLayout>
 #include <QStatusBar>
 #include <QTextEdit>
@@ -53,12 +54,12 @@ QString* eduOutputCapture = NULL;
 void SpimView::eduSetupPanels() {
   eduEditor = 0;  // until eduSetupEditor() at the end of this function
   eduLogAction = 0;
-  eduTutorial = 0;  // built on the first run of the tour
+  eduTutorial = 0;  // built on the first run of the tutorial
   eduLayoutSettled = false;  // until the saved layout has been restored
   eduLayoutFromDefaults = true;  // readSettings() decides for real
   eduLayoutPreset = 0;
   eduLayoutSizesPending = false;
-  eduTourOnStart = true;     // main.cpp turns this off for a scripted run
+  eduTutorialOnStart = true;     // main.cpp turns this off for a scripted run
   eduEverAssembled = false;  // nothing has been assembled this session yet
   eduExtraProgram = false;   // nothing has been added on top of it
   eduRegisterModel = new EduRegisterModel(this);
@@ -109,7 +110,8 @@ void SpimView::eduSetupPanels() {
 
   eduProgramLoaded = false;
   eduBannerShown = false;  // the start-up banner is printed once
-  eduTourSettings.saved = false;  // nothing borrowed by the tour yet
+  eduTutorialSettings.saved = false;  // nothing borrowed by the tutorial yet
+  eduTutorialScrollTries = 0;
 
   eduTextModel = new EduTextModel(this);
   ui->TextSegView->setTextModel(eduTextModel);
@@ -258,8 +260,8 @@ void SpimView::eduSetupHelpMenu() {
   connect(reference, SIGNAL(triggered(bool)), this, SLOT(help_ViewHelp()));
   ui->menu_Help->insertAction(ui->action_Help_AboutSPIM, reference);
 
-  // The first-run tour, from the menu at any time.  The label is English
-  // like the rest of the menu bar; the tour itself follows the system
+  // The first-run tutorial, from the menu at any time.  The label is English
+  // like the rest of the menu bar; the tutorial itself follows the system
   // language and can be switched inside it.
   QAction* tutorial = new QAction("&Tutorial", this);
   tutorial->setObjectName("action_Edu_Tutorial");
@@ -270,7 +272,7 @@ void SpimView::eduSetupHelpMenu() {
   ui->menu_Help->insertSeparator(ui->action_Help_AboutSPIM);
 }
 
-// The windows come up when the splash closes (main.cpp), and the tour --
+// The windows come up when the splash closes (main.cpp), and the tutorial --
 // once, on the first run -- after them.
 void SpimView::eduRevealWindows(bool withTutorial) {
   SpimConsole->show();
@@ -288,31 +290,43 @@ void SpimView::eduRevealWindows(bool withTutorial) {
     eduApplyLayout(0);
   }
   eduLayoutSettled = true;
-  // The tour starts when the start-up card was answered with "take the
-  // tour", and never by itself: a scripted run would have it load the
+  // The tutorial starts when the start-up card was answered with "take the
+  // tutorial", and never by itself: a scripted run would have it load the
   // example over whatever the script is testing, and a student who said
   // "start now" has said what they want.  --tutorial-step and
   // --tutorial-first-run still open it on purpose.
-  if (eduTourOnStart && withTutorial) {
+  if (eduTutorialOnStart && withTutorial) {
     QTimer::singleShot(250, this, SLOT(eduShowTutorial()));
   }
 }
 
-// What the tour needs the screen to be showing, and what the student had
+// What the tutorial needs the screen to be showing, and what the student had
 // before it.  Everything here is a display setting: nothing about how a
 // program assembles or runs is touched.
-void SpimView::eduTourTakeSettings() {
-  if (eduTourSettings.saved) {
-    return;  // a second tour before the first was put back
+void SpimView::eduTutorialTakeSettings() {
+  if (eduTutorialSettings.saved) {
+    return;  // a second tutorial before the first was put back
   }
-  eduTourSettings.saved = true;
-  eduTourSettings.registerBase = st_regDisplayBase;
-  eduTourSettings.dataBase = eduDataModel != 0 ? eduDataModel->base() : 16;
-  eduTourSettings.dataUnit =
+  eduTutorialSettings.saved = true;
+  eduTutorialSettings.registerBase = st_regDisplayBase;
+  eduTutorialSettings.dataBase = eduDataModel != 0 ? eduDataModel->base() : 16;
+  eduTutorialSettings.dataUnit =
       eduDataModel != 0 ? int(eduDataModel->unit()) : int(edu::WordUnit);
-  eduTourSettings.showUserText = st_showUserTextSegment;
-  eduTourSettings.showKernelText = st_showKernelTextSegment;
-  eduTourSettings.layoutPreset = eduLayoutPreset;
+  eduTutorialSettings.showUserText = st_showUserTextSegment;
+  eduTutorialSettings.showKernelText = st_showKernelTextSegment;
+  eduTutorialSettings.layoutPreset = eduLayoutPreset;
+  // The tutorial scrolls the panels sideways to reach the cell it is pointing
+  // at; it starts from the left and gives the student's own position back
+  // at the end (S).
+  eduTutorialSettings.textSideways =
+      ui->TextSegView->horizontalScrollBar()->value();
+  eduTutorialSettings.dataSideways =
+      ui->DataSegPanel->view()->horizontalScrollBar()->value();
+  eduTutorialSettings.registerSideways =
+      ui->IntRegView->horizontalScrollBar()->value();
+  ui->TextSegView->horizontalScrollBar()->setValue(0);
+  ui->DataSegPanel->view()->horizontalScrollBar()->setValue(0);
+  ui->IntRegView->horizontalScrollBar()->setValue(0);
 
   st_regDisplayBase = 16;
   setCheckedRegBase(st_regDisplayBase);
@@ -330,36 +344,61 @@ void SpimView::eduTourTakeSettings() {
   UpdateDataDisplay();
 }
 
-void SpimView::eduTourPutSettingsBack() {
-  if (!eduTourSettings.saved) {
+void SpimView::eduTutorialPutSettingsBack() {
+  if (!eduTutorialSettings.saved) {
     return;
   }
-  eduTourSettings.saved = false;
-  st_regDisplayBase = eduTourSettings.registerBase;
+  eduTutorialSettings.saved = false;
+  st_regDisplayBase = eduTutorialSettings.registerBase;
   setCheckedRegBase(st_regDisplayBase);
   if (ui->DataSegPanel != 0) {
-    eduDataModel->setBase(eduTourSettings.dataBase);
+    eduDataModel->setBase(eduTutorialSettings.dataBase);
     ui->DataSegPanel->view()->setUnit(
-        edu::MemoryUnit(eduTourSettings.dataUnit));
+        edu::MemoryUnit(eduTutorialSettings.dataUnit));
   }
-  st_showUserTextSegment = eduTourSettings.showUserText;
-  st_showKernelTextSegment = eduTourSettings.showKernelText;
+  st_showUserTextSegment = eduTutorialSettings.showUserText;
+  st_showKernelTextSegment = eduTutorialSettings.showKernelText;
   ui->action_Text_DisplayUserText->setChecked(st_showUserTextSegment);
   ui->action_Text_DisplayKernelText->setChecked(st_showKernelTextSegment);
-  if (eduTourSettings.layoutPreset != 0) {
-    eduApplyLayout(eduTourSettings.layoutPreset);
+  if (eduTutorialSettings.layoutPreset != 0) {
+    eduApplyLayout(eduTutorialSettings.layoutPreset);
   }
   DisplayIntRegisters();
   DisplayTextSegments(false);
   UpdateDataDisplay();
 }
 
-// The tour is over, whichever way it ended.  What it borrowed goes back:
+// Last of all, and not in one go: closing the example and reinitialising
+// the simulator rebuild the panels, and a view only works out how far it
+// can be scrolled at its next layout pass.  Asking before that would clamp
+// the value to nothing, so this comes back every few milliseconds until
+// each panel has the room again -- or until it is plain that it never
+// will, because the program it was showing is gone (S).
+void SpimView::eduTutorialPutScrollBack() {
+  struct { QAbstractScrollArea* view; int want; } const back[] = {
+      {ui->TextSegView, eduTutorialSettings.textSideways},
+      {ui->DataSegPanel->view(), eduTutorialSettings.dataSideways},
+      {ui->IntRegView, eduTutorialSettings.registerSideways}};
+  bool waiting = false;
+  for (unsigned i = 0; i < sizeof(back) / sizeof(back[0]); i += 1) {
+    QScrollBar* bar = back[i].view->horizontalScrollBar();
+    bar->setValue(back[i].want);
+    if (bar->value() != back[i].want) {
+      waiting = true;
+    }
+  }
+  eduTutorialScrollTries += 1;
+  if (waiting && eduTutorialScrollTries < 20) {
+    QTimer::singleShot(10, this, SLOT(eduTutorialPutScrollBack()));
+  }
+}
+
+// The tutorial is over, whichever way it ended.  What it borrowed goes back:
 // the display settings the student had, the editor (its example is closed
 // rather than left for someone to edit by accident), and the simulator.
 // What is left is the start screen, which is where a student begins.
-void SpimView::eduTourFinished() {
-  eduTourPutSettingsBack();
+void SpimView::eduTutorialFinished() {
+  eduTutorialPutSettingsBack();
   if (eduEditor != 0) {
     eduEditor->setReadOnly(false);
     eduEditor->closeFile(false);  // read-only: there is nothing to save
@@ -371,13 +410,15 @@ void SpimView::eduTourFinished() {
   eduEverAssembled = false;
   eduUpdateStaleBanner();
   eduUpdateWindowTitle();
+  eduTutorialScrollTries = 0;
+  eduTutorialPutScrollBack();
 }
 
 void SpimView::eduShowTutorial() {
-  // The tour always walks the example program, so that every step has the
+  // The tutorial always walks the example program, so that every step has the
   // same thing to point at whoever starts it.  That means taking the
   // editor away from whatever it held, which is worth one question when
-  // there is unsaved work in it; Cancel means the tour does not start and
+  // there is unsaved work in it; Cancel means the tutorial does not start and
   // nothing has changed.
   if (eduEditor != 0) {
     if (!eduEditor->maybeSave()) {
@@ -388,15 +429,15 @@ void SpimView::eduShowTutorial() {
   if (eduTutorial == 0) {
     eduTutorial = new EduTutorial(this);
   }
-  connect(eduTutorial, SIGNAL(closed()), this, SLOT(eduTourFinished()),
+  connect(eduTutorial, SIGNAL(closed()), this, SLOT(eduTutorialFinished()),
           Qt::UniqueConnection);
-  eduTourTakeSettings();
+  eduTutorialTakeSettings();
   eduTutorial->setProgramLoaded(eduLoadTutorialSample());
   eduTutorial->start();
 }
 
 // samples/tutorial.s, which ships next to the program.  Returns false when
-// it is not there; the tour then leaves out the steps that need it.
+// it is not there; the tutorial then leaves out the steps that need it.
 QString SpimView::eduTutorialSamplePath() const {
   const QString appDir = QCoreApplication::applicationDirPath();
   const char* const places[] = {"/samples/tutorial.s", "/tutorial.s",
@@ -425,16 +466,16 @@ bool SpimView::eduLoadTutorialSample() {
   DisplayTextSegments(true);
   UpdateDataDisplay();
   eduRunToTutorialStop();
-  // The example belongs to the tour while the tour is running: a student
+  // The example belongs to the tutorial while the tutorial is running: a student
   // editing it would be editing a file in the installation folder, and
-  // the tour would be describing something that had changed under it.
+  // the tutorial would be describing something that had changed under it.
   if (eduEditor != 0) {
     eduEditor->setReadOnly(true);
   }
   return eduProgramLoaded;
 }
 
-// Where the tour wants the example to be: inside sum_array, the third time
+// Where the tutorial wants the example to be: inside sum_array, the third time
 // the loop comes round.  The frame is on the stack, $sp has moved, two
 // elements have been added and the running total has been written to
 // memory twice -- so the register panel, the data panel and the stack

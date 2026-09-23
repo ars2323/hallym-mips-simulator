@@ -73,6 +73,8 @@ SOURCES += main.cpp\
         edu/edu_bottom_panel.cpp\
         edu/edu_code_editor.cpp\
         edu/edu_cross_handle.cpp\
+        edu/edu_frozen_columns.cpp\
+        edu/edu_view_scroll.cpp\
         edu/edu_panel_zoom.cpp\
         edu/edu_editor_dock.cpp\
         edu/edu_editor_glue.cpp\
@@ -127,6 +129,8 @@ HEADERS  += spimview.h\
         edu/edu_bottom_panel.h\
         edu/edu_code_editor.h\
         edu/edu_cross_handle.h\
+        edu/edu_frozen_columns.h\
+        edu/edu_view_scroll.h\
         edu/edu_panel_zoom.h\
         edu/edu_editor_dock.h\
         edu/edu_register_model.h\

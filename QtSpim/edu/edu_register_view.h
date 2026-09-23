@@ -18,6 +18,7 @@
 
 #include "edu/core/edu_registers.h"
 
+class EduFrozenColumns;
 class EduRegisterModel;
 class QAction;
 
@@ -54,6 +55,8 @@ class EduRegisterView : public QTreeView {
 
  private slots:
   void syncFrozenGeometry();
+  // The panel's own menu, opened either here or on the frozen strip.
+  void showMenuAt(const QModelIndex& index, const QPoint& globalPos);
 
  protected:
   void resizeEvent(QResizeEvent* event);
@@ -76,6 +79,7 @@ class EduRegisterView : public QTreeView {
   // characters and the table scrolls sideways; without this the names go
   // with it and the panel becomes a wall of digits (L).
   QTreeView* frozen_;
+  EduFrozenColumns* frozenColumns_;
   QAction* changeValueAction_;
 };
 

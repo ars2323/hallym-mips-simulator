@@ -113,7 +113,7 @@ QWidget* buttonFor(QToolBar* bar, QAction* action) {
 
 }  // namespace
 
-// The tour.  The card shows the section and the position: "Registers · 6 / 18".
+// The tutorial.  The card shows the section and the position: "Registers · 6 / 18".
 const EduTutorial::Step EduTutorial::kStepData[] = {
     {EduTutorial::Welcome, "시작", "Start",
      "한림 MIPS 시뮬레이터입니다",
@@ -124,7 +124,7 @@ const EduTutorial::Step EduTutorial::kStepData[] = {
      "You write MIPS assembly here, run it an instruction at a time, and watch "
      "what happens to the registers and to memory. The example "
      "samples/tutorial.s is open and has been run into the middle of a function. "
-     "This tour points at each part of the screen and says what it is for."},
+     "This tutorial points at each part of the screen and says what it is for."},
 
     {EduTutorial::ToolbarFile, "툴바", "Tool bar",
      "파일 버튼",
@@ -182,10 +182,10 @@ const EduTutorial::Step EduTutorial::kStepData[] = {
 
     {EduTutorial::EditorPanel, "에디터", "Editor",
      "가운데 위: 에디터",
-     "소스를 여기서 씁니다. 지금은 투어의 예제가 읽기 전용으로 들어 있고, 투어가 끝나면 이 자리에 새 파일과 파일 열기 버튼이 나옵니다. Ctrl+S로 저장과 어셈블을 함께 하고, 어셈블 오류는 아래 목록에 모여 클릭하면 그 줄로 갑니다. Ctrl+휠이나 Ctrl+=로 글자 크기를 바꿉니다.",
+     "소스를 여기서 씁니다. 지금은 튜토리얼의 예제가 읽기 전용으로 들어 있고, 튜토리얼이 끝나면 이 자리에 새 파일과 파일 열기 버튼이 나옵니다. Ctrl+S로 저장과 어셈블을 함께 하고, 어셈블 오류는 아래 목록에 모여 클릭하면 그 줄로 갑니다. Ctrl+휠이나 Ctrl+=로 글자 크기를 바꿉니다.",
      "Top middle: the editor",
-     "This is where you write your program. The tour's example is in it now, "
-     "read-only; when the tour ends, a New file and an Open file button take "
+     "This is where you write your program. The tutorial's example is in it now, "
+     "read-only; when the tutorial ends, a New file and an Open file button take "
      "its place. Ctrl+S saves and assembles in one step, assembler errors "
      "gather in a list below and clicking one jumps to its line, and "
      "Ctrl+wheel or Ctrl+= changes the text size."},
@@ -300,12 +300,12 @@ const EduTutorial::Step EduTutorial::kStepData[] = {
     {EduTutorial::Finish, "마무리", "Finish",
      "준비되었습니다",
      "Window > Layout으로 에디터와 Text의 좌우를 바꿀 수 있고, Window > Tile은 이 배치로 되돌립니다. 안내문은 "
-     "Help > User Guide, 이 투어는 Help > Tutorial입니다. 예제는 열어 둘 테니 그대로 고쳐 보거나 "
+     "Help > User Guide, 이 튜토리얼은 Help > Tutorial입니다. 예제는 열어 둘 테니 그대로 고쳐 보거나 "
      "Simulator > Reinitialize로 비우고 시작하세요.",
      "You are ready",
      "Window > Layout swaps the editor and the Text panel, and Window > Tile "
      "puts this arrangement back. The written guide is Help > User Guide and "
-     "this tour is Help > Tutorial. The example stays open: change it, or clear "
+     "this tutorial is Help > Tutorial. The example stays open: change it, or clear "
      "everything with Simulator > Reinitialize."},
 };
 
@@ -342,7 +342,7 @@ EduTutorial::EduTutorial(SpimView* window)
   setAttribute(Qt::WA_ShowWithoutActivating);
   // Pressing a button on the card must not take the focus from the main
   // window: a window manager that honours this keeps the whole question of
-  // "who is active" away from the tour.
+  // "who is active" away from the tutorial.
   setAttribute(Qt::WA_X11DoNotAcceptFocus);
   hide();
 
@@ -373,7 +373,7 @@ EduTutorial::EduTutorial(SpimView* window)
     buttons[i]->setFocusPolicy(Qt::NoFocus);
   }
 
-  // The card's own text is the main thing on the screen while the tour is
+  // The card's own text is the main thing on the screen while the tutorial is
   // up, so none of it is set in a grey: the body is the same weight and
   // darkness as the text in the editor beside it.
   QFont titleFont = uiFont();
@@ -436,7 +436,7 @@ EduTutorial::EduTutorial(SpimView* window)
   connect(next_, SIGNAL(clicked()), this, SLOT(next()));
   connect(language_, SIGNAL(clicked()), this, SLOT(toggleLanguage()));
 
-  // A panel can be dragged, or a tab raised, while the tour is up.
+  // A panel can be dragged, or a tab raised, while the tutorial is up.
   connect(follow_, SIGNAL(timeout()), this, SLOT(reposition()));
   connect(qApp, SIGNAL(applicationStateChanged(Qt::ApplicationState)), this,
           SLOT(updateForActivation()));
@@ -1078,7 +1078,7 @@ bool EduTutorial::collectSpots(StepId id, QList<QRect>* spots, QString* tip,
 }
 
 //
-// Running the tour
+// Running the tutorial
 //
 
 void EduTutorial::buildSteps() {
@@ -1095,7 +1095,7 @@ void EduTutorial::buildSteps() {
     }
     // Nothing to point at -- a closed panel, or an example without the
     // label this step is about.  Left out, and said out loud: a silently
-    // shorter tour is how a broken spotlight would hide.
+    // shorter tutorial is how a broken spotlight would hide.
     const QString name = QString::fromUtf8(step.sectionEn) + "/" +
                          QString::fromUtf8(step.titleEn);
     skipped_ << name;
@@ -1312,7 +1312,7 @@ void EduTutorial::paintEvent(QPaintEvent*) {
 // Input
 //
 
-bool EduTutorial::handleTourKey(int key) {
+bool EduTutorial::handleTutorialKey(int key) {
   switch (key) {
     case Qt::Key_Escape:
       finish();
@@ -1333,21 +1333,21 @@ bool EduTutorial::handleTourKey(int key) {
 }
 
 void EduTutorial::keyPressEvent(QKeyEvent* event) {
-  if (!handleTourKey(event->key())) {
+  if (!handleTutorialKey(event->key())) {
     QWidget::keyPressEvent(event);
   }
 }
 
-// Clicks anywhere but on the card do nothing: the tour is left through its
+// Clicks anywhere but on the card do nothing: the tutorial is left through its
 // own buttons or Escape, never by a stray click.  It does not take the
 // focus either -- the keys it answers come through the application filter,
-// and taking the focus from the main window is what made the tour fight
+// and taking the focus from the main window is what made the tutorial fight
 // the window manager over which window is active.
 void EduTutorial::mousePressEvent(QMouseEvent*) {}
 
 // The window manager can close this window (its own close button, Alt+F4).
-// That has to be the end of the tour, not a hidden window that is still
-// running: a running tour holds the application filter and comes back the
+// That has to be the end of the tutorial, not a hidden window that is still
+// running: a running tutorial holds the application filter and comes back the
 // next time the program is activated.
 void EduTutorial::closeEvent(QCloseEvent* event) {
   finish();
@@ -1364,12 +1364,12 @@ bool EduTutorial::eventFilter(QObject* watched, QEvent* event) {
     return QWidget::eventFilter(watched, event);
   }
 
-  // While the tour is up its keys belong to it, wherever the focus is: this
+  // While the tutorial is up its keys belong to it, wherever the focus is: this
   // window never takes the focus, so without this they would be typed into
   // the editor.
   if (event->type() == QEvent::KeyPress) {
     QKeyEvent* key = static_cast<QKeyEvent*>(event);
-    if (key->modifiers() == Qt::NoModifier && handleTourKey(key->key())) {
+    if (key->modifiers() == Qt::NoModifier && handleTutorialKey(key->key())) {
       return true;
     }
   }
@@ -1390,7 +1390,7 @@ bool EduTutorial::eventFilter(QObject* watched, QEvent* event) {
       case QEvent::WindowDeactivate:
         // Not decided here: clicking the card activates the overlay, which
         // deactivates the main window, and hiding on that would end the
-        // tour at the first press of Next.  Asked again once the new
+        // tutorial at the first press of Next.  Asked again once the new
         // active window is known (updateForActivation()).
         QTimer::singleShot(0, this, SLOT(updateForActivation()));
         break;
@@ -1405,9 +1405,9 @@ bool EduTutorial::eventFilter(QObject* watched, QEvent* event) {
   return QWidget::eventFilter(watched, event);
 }
 
-// Whether the tour is on screen follows the application, not the window:
+// Whether the tutorial is on screen follows the application, not the window:
 // the overlay and the main window are one program to the reader, and only
-// something else coming forward should put the tour away.
+// something else coming forward should put the tutorial away.
 void EduTutorial::updateForActivation() {
   if (!running_) {
     return;  // finished or never started: nothing to bring back
@@ -1446,9 +1446,9 @@ void EduTutorial::toggleLanguage() {
   showStep(current_);
 }
 
-// Every way out of the tour comes through here: the last step's button,
+// Every way out of the tutorial comes through here: the last step's button,
 // Skip, Escape, and the window manager closing the overlay.  Nothing of
-// the tour may outlive it -- not the application event filter that takes
+// the tutorial may outlive it -- not the application event filter that takes
 // the arrow keys, not the timer that follows the window and puts the
 // step's panel back in front, and not the window itself.
 void EduTutorial::finish() {

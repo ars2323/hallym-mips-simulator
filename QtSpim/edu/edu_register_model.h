@@ -63,7 +63,7 @@ class EduRegisterModel : public QAbstractItemModel {
   void beginRunCommand();
 
   // While the snapshot is held, beginRunCommand() keeps the baseline it
-  // already has.  The tour walks the example with many single steps but
+  // already has.  The tutorial walks the example with many single steps but
   // wants what they changed marked as one run, the way a student's Run
   // command marks it.
   void setSnapshotHeld(bool held) { snapshotHeld_ = held; }
