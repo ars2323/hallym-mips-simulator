@@ -78,10 +78,20 @@ PROBE = r'''
       for (int i = 0; i < probeSteps.size(); i += 1) {
         const char* name = probeSteps.at(i) == "reload" ? "action_File_Reload"
                                                         : "action_File_Load";
+        QAction* action = probeWindow->findChild<QAction*>(name);
+        // This build has one way in: Open (action_File_Reload), which is
+        // upstream's Reinitialize and Load File.  A probe asking for
+        // "load" gets that.
+        if (action == 0) {
+          name = "action_File_Reload";
+          action = probeWindow->findChild<QAction*>(name);
+        }
         std::printf("STEP: %s\n", name);
         std::fflush(stdout);
         probeAnswered = false;
-        probeWindow->findChild<QAction*>(name)->trigger();
+        if (action != 0) {
+          action->trigger();
+        }
       }
       std::printf("DONE\n");
       std::fflush(stdout);

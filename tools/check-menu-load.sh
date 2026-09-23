@@ -134,18 +134,22 @@ if [ "$compare" -eq 1 ]; then
       grep -E '^(DIALOG|DONE)' || true
   }
 
-  for bare in default bare; do
-    for steps in load reload load,load reload,reload load,reload reload,load; do
-      v=$(probe vanilla-9.1.24 "$steps" $bare)
-      h=$(probe HEAD "$steps" $bare)
-      n=$(printf '%s\n' "$h" | grep -c '^DIALOG' || true)
-      if [ "$v" = "$h" ] && printf '%s' "$h" | grep -q '^DONE'; then
-        pass "[$bare settings] $steps: same as vanilla ($n message box(es))"
-      else
-        fail "[$bare settings] $steps: differs from vanilla"
-        printf '  vanilla: %s\n  HEAD:    %s\n' "$v" "$h"
-      fi
-    done
+  # This build has one way in -- Open, which is upstream's Reinitialize and
+  # Load File -- so a "load" here is compared with upstream's "reload".
+  # Bare Machine is not a mode this build offers any more (ARCHITECTURE 12,
+  # 95); tools/regress.sh still runs the upstream bare test programs
+  # through the -bare command line against a vanilla build.
+  for steps in load reload load,load reload,reload load,reload reload,load; do
+    upstream=$(printf '%s' "$steps" | sed 's/load/reload/g; s/rereload/reload/g')
+    v=$(probe vanilla-9.1.24 "$upstream" default)
+    h=$(probe HEAD "$steps" default)
+    n=$(printf '%s\n' "$h" | grep -c '^DIALOG' || true)
+    if [ "$v" = "$h" ] && printf '%s' "$h" | grep -q '^DONE'; then
+      pass "$steps: same as upstream's $upstream ($n message box(es))"
+    else
+      fail "$steps: differs from upstream's $upstream"
+      printf '  vanilla: %s\n  HEAD:    %s\n' "$v" "$h"
+    fi
   done
 
   for rev in vanilla-9.1.24 HEAD; do
