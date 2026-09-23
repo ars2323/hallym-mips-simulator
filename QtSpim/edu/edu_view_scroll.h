@@ -24,6 +24,7 @@
 
 class QAbstractScrollArea;
 class QModelIndex;
+class QWheelEvent;
 
 class EduKeepHorizontalScroll {
  public:
@@ -35,7 +36,30 @@ class EduKeepHorizontalScroll {
 
   QAbstractScrollArea* area_;
   int value_;
+  bool updates_;
 };
+
+// Shift and the wheel, scrolling sideways.  Some platforms turn that into
+// a horizontal wheel event and some do not, so the panels take it
+// themselves when the platform did not (W).  Returns true when it handled
+// the event, i.e. when the caller should not pass it on.
+bool eduWheelScrollsSideways(QAbstractScrollArea* area, QWheelEvent* event);
+
+namespace edu {
+
+// Every sideways move that reached the screen.  A panel scrolls sideways by
+// blitting its viewport there and then -- QWidget::scroll(), which on
+// Windows is ScrollWindowEx -- so a move that is undone afterwards is still
+// drawn once, and what the student sees is a flicker (V).  The views call
+// this from scrollContentsBy() when the move happened while the viewport
+// was drawing; with the viewport's updates off the blit is skipped and
+// nothing is counted.  Zero is the promise, and the harness checks it.
+void noteSidewaysPaint(const QWidget* panel, int dx);
+int sidewaysPaints();
+QString sidewaysPaintsSeen();  // "text +19, data -8", for the report
+void resetSidewaysPaints();
+
+}  // namespace edu
 
 // scrollTo() with the horizontal position put back afterwards.
 void eduScrollRowOnly(QAbstractItemView* view, const QModelIndex& index,

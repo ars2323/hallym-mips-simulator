@@ -9,6 +9,7 @@
 #include <QContextMenuEvent>
 #include <QHBoxLayout>
 #include <QHeaderView>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
@@ -106,6 +107,7 @@ EduDataView::EduDataView(QWidget* parent)
       unitGroup_(new QActionGroup(this)),
       frozen_(new QTableView(this)),
       frozenColumns_(0),
+      keyNavigating_(false),
       restoring_(false),
       fontApplied_(false),
       fittedBase_(0),
@@ -115,6 +117,7 @@ EduDataView::EduDataView(QWidget* parent)
       scrollValue_(0),
       menuAddress_(0),
       menuHasAddress_(false) {
+  setObjectName("DataSegView");  // so a report can name the panel
   setItemDelegate(new DataRowDelegate(this, false));
   setSelectionBehavior(QAbstractItemView::SelectItems);
   setSelectionMode(QAbstractItemView::SingleSelection);
@@ -122,6 +125,10 @@ EduDataView::EduDataView(QWidget* parent)
   setShowGrid(false);
   setWordWrap(false);
   setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
+  // Per pixel up and down as well: in ScrollPerItem the offset at the end
+  // of the range is worked out from the height of the viewport, so two
+  // views of the same rows can stand a few pixels apart (U).
+  setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
   setCornerButtonEnabled(false);
   verticalHeader()->hide();
   verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
@@ -173,7 +180,8 @@ void EduDataView::setDataModel(EduDataModel* model) {
   // over a hundred characters and the address is the first thing to go
   // off the left edge (R).
   frozen_->setObjectName("EduDataFrozen");
-  frozen_->setItemDelegate(new DataRowDelegate(this, true));
+  frozen_->setItemDelegate(new EduFrozenRowDelegate(
+      this, new DataRowDelegate(this, true), frozen_));
   frozenColumns_ = new EduFrozenColumns(
       this, frozen_, EduDataModel::AddressColumn + 1, this);
   frozenColumns_->attach();
@@ -263,6 +271,47 @@ bool EduDataView::goToAddress(quint32 address) {
   scrollTo(cell, QAbstractItemView::PositionAtCenter);
   emit memorySelectionChanged();
   return true;
+}
+
+// Only down and up.  QAbstractItemView::scrollTo() moves both axes, and
+// QAbstractScrollArea blits the viewport the moment the value changes, so
+// a move made here and undone afterwards is still one frame of the wrong
+// thing on screen (V).  The guard turns the viewport's drawing off while
+// the base class does its work, so nothing is blitted and nothing has to
+// be undone visibly.  The arrow keys go the other way: moving the current
+// cell to a column off the right should bring it into view.
+void EduDataView::scrollTo(const QModelIndex& index, ScrollHint hint) {
+  if (keyNavigating_) {
+    QTableView::scrollTo(index, hint);
+    return;
+  }
+  EduKeepHorizontalScroll keepSideways(this);
+  QTableView::scrollTo(index, hint);
+}
+
+// Shift and the wheel move the panel sideways where the platform has not
+// already done so (W).
+void EduDataView::wheelEvent(QWheelEvent* event) {
+  if (eduWheelScrollsSideways(this, event)) {
+    return;
+  }
+  QTableView::wheelEvent(event);
+}
+
+void EduDataView::keyPressEvent(QKeyEvent* event) {
+  keyNavigating_ = true;
+  QTableView::keyPressEvent(event);
+  keyNavigating_ = false;
+}
+
+// Where a sideways move becomes pixels on the screen.  With the viewport's
+// updates off there is no blit, and nothing is counted; anything counted
+// here is a frame the student saw (V).
+void EduDataView::scrollContentsBy(int dx, int dy) {
+  if (dx != 0 && viewport()->updatesEnabled()) {
+    edu::noteSidewaysPaint(this, dx);
+  }
+  QTableView::scrollContentsBy(dx, dy);
 }
 
 void EduDataView::beforeReset() {

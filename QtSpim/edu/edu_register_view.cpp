@@ -7,6 +7,7 @@
 #include <QAction>
 #include <QContextMenuEvent>
 #include <QHeaderView>
+#include <QKeyEvent>
 #include <QScrollBar>
 #include <QStyle>
 #include <QMenu>
@@ -54,6 +55,7 @@ EduRegisterView::EduRegisterView(QWidget* parent)
       contentWidth_(0),
       frozen_(new QTreeView(this)),
       frozenColumns_(0),
+      keyNavigating_(false),
       changeValueAction_(new QAction(this)) {
   // The column can be dragged to any width the student wants: in binary a
   // value is thirty-nine characters, which the default width cannot show.
@@ -86,7 +88,8 @@ void EduRegisterView::initFrozen() {
   setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
   setUniformRowHeights(true);
   frozen_->setObjectName("EduRegisterFrozen");
-  frozen_->setItemDelegate(new CompactRowDelegate(frozen_));
+  frozen_->setItemDelegate(new EduFrozenRowDelegate(
+      this, new CompactRowDelegate(0), frozen_));
   frozenColumns_ =
       new EduFrozenColumns(this, frozen_, EduRegisterModel::BaseColumn, this);
   frozenColumns_->attach();
@@ -126,6 +129,47 @@ void EduRegisterView::setRegisterModel(EduRegisterModel* model) {
 
   // The frozen name column follows the same model and the same selection.
   initFrozen();
+}
+
+// Only down and up.  QAbstractItemView::scrollTo() moves both axes, and
+// QAbstractScrollArea blits the viewport the moment the value changes, so
+// a move made here and undone afterwards is still one frame of the wrong
+// thing on screen (V).  The guard turns the viewport's drawing off while
+// the base class does its work, so nothing is blitted and nothing has to
+// be undone visibly.  The arrow keys go the other way: moving the current
+// cell to a column off the right should bring it into view.
+void EduRegisterView::scrollTo(const QModelIndex& index, ScrollHint hint) {
+  if (keyNavigating_) {
+    QTreeView::scrollTo(index, hint);
+    return;
+  }
+  EduKeepHorizontalScroll keepSideways(this);
+  QTreeView::scrollTo(index, hint);
+}
+
+// Shift and the wheel move the panel sideways where the platform has not
+// already done so (W).
+void EduRegisterView::wheelEvent(QWheelEvent* event) {
+  if (eduWheelScrollsSideways(this, event)) {
+    return;
+  }
+  QTreeView::wheelEvent(event);
+}
+
+void EduRegisterView::keyPressEvent(QKeyEvent* event) {
+  keyNavigating_ = true;
+  QTreeView::keyPressEvent(event);
+  keyNavigating_ = false;
+}
+
+// Where a sideways move becomes pixels on the screen.  With the viewport's
+// updates off there is no blit, and nothing is counted; anything counted
+// here is a frame the student saw (V).
+void EduRegisterView::scrollContentsBy(int dx, int dy) {
+  if (dx != 0 && viewport()->updatesEnabled()) {
+    edu::noteSidewaysPaint(this, dx);
+  }
+  QTreeView::scrollContentsBy(dx, dy);
 }
 
 bool EduRegisterView::currentRegister(edu::RegisterRef* reg) const {

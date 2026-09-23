@@ -30,7 +30,13 @@
 #  13. The tutorial's example is read-only, the display settings are the ones
 #      its cards describe, and all four exits give everything back.
 #  14. Each panel can be scrolled sideways, and nothing the simulator does
-#      moves it there by itself; the tutorial puts the position back.
+#      moves it there by itself -- not even for one frame; the tutorial puts
+#      the position back.  Every panel leaves both bars to Qt, its far right
+#      can be reached, and Shift with the wheel moves it.
+#  15. The frozen strip and the panel under it show the same row at the same
+#      height, through every base, text size, moment and scroll position.
+#  16. No panel can be taken out of the window, and a saved state that has
+#      one floating is brought back inside.
 
 set -euo pipefail
 
@@ -59,8 +65,10 @@ run() {  # run NAME ARGS...  -> $work/NAME.out
   local name=$1; shift
   rm -rf "$work/config"
   env -i QT_QPA_PLATFORM=offscreen HOME=/nonexistent \
-      XDG_CONFIG_HOME="$work/config" timeout 120 "$app" "$@" \
-      --dump console "$work/$name.console" >"$work/$name.out" 2>&1 || true
+      XDG_CONFIG_HOME="$work/config" timeout 300 "$app" "$@" \
+      --dump console "$work/$name.console" >"$work/$name.out" \
+      2>"$work/$name.err" || true
+  cat "$work/$name.err" >>"$work/$name.out"
 }
 
 # "출력" is EC B6 9C EB A0 A5 in UTF-8 and C3 E2 B7 C2 in CP949.
@@ -536,9 +544,41 @@ for panel in text data intregs; do
 done
 moved=$(grep -c MOVED "$work/hscroll.out" || true)
 if [ "$moved" -eq 0 ]; then
-  pass "a step, a selection and a refresh leave all three where they were"
+  pass "steps, a selection, a Go to and a refresh leave all three in place"
 else
   fail "$(grep -m1 MOVED "$work/hscroll.out")"
+fi
+# Not only "it ended up where it started": a scrollTo that moves sideways
+# and is put back afterwards still blits one frame of the wrong thing.
+if grep -q "^hscroll: sideways frames drawn 0$" "$work/hscroll.out"; then
+  pass "not one frame was drawn with a panel moved sideways"
+else
+  fail "$(grep -m1 'sideways frames drawn' "$work/hscroll.out")"
+fi
+
+# Every panel, including the editor and the two bottom tabs: the bars are
+# left to Qt, the far right of the content can be reached, and Shift with
+# the wheel gets there.
+run scrollbars --window-size 1200x800 --load "$repo/helloworld.s" \
+    --editor-open "$repo/helloworld.s" --reg-base 2 \
+    --trigger action_Data_DisplayBinary --scrollbar-report
+for panel in intregs text data editor console messages; do
+  line=$(grep -m1 "^scrollbar: $panel hpolicy=" "$work/scrollbars.out" || true)
+  case "$line" in
+    "scrollbar: $panel hpolicy=0 "*"vpolicy=0 "*) pass "${line#scrollbar: }" ;;
+    "") fail "$panel: no scroll bar report" ;;
+    *) fail "${line#scrollbar: }" ;;
+  esac
+done
+if grep -q "CUT OFF" "$work/scrollbars.out"; then
+  fail "$(grep -m1 'CUT OFF' "$work/scrollbars.out")"
+else
+  pass "the last column of each panel can be brought into view"
+fi
+if grep -q "STUCK" "$work/scrollbars.out"; then
+  fail "$(grep -m1 STUCK "$work/scrollbars.out")"
+else
+  pass "Shift and the wheel move every panel that has somewhere to go"
 fi
 
 run hscrollTutorial --window-size 1600x900 --load "$repo/helloworld.s" \
@@ -548,6 +588,38 @@ if grep -q 'hscroll .* MOVED' "$work/hscrollTutorial.out"; then
   fail "$(grep -m1 'hscroll .* MOVED' "$work/hscrollTutorial.out")"
 else
   pass "the tutorial gives the sideways position back when it ends"
+fi
+
+echo "== 15. the frozen strip and the panel agree, row for row"
+# Registers, Data and Text, each through its bases, five text sizes, folded
+# and unfolded, three scroll positions, at two window sizes, and after each
+# of eight moments in the program's life.  The check is what the student
+# sees: walk down the panel and ask both views which row is at that pixel.
+run align --load "$repo/helloworld.s" --editor-open "$repo/helloworld.s" \
+    --align-sweep
+groups=$(grep -c "^align: [0-9]" "$work/align.out" || true)
+bad=$(grep -c "^align: .* FAIL" "$work/align.out" || true)
+if [ "$groups" -ge 40 ] && [ "$bad" -eq 0 ]; then
+  pass "$groups combinations of panel, base, size, moment and scroll: all aligned"
+else
+  fail "$bad of $groups alignment groups failed"
+  grep -m1 -A3 "align: FAIL" "$work/align.err" 2>/dev/null || true
+fi
+
+echo "== 16. no panel can leave the window"
+run docks --window-size 1400x900 --dock-report
+docks_total=$(grep -c "^dock: [A-Z]" "$work/docks.out" || true)
+docks_bad=$(grep -c "^dock: .* floatable=1" "$work/docks.out" || true)
+docks_out=$(grep -c "^dock: .* floating=1" "$work/docks.out" || true)
+if [ "$docks_total" -ge 7 ] && [ "$docks_bad" -eq 0 ] && [ "$docks_out" -eq 0 ]; then
+  pass "$docks_total panels: none can float, none is floating"
+else
+  fail "$docks_bad of $docks_total panels can float, $docks_out are floating"
+fi
+if grep -q "^dock: after eduDockEverything() 0 panel" "$work/docks.out"; then
+  pass "a saved state with a floating panel comes back inside the window"
+else
+  fail "$(grep -m1 'after eduDockEverything' "$work/docks.out")"
 fi
 
 echo

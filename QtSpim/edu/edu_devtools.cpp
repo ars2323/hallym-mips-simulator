@@ -30,7 +30,9 @@
 #include <QStatusBar>
 #include <QTextDocument>
 #include <QTextCodec>
+#include <QHeaderView>
 #include <QTableView>
+#include <QTreeView>
 #include <QTextStream>
 #include <QThread>
 #include <QTimer>
@@ -52,12 +54,15 @@
 #include "edu/edu_data_view.h"
 #include "edu/edu_code_editor.h"
 #include "edu/edu_editor_dock.h"
+#include "edu/edu_panel_zoom.h"
 #include "edu/edu_register_view.h"
 #include "edu/edu_text_model.h"
 #include "edu/edu_text_view.h"
+#include "edu/edu_view_scroll.h"
 #include "edu/edu_tutorial.h"
 #include "edu/theme/edu_splash.h"
 #include "edu/theme/edu_theme.h"
+#include "edu/theme/tokens.h"
 
 namespace {
 
@@ -89,6 +94,9 @@ EduDevtools::EduDevtools(QObject* parent)
       saveSettings_(false),
       inspectorReport_(false),
       hscrollReport_(false),
+      alignSweep_(false),
+      scrollbarReport_(false),
+      dockReport_(false),
       layoutReport_(false),
       expandEnvironment_(false),
       expandKernelData_(false),
@@ -157,6 +165,16 @@ QString EduDevtools::usage() {
       "  --inspector-report     print what the Instruction Inspector shows\n"
       "  --hscroll <panel>=<n>  scroll a panel sideways (text, data, intregs);\n"
       "                         n may be \"max\" (repeatable)\n"
+      "  --align-sweep          walk Registers, Data and Text through their\n"
+      "                         bases, text sizes, moments and scroll positions\n"
+      "                         and check that the frozen strip and the panel\n"
+      "                         show the same row at the same height\n"
+      "  --dock-report          every panel's dock features, and that a saved\n"
+      "                         state with a floating panel still comes back\n"
+      "                         with everything inside the window\n"
+      "  --scrollbar-report     every panel's scroll bar policies, whether the\n"
+      "                         far right of its content can be reached, and\n"
+      "                         whether Shift and the wheel scroll sideways\n"
       "  --hscroll-report       print each panel's horizontal scroll range, then\n"
       "                         scroll all three sideways and check that a step,\n"
       "                         a selection and a refresh leave them there\n"
@@ -473,6 +491,21 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
 
     if (arg == "--hscroll-report") {
       hscrollReport_ = true;
+      continue;
+    }
+
+    if (arg == "--align-sweep") {
+      alignSweep_ = true;
+      continue;
+    }
+
+    if (arg == "--scrollbar-report") {
+      scrollbarReport_ = true;
+      continue;
+    }
+
+    if (arg == "--dock-report") {
+      dockReport_ = true;
       continue;
     }
 
@@ -1113,6 +1146,403 @@ void EduDevtools::applyThemeOptions() {
   }
 }
 
+//
+// --align-sweep: the frozen strip and the panel it sits on (U)
+//
+// The strip is a second view of the same model.  Whatever makes one of the
+// two work out its row heights differently -- a font that reached only one,
+// a delegate only one has, a model reset only one redid -- shows up as the
+// name of one register beside the value of another.  This walks down each
+// panel a pixel row at a time and asks both views which model row is there.
+
+namespace {
+
+QString viewFacts(QAbstractItemView* v) {
+  QString text;
+  QTextStream out(&text);
+  out << "font=" << v->font().pointSizeF() << "pt/" << v->font().family()
+      << " delegate=" << quintptr(v->itemDelegate())
+      << " qss=" << (v->styleSheet().isEmpty() ? QString("-") : v->styleSheet());
+  if (QTreeView* tree = qobject_cast<QTreeView*>(v)) {
+    out << " uniform=" << (tree->uniformRowHeights() ? 1 : 0)
+        << " indent=" << tree->indentation();
+  }
+  if (QTableView* table = qobject_cast<QTableView*>(v)) {
+    out << " defaultRow=" << table->verticalHeader()->defaultSectionSize();
+  }
+  out << " vmode=" << int(v->verticalScrollMode())
+      << " vbar=" << v->verticalScrollBar()->value() << "/"
+      << v->verticalScrollBar()->maximum()
+      << " vp=" << v->viewport()->height()
+      << " row0.y=" << v->visualRect(v->model()->index(0, 0)).y()
+      << " row0.h=" << v->visualRect(v->model()->index(0, 0)).height();
+  return text;
+}
+
+}  // namespace
+
+// The three panels that have a frozen strip, with the strip found by the
+// object name the panel gave it.
+QList<EduDevtools::FrozenPair> EduDevtools::frozenPairs() const {
+  struct { const char* name; QAbstractItemView* view; const char* frozen; } const
+      all[] = {
+          {"intregs", window_->ui->IntRegView, "EduRegisterFrozen"},
+          {"data", window_->ui->DataSegPanel->view(), "EduDataFrozen"},
+          {"text", window_->ui->TextSegView, "EduTextFrozen"}};
+  QList<FrozenPair> pairs;
+  for (unsigned i = 0; i < sizeof(all) / sizeof(all[0]); i += 1) {
+    FrozenPair pair;
+    pair.name = all[i].name;
+    pair.view = all[i].view;
+    pair.frozen = all[i].view->findChild<QAbstractItemView*>(all[i].frozen);
+    if (pair.frozen != 0) {
+      pairs << pair;
+    }
+  }
+  return pairs;
+}
+
+// True when every pixel row of the panel shows the same model row in both
+// views, at the same height.  On the first disagreement it prints the row,
+// the two rectangles and everything that could have made them differ.
+bool EduDevtools::alignedRows(const FrozenPair& pair, const QString& state) {
+  QAbstractItemView* view = pair.view;
+  QAbstractItemView* frozen = pair.frozen;
+  if (frozen->isHidden() || view->viewport()->height() <= 0) {
+    return true;  // nothing on show: nothing to disagree about
+  }
+  const int height = qMin(view->viewport()->height(), frozen->viewport()->height());
+  for (int y = 2; y < height; y += 4) {
+    const QModelIndex a = view->indexAt(QPoint(4, y));
+    const QModelIndex b = frozen->indexAt(QPoint(4, y));
+    const QModelIndex a0 = a.isValid() ? a.sibling(a.row(), 0) : QModelIndex();
+    const QModelIndex b0 = b.isValid() ? b.sibling(b.row(), 0) : QModelIndex();
+    QString why;
+    if (a0 != b0) {
+      why = QString("y=%1 panel row %2 (%3), strip row %4 (%5)")
+                .arg(y)
+                .arg(a0.isValid() ? a0.row() : -1)
+                .arg(a0.data(Qt::DisplayRole).toString())
+                .arg(b0.isValid() ? b0.row() : -1)
+                .arg(b0.data(Qt::DisplayRole).toString());
+    } else if (a0.isValid()) {
+      const QRect ra = view->visualRect(a0);
+      const QRect rb = frozen->visualRect(b0);
+      if (ra.y() != rb.y() || ra.height() != rb.height()) {
+        why = QString("row %1: panel y=%2 h=%3, strip y=%4 h=%5")
+                  .arg(a0.row()).arg(ra.y()).arg(ra.height())
+                  .arg(rb.y()).arg(rb.height());
+      }
+    }
+    if (!why.isEmpty()) {
+      err() << "align: FAIL " << pair.name << " " << state << " -- " << why
+            << "\n    panel: " << viewFacts(view)
+            << "\n    strip: " << viewFacts(frozen) << "\n" << Qt::flush;
+      status_ = 2;
+      return false;
+    }
+  }
+  return true;
+}
+
+// One pass over the display options of one panel, at one moment in the
+// program's life.  Returns the number of combinations that failed.
+int EduDevtools::sweepPanel(const FrozenPair& pair, const QString& moment) {
+  QList<QAction*> bases;
+  if (pair.name == "intregs") {
+    bases << window_->ui->action_Reg_DisplayHex
+          << window_->ui->action_Reg_DisplayDecimal
+          << window_->ui->action_Reg_DisplayBinary;
+  } else if (pair.name == "data") {
+    bases << window_->ui->action_Data_DisplayHex
+          << window_->ui->action_Data_DisplayBinary
+          << window_->ui->action_Data_DisplayDecimal;
+  } else {
+    bases << window_->ui->action_Text_DisplayComments
+          << window_->ui->action_Text_DisplayInstructionValue;
+  }
+
+  int failures = 0;
+  for (int b = 0; b < bases.size(); b += 1) {
+    QAction* base = bases.at(b);
+    if (base->isCheckable() && pair.name == "text") {
+      base->setChecked(!base->isChecked());  // Comments / Instruction Value
+      base->trigger();
+    } else {
+      base->trigger();
+    }
+    QApplication::processEvents();
+
+    const int sizes[] = {0, 3, -2, 0, 20};  // 0 = the panel's own default
+    for (unsigned z = 0; z < sizeof(sizes) / sizeof(sizes[0]); z += 1) {
+      setPanelSize(pair.name, sizes[z], z == 4);
+      QApplication::processEvents();
+
+      for (int folded = 0; folded < (pair.name == "intregs" ? 2 : 1);
+           folded += 1) {
+        if (pair.name == "intregs") {
+          QTreeView* tree = qobject_cast<QTreeView*>(pair.view);
+          if (folded) {
+            tree->collapseAll();
+          } else {
+            tree->expandAll();
+          }
+          QApplication::processEvents();
+        }
+        QScrollBar* bar = pair.view->verticalScrollBar();
+        const int stops[] = {bar->minimum(), (bar->minimum() + bar->maximum()) / 2,
+                             bar->maximum()};
+        for (unsigned v = 0; v < sizeof(stops) / sizeof(stops[0]); v += 1) {
+          bar->setValue(stops[v]);
+          QApplication::processEvents();
+          const QString state =
+              QString("%1 base=%2 size=%3 folded=%4 vscroll=%5")
+                  .arg(moment)
+                  .arg(base->objectName().section('_', -1))
+                  .arg(sizes[z])
+                  .arg(folded)
+                  .arg(stops[v]);
+          if (!alignedRows(pair, state)) {
+            failures += 1;
+          }
+        }
+      }
+    }
+  }
+  setPanelSize(pair.name, 0, false);  // leave the panel as it was found
+  return failures;
+}
+
+// `steps` is a change in text size; 0 puts the panel's own default back.
+// `all` goes through Settings' "All panels text size" instead.
+void EduDevtools::setPanelSize(const QString& panel, int steps, bool all) {
+  if (all) {
+    window_->eduSetAllPanelSizes(steps == 0 ? int(edu::theme::kCodePointSize)
+                                            : steps);
+    return;  // eduSetAllPanelSizes already moved the registers too
+  }
+  if (panel == "intregs") {
+    // Registers take their size from Settings, not from a panel zoom.
+    window_->eduSetRegisterPointSize(int(edu::theme::kCodePointSize) + steps);
+    return;
+  }
+  EduPanelZoom* zoom =
+      panel == "text" ? window_->eduTextZoom : window_->eduDataZoom;
+  if (zoom != 0) {
+    zoom->setPointSize(zoom->basePointSize() + steps);
+  }
+}
+
+void EduDevtools::runAlignSweep() {
+  const QSize windows[] = {QSize(1600, 900), QSize(960, 1080)};
+  for (unsigned w = 0; w < sizeof(windows) / sizeof(windows[0]); w += 1) {
+    window_->resize(windows[w]);
+    settle();
+    const QString size = QString("%1x%2").arg(windows[w].width())
+                             .arg(windows[w].height());
+
+    const char* const moments[] = {"start",    "assemble", "reinitialize",
+                                   "step",     "tile",     "mirrored",
+                                   "primary",  "tutorial"};
+    for (unsigned m = 0; m < sizeof(moments) / sizeof(moments[0]); m += 1) {
+      const QString moment = moments[m];
+      QElapsedTimer momentClock;
+      momentClock.start();
+      if (moment == "assemble") {
+        // Only when the editor holds a file: with none, Assemble asks for
+        // a name and the sweep would wait for a dialog nobody answers.
+        if (window_->eduEditor != 0 &&
+            !window_->eduEditor->filePath().isEmpty()) {
+          window_->eduAssemble();
+        }
+      } else if (moment == "reinitialize") {
+        window_->sim_ReinitializeSimulator();
+      } else if (moment == "step") {
+        window_->sim_SingleStep();
+      } else if (moment == "tile") {
+        window_->win_Tile();
+      } else if (moment == "mirrored") {
+        window_->eduApplyLayout(1);
+      } else if (moment == "primary") {
+        window_->eduApplyLayout(0);
+      } else if (moment == "tutorial") {
+        window_->eduShowTutorial();
+        if (window_->eduTutorial != 0) {
+          while (window_->eduTutorial->isRunning() &&
+                 clickTutorialButton("EduTutorialNext")) {
+          }
+        }
+      }
+      settle();
+      out() << "align: moment " << size << " " << moment << " took "
+            << momentClock.elapsed() << " ms\n" << Qt::flush;
+
+      const QList<FrozenPair> pairs = frozenPairs();
+      for (int p = 0; p < pairs.size(); p += 1) {
+        QElapsedTimer clock;
+        clock.start();
+        const int failures = sweepPanel(pairs.at(p), size + " " + moment);
+        out() << "align: " << size << " " << moment << " " << pairs.at(p).name
+              << " " << (failures == 0 ? "PASS" : "FAIL")
+              << " (" << failures << " bad combination(s), " << clock.elapsed()
+              << " ms)\n" << Qt::flush;
+      }
+    }
+  }
+}
+
+//
+// --scrollbar-report: every panel can be read to its right-hand edge (W)
+//
+// A panel with no horizontal scroll bar hides whatever does not fit, and
+// there is no way to ask for it.  This says, for each one, what its
+// policies are, whether the bar is on screen, whether the last column can
+// actually be brought into view, and whether Shift and the wheel move it.
+
+void EduDevtools::runScrollbarReport() {
+  settle();
+  struct { const char* name; QAbstractScrollArea* area; } const panels[] = {
+      {"intregs", window_->ui->IntRegView},
+      {"text", window_->ui->TextSegView},
+      {"data", window_->ui->DataSegPanel->view()},
+      {"editor", window_->eduEditor->editor()},
+      {"console", qobject_cast<QAbstractScrollArea*>(
+                      window_->eduBottom->console())},
+      {"messages", qobject_cast<QAbstractScrollArea*>(
+                       window_->eduBottom->messages())}};
+  for (unsigned i = 0; i < sizeof(panels) / sizeof(panels[0]); i += 1) {
+    QAbstractScrollArea* area = panels[i].area;
+    if (area == 0) {
+      err() << "scrollbar: no " << panels[i].name << " panel\n" << Qt::flush;
+      status_ = 2;
+      continue;
+    }
+    QScrollBar* h = area->horizontalScrollBar();
+    QScrollBar* v = area->verticalScrollBar();
+    out() << "scrollbar: " << panels[i].name
+          << " hpolicy=" << int(area->horizontalScrollBarPolicy())
+          << " hmax=" << h->maximum() << " hshown=" << (h->isVisible() ? 1 : 0)
+          << " vpolicy=" << int(area->verticalScrollBarPolicy())
+          << " vmax=" << v->maximum() << " vshown=" << (v->isVisible() ? 1 : 0)
+          << "\n" << Qt::flush;
+    if (area->horizontalScrollBarPolicy() != Qt::ScrollBarAsNeeded ||
+        area->verticalScrollBarPolicy() != Qt::ScrollBarAsNeeded) {
+      err() << "scrollbar: " << panels[i].name
+            << " does not leave both bars to Qt\n" << Qt::flush;
+      status_ = 2;
+    }
+
+    // The far right, reached and then given back.
+    const int was = h->value();
+    h->setValue(h->maximum());
+    settle();
+    if (QTableView* table = qobject_cast<QTableView*>(area)) {
+      int last = -1;
+      for (int c = table->model()->columnCount() - 1; c >= 0; c -= 1) {
+        if (!table->isColumnHidden(c)) {
+          last = c;
+          break;
+        }
+      }
+      const int right = table->columnViewportPosition(last) +
+                        table->columnWidth(last);
+      out() << "scrollbar: " << panels[i].name << " last column " << last
+            << " ends at " << right << " of " << table->viewport()->width()
+            << (right <= table->viewport()->width() ? " reached" : " CUT OFF")
+            << "\n" << Qt::flush;
+      if (right > table->viewport()->width()) {
+        status_ = 2;
+      }
+    }
+    if (QTreeView* tree = qobject_cast<QTreeView*>(area)) {
+      const int right = tree->header()->length() - h->value();
+      out() << "scrollbar: " << panels[i].name << " columns end at " << right
+            << " of " << tree->viewport()->width()
+            << (right <= tree->viewport()->width() + 1 ? " reached" : " CUT OFF")
+            << "\n" << Qt::flush;
+      if (right > tree->viewport()->width() + 1) {
+        status_ = 2;
+      }
+    }
+    h->setValue(was);
+
+    // Shift and the wheel.
+    if (h->maximum() > 0) {
+      h->setValue(h->maximum() / 2);
+      const int before = h->value();
+      QWheelEvent wheel(QPointF(10, 10), area->viewport()->mapToGlobal(QPoint(10, 10)),
+                        QPoint(0, 0), QPoint(0, -120), Qt::NoButton,
+                        Qt::ShiftModifier, Qt::NoScrollPhase, false);
+      QApplication::sendEvent(area->viewport(), &wheel);
+      settle();
+      out() << "scrollbar: " << panels[i].name << " shift+wheel " << before
+            << " -> " << h->value()
+            << (h->value() != before ? " moved" : " STUCK") << "\n" << Qt::flush;
+      if (h->value() == before) {
+        status_ = 2;
+      }
+      h->setValue(was);
+    }
+  }
+}
+
+//
+// --dock-report: no panel can leave the window (Y)
+//
+void EduDevtools::runDockReport() {
+  settle();
+  const QList<QDockWidget*> docks = window_->eduAllDocks();
+  for (int i = 0; i < docks.size(); i += 1) {
+    QDockWidget* dock = docks.at(i);
+    const bool floatable =
+        dock->features().testFlag(QDockWidget::DockWidgetFloatable);
+    out() << "dock: " << dock->objectName()
+          << " floatable=" << (floatable ? 1 : 0)
+          << " floating=" << (dock->isFloating() ? 1 : 0)
+          << " closable="
+          << (dock->features().testFlag(QDockWidget::DockWidgetClosable) ? 1 : 0)
+          << " areas=" << int(dock->allowedAreas())
+          << " inWindow=" << (dock->isFloating() ? 0 : 1) << "\n" << Qt::flush;
+    if (floatable || dock->isFloating()) {
+      status_ = 2;
+    }
+  }
+
+  // A settings file written by an older build can still name a floating
+  // panel.  Float one, save that state, put it back, restore the state --
+  // and the window must still have everything inside it.
+  if (!docks.isEmpty()) {
+    docks.first()->setFloating(true);
+    settle();
+    const QByteArray state = window_->saveState(5);
+    window_->eduDockEverything();
+    settle();
+    window_->restoreState(state, 5);
+    settle();
+    int floating = 0;
+    for (int i = 0; i < docks.size(); i += 1) {
+      if (docks.at(i)->isFloating()) {
+        floating += 1;
+      }
+    }
+    out() << "dock: a restored state left " << floating << " panel(s) floating"
+          << "\n" << Qt::flush;
+    window_->eduDockEverything();
+    settle();
+    int after = 0;
+    for (int i = 0; i < docks.size(); i += 1) {
+      if (docks.at(i)->isFloating()) {
+        after += 1;
+      }
+    }
+    out() << "dock: after eduDockEverything() " << after
+          << " panel(s) floating\n" << Qt::flush;
+    if (after != 0) {
+      status_ = 2;
+    }
+  }
+}
+
 void EduDevtools::run() {
   settle();
   applyThemeOptions();
@@ -1506,6 +1936,18 @@ void EduDevtools::run() {
           << bar->maximum() << "\n" << Qt::flush;
   }
 
+  if (alignSweep_) {
+    runAlignSweep();
+  }
+
+  if (scrollbarReport_) {
+    runScrollbarReport();
+  }
+
+  if (dockReport_) {
+    runDockReport();
+  }
+
   // Sideways scrolling: each panel has somewhere to go, and nothing the
   // simulator does moves it there by itself (R, S).
   if (hscrollReport_) {
@@ -1523,24 +1965,31 @@ void EduDevtools::run() {
             << " shown=" << (bar->isVisible() ? 1 : 0) << "\n" << Qt::flush;
     }
     // Put each panel somewhere in the middle of its range and see whether
-    // it is still there after the three things that used to move it.
+    // it is still there after the things that used to move it -- and, more
+    // than that, whether it ever moved in between (V).
     int wanted[3] = {0, 0, 0};
     for (unsigned i = 0; i < count; i += 1) {
       QScrollBar* bar = panels[i].view->horizontalScrollBar();
       wanted[i] = bar->maximum() / 2;
       bar->setValue(wanted[i]);
     }
-    const char* const stages[] = {"step", "select", "refresh"};
-    for (unsigned stage = 0; stage < 3; stage += 1) {
+    settle();
+    edu::resetSidewaysPaints();  // from here on nothing may move sideways
+    const char* const stages[] = {"steps", "select", "goto", "refresh"};
+    for (unsigned stage = 0; stage < sizeof(stages) / sizeof(stages[0]);
+         stage += 1) {
       if (stage == 0) {
-        window_->sim_SingleStep();
+        for (int i = 0; i < 20; i += 1) {
+          window_->sim_SingleStep();
+        }
       } else if (stage == 1) {
         window_->ui->TextSegView->selectAddress(PC);
-        window_->ui->DataSegPanel->view()->goToAddress(R[REG_SP]);
         edu::RegisterRef reg;
         if (edu::findRegister("$sp", &reg)) {
           window_->ui->IntRegView->selectRegister(reg);
         }
+      } else if (stage == 2) {
+        window_->ui->DataSegPanel->goTo("$sp");
       } else {
         window_->DisplayTextSegments(true);
         window_->DisplayDataSegments(true);
@@ -1557,6 +2006,12 @@ void EduDevtools::run() {
         }
       }
     }
+    out() << "hscroll: sideways frames drawn " << edu::sidewaysPaints();
+    if (edu::sidewaysPaints() > 0) {
+      out() << " (" << edu::sidewaysPaintsSeen() << ")";
+      status_ = 2;
+    }
+    out() << "\n" << Qt::flush;
   }
 
   // What the Instruction Inspector is showing, as text.

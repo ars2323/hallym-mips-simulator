@@ -2,6 +2,8 @@
 
 #include "edu/edu_code_editor.h"
 
+#include "edu/edu_view_scroll.h"
+
 #include "edu/theme/tokens.h"
 
 #include <QHelpEvent>
@@ -163,6 +165,11 @@ void EduCodeEditor::wheelEvent(QWheelEvent* event) {
       zoomOutOnePoint();
     }
     event->accept();
+    return;
+  }
+  // Shift and the wheel: sideways, as in the other panels (W).  Lines are
+  // not wrapped here, so there is somewhere to go.
+  if (eduWheelScrollsSideways(this, event)) {
     return;
   }
   QPlainTextEdit::wheelEvent(event);

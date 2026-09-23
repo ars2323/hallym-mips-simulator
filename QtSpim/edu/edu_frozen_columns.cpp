@@ -4,12 +4,49 @@
 
 #include <QAbstractItemModel>
 #include <QAbstractItemView>
+#include <QApplication>
 #include <QContextMenuEvent>
 #include <QEvent>
 #include <QHeaderView>
 #include <QScrollBar>
 #include <QTableView>
 #include <QTreeView>
+
+EduFrozenRowDelegate::EduFrozenRowDelegate(QAbstractItemView* source,
+                                           QAbstractItemDelegate* painter,
+                                           QObject* parent)
+    : QStyledItemDelegate(parent), source_(source), painter_(painter) {
+  painter_->setParent(this);
+}
+
+void EduFrozenRowDelegate::paint(QPainter* painter,
+                                 const QStyleOptionViewItem& option,
+                                 const QModelIndex& index) const {
+  painter_->paint(painter, option, index);
+}
+
+QSize EduFrozenRowDelegate::sizeHint(const QStyleOptionViewItem& option,
+                                     const QModelIndex& index) const {
+  QSize size = painter_->sizeHint(option, index);
+  const int height = sourceRowHeight(source_, index);
+  if (height > 0) {
+    size.setHeight(height);
+  }
+  return size;
+}
+
+int EduFrozenRowDelegate::sourceRowHeight(QAbstractItemView* source,
+                                          const QModelIndex& index) {
+  if (QTableView* table = qobject_cast<QTableView*>(source)) {
+    return table->rowHeight(index.row());
+  }
+  if (qobject_cast<QTreeView*>(source) != 0) {
+    // QTreeView::rowHeight() is protected; visualRect() says the same and
+    // is not clipped to the viewport, so a row scrolled out still answers.
+    return source->visualRect(index).height();
+  }
+  return 0;
+}
 
 EduFrozenColumns::EduFrozenColumns(QAbstractItemView* view,
                                    QAbstractItemView* frozen, int columns,
@@ -48,7 +85,6 @@ void EduFrozenColumns::attach() {
   frozen_->setSelectionMode(view_->selectionMode());
   frozen_->setSelectionBehavior(view_->selectionBehavior());
   frozen_->setEditTriggers(view_->editTriggers());
-  frozen_->setVerticalScrollMode(view_->verticalScrollMode());
   frozen_->viewport()->installEventFilter(this);
 
   if (QTreeView* tree = qobject_cast<QTreeView*>(frozen_)) {
@@ -123,10 +159,18 @@ void EduFrozenColumns::sync() {
   if (header == 0 || source == 0) {
     return;
   }
-  // The same fonts, or the rows are different heights and the names
-  // slide away from the values they belong to.
+  // Everything the panel decided, copied rather than decided again.  The
+  // scroll mode matters as much as the font: in ScrollPerItem the offset
+  // at the end of the range depends on the height of the viewport, and
+  // the two viewports were eight pixels apart (U).
   frozen_->setFont(view_->font());
+  frozen_->setVerticalScrollMode(view_->verticalScrollMode());
   header->setFont(source->font());
+  // The strip's header is held to the panel's height, so that what is left
+  // for the rows is the same in both to the pixel.
+  if (!source->isHidden()) {
+    header->setFixedHeight(source->height());
+  }
   if (QTreeView* tree = qobject_cast<QTreeView*>(frozen_)) {
     tree->setIndentation(qobject_cast<QTreeView*>(view_)->indentation());
   }
@@ -149,10 +193,66 @@ void EduFrozenColumns::sync() {
   frozen_->setGeometry(view_->frameWidth(), view_->frameWidth(), strip,
                        view_->viewport()->height() + headerHeight());
   frozen_->setVisible(strip > 0);
+  frozen_->verticalScrollBar()->setRange(view_->verticalScrollBar()->minimum(),
+                                         view_->verticalScrollBar()->maximum());
   frozen_->verticalScrollBar()->setValue(view_->verticalScrollBar()->value());
 }
 
+// Walks down the two views a pixel row at a time and asks each which model
+// row is there.  That is what the student sees, so that is what is checked.
+int EduFrozenColumns::firstMisalignedRow(QString* why) const {
+  if (!attached_ || frozen_->isHidden()) {
+    return -1;
+  }
+  const int height =
+      qMin(view_->viewport()->height(), frozen_->viewport()->height());
+  for (int y = 2; y < height; y += 2) {
+    const QModelIndex a = view_->indexAt(QPoint(4, y));
+    const QModelIndex b = frozen_->indexAt(QPoint(4, y));
+    const QModelIndex a0 = a.isValid() ? a.sibling(a.row(), 0) : QModelIndex();
+    const QModelIndex b0 = b.isValid() ? b.sibling(b.row(), 0) : QModelIndex();
+    if (a0 != b0) {
+      if (why != 0) {
+        *why = QString("y=%1: panel row %2, strip row %3")
+                   .arg(y)
+                   .arg(a0.isValid() ? a0.row() : -1)
+                   .arg(b0.isValid() ? b0.row() : -1);
+      }
+      return y;
+    }
+    if (a0.isValid()) {
+      const QRect ra = view_->visualRect(a0);
+      const QRect rb = frozen_->visualRect(b0);
+      if (ra.y() != rb.y() || ra.height() != rb.height()) {
+        if (why != 0) {
+          *why = QString("row %1: panel y=%2 h=%3, strip y=%4 h=%5")
+                     .arg(a0.row()).arg(ra.y()).arg(ra.height())
+                     .arg(rb.y()).arg(rb.height());
+        }
+        return y;
+      }
+    }
+  }
+  return -1;
+}
+
 bool EduFrozenColumns::eventFilter(QObject* watched, QEvent* event) {
+#ifndef QT_NO_DEBUG
+  // A debug build says so the moment the two disagree.  The check is at
+  // paint time because that is when the layout has settled -- during one
+  // there are honest half-states -- and it is what the student would be
+  // looking at.  It is not an abort: a warning names the row and the
+  // developer sees it in the console, while the sweep in the harness
+  // (--align-sweep) is what turns it into a failure.
+  if (attached_ && watched == frozen_->viewport() &&
+      event->type() == QEvent::Paint) {
+    QString why;
+    if (firstMisalignedRow(&why) >= 0) {
+      qWarning("%s: the frozen strip and the panel disagree -- %s",
+               qPrintable(view_->objectName()), qPrintable(why));
+    }
+  }
+#endif
   if (attached_ && watched == frozen_->viewport() &&
       event->type() == QEvent::ContextMenu) {
     QContextMenuEvent* menu = static_cast<QContextMenuEvent*>(event);

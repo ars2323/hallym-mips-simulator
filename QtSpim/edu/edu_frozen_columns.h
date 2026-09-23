@@ -27,10 +27,39 @@
 
 #include <QObject>
 #include <QPoint>
+#include <QStyledItemDelegate>
 
 class QAbstractItemView;
 class QHeaderView;
 class QModelIndex;
+
+// The delegate the strip draws with.  It paints with whatever delegate the
+// panel gave it for those columns, but it does not decide how tall a row
+// is: that it asks the panel.  A strip that works its own row heights out
+// agrees with the panel only by luck -- a font, a delegate or a style
+// sheet that reached one of the two and not the other puts the name of one
+// register beside the value of another (U).
+class EduFrozenRowDelegate : public QStyledItemDelegate {
+  Q_OBJECT
+
+ public:
+  // `painter` becomes a child of this and is deleted with it.
+  EduFrozenRowDelegate(QAbstractItemView* source, QAbstractItemDelegate* painter,
+                       QObject* parent);
+
+  void paint(QPainter* painter, const QStyleOptionViewItem& option,
+             const QModelIndex& index) const;
+  QSize sizeHint(const QStyleOptionViewItem& option,
+                 const QModelIndex& index) const;
+
+  // The height the panel gives this row, or 0 when it cannot say.
+  static int sourceRowHeight(QAbstractItemView* source,
+                             const QModelIndex& index);
+
+ private:
+  QAbstractItemView* source_;
+  QAbstractItemDelegate* painter_;
+};
 
 class EduFrozenColumns : public QObject {
   Q_OBJECT
@@ -51,6 +80,12 @@ class EduFrozenColumns : public QObject {
   int width() const;
 
   QAbstractItemView* frozenView() const { return frozen_; }
+
+  // The first pixel row at which the strip and the panel disagree about
+  // which model row is there, with *why filled in; -1 when they agree.
+  // The sweep in the harness reads this, and a debug build shouts about it
+  // after every sync().
+  int firstMisalignedRow(QString* why) const;
 
  signals:
   void contextMenuRequested(const QModelIndex& index, const QPoint& globalPos);

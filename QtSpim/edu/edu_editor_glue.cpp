@@ -172,24 +172,30 @@ void SpimView::eduSetupEditor() {
     layouts->addAction(action);
   }
   ui->menu_Window->insertMenu(ui->action_Win_Tile, layouts);
-  // The three panels can be moved and floated; closing is what the Window
-  // menu entries do.
-  QDockWidget* const movable[] = {
-      eduEditor,           ui->TextSegDockWidget, ui->DataSegDockWidget,
-      (QDockWidget*)eduBottom, (QDockWidget*)eduInspector};
-  for (unsigned i = 0; i < sizeof(movable) / sizeof(movable[0]); i += 1) {
+  // The panels can be moved among themselves and closed, and every one of
+  // them has an entry in the Window menu to bring it back.  What they
+  // cannot do is leave the window (Y): a panel dragged out became a
+  // separate top-level window with its own title bar, over the rest of the
+  // program, and a student who did it by accident had no way of knowing
+  // how to put it back.  Without DockWidgetFloatable there is no float
+  // button, no float on a double click, and a drag cannot end outside.
+  const QList<QDockWidget*> panels = eduAllDocks();
+  for (int i = 0; i < panels.size(); i += 1) {
     // Dropped somewhere new: share the room out evenly (eduEqualiseDocks).
     // A drag ends either in a new area (dockLocationChanged) or by the dock
     // being unplugged and put back (topLevelChanged); both mean the user has
     // just rearranged the panels.
-    connect(movable[i], SIGNAL(dockLocationChanged(Qt::DockWidgetArea)), this,
+    connect(panels.at(i), SIGNAL(dockLocationChanged(Qt::DockWidgetArea)), this,
             SLOT(eduDockMoved()));
-    connect(movable[i], SIGNAL(topLevelChanged(bool)), this,
+    connect(panels.at(i), SIGNAL(topLevelChanged(bool)), this,
             SLOT(eduDockMoved()));
-    movable[i]->setFeatures(QDockWidget::DockWidgetClosable |
-                            QDockWidget::DockWidgetMovable |
-                            QDockWidget::DockWidgetFloatable);
+    panels.at(i)->setFeatures(QDockWidget::DockWidgetClosable |
+                              QDockWidget::DockWidgetMovable);
+    // Every panel lives in the one area the arrangement uses, so there is
+    // nowhere sensible to drop one but among the others.
+    panels.at(i)->setAllowedAreas(Qt::RightDockWidgetArea);
   }
+  eduDockEverything();
 
   eduAssembleBadge = new QLabel(this);
   eduAssembleBadge->setObjectName("EduAssembleBadge");  // styled by theme/light.qss

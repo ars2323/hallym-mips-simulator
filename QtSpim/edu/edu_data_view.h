@@ -40,6 +40,10 @@ class EduDataView : public QTableView {
   bool currentWord(quint32* address) const;
   bool goToAddress(quint32 address);  // reveal, select, scroll
 
+  // The row and nothing else; see EduTextView::scrollTo (V).
+  void scrollTo(const QModelIndex& index,
+                ScrollHint hint = EnsureVisible);
+
   // The width of the frozen Address strip: the delegate starts a whole-row
   // text after it, so that the strip never cuts one in half.
   int frozenWidth() const;
@@ -63,6 +67,9 @@ class EduDataView : public QTableView {
  protected:
   void contextMenuEvent(QContextMenuEvent* event);
   void resizeEvent(QResizeEvent* event);
+  void keyPressEvent(QKeyEvent* event);
+  void wheelEvent(QWheelEvent* event);
+  void scrollContentsBy(int dx, int dy);
 
  private slots:
   void showMenuAt(const QModelIndex& index, const QPoint& globalPos);
@@ -81,6 +88,7 @@ class EduDataView : public QTableView {
   QActionGroup* unitGroup_;
   QTableView* frozen_;
   EduFrozenColumns* frozenColumns_;
+  bool keyNavigating_;  // inside keyPressEvent: sideways moves are wanted
   bool restoring_;
   bool fontApplied_;
   QFont appliedFont_;

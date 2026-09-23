@@ -48,6 +48,13 @@ class EduTextView : public QTableView {
   void selectAddress(quint32 address);
   void showAddress(quint32 address);  // scroll just enough to see it
 
+  // Guarantees the row and nothing else: the sideways position is the
+  // student's, and a panel that slides while they read has lost their
+  // place (V).  The arrow keys are the exception -- moving the selection
+  // to a column off the right has to bring it into view.
+  void scrollTo(const QModelIndex& index,
+                ScrollHint hint = EnsureVisible);
+
  signals:
   void instructionSelectionChanged();  // the user picked a row
   void instructionRowsReset();         // rows were rebuilt; selection restored
@@ -55,6 +62,9 @@ class EduTextView : public QTableView {
  protected:
   void contextMenuEvent(QContextMenuEvent* event);
   void resizeEvent(QResizeEvent* event);
+  void keyPressEvent(QKeyEvent* event);
+  void wheelEvent(QWheelEvent* event);
+  void scrollContentsBy(int dx, int dy);
   void hideEvent(QHideEvent* event);
   void showEvent(QShowEvent* event);
 
@@ -75,6 +85,7 @@ class EduTextView : public QTableView {
   EduTextModel* model_;
   QTableView* frozen_;
   EduFrozenColumns* frozenColumns_;
+  bool keyNavigating_;  // inside keyPressEvent: sideways moves are wanted
   QAction* setBreakpointAction_;
   QAction* clearBreakpointAction_;
   QAction* copyAction_;

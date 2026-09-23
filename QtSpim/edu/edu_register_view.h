@@ -34,6 +34,10 @@ class EduRegisterView : public QTreeView {
   bool currentRegister(edu::RegisterRef* reg) const;
   void selectRegister(const edu::RegisterRef& reg);
 
+  // The row and nothing else; see EduTextView::scrollTo (V).
+  void scrollTo(const QModelIndex& index,
+                ScrollHint hint = EnsureVisible);
+
   // Sets the font and the minimum width that goes with it.
   void applyPanelFont(const QFont& font);
 
@@ -61,6 +65,9 @@ class EduRegisterView : public QTreeView {
  protected:
   void resizeEvent(QResizeEvent* event);
   void contextMenuEvent(QContextMenuEvent* event);
+  void keyPressEvent(QKeyEvent* event);
+  void wheelEvent(QWheelEvent* event);
+  void scrollContentsBy(int dx, int dy);
   void hideEvent(QHideEvent* event);
   void showEvent(QShowEvent* event);
 
@@ -80,6 +87,7 @@ class EduRegisterView : public QTreeView {
   // with it and the panel becomes a wall of digits (L).
   QTreeView* frozen_;
   EduFrozenColumns* frozenColumns_;
+  bool keyNavigating_;  // inside keyPressEvent: sideways moves are wanted
   QAction* changeValueAction_;
 };
 

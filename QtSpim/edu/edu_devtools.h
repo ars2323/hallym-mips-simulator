@@ -102,6 +102,7 @@
 #include <QString>
 #include <QStringList>
 
+class QAbstractItemView;
 class QTimer;
 class QWidget;
 class SpimView;
@@ -133,6 +134,7 @@ class EduDevtools : public QObject {
   bool isActive() const {
     return !captures_.isEmpty() || !dumps_.isEmpty() || reportTime_ ||
            inspectorReport_ || hscrollReport_ || !hscroll_.isEmpty() ||
+           alignSweep_ || scrollbarReport_ || dockReport_ ||
            !editorSteps_.isEmpty() || layoutReport_ ||
            tutorialReport_ || !dockDrop_.isEmpty() || !menuLoads_.isEmpty() ||
            clickThrough_ || firstRunTutorial_ || !clickTabs_.isEmpty() ||
@@ -176,6 +178,21 @@ class EduDevtools : public QObject {
     QString out;
   };
 
+  // A panel and the strip of frozen columns laid over its left edge.
+  struct FrozenPair {
+    QString name;
+    QAbstractItemView* view;
+    QAbstractItemView* frozen;
+  };
+
+  QList<FrozenPair> frozenPairs() const;
+  bool alignedRows(const FrozenPair& pair, const QString& state);
+  int sweepPanel(const FrozenPair& pair, const QString& moment);
+  void setPanelSize(const QString& panel, int steps, bool all);
+  void runAlignSweep();
+  void runScrollbarReport();
+  void runDockReport();
+
   QWidget* panelWidget(const QString& name) const;
   bool grabToFile(QWidget* widget, const QString& path);
   bool writeDump(const Dump& dump);
@@ -196,6 +213,9 @@ class EduDevtools : public QObject {
   bool hscrollReport_;    // --hscroll-report: sideways scrolling, and that
                           // nothing moves the panels sideways by itself
   QStringList hscroll_;   // --hscroll <panel>=<n>: scroll one sideways
+  bool alignSweep_;       // --align-sweep: the frozen strip and its panel
+  bool scrollbarReport_;  // --scrollbar-report: every panel's scroll bars
+  bool dockReport_;       // --dock-report: no panel can leave the window
   bool layoutReport_;
   bool expandEnvironment_;
   bool expandKernelData_;

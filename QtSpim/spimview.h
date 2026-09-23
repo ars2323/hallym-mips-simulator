@@ -119,10 +119,18 @@ class SpimView : public QMainWindow {
   bool eduLayoutSizesPending;  // EDU: waiting for the real window size
   bool eduTutorialOnStart;       // EDU: false in the scripted capture mode
   void eduSetupPanels();
+  // EDU: every panel of the window, and the rule that none of them floats.
+  QList<QDockWidget*> eduAllDocks() const;
+  void eduDockEverything();
   // EDU: the two arrangements of the window (Window > Layout).  0 is the
   // one the program starts with, 1 is its mirror image.
   void eduApplyLayout(int preset);
   void eduRevealConsole(bool withFocus);  // a program is printing or waiting
+  // EDU: the Registers panel's text size.  It comes from Settings (the
+  // register window font) rather than from an EduPanelZoom, so this is the
+  // seam "All panels text size" and the harness use.
+  void eduSetRegisterPointSize(int points);
+  int eduRegisterPointSize() const;
   void eduHoldDockSize(QDockWidget* dock, int width, int height);
   // EDU: the two by two block of panels.  The line down the middle and
   // the line across it belong to the dock layout; these keep the second

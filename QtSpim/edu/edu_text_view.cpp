@@ -7,6 +7,7 @@
 #include <QClipboard>
 #include <QContextMenuEvent>
 #include <QHeaderView>
+#include <QKeyEvent>
 #include <QMenu>
 #include <QPainter>
 #include <QScrollBar>
@@ -163,6 +164,7 @@ EduTextView::EduTextView(QWidget* parent)
       model_(0),
       frozen_(new QTableView(this)),
       frozenColumns_(0),
+      keyNavigating_(false),
       menuRow_(-1),
       restoring_(false),
       fontApplied_(false),
@@ -178,6 +180,8 @@ EduTextView::EduTextView(QWidget* parent)
   setWordWrap(false);
   setTextElideMode(Qt::ElideRight);
   setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
+  // Per pixel up and down as well: see EduDataView (U).
+  setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
   setCornerButtonEnabled(false);
   verticalHeader()->hide();
   verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
@@ -217,7 +221,8 @@ void EduTextView::setTextModel(EduTextModel* model) {
   // Address is what says which instruction a row is; with Comments shown
   // the Source column is long enough to push both off the left edge (R).
   frozen_->setObjectName("EduTextFrozen");
-  frozen_->setItemDelegate(new TextRowDelegate(this, true));
+  frozen_->setItemDelegate(new EduFrozenRowDelegate(
+      this, new TextRowDelegate(this, true), frozen_));
   frozenColumns_ =
       new EduFrozenColumns(this, frozen_, EduTextModel::CodeColumn, this);
   frozenColumns_->attach();
@@ -312,6 +317,47 @@ void EduTextView::showAddress(quint32 address) {
     eduScrollRowOnly(this, model_->index(row, EduTextModel::AddressColumn),
                      QAbstractItemView::EnsureVisible);
   }
+}
+
+// Only down and up.  QAbstractItemView::scrollTo() moves both axes, and
+// QAbstractScrollArea blits the viewport the moment the value changes, so
+// a move made here and undone afterwards is still one frame of the wrong
+// thing on screen (V).  The guard turns the viewport's drawing off while
+// the base class does its work, so nothing is blitted and nothing has to
+// be undone visibly.  The arrow keys go the other way: moving the current
+// cell to a column off the right should bring it into view.
+void EduTextView::scrollTo(const QModelIndex& index, ScrollHint hint) {
+  if (keyNavigating_) {
+    QTableView::scrollTo(index, hint);
+    return;
+  }
+  EduKeepHorizontalScroll keepSideways(this);
+  QTableView::scrollTo(index, hint);
+}
+
+// Shift and the wheel move the panel sideways where the platform has not
+// already done so (W).
+void EduTextView::wheelEvent(QWheelEvent* event) {
+  if (eduWheelScrollsSideways(this, event)) {
+    return;
+  }
+  QTableView::wheelEvent(event);
+}
+
+void EduTextView::keyPressEvent(QKeyEvent* event) {
+  keyNavigating_ = true;
+  QTableView::keyPressEvent(event);
+  keyNavigating_ = false;
+}
+
+// Where a sideways move becomes pixels on the screen.  With the viewport's
+// updates off there is no blit, and nothing is counted; anything counted
+// here is a frame the student saw (V).
+void EduTextView::scrollContentsBy(int dx, int dy) {
+  if (dx != 0 && viewport()->updatesEnabled()) {
+    edu::noteSidewaysPaint(this, dx);
+  }
+  QTableView::scrollContentsBy(dx, dy);
 }
 
 void EduTextView::beforeReset() {

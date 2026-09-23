@@ -666,7 +666,23 @@ void SpimView::eduSetAllPanelSizes(int points) {
       zooms[i]->setPointSize(points);
     }
   }
+  eduSetRegisterPointSize(points);  // "all panels" includes the registers
 }
+
+// The Registers panel has no EduPanelZoom: its font is the one in Settings
+// (st_regWinFont), so its size is changed there and the panel refreshed.
+void SpimView::eduSetRegisterPointSize(int points) {
+  QFont font = st_regWinFont;
+  font.setPointSize(qBound(int(EduPanelZoom::kMinPointSize), points,
+                           int(EduPanelZoom::kMaxPointSize)));
+  if (font == st_regWinFont) {
+    return;
+  }
+  st_regWinFont = font;
+  eduRefreshRegisterPanel();
+}
+
+int SpimView::eduRegisterPointSize() const { return st_regWinFont.pointSize(); }
 
 void SpimView::eduSyncDockTitles() {
   QDockWidget* const docks[] = {
@@ -1002,6 +1018,36 @@ void SpimView::eduSyncSplits() {
 void SpimView::eduFollowCrossHandle() {
   if (eduCrossHandle != 0) {
     eduCrossHandle->follow();
+  }
+}
+
+// Every panel of the window, in no particular order.  One list, so that a
+// rule about the panels -- what they may do, where they may go, that none
+// of them is floating -- is stated once (Y).
+QList<QDockWidget*> SpimView::eduAllDocks() const {
+  QList<QDockWidget*> docks;
+  docks << ui->IntRegDockWidget << ui->FPRegDockWidget
+        << ui->TextSegDockWidget << ui->DataSegDockWidget
+        << (QDockWidget*)eduEditor << (QDockWidget*)eduBottom
+        << (QDockWidget*)eduInspector;
+  QList<QDockWidget*> real;
+  for (int i = 0; i < docks.size(); i += 1) {
+    if (docks.at(i) != 0) {
+      real << docks.at(i);
+    }
+  }
+  return real;
+}
+
+// Puts any panel that is floating back into the window.  Nothing in this
+// build can float a panel any more, but a settings file written by an
+// earlier one can still name a floating dock (Y).
+void SpimView::eduDockEverything() {
+  const QList<QDockWidget*> docks = eduAllDocks();
+  for (int i = 0; i < docks.size(); i += 1) {
+    if (docks.at(i)->isFloating()) {
+      docks.at(i)->setFloating(false);
+    }
   }
 }
 
