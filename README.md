@@ -52,12 +52,15 @@ forward and gives it the keyboard; an error brings Messages forward.
 
 ![Editor with error list; standard QtSpim has none](docs/images/compare/en/05-editor.png)
 
-**A tutorial on the first run** — seven steps over the real window, one panel at a
-time, in Korean or English; Help > Tutorial brings it back.
+**A tutorial on the first run** — twenty steps over the real window, pointing
+at one thing at a time, in Korean or English; Help > Tutorial brings it back.
 
-Also: File > Load File asks before loading on top of a loaded program, a
-status-bar badge shows while Bare Machine or a similar setting is on, and the
-program installs and runs next to standard QtSpim without touching it.
+Also: one way in (Open, Ctrl+O) that always starts from a clean simulator,
+Ctrl+S that saves, clears and assembles as one action and keeps your
+breakpoints, three arrangements of the window including one for a window half
+a screen wide, panels that cannot be dragged out of the window, a screen that
+starts the same for every student on a shared machine, and an installation
+that sits beside a standard QtSpim without touching it.
 
 <details><summary>The whole window</summary>
 

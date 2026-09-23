@@ -418,6 +418,16 @@ void SpimView::eduTutorialPutScrollBack() {
   eduTutorialScrollTries += 1;
   if (waiting && eduTutorialScrollTries < 20) {
     QTimer::singleShot(10, this, SLOT(eduTutorialPutScrollBack()));
+  } else if (waiting) {
+    // Out of tries.  The panels stay wherever they are -- at the left
+    // edge, most likely -- which is not wrong enough to tell the student
+    // about, but is worth knowing about while developing.  See
+    // docs/ARCHITECTURE.md 117.
+#ifndef QT_NO_DEBUG
+    qWarning("the tutorial gave up putting the panels back sideways after "
+             "%d tries; they are further left than the student left them",
+             eduTutorialScrollTries);
+#endif
   }
 }
 
@@ -999,6 +1009,15 @@ void SpimView::eduApplyLayoutSizes() {
   if (!settled && eduLayoutSizeTries < 10) {
     eduLayoutSizeTries += 1;
     QTimer::singleShot(10, this, SLOT(eduApplyLayoutSizes()));
+  } else if (!settled) {
+    // Out of tries: the columns keep whatever widths the layout gave them,
+    // so the register column is narrower than it should be and the two
+    // beside it wider.  See docs/ARCHITECTURE.md 117.
+#ifndef QT_NO_DEBUG
+    qWarning("the column widths did not settle after %d tries; the register "
+             "column is %d wide, not %d",
+             eduLayoutSizeTries, registerWidth, columnWidth);
+#endif
   }
 }
 

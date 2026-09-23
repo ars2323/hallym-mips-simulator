@@ -17,7 +17,7 @@
 #   3b. Saving is assembling: a real Ctrl+S saves, assembles and goes to the
 #      Text tab; the "Source changed" strip comes and goes; a failed assemble
 #      keeps the file saved and says the simulator was reset.
-#   7. The last file is reopened at the next start and not assembled.
+#   7. The next start shows the start screen: the last file is not reopened.
 #   9. The tutorial always opens the example program, asking first when the
 #      editor holds unsaved work (Cancel means it does not start), and every
 #      one of its buttons works when clicked with the mouse.
@@ -245,7 +245,7 @@ else
 fi
 
 echo
-echo "== 7. the last file is reopened at the next start, and not assembled"
+echo "== 7. the next start is the start screen, not the last file"
 cp "$repo/helloworld.s" "$work/last.s"
 keep="$work/keep-config"
 persist() {  # like run, but with a settings directory that survives
@@ -257,25 +257,32 @@ persist last1 --editor-open "$work/last.s" --assemble --save-settings \
     --dump console "$work/last1.console"
 persist last2 --editor-report --dump text-log "$work/last2.text"
 run fresh --dump text-log "$work/fresh.text"
-mapfile -t rep < <(grep '^editor:' "$work/last2.out")
-expect 0 "second start: last.s is open and not assembled" \
-    'file=last.s modified=0 banner=1 front='
+# Until 1.2.1 the file was reopened.  It is not any more (AA): a machine in
+# the laboratory starts every student at the same place, and the start
+# screen built for that moment is now actually seen.
+if grep -qE '^editor: file= modified=0 banner=0 .*start_screen=1' \
+     "$work/last2.out"; then
+  pass "second start: the editor is empty and shows its start screen"
+else
+  fail "second start: $(grep -m1 '^editor:' "$work/last2.out")"
+fi
 if [ -s "$work/last2.text" ] && cmp -s "$work/last2.text" "$work/fresh.text"; then
   pass "nothing was assembled: the text segment is a fresh start's"
 else
   fail "the text segment differs from a fresh start's"
 fi
-rm -f "$work/last.s"
-persist last3 --editor-report --dump console "$work/last3.console"
-mapfile -t rep < <(grep '^editor:' "$work/last3.out")
-expect 0 "file deleted meanwhile: starts empty, no message" 'file= modified=0 banner=0'
-if [ "$(grep -c '^dialog:' "$work/last3.out" || true)" -eq 0 ]; then
-  pass "no dialog about the missing file"
+if cmp -s "$repo/helloworld.s" "$work/last.s"; then
+  pass "and the file itself is untouched on disk"
 else
-  fail "a dialog came up for the missing file"
+  fail "the file changed on disk"
+fi
+persist last3 --editor-report --dump console "$work/last3.console"
+if [ "$(grep -c '^dialog:' "$work/last3.out" || true)" -eq 0 ]; then
+  pass "no dialog on the way in"
+else
+  fail "a dialog came up at the start"
 fi
 
-echo
 echo "== 8. the strip over Text says which of the three things happened"
 cp "$repo/helloworld.s" "$work/strip.s"
 cp "$repo/samples/tutorial.s" "$work/other.s"
@@ -832,6 +839,29 @@ if [ "$left" -eq 0 ]; then
 else
   fail "$left old screen-state key(s) survived"
 fi
+
+# The file the last student had open is not reopened, and neither their
+# recent files nor their paths are left in the settings.
+sticky aaFile --editor-open "$repo/helloworld.s" --save-settings --editor-report
+if grep -q "file=helloworld.s" "$work/aaFile.out"; then
+  pass "first run: a file is open in the editor"
+else
+  fail "$(grep -m1 '^editor:' "$work/aaFile.out")"
+fi
+sticky aaStart --editor-report
+if grep -q "file= .*start_screen=1" "$work/aaStart.out"; then
+  pass "the next run starts at the start screen, with no file open"
+else
+  fail "$(grep -m1 '^editor:' "$work/aaStart.out")"
+fi
+conf=$(find "$keep" -name "HallymMIPS.conf" | head -1)
+if grep -qiE "LastFile|RecentFile|\.s$|/home/|C:" "$conf"; then
+  fail "a file path survived in the settings: $(grep -m1 -iE 'LastFile|RecentFile' "$conf")"
+else
+  pass "no file path is left in the settings file"
+fi
+groupsleft=$(grep -cE "^\[" "$conf" || true)
+pass "what is left in the settings: $(grep -E '^\[' "$conf" | tr -d '[]' | tr '\n' ' ')($groupsleft groups)"
 
 # Window > Reset Layout: the same screen again, without a restart.
 # Without --window-size, so that both runs get the size the default state

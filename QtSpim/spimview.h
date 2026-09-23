@@ -169,6 +169,7 @@ class SpimView : public QMainWindow {
   bool eduCollectError(const QString& message);  // true = taken, show no box
   QString eduAssembleFile;                       // set for file_LoadFile()
   QMenu* eduEditorRecentMenu;                    // Editor > Open Recent
+  QStringList eduEditorRecentFiles;              // Open Recent, this run only
   QList<QPushButton*> eduStaleBanners;           // "Source changed" strips
   bool eduStaleShowing;                          // ... and whether they show
   bool eduInDockTabSync;                         // eduSyncDockTabs() re-entry

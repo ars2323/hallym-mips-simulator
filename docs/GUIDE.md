@@ -49,8 +49,10 @@ closed is left out and the rest are renumbered.
 
 ## 3. The basic loop
 
-1. Write code in the **Editor** tab. (Editor > New / Open; recent files under
-   Editor > Open Recent.)
+1. Write code in the **Editor** tab. (Editor > New / Open; the files you
+   opened in this run are under Editor > Open Recent.) The program always
+   starts at the **[New file] / [Open file]** screen -- no file left open by
+   whoever used the machine before you.
 2. **Ctrl+S** saves the file, clears memory and registers, and assembles that
    file -- one action, and F3 and the Assemble tool-bar button do the same.
    **Breakpoints are kept**: each goes back on the statement it was on, even
@@ -64,7 +66,7 @@ closed is left out and the rest are renumbered.
 An amber strip **"Source changed — save (Ctrl+S) to assemble"** above the Text
 and Data tabs means that what you are looking at is not the code in the editor.
 Press Ctrl+S or click the strip. You also see it right after starting the
-program: the last file is reopened, but nothing is assembled for you.
+program, where nothing has been assembled yet.
 
 ### Text size
 
@@ -191,7 +193,9 @@ on the right **Text / Data** with the **Instruction Inspector** under that.
     tabs above them. Use it when the window is half a screen wide (960
     pixels on a 1920 screen): two columns leave about 300 pixels each,
     while here one panel has nearly the whole width. A panel behind its tab
-    that has gone out of date carries a dot on its tab.
+    that has gone out of date carries a dot on its tab. In a narrow window
+    the registers in **binary** are wider than their column: scroll
+    sideways to read them -- the name and the number stay where they are.
 - You can also drag a tab or a title bar to build your own arrangement; two
   panels dropped side by side share the room evenly. **A panel cannot be
   dragged out of the window** -- that is deliberate, so that one cannot be

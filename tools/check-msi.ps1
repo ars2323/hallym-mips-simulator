@@ -59,6 +59,18 @@ Check ($props["ProductName"] -eq "Hallym MIPS Simulator") "ProductName is Hallym
 Check ($props["UpgradeCode"].Trim("{}").ToUpper() -eq "BF8A162B-8D89-43B4-9166-46E6EFEF30A9") "UpgradeCode is ours"
 Check ($props["UpgradeCode"].Trim("{}").ToUpper() -ne $upstreamUpgrade) "UpgradeCode differs from upstream's ($upstreamUpgrade)"
 Check ($props["ProductVersion"] -match '^[0-9]+\.[0-9]+\.[0-9]+$') "ProductVersion $($props['ProductVersion'])"
+# The version in the MSI has to be the one in the header, and it has to be
+# higher than the release before it, or Windows refuses to install over the
+# older one and the student is stuck on whatever they already have.
+$header = Get-Content (Join-Path $repo "QtSpim\edu\edu_version.h") -Raw
+if ($header -notmatch '#define EDU_VERSION "([0-9]+\.[0-9]+\.[0-9]+)"') { throw "EDU_VERSION not found" }
+$eduVersion = $Matches[1]
+Check ($props["ProductVersion"] -eq $eduVersion) "ProductVersion is EDU_VERSION ($eduVersion)"
+$ourUpgrades = Query "SELECT UpgradeCode, VersionMin, VersionMax, Attributes FROM Upgrade" 4 |
+  Where-Object { $_[0].Trim("{}").ToUpper() -eq "BF8A162B-8D89-43B4-9166-46E6EFEF30A9" }
+Check ($ourUpgrades.Count -ge 1) "the Upgrade table looks for our own earlier versions"
+$replaces = $ourUpgrades | Where-Object { $_[2] -eq $eduVersion -and [string]::IsNullOrEmpty($_[1]) }
+Check ($null -ne $replaces) "anything older than $eduVersion is removed and replaced (upgrade, not a second copy)"
 Check ($props["ALLUSERS"] -eq "1") "per-machine install"
 
 $upgradeRows = Query "SELECT UpgradeCode FROM Upgrade" 1

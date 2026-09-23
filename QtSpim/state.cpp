@@ -53,7 +53,9 @@
 // did wrong.  Upstream restores all of it; we deliberately do not, and we
 // delete what earlier versions of this program left behind.
 void SpimView::eduForgetScreenSettings() {
-  settings.remove("MainWin");  // Geometry, WindowState, LogVisible
+  settings.remove("MainWin");   // Geometry, WindowState, LogVisible
+  settings.remove("Editor");    // LastFile, RecentFiles, FontPointSize
+  settings.remove("FileMenu");  // the File menu's recent files
   const char* const keys[] = {
       "RegWin/RegisterDisplayBase", "TextWin/ShowUserTextSeg",
       "TextWin/ShowKernelTextSeg",  "TextWin/ShowTextComments",
@@ -121,16 +123,15 @@ void SpimView::readSettings() {
   ui->action_Win_DataSegment->setChecked(!ui->DataSegDockWidget->isHidden());
   settings.endGroup();
 
-  settings.beginGroup("FileMenu");
-  st_recentFilesLength = settings.value("RecentFilesLength", 4).toInt();
+  // EDU: the File menu's recent files are this run's, not the last one's
+  // (AA).  Nothing is read and nothing is written; the list starts empty
+  // and fills as the student opens files.
+  st_recentFilesLength = 4;
   st_recentFiles.clear();
-  int i;
-  for (i = 0; i < st_recentFilesLength; i++) {
-    QString file = settings.value("RecentFile" + QString(i), "").toString();
-    st_recentFiles.append(file);
+  for (int i = 0; i < st_recentFilesLength; i++) {
+    st_recentFiles.append(QString());
   }
   rebuildRecentFilesMenu();
-  settings.endGroup();
 
   settings.beginGroup("Spim");
   quiet = settings.value("Quiet", false).toBool();
@@ -179,17 +180,6 @@ void SpimView::writeSettings(bool omitWindowState) {
   settings.beginGroup("DataWin");
   settings.endGroup();
 
-  settings.beginGroup("FileMenu");
-  settings.setValue("RecentFilesLength", st_recentFilesLength);
-  int i;
-  for (i = 0; i < st_recentFilesLength; i++) {
-    if (i < st_recentFiles.length()) {
-      settings.setValue("RecentFile" + QString(i), st_recentFiles[i]);
-    } else {
-      settings.setValue("RecentFile" + QString(i), "");
-    }
-  }
-  settings.endGroup();
 
   settings.beginGroup("Spim");
   settings.setValue("Quiet", quiet);

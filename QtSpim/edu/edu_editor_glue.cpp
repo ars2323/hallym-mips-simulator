@@ -250,13 +250,11 @@ void SpimView::eduSetupEditor() {
     eduStaleBanners << banner;
   }
 
-  // The file the editor had open last time, if it is still there.  It is
-  // NOT assembled: the simulator starts as upstream's does, and the strip
-  // above says what to press.
-  const QString last = settings.value("Editor/LastFile").toString();
-  if (!last.isEmpty() && QFileInfo(last).isFile() && QFileInfo(last).isReadable()) {
-    eduEditor->openFile(last, false);
-  }
+  // EDU: the file the editor had open last time is NOT reopened (AA).  It
+  // used to be, which meant the start screen -- [New file] / [Open file],
+  // built for exactly this moment -- was only ever seen once, on a machine
+  // that had never been used.  A shared machine now starts every student
+  // at the same place, with nobody else's file on the screen.
   eduUpdateStaleBanner();
 }
 
@@ -337,10 +335,9 @@ void SpimView::eduUpdateStaleBanner() {
 // because a panel behind its tab cannot show the strip itself (Z).
 bool SpimView::eduStaleBannerShowing() const { return eduStaleShowing; }
 
-// Editor > Open Recent: files the editor opened or saved, newest first,
-// kept in the settings under Editor/RecentFiles.
-// The editor's text size is the student's, not a window setting: it is
-// remembered and put back at the next start.
+// Editor > Open Recent: the files this run's editor opened or saved,
+// newest first.  Kept in memory only (AA).
+//
 // EDU: the text size is the student's for this run and no longer (AA).
 // It used to be written to the settings and read back at the next start,
 // so a machine in the laboratory handed the last student's size on.
@@ -352,28 +349,26 @@ void SpimView::eduEditorFileChanged() {
   eduUpdateStaleBanner();
   eduUpdateWindowTitle();  // EDU: the title bar names the open file
   const QString path = eduEditor->filePath();
-  if (path != settings.value("Editor/LastFile").toString()) {
-    settings.setValue("Editor/LastFile", path);  // reopened at the next start
-  }
   if (path.isEmpty()) {
     return;
   }
-  QStringList recent = settings.value("Editor/RecentFiles").toStringList();
-  if (!recent.isEmpty() && recent.first() == path) {
+  // EDU: this run's list, and no longer (AA).  It is not written to the
+  // settings, so the next student's Open Recent is empty rather than a
+  // list of the last one's files.
+  if (!eduEditorRecentFiles.isEmpty() && eduEditorRecentFiles.first() == path) {
     return;
   }
-  recent.removeAll(path);
-  recent.prepend(path);
-  while (recent.size() > 8) {
-    recent.removeLast();
+  eduEditorRecentFiles.removeAll(path);
+  eduEditorRecentFiles.prepend(path);
+  while (eduEditorRecentFiles.size() > 8) {
+    eduEditorRecentFiles.removeLast();
   }
-  settings.setValue("Editor/RecentFiles", recent);
   eduRebuildEditorRecentMenu();
 }
 
 void SpimView::eduRebuildEditorRecentMenu() {
   eduEditorRecentMenu->clear();
-  const QStringList recent = settings.value("Editor/RecentFiles").toStringList();
+  const QStringList recent = eduEditorRecentFiles;
   for (int i = 0; i < recent.size(); i += 1) {
     QAction* action = eduEditorRecentMenu->addAction(
         QDir::toNativeSeparators(recent.at(i)));
