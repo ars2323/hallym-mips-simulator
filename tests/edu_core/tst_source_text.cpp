@@ -13,6 +13,7 @@ class TestSourceText : public QObject {
   void asciiAndUtf8();
   void cp949();
   void lineEndsAreDropped();
+  void lineNumberAndStatement();
 };
 
 void TestSourceText::asciiAndUtf8() {
@@ -37,6 +38,29 @@ void TestSourceText::cp949() {
 void TestSourceText::lineEndsAreDropped() {
   QCOMPARE(edu::decodeSourceBytes("3: nop\r\n"), QString("3: nop"));
   QCOMPARE(edu::decodeSourceBytes("3: nop\n"), QString("3: nop"));
+}
+
+// The number the core puts at the front of a source line, and the
+// statement after it.  A breakpoint is remembered by these two (X).
+void TestSourceText::lineNumberAndStatement() {
+  QCOMPARE(edu::sourceLineNumber("183: jal main"), 183);
+  QCOMPARE(edu::sourceLineStatement("183: jal main"), QString("jal main"));
+  QCOMPARE(edu::sourceLineNumber("  7:\tli $v0, 4  "), 7);
+  QCOMPARE(edu::sourceLineStatement("  7:\tli $v0, 4  "),
+           QString("li $v0, 4"));
+  // A colon that is a label, not a line number.
+  QCOMPARE(edu::sourceLineNumber("main: nop"), 0);
+  QCOMPARE(edu::sourceLineStatement("main: nop"), QString("main: nop"));
+  // No colon at all, and nothing there.
+  QCOMPARE(edu::sourceLineNumber("42 nop"), 0);
+  QCOMPARE(edu::sourceLineNumber(QString()), 0);
+  QCOMPARE(edu::sourceLineStatement(QString()), QString());
+  // A number so long it cannot be one.
+  QCOMPARE(edu::sourceLineNumber("1234567890123: nop"), 0);
+  // The statement keeps its comment: two lines with the same code but
+  // different comments are different statements.
+  QCOMPARE(edu::sourceLineStatement("9: syscall # print"),
+           QString("syscall # print"));
 }
 
 EDU_TEST_FACTORY(TestSourceText)
