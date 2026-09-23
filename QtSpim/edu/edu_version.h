@@ -19,7 +19,7 @@
 
 /* Version of this fork.  tools/package-windows.ps1 and the MSI read it from
    this line. */
-#define EDU_VERSION "1.2.2"
+#define EDU_VERSION "1.2.3"
 
 /* Product name shown to the user. */
 #define EDU_APP_NAME "Hallym MIPS Simulator"
