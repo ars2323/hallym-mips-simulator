@@ -185,6 +185,7 @@ class EduDevtools : public QObject {
     QAbstractItemView* frozen;
   };
 
+  QString frontSharedPanel() const;
   QList<FrozenPair> frozenPairs() const;
   bool alignedRows(const FrozenPair& pair, const QString& state);
   int sweepPanel(const FrozenPair& pair, const QString& moment);

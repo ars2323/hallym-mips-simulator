@@ -15,6 +15,7 @@
 #include <QPushButton>
 #include <QToolButton>
 #include <QStatusBar>
+#include <QTabBar>
 #include <QToolBar>
 #include <QVBoxLayout>
 
@@ -33,6 +34,8 @@
 void SpimView::eduSetupEditor() {
   eduCollectingErrors = false;
   eduAssembleCycle = false;
+  eduStaleShowing = false;
+  eduInDockTabSync = false;
 
   eduEditor = new EduEditorDock(this);
   addDockWidget(Qt::TopDockWidgetArea, eduEditor);
@@ -170,6 +173,8 @@ void SpimView::eduSetupEditor() {
        SLOT(eduLayoutPrimary())},
       {"action_Edu_LayoutMirrored", "Text / Data | Edi&tor",
        SLOT(eduLayoutMirrored())},
+      {"action_Edu_LayoutTabbed", "Editor / Text / Data in one &place",
+       SLOT(eduLayoutTabbed())},
   };
   for (unsigned i = 0; i < sizeof(presets) / sizeof(presets[0]); i += 1) {
     QAction* action = new QAction(presets[i].text, this);
@@ -200,6 +205,10 @@ void SpimView::eduSetupEditor() {
     // Every panel lives in the one area the arrangement uses, so there is
     // nowhere sensible to drop one but among the others.
     panels.at(i)->setAllowedAreas(Qt::RightDockWidgetArea);
+    // Qt takes a tab's text from its dock's window title, so the short
+    // label has to be put back whenever the title changes (Z).
+    connect(panels.at(i), SIGNAL(windowTitleChanged(QString)), this,
+            SLOT(eduSyncDockTabs()));
   }
   eduDockEverything();
 
@@ -320,7 +329,13 @@ void SpimView::eduUpdateStaleBanner() {
     }
     strip->setVisible(!message.isEmpty());
   }
+  eduStaleShowing = !message.isEmpty();
+  eduSyncDockTabs();  // a tab in front of the strip carries a dot instead
 }
+
+// Whether the "Source changed" strip has something to say.  The tabs ask,
+// because a panel behind its tab cannot show the strip itself (Z).
+bool SpimView::eduStaleBannerShowing() const { return eduStaleShowing; }
 
 // Editor > Open Recent: files the editor opened or saved, newest first,
 // kept in the settings under Editor/RecentFiles.
@@ -388,7 +403,7 @@ void SpimView::eduEditorOpenRecent() {
 // has closed it.
 void SpimView::eduEditorAtStartup() {
   if (!eduProgramLoaded && !eduEditor->isHidden()) {
-    eduEditor->raise();
+    eduBringToFront(eduEditor);
   }
 }
 
@@ -640,7 +655,7 @@ void SpimView::eduAssemble() {
     // with the editor), where a "switch" would only take the editor away.
     ui->TextSegDockWidget->show();
     if (ui->TextSegView->visibleRegion().isEmpty()) {
-      ui->TextSegDockWidget->raise();
+      eduBringToFront(ui->TextSegDockWidget);
     }
   } else {
     // The file is saved (the student's work is safe), but what ran before is
@@ -653,8 +668,28 @@ void SpimView::eduAssemble() {
         QString(". Simulator was reset."));
     eduAssembleBadge->show();
     statusBar()->clearMessage();  // an earlier "Saved and assembled"
-    if (eduEditor->editor()->visibleRegion().isEmpty()) {
-      eduEditor->raise();
+    // The errors are in the editor's list, so the editor is where to
+    // look.  Raised without asking whether it is on screen: where it
+    // shares a place with Text and Data (Z), loading the file brought
+    // Text forward and the editor was behind a tab.
+    {
+      const QList<QTabBar*> bs = findChildren<QTabBar*>();
+      for (int i = 0; i < bs.size(); i += 1) {
+        if (bs.at(i)->count() > 0) {
+          qWarning("PROBE before raise: bar %d current=%s", i,
+                   qPrintable(bs.at(i)->tabText(bs.at(i)->currentIndex())));
+        }
+      }
+    }
+    eduEditor->raise();
+    {
+      const QList<QTabBar*> bs = findChildren<QTabBar*>();
+      for (int i = 0; i < bs.size(); i += 1) {
+        if (bs.at(i)->count() > 0) {
+          qWarning("PROBE after raise: bar %d current=%s", i,
+                   qPrintable(bs.at(i)->tabText(bs.at(i)->currentIndex())));
+        }
+      }
     }
   }
 }

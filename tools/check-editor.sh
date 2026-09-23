@@ -37,6 +37,8 @@
 #      height, through every base, text size, moment and scroll position.
 #  16. No panel can be taken out of the window, and a saved state that has
 #      one floating is brought back inside.
+#  18. The third arrangement: the editor and the two panels in one tabbed
+#      place, for a window half a screen wide.
 #  17. Assemble is one cycle -- save, clear, assemble -- that says one line,
 #      keeps the breakpoints on their statements and leaves the editor and
 #      the panels where they were.  Running with nothing loaded says so.
@@ -684,6 +686,81 @@ if grep -q "^dialog:" "$work/noprogram.out"; then
   fail "$(grep -m1 '^dialog:' "$work/noprogram.out")"
 else
   pass "and does not put a box over the window"
+fi
+
+echo "== 18. the editor and the two panels in one place"
+# A window half a 1920 screen wide.  In the two-column arrangements the
+# code columns are about 300 pixels; in this one the panels have the width
+# of the window less the registers.
+for preset in Primary Mirrored Tabbed; do
+  run "narrow$preset" --window-size 960x1080 --load "$repo/helloworld.s" \
+      --editor-open "$repo/helloworld.s" \
+      --trigger "action_Edu_Layout$preset" --layout-report
+  textw=$(grep -m1 "^layout: text " "$work/narrow$preset.out" |
+          sed -n 's/.* w=\([0-9]*\) .*/\1/p')
+  regw=$(grep -m1 "^layout: intregs " "$work/narrow$preset.out" |
+         sed -n 's/.* w=\([0-9]*\) .*/\1/p')
+  pass "960x1080 $preset: text panel ${textw}px, registers ${regw}px"
+  eval "width_$preset=\$textw"
+done
+if [ "${width_Tabbed:-0}" -gt "${width_Primary:-0}" ]; then
+  pass "the tabbed arrangement gives the panels more width (${width_Tabbed} > ${width_Primary})"
+else
+  fail "the tabbed arrangement is no wider: ${width_Tabbed} vs ${width_Primary}"
+fi
+if grep -q "^layout: tabs Editor.* | Text.* | Data" "$work/narrowTabbed.out"; then
+  pass "one tab bar holds Editor, Text and Data"
+else
+  fail "$(grep -m1 '^layout: tabs' "$work/narrowTabbed.out")"
+fi
+
+# A panel behind its tab cannot show the "Source changed" strip, so its
+# tab carries a dot until it is the one in front.
+run tabdot --window-size 960x1080 --editor-open "$repo/helloworld.s" \
+    --assemble --editor-trigger action_Edu_LayoutTabbed --editor-type 'x' \
+    --layout-report
+if grep -qE "^layout: tabs Editor.*\| Text .*\| Data" "$work/tabdot.out"; then
+  pass "$(grep -m1 '^layout: tabs Editor' "$work/tabdot.out" | sed 's/^layout: //')"
+else
+  fail "no dot on the tabs of the panels that are out of date"
+fi
+run tabdotfront --window-size 960x1080 --editor-open "$repo/helloworld.s" \
+    --assemble --editor-trigger action_Edu_LayoutTabbed --editor-type 'x' \
+    --raise text --layout-report
+if grep -qE "^layout: tabs Editor.*\| Text\*? \|" "$work/tabdotfront.out"; then
+  pass "the dot goes when that panel is the one in front"
+else
+  fail "$(grep -m1 '^layout: tabs Editor' "$work/tabdotfront.out")"
+fi
+
+# The tutorial brings each panel forward as it points at it, and puts the
+# one the student was on back.
+for panel in text data; do
+  run "tabtutorial-$panel" --window-size 960x1080 --load "$repo/helloworld.s" \
+      --trigger action_Edu_LayoutTabbed --raise "$panel" \
+      --tutorial-exit finish
+  if grep -q "front .* ok" "$work/tabtutorial-$panel.out"; then
+    pass "the tutorial gives the $panel tab back"
+  else
+    fail "$(grep -m1 'front ' "$work/tabtutorial-$panel.out")"
+  fi
+done
+
+# Ctrl+S still lands where it should in this arrangement.
+run tabsave --window-size 960x1080 --editor-open "$repo/helloworld.s" \
+    --editor-trigger action_Edu_LayoutTabbed --editor-key ctrl+s --editor-report
+if grep -q "shared=Text" "$work/tabsave.out"; then
+  pass "a good assemble brings the Text tab forward"
+else
+  fail "$(grep -m1 '^editor:' "$work/tabsave.out")"
+fi
+run tabsavebad --window-size 960x1080 \
+    --editor-open "$repo/tests/samples/editor-errors.s" \
+    --editor-trigger action_Edu_LayoutTabbed --editor-key ctrl+s --editor-report
+if grep -q "shared=Editor" "$work/tabsavebad.out"; then
+  pass "a failed assemble leaves the Editor tab in front"
+else
+  fail "$(grep -m1 '^editor:' "$work/tabsavebad.out")"
 fi
 
 echo

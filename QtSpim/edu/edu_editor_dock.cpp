@@ -544,15 +544,22 @@ void EduEditorDock::onModificationChanged() {
 
 void EduEditorDock::onCursorMoved() { updateInfo(); }
 
+// The dock's title is what its tab says, and a tab has room for a word,
+// not for a path: "Editor: a-very-long-name.s*" was cut off in the middle
+// (Z).  The file's name is in the window's own title bar and in the line
+// under the editor, which is on screen in every arrangement.
 void EduEditorDock::updateTitle() {
-  const QString name =
-      path_.isEmpty() ? QString("untitled") : QFileInfo(path_).fileName();
-  setWindowTitle(QString("Editor: ") + name + (isModified() ? "*" : ""));
+  setWindowTitle(QString("Editor") + (isModified() ? "*" : ""));
   setToolTip(QDir::toNativeSeparators(path_));
+  updateInfo();
 }
 
 void EduEditorDock::updateInfo() {
-  info_->setText(QString("%1%2   %3   Ln %4, Col %5%6")
+  const QString name =
+      path_.isEmpty() ? QString("untitled") : QFileInfo(path_).fileName();
+  info_->setText(QString("%1%2   %3%4   %5   Ln %6, Col %7%8")
+                     .arg(name)
+                     .arg(isModified() ? "*" : "")
                      .arg(edu::encodingName(format_.encoding))
                      .arg(format_.byteOrderMark ? " with BOM" : "")
                      .arg(edu::lineEndName(format_.lineEnd))

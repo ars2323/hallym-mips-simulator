@@ -116,7 +116,7 @@ if [ "$file" = "$repo/helloworld.s" ]; then
   eshot r4-errors     --editor-open "$repo/tests/samples/editor-errors.s" --assemble
   eshot r4-assembled  --editor-open "$file" --assemble
   # Window > Layout: the two arrangements, and the bottom panel put away.
-  for preset in Primary Mirrored; do
+  for preset in Primary Mirrored Tabbed; do
     eshot "layout-$preset" --editor-open "$file" --assemble \
       --trigger "action_Edu_Layout$preset"
   done
@@ -138,6 +138,14 @@ if [ "$file" = "$repo/helloworld.s" ]; then
   wide wide-data-scrolled   data    --trigger action_Data_DisplayBinary \
     --hscroll data=max
   wide wide-text-scrolled   text    --hscroll text=max
+
+  # The three arrangements in a window half a 1920 screen wide (Z).
+  for preset in Primary Mirrored Tabbed; do
+    QT_QPA_PLATFORM=offscreen "$app" --window-size 960x1080 \
+      --load "$file" --editor-open "$file" \
+      --editor-trigger "action_Edu_Layout$preset" \
+      --capture window --out "$out/narrow-$preset.png"
+  done
 
   # The start-up card, with the focus on each of its two buttons (1.2.1).
   QT_QPA_PLATFORM=offscreen "$app" \

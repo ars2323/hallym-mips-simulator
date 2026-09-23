@@ -122,8 +122,10 @@ class SpimView : public QMainWindow {
   // EDU: every panel of the window, and the rule that none of them floats.
   QList<QDockWidget*> eduAllDocks() const;
   void eduDockEverything();
-  // EDU: the two arrangements of the window (Window > Layout).  0 is the
-  // one the program starts with, 1 is its mirror image.
+  void eduBringToFront(QDockWidget* dock);  // out from behind its tab (Z)
+  // EDU: the three arrangements of the window (Window > Layout).  0 is the
+  // one the program starts with, 1 is its mirror image, 2 puts the editor
+  // and the two panels in one tabbed place for a narrow window.
   void eduApplyLayout(int preset);
   void eduRevealConsole(bool withFocus);  // a program is printing or waiting
   // EDU: the Registers panel's text size.  It comes from Settings (the
@@ -163,6 +165,9 @@ class SpimView : public QMainWindow {
   QString eduAssembleFile;                       // set for file_LoadFile()
   QMenu* eduEditorRecentMenu;                    // Editor > Open Recent
   QList<QPushButton*> eduStaleBanners;           // "Source changed" strips
+  bool eduStaleShowing;                          // ... and whether they show
+  bool eduInDockTabSync;                         // eduSyncDockTabs() re-entry
+  bool eduStaleBannerShowing() const;
   QString eduSyncedPath;                         // file the simulator last took
   QByteArray eduSyncedDigest;                    // the editor text it took
   bool eduEverAssembled;                         // anything assembled yet?
@@ -204,6 +209,7 @@ class SpimView : public QMainWindow {
     bool showUserText;
     bool showKernelText;
     int layoutPreset;
+    QString frontPanel;    // which of Editor/Text/Data was in front (Z)
     int textSideways;      // how far each panel was scrolled sideways: the
     int dataSideways;      // tutorial scrolls to reach what it points at, and
     int registerSideways;  // puts the student's own position back (S)
@@ -475,10 +481,12 @@ class SpimView : public QMainWindow {
   void eduToggleLog(bool on);
   void eduApplyLayoutSizes();  // the proportions, once the splits are in
   void eduTutorialPutScrollBack(); // where the panels were sideways (S)
+  void eduSyncDockTabs();      // tab labels, and the dot for a hidden strip
   void eduSyncSplits();        // the second horizontal line follows the first
   void eduFollowCrossHandle();  // the handle sits on the crossing
   void eduLayoutPrimary();    // Editor | Text/Data
   void eduLayoutMirrored();   // Text/Data | Editor
+  void eduLayoutTabbed();     // Editor / Text / Data in one place (Z)
   void eduEditorFileChanged();
 
 };

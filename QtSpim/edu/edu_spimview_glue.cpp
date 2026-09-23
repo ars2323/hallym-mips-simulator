@@ -315,6 +315,20 @@ void SpimView::eduTutorialTakeSettings() {
   eduTutorialSettings.showUserText = st_showUserTextSegment;
   eduTutorialSettings.showKernelText = st_showKernelTextSegment;
   eduTutorialSettings.layoutPreset = eduLayoutPreset;
+  // Which of the panels that share a place was in front.  The tutorial
+  // brings each one forward as it points at it, and the student should
+  // find the one they were on when it ends (Z).
+  eduTutorialSettings.frontPanel.clear();
+  QDockWidget* const sharing[] = {(QDockWidget*)eduEditor,
+                                  ui->TextSegDockWidget,
+                                  ui->DataSegDockWidget};
+  for (unsigned i = 0; i < sizeof(sharing) / sizeof(sharing[0]); i += 1) {
+    if (sharing[i] != 0 && !sharing[i]->isHidden() &&
+        !sharing[i]->visibleRegion().isEmpty()) {
+      eduTutorialSettings.frontPanel = sharing[i]->objectName();
+      break;
+    }
+  }
   // The tutorial scrolls the panels sideways to reach the cell it is pointing
   // at; it starts from the left and gives the student's own position back
   // at the end (S).
@@ -375,6 +389,15 @@ void SpimView::eduTutorialPutSettingsBack() {
 // each panel has the room again -- or until it is plain that it never
 // will, because the program it was showing is gone (S).
 void SpimView::eduTutorialPutScrollBack() {
+  // The panel the student was on, too: the tutorial brings each one
+  // forward as it points at it (Z).
+  if (!eduTutorialSettings.frontPanel.isEmpty()) {
+    QDockWidget* front =
+        findChild<QDockWidget*>(eduTutorialSettings.frontPanel);
+    if (front != 0 && !front->isHidden()) {
+      eduBringToFront(front);
+    }
+  }
   struct { QAbstractScrollArea* view; int want; } const back[] = {
       {ui->TextSegView, eduTutorialSettings.textSideways},
       {ui->DataSegPanel->view(), eduTutorialSettings.dataSideways},
@@ -707,6 +730,47 @@ void SpimView::eduSyncDockTitles() {
   }
 }
 
+// The tabs over a shared place (Z).  A panel behind its tab cannot show
+// its "Source changed" strip, so its tab carries a dot instead, and the
+// dot goes as soon as that tab is the one in front.
+//
+// The mark goes in the dock's window title, not in the tab's text: Qt
+// takes a tab's text from the dock's title on every layout pass, so
+// anything written straight into the tab is gone at the next one.
+//
+// Called whenever the arrangement, a title or the strip changes.
+void SpimView::eduSyncDockTabs() {
+  eduElideDockTabs();  // bars can be made after an arrangement is applied
+  if (eduInDockTabSync) {
+    return;  // setWindowTitle() below comes back here
+  }
+  eduInDockTabSync = true;
+  const QChar dot(0x25CF);
+  struct { QDockWidget* dock; const char* base; } const marked[] = {
+      {ui->TextSegDockWidget, "Text"}, {ui->DataSegDockWidget, "Data"}};
+  for (unsigned i = 0; i < sizeof(marked) / sizeof(marked[0]); i += 1) {
+    QDockWidget* dock = marked[i].dock;
+    if (dock == 0) {
+      continue;
+    }
+    const bool behind = dock->isHidden() || dock->visibleRegion().isEmpty();
+    QString wanted = QLatin1String(marked[i].base);
+    if (eduStaleBannerShowing() && behind) {
+      wanted += QLatin1Char(' ');
+      wanted += dot;
+    }
+    if (dock->windowTitle() != wanted) {
+      dock->setWindowTitle(wanted);
+    }
+  }
+  const QList<QTabBar*> bars = findChildren<QTabBar*>();
+  for (int b = 0; b < bars.size(); b += 1) {
+    connect(bars.at(b), SIGNAL(currentChanged(int)), this,
+            SLOT(eduSyncDockTabs()), Qt::UniqueConnection);
+  }
+  eduInDockTabSync = false;
+}
+
 void SpimView::eduElideDockTabs() {
   const QList<QTabBar*> bars = findChildren<QTabBar*>();
   for (int i = 0; i < bars.size(); i += 1) {
@@ -761,6 +825,14 @@ void SpimView::eduInsetDockContent(QDockWidget* dock) {
 //   preset 1        registers | text / data   | editor
 //                             | inspector     | console / msg
 //
+//   preset 2        registers | editor / text / data
+//                             | console / msg | inspector
+//
+// Preset 2 is for a window that is only half a screen wide (Z): with two
+// columns of code there is not enough of either to read, so the editor and
+// the two panels share one place and the tabs above them say which is in
+// front.  The registers keep the left and the bottom row keeps the bottom.
+//
 // The register column is the LEFT dock area, which runs the full height of
 // the window (setCorner() in the constructor gives it both left corners),
 // so all eight groups and their thirty-nine registers are one column with
@@ -789,27 +861,41 @@ void SpimView::eduApplyLayout(int preset) {
   setDockOptions(dockOptions() & ~QMainWindow::VerticalTabs);
   setTabPosition(Qt::AllDockWidgetAreas, QTabWidget::North);
 
-  QDockWidget* const middleTop = mirrored ? ui->TextSegDockWidget : eduEditor;
-  QDockWidget* const rightTop = mirrored ? eduEditor : ui->TextSegDockWidget;
-  QDockWidget* const middleBottom =
-      mirrored ? (QDockWidget*)eduInspector : (QDockWidget*)eduBottom;
-  QDockWidget* const rightBottom =
-      mirrored ? (QDockWidget*)eduBottom : (QDockWidget*)eduInspector;
+  if (preset == 2) {
+    addDockWidget(Qt::RightDockWidgetArea, ui->IntRegDockWidget);
+    splitDockWidget(ui->IntRegDockWidget, eduEditor, Qt::Horizontal);
+    splitDockWidget(eduEditor, (QDockWidget*)eduBottom, Qt::Vertical);
+    splitDockWidget((QDockWidget*)eduBottom, (QDockWidget*)eduInspector,
+                    Qt::Horizontal);
+    tabifyDockWidget(eduEditor, ui->TextSegDockWidget);
+    tabifyDockWidget(ui->TextSegDockWidget, ui->DataSegDockWidget);
+    tabifyDockWidget(ui->IntRegDockWidget, ui->FPRegDockWidget);
+    ui->IntRegDockWidget->raise();
+    eduEditor->raise();
+  } else {
+    QDockWidget* const middleTop = mirrored ? ui->TextSegDockWidget : eduEditor;
+    QDockWidget* const rightTop = mirrored ? eduEditor : ui->TextSegDockWidget;
+    QDockWidget* const middleBottom =
+        mirrored ? (QDockWidget*)eduInspector : (QDockWidget*)eduBottom;
+    QDockWidget* const rightBottom =
+        mirrored ? (QDockWidget*)eduBottom : (QDockWidget*)eduInspector;
 
-  addDockWidget(Qt::RightDockWidgetArea, ui->IntRegDockWidget);
-  splitDockWidget(ui->IntRegDockWidget, middleTop, Qt::Horizontal);
-  splitDockWidget(middleTop, rightTop, Qt::Horizontal);
-  splitDockWidget(middleTop, middleBottom, Qt::Vertical);
-  splitDockWidget(rightTop, rightBottom, Qt::Vertical);
+    addDockWidget(Qt::RightDockWidgetArea, ui->IntRegDockWidget);
+    splitDockWidget(ui->IntRegDockWidget, middleTop, Qt::Horizontal);
+    splitDockWidget(middleTop, rightTop, Qt::Horizontal);
+    splitDockWidget(middleTop, middleBottom, Qt::Vertical);
+    splitDockWidget(rightTop, rightBottom, Qt::Vertical);
 
-  // The two pairs that share a place: the registers, and Text with Data.
-  tabifyDockWidget(ui->IntRegDockWidget, ui->FPRegDockWidget);
-  ui->IntRegDockWidget->raise();
-  tabifyDockWidget(ui->TextSegDockWidget, ui->DataSegDockWidget);
-  ui->TextSegDockWidget->raise();
+    // The two pairs that share a place: the registers, and Text with Data.
+    tabifyDockWidget(ui->IntRegDockWidget, ui->FPRegDockWidget);
+    ui->IntRegDockWidget->raise();
+    tabifyDockWidget(ui->TextSegDockWidget, ui->DataSegDockWidget);
+    ui->TextSegDockWidget->raise();
+  }
 
   eduElideDockTabs();   // the tab bars are new
   eduSyncDockTitles();  // a tabbed panel needs no second title
+  eduSyncDockTabs();    // short labels, and the dot for a hidden strip
   QTimer::singleShot(0, this, SLOT(eduFollowCrossHandle()));
 
   // The proportions are set once this arrangement has been through the
@@ -826,6 +912,35 @@ void SpimView::eduApplyLayout(int preset) {
 // the same breath, the sizes are worked out against the window's old shape
 // and then redistributed.
 void SpimView::eduApplyLayoutSizes() {
+  if (eduLayoutPreset == 2) {
+    // One column of code beside the registers, and the bottom row shared
+    // between Console/Messages and the Instruction Inspector.
+    const int columnWidth = edu::theme::kRegisterColumnWidth;
+    const int rest = qMax(200, width() - columnWidth);
+    QList<QDockWidget*> columns;
+    columns << ui->IntRegDockWidget << eduEditor;
+    QList<int> widths;
+    widths << columnWidth << rest;
+    resizeDocks(columns, widths, Qt::Horizontal);
+
+    const int usable = qMax(200, height() - 140);
+    QList<QDockWidget*> rows;
+    rows << eduEditor << (QDockWidget*)eduBottom;
+    QList<int> heights;
+    heights << usable * 65 / 100 << usable * 35 / 100;
+    resizeDocks(rows, heights, Qt::Vertical);
+
+    QList<QDockWidget*> bottom;
+    bottom << (QDockWidget*)eduBottom << (QDockWidget*)eduInspector;
+    QList<int> bottomWidths;
+    bottomWidths << rest / 2 << rest / 2;
+    resizeDocks(bottom, bottomWidths, Qt::Horizontal);
+
+    eduHoldDockSize(ui->IntRegDockWidget, columnWidth, -1);
+    eduHoldDockSize((QDockWidget*)eduBottom, -1, usable * 35 / 100);
+    eduLayoutSizesPending = width() < 900;
+    return;
+  }
   const bool mirrored = eduLayoutPreset == 1;
   QDockWidget* const middleTop = mirrored ? ui->TextSegDockWidget : eduEditor;
   QDockWidget* const rightTop = mirrored ? eduEditor : ui->TextSegDockWidget;
@@ -897,6 +1012,9 @@ bool SpimView::eduSplitPanels(QDockWidget** middleTop,
                               QDockWidget** middleBottom,
                               QDockWidget** rightTop,
                               QDockWidget** rightBottom) const {
+  if (eduLayoutPreset == 2) {
+    return false;  // one column of code: there is no two by two block (Z)
+  }
   const bool mirrored = eduLayoutPreset == 1;
   QDockWidget* const top = mirrored ? ui->TextSegDockWidget : eduEditor;
   QDockWidget* const other = mirrored ? eduEditor : ui->TextSegDockWidget;
@@ -1021,6 +1139,28 @@ void SpimView::eduFollowCrossHandle() {
   }
 }
 
+// raise() alone is not enough to bring a panel out from behind its tab:
+// it speaks to Qt only when the z-order really changes, and a panel that
+// was raised once is already on top of the stack even after the tab bar
+// has moved on to another panel.  So the tab bar is told as well (Z).
+void SpimView::eduBringToFront(QDockWidget* dock) {
+  if (dock == 0) {
+    return;
+  }
+  dock->show();
+  dock->lower();  // so that raise() is a real change and Qt hears about it
+  dock->raise();
+  const QList<QTabBar*> bars = findChildren<QTabBar*>();
+  for (int b = 0; b < bars.size(); b += 1) {
+    for (int t = 0; t < bars.at(b)->count(); t += 1) {
+      if (bars.at(b)->tabText(t) == dock->windowTitle()) {
+        bars.at(b)->setCurrentIndex(t);
+        return;
+      }
+    }
+  }
+}
+
 // Every panel of the window, in no particular order.  One list, so that a
 // rule about the panels -- what they may do, where they may go, that none
 // of them is floating -- is stated once (Y).
@@ -1054,6 +1194,8 @@ void SpimView::eduDockEverything() {
 void SpimView::eduLayoutPrimary() { eduApplyLayout(0); }
 
 void SpimView::eduLayoutMirrored() { eduApplyLayout(1); }
+
+void SpimView::eduLayoutTabbed() { eduApplyLayout(2); }
 
 bool SpimView::eventFilter(QObject* watched, QEvent* event) {
   // The system switched between its light and dark theme: say again what

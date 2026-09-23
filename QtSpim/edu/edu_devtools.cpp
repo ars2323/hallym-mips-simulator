@@ -31,6 +31,7 @@
 #include <QTextDocument>
 #include <QTextCodec>
 #include <QHeaderView>
+#include <QTabBar>
 #include <QTableView>
 #include <QTreeView>
 #include <QTextStream>
@@ -1196,6 +1197,39 @@ QString viewFacts(QAbstractItemView* v) {
 
 // The three panels that have a frozen strip, with the strip found by the
 // object name the panel gave it.
+// Which of the three panels that can share a place is in front.  The tab
+// bar is the honest answer: visibleRegion() is empty for all of them for a
+// moment after the arrangement is rebuilt.
+QString EduDevtools::frontSharedPanel() const {
+  const QList<QTabBar*> bars = window_->findChildren<QTabBar*>();
+  for (int b = 0; b < bars.size(); b += 1) {
+    bool shared = false;
+    for (int t = 0; t < bars.at(b)->count(); t += 1) {
+      shared = shared || bars.at(b)->tabText(t).startsWith("Editor") ||
+               bars.at(b)->tabText(t).startsWith("Text");
+    }
+    if (shared && bars.at(b)->currentIndex() >= 0) {
+      QString name =
+          bars.at(b)->tabText(bars.at(b)->currentIndex()).section(' ', 0, 0);
+      if (name.endsWith('*')) {
+        name.chop(1);  // the editor's "changed" mark is not its name
+      }
+      return name;
+    }
+  }
+  struct { const char* name; QDockWidget* dock; } const sharing[] = {
+      {"Editor", (QDockWidget*)window_->eduEditor},
+      {"Text", window_->ui->TextSegDockWidget},
+      {"Data", window_->ui->DataSegDockWidget}};
+  for (unsigned i = 0; i < sizeof(sharing) / sizeof(sharing[0]); i += 1) {
+    if (sharing[i].dock != 0 && !sharing[i].dock->isHidden() &&
+        !sharing[i].dock->visibleRegion().isEmpty()) {
+      return sharing[i].name;
+    }
+  }
+  return QString("none");
+}
+
 QList<EduDevtools::FrozenPair> EduDevtools::frozenPairs() const {
   struct { const char* name; QAbstractItemView* view; const char* frozen; } const
       all[] = {
@@ -1354,9 +1388,9 @@ void EduDevtools::runAlignSweep() {
     const QString size = QString("%1x%2").arg(windows[w].width())
                              .arg(windows[w].height());
 
-    const char* const moments[] = {"start",    "assemble", "reinitialize",
-                                   "step",     "tile",     "mirrored",
-                                   "primary",  "tutorial"};
+    const char* const moments[] = {"start",   "assemble", "reinitialize",
+                                   "step",    "tile",     "mirrored",
+                                   "tabbed",  "primary",  "tutorial"};
     for (unsigned m = 0; m < sizeof(moments) / sizeof(moments[0]); m += 1) {
       const QString moment = moments[m];
       QElapsedTimer momentClock;
@@ -1376,6 +1410,8 @@ void EduDevtools::runAlignSweep() {
         window_->win_Tile();
       } else if (moment == "mirrored") {
         window_->eduApplyLayout(1);
+      } else if (moment == "tabbed") {
+        window_->eduApplyLayout(2);
       } else if (moment == "primary") {
         window_->eduApplyLayout(0);
       } else if (moment == "tutorial") {
@@ -1735,6 +1771,7 @@ void EduDevtools::run() {
         status_ = 2;
       }
     } else if (step == "report") {
+      settle();  // a raise() reaches the tabs on the next pass of the loop
       const QAbstractButton* banner =
           window_->ui->TextSegDockWidget->findChild<QAbstractButton*>("EduStaleBanner");
       const QLabel* badge = window_->findChild<QLabel*>("EduAssembleBadge");
@@ -1760,7 +1797,8 @@ void EduDevtools::run() {
             << " editor_onscreen=" << (editorOn ? 1 : 0)
             // New fields go at the end: the checks match on runs of the
             // older ones (tools/check-editor.sh).
-            << " pt=" << dock->editor()->pointSize() << " bannertext=\""
+            << " pt=" << dock->editor()->pointSize()
+            << " shared=" << frontSharedPanel() << " bannertext=\""
             << (banner != 0 && !banner->isHidden() ? banner->text() : QString())
             << "\"\n" << Qt::flush;
     } else if (step == "assemble") {
@@ -1948,6 +1986,17 @@ void EduDevtools::run() {
     out() << "layout: intregs minimum view=" << window_->ui->IntRegView->minimumWidth()
           << " dock=" << window_->ui->IntRegDockWidget->minimumSizeHint().width()
           << " hint=" << window_->ui->IntRegView->sizeHint().width() << "\n" << Qt::flush;
+    const QList<QTabBar*> bars = window_->findChildren<QTabBar*>();
+    for (int b = 0; b < bars.size(); b += 1) {
+      QString tabs;
+      for (int t = 0; t < bars.at(b)->count(); t += 1) {
+        tabs += QString("%1%2%3")
+                    .arg(t == 0 ? "" : " | ")
+                    .arg(bars.at(b)->tabText(t))
+                    .arg(bars.at(b)->currentIndex() == t ? "*" : "");
+      }
+      out() << "layout: tabs " << tabs << "\n" << Qt::flush;
+    }
     out() << "layout: text instruction column " 
           << window_->ui->TextSegView->columnWidth(EduTextModel::InstructionColumn)
           << " source column " << window_->ui->TextSegView->columnWidth(EduTextModel::SourceColumn)
@@ -2331,6 +2380,7 @@ void EduDevtools::run() {
     for (unsigned i = 0; i < ways; i += 1) {
       sideways[i].was = sideways[i].view->horizontalScrollBar()->value();
     }
+    const QString frontWas = frontSharedPanel();
     window_->eduShowTutorial();
     EduTutorial* tutorial = window_->eduTutorial;
     if (tutorial == 0 || !tutorial->isRunning()) {
@@ -2358,6 +2408,14 @@ void EduDevtools::run() {
       out() << "tutorial exit " << tutorialExit_ << ": running="
             << (tutorial->isRunning() ? 1 : 0) << " visible="
             << (tutorial->isVisible() ? 1 : 0) << "\n" << Qt::flush;
+      const QString frontNow = frontSharedPanel();
+      out() << "tutorial exit " << tutorialExit_ << ": front " << frontNow
+            << " of " << frontWas
+            << (frontNow == frontWas ? " ok" : " CHANGED") << "\n"
+            << Qt::flush;
+      if (frontNow != frontWas) {
+        status_ = 1;
+      }
       for (unsigned i = 0; i < ways; i += 1) {
         QScrollBar* bar = sideways[i].view->horizontalScrollBar();
         // The tutorial unloads the program it borrowed, so a panel may have
