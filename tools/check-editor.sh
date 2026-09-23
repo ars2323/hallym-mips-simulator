@@ -37,8 +37,8 @@
 #      height, through every base, text size, moment and scroll position.
 #  16. No panel can be taken out of the window, and a saved state that has
 #      one floating is brought back inside.
-#  18. The third arrangement: the editor and the two panels in one tabbed
-#      place, for a window half a screen wide.
+#  18. The two arrangements: the editor beside Text/Data, and all three in
+#      one tabbed place for a window half a screen wide.
 #  19. Every run starts from the same screen: nothing about the window is
 #      carried over, an older settings file is cleaned out, and Window >
 #      Reset Layout gives the same state back without a restart.
@@ -47,6 +47,8 @@
 #  21. Reset clears and assembles the file again: no strip, F5 runs at
 #      once, breakpoints kept, one line per reset.
 #  22. The size chosen in Settings is kept; what the keys add is not.
+#  23. Every panel wears the same strip, with one close button on it.
+#  24. A boundary dragged to the end leaves every panel on screen.
 #  17. Assemble is one cycle -- save, clear, assemble -- that says one line,
 #      keeps the breakpoints on their statements and leaves the editor and
 #      the panels where they were.  Running with nothing loaded says so.
@@ -306,9 +308,15 @@ edited=$(strip_text stripA --editor-open "$work/strip.s" --assemble \
     --editor-type '# typed' --editor-report)
 expect_strip "edited since the assemble" "Source changed" "$edited"
 
+# Since 1.2.3 a Reinitialize assembles the file again (HH), so there is
+# nothing for the strip to say; with unsaved changes there is.
 cleared=$(strip_text stripB --editor-open "$work/strip.s" --assemble \
     --editor-trigger action_Sim_Reinitialize --editor-report)
-expect_strip "reinitialized" "Simulator was reinitialized" "$cleared"
+expect_strip "reinitialized with the file saved" "" "$cleared"
+unsaved=$(strip_text stripB2 --editor-open "$work/strip.s" --assemble \
+    --editor-type '# typed' --editor-trigger action_Sim_Reinitialize \
+    --editor-report)
+expect_strip "reinitialized with unsaved changes" "Unsaved changes" "$unsaved"
 
 # The Text panel holding one program while the editor holds another: a
 # file on the command line, then a different one opened in the editor.
@@ -703,11 +711,11 @@ else
   pass "and does not put a box over the window"
 fi
 
-echo "== 18. the editor and the two panels in one place"
+echo "== 18. the two arrangements"
 # A window half a 1920 screen wide.  In the two-column arrangements the
 # code columns are about 300 pixels; in this one the panels have the width
 # of the window less the registers.
-for preset in Primary Mirrored Tabbed; do
+for preset in Split Tabbed; do
   run "narrow$preset" --window-size 960x1080 --load "$repo/helloworld.s" \
       --editor-open "$repo/helloworld.s" \
       --trigger "action_Edu_Layout$preset" --layout-report
@@ -718,10 +726,10 @@ for preset in Primary Mirrored Tabbed; do
   pass "960x1080 $preset: text panel ${textw}px, registers ${regw}px"
   eval "width_$preset=\$textw"
 done
-if [ "${width_Tabbed:-0}" -gt "${width_Primary:-0}" ]; then
-  pass "the tabbed arrangement gives the panels more width (${width_Tabbed} > ${width_Primary})"
+if [ "${width_Tabbed:-0}" -gt "${width_Split:-0}" ]; then
+  pass "the tabbed arrangement gives the panels more width (${width_Tabbed} > ${width_Split})"
 else
-  fail "the tabbed arrangement is no wider: ${width_Tabbed} vs ${width_Primary}"
+  fail "the tabbed arrangement is no wider: ${width_Tabbed} vs ${width_Split}"
 fi
 if grep -q "^layout: tabs Editor.* | Text.* | Data" "$work/narrowTabbed.out"; then
   pass "one tab bar holds Editor, Text and Data"
@@ -793,7 +801,7 @@ sticky() {  # sticky NAME ARGS...
 sticky aaFirst --window-size 1400x900 --load "$repo/helloworld.s" \
     --reg-base 2 --trigger action_Data_DisplayBinary \
     --editor-trigger action_Edu_LayoutTabbed --save-settings --layout-report
-if grep -q "^bases: reg=2 data=2 .* layout=2" "$work/aaFirst.out"; then
+if grep -q "^bases: reg=2 data=2 .* layout=1" "$work/aaFirst.out"; then
   pass "first run: the student changed the bases and the arrangement"
 else
   fail "$(grep -m1 '^bases:' "$work/aaFirst.out")"
@@ -1020,6 +1028,50 @@ if grep -q "TextSize=16" "$ggkeep/HallymMIPS/HallymMIPS.conf"; then
 else
   fail "the chosen size was not written to the settings file"
 fi
+
+echo "== 23. every panel wears the same strip"
+run strips --window-size 1500x950 --load "$repo/helloworld.s" \
+    --editor-open "$repo/helloworld.s" --layout-report
+# A panel Qt has tabbed with another wears Qt's tab bar (a blank title bar
+# widget); a panel on its own wears one of ours.  What must not happen is
+# a default title bar, which is the third style 1.2.3 got rid of.
+if grep -q "(default title bar)" "$work/strips.out"; then
+  fail "$(grep -m1 '(default title bar)' "$work/strips.out")"
+else
+  pass "no panel is left with Qt's own title bar"
+fi
+ours=$(grep -c "EduPanelStrip closes=1" "$work/strips.out" || true)
+if [ "$ours" -ge 2 ]; then
+  pass "the panels on their own wear a strip with one close button ($ours)"
+else
+  fail "only $ours panel(s) wear a strip"
+fi
+# One close button per tab bar that has tabs, and none on the empty bars
+# QMainWindow leaves behind.
+if grep -E "^layout: tabs +bar .*close at .* shown=1" "$work/strips.out" >/dev/null; then
+  fail "a close button is showing on a tab bar with no tabs"
+else
+  pass "the close button shows only where there are tabs"
+fi
+for group in "Int Regs" "Text"; do
+  if grep -qE "^layout: tabs $group.* close at [0-9]+ shown=1" "$work/strips.out"; then
+    pass "$group: the close button is at the right of the tab bar"
+  else
+    fail "$group: no close button on the tab bar"
+  fi
+done
+
+echo "== 24. a boundary dragged to the end leaves every panel on screen"
+for size in 1280x720 960x1080; do
+  run "squeeze-$size" --window-size "$size" --load "$repo/helloworld.s" \
+      --squeeze-report
+  bad=$(grep -cE "TOO SMALL|HIDDEN" "$work/squeeze-$size.out" || true)
+  if [ "$bad" -eq 0 ]; then
+    pass "$size: the crossing dragged to all four corners keeps six panels"
+  else
+    fail "$size: $(grep -m1 -E 'TOO SMALL|HIDDEN' "$work/squeeze-$size.out")"
+  fi
+done
 
 echo
 if [ "$failures" -eq 0 ]; then

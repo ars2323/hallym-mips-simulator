@@ -158,10 +158,10 @@ void SpimView::eduSetupEditor() {
   connect(eduLogAction, SIGNAL(toggled(bool)), this, SLOT(eduToggleLog(bool)));
   ui->menu_Window->insertAction(ui->action_Win_Console, eduLogAction);
 
-  // Window > Layout: which side the editor is on.  Everything else about
-  // the arrangement is the same in both, and any other arrangement can
-  // still be made by dragging a tab or a title bar (AllowNestedDocks in
-  // spimview.ui).
+  // Window > Layout: two arrangements (FF).  The one runs start in has
+  // the editor beside the Text/Data tabs; the other puts all three in one
+  // place, for a window half a screen wide.  Any other arrangement can
+  // still be made by dragging a tab (AllowNestedDocks in spimview.ui).
   QMenu* layouts = new QMenu("&Layout", this);
   layouts->setObjectName("menu_Edu_Layout");
   struct {
@@ -169,10 +169,8 @@ void SpimView::eduSetupEditor() {
     const char* text;
     const char* slot;
   } const presets[] = {
-      {"action_Edu_LayoutPrimary", "&Editor | Text / Data",
-       SLOT(eduLayoutPrimary())},
-      {"action_Edu_LayoutMirrored", "Text / Data | Edi&tor",
-       SLOT(eduLayoutMirrored())},
+      {"action_Edu_LayoutSplit", "&Editor | Text / Data",
+       SLOT(eduLayoutSplit())},
       {"action_Edu_LayoutTabbed", "Editor / Text / Data in one &place",
        SLOT(eduLayoutTabbed())},
   };
@@ -205,6 +203,10 @@ void SpimView::eduSetupEditor() {
     // Every panel lives in the one area the arrangement uses, so there is
     // nowhere sensible to drop one but among the others.
     panels.at(i)->setAllowedAreas(Qt::RightDockWidgetArea);
+    // A panel that can be squeezed to nothing disappears, and a student
+    // who did it by accident cannot get it back by dragging (EE).
+    panels.at(i)->setMinimumSize(edu::theme::kPanelMinWidth,
+                                 edu::theme::kPanelMinHeight);
     // Qt takes a tab's text from its dock's window title, so the short
     // label has to be put back whenever the title changes (Z).
     connect(panels.at(i), SIGNAL(windowTitleChanged(QString)), this,

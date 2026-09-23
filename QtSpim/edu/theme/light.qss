@@ -51,10 +51,15 @@ QDockWidget::close-button:hover, QDockWidget::float-button:hover { background: @
 
 /* Tab strips of the tabified docks (Text | Data on top, Int | FP Regs on the left) */
 QTabBar { background: transparent; }
+/* The weight is the same whether a tab is the current one or not (DD):
+   QTabBar works a tab's width out with the plain font, so a selected tab
+   that turned bold outgrew its own tab and lost its first and last
+   letters.  Selection shows as colour and the line above it instead. */
 QTabBar::tab { background: #EAEEF3; color: @text-2@; border: 1px solid @border@;
+               font-weight: 600;
                border-bottom: none; padding: 6px 14px; margin-right: 2px; min-width: 56px;
                border-top-left-radius: 6px; border-top-right-radius: 6px; }
-QTabBar::tab:selected { background: @white@; color: @blue@; font-weight: 600;
+QTabBar::tab:selected { background: @white@; color: @blue@;
                         border-top: 2px solid @blue@; }
 QTabBar::tab:hover:!selected { background: @hover@; color: @navy@; }
 QTabBar::tab:left, QTabBar::tab:right { min-width: 0px; min-height: 56px; padding: 14px 6px;
@@ -105,6 +110,18 @@ QCheckBox, QRadioButton, QLabel { color: @text@; }
 QGroupBox { border: 1px solid @border@; border-radius: 6px; margin-top: 10px; padding-top: @space-2@px; }
 QGroupBox::title { color: @navy@; font-weight: 600; subcontrol-origin: margin; left: @space-2@px; padding: 0px @space-1@px; }
 QTabWidget::pane { border: 1px solid @border@; border-radius: 6px; top: -1px; }
+
+/* One strip over every panel (DD).  A panel Qt has tabbed with another
+   wears Qt's tab bar; a panel on its own wears EduPanelStrip, which is a
+   tab bar of one tab.  Both are QTabBars, so the rules above give them the
+   same font, height and padding, and these two only take the frame off the
+   strip and place the close button that sits at the right of either. */
+QWidget#EduPanelStrip { background: transparent; }
+QTabWidget#EduBottomTabs::pane { border: none; }
+QToolButton#EduPanelClose { border: none; background: transparent;
+                            color: @text-2@; font-size: 13px; padding: 0px; }
+QToolButton#EduPanelClose:hover { background: @hover@; color: @navy@;
+                                  border-radius: 3px; }
 QDialog { background: @window@; }
 
 /* Status bar and its badges */

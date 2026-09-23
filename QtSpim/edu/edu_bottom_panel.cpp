@@ -2,6 +2,10 @@
 
 #include "edu/edu_bottom_panel.h"
 
+#include <QToolButton>
+
+#include "edu/edu_panel_strip.h"
+
 #include <QIcon>
 #include <QPainter>
 #include <QPixmap>
@@ -42,11 +46,18 @@ EduBottomPanel::EduBottomPanel(QWidget* parent)
       messagesIndex_(-1),
       unread_(false) {
   setObjectName("BottomDockWidget");  // saved layouts and the harness
-  setWindowTitle("Console / Messages");
+  // No title of its own: the two tabs below say what this is, and saying
+  // it twice was one of the three panel styles 1.2.3 got rid of (DD).
+  setWindowTitle("Console");
   setFeatures(QDockWidget::DockWidgetClosable | QDockWidget::DockWidgetMovable |
               QDockWidget::DockWidgetFloatable);
 
   tabs_->setObjectName("EduBottomTabs");
+  // The close button lives at the right of the tab bar, as it does on
+  // every other panel (DD).
+  QToolButton* close = EduPanelStrip::makeCloseButton(tabs_);
+  connect(close, SIGNAL(clicked(bool)), this, SLOT(close()));
+  tabs_->setCornerWidget(close, Qt::TopRightCorner);
   tabs_->setDocumentMode(true);
   tabs_->tabBar()->setElideMode(Qt::ElideRight);
   tabs_->tabBar()->setExpanding(false);

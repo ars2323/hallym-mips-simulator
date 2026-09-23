@@ -185,10 +185,8 @@ on the right **Text / Data** with the **Instruction Inspector** under that.
   on it.
 - **Folding the panel**: **Ctrl+L** puts the whole Console / Messages panel
   away and brings it back. An error opens it again by itself.
-- **Choosing an arrangement**: Window > Layout has three.
+- **Choosing an arrangement**: Window > Layout has two.
   - **Editor | Text / Data** -- as described above (the initial one).
-  - **Text / Data | Editor** -- the columns swap, and the panels below them
-    swap with them (Inspector in the middle, Console / Messages on the right).
   - **Editor / Text / Data in one place** -- the three share one place, with
     tabs above them. Use it when the window is half a screen wide (960
     pixels on a 1920 screen): two columns leave about 300 pixels each,
@@ -196,6 +194,11 @@ on the right **Text / Data** with the **Instruction Inspector** under that.
     that has gone out of date carries a dot on its tab. In a narrow window
     the registers in **binary** are wider than their column: scroll
     sideways to read them -- the name and the number stay where they are.
+- Every panel has the same heading: a tab with its name on it (or several
+  tabs, where panels share a place) and a close cross at the right-hand
+  end. A panel you close comes back from the Window menu.
+- Drag a boundary to resize. However far you drag, **a panel never
+  disappears**: it stops at the smallest size that can still be read.
 - You can also drag a tab or a title bar to build your own arrangement; two
   panels dropped side by side share the room evenly. **A panel cannot be
   dragged out of the window** -- that is deliberate, so that one cannot be

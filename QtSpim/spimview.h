@@ -125,12 +125,14 @@ class SpimView : public QMainWindow {
   QList<QDockWidget*> eduAllDocks() const;
   void eduDockEverything();
   void eduBringToFront(QDockWidget* dock);  // out from behind its tab (Z)
+  void eduPlaceTabClose(QTabBar* bar);      // the X at a tab bar's end (DD)
   // EDU: the screen every run starts from, and Window > Reset Layout (AA).
   void eduApplyDefaultState();
   void eduForgetScreenSettings();
-  // EDU: the three arrangements of the window (Window > Layout).  0 is the
-  // one the program starts with, 1 is its mirror image, 2 puts the editor
-  // and the two panels in one tabbed place for a narrow window.
+  // EDU: the two arrangements of the window (Window > Layout).  0 is the
+  // one the program starts with -- the editor beside the Text/Data tabs --
+  // and 1 puts the editor and the two panels in one tabbed place, for a
+  // window half a screen wide (FF).
   void eduApplyLayout(int preset);
   void eduRevealConsole(bool withFocus);  // a program is printing or waiting
   // EDU: the Registers panel's text size.  It comes from Settings (the
@@ -495,10 +497,10 @@ class SpimView : public QMainWindow {
   void eduApplyLayoutSizes();  // the proportions, once the splits are in
   void eduTutorialPutScrollBack(); // where the panels were sideways (S)
   void eduSyncDockTabs();      // tab labels, and the dot for a hidden strip
+  void eduCloseCurrentTab();   // the X at the right of a tab bar (DD)
   void eduSyncSplits();        // the second horizontal line follows the first
   void eduFollowCrossHandle();  // the handle sits on the crossing
-  void eduLayoutPrimary();    // Editor | Text/Data
-  void eduLayoutMirrored();   // Text/Data | Editor
+  void eduLayoutSplit();      // Editor | Text/Data (the one runs start in)
   void eduLayoutTabbed();     // Editor / Text / Data in one place (Z)
   void eduEditorFileChanged();
 

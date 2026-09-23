@@ -101,6 +101,7 @@ EduDevtools::EduDevtools(QObject* parent)
       dockReport_(false),
       vscrollReport_(false),
       panelSize_(0),
+      squeezeReport_(false),
       layoutReport_(false),
       expandEnvironment_(false),
       expandKernelData_(false),
@@ -175,6 +176,8 @@ QString EduDevtools::usage() {
       "                         bases, text sizes, moments and scroll positions\n"
       "                         and check that the frozen strip and the panel\n"
       "                         show the same row at the same height\n"
+      "  --squeeze-report       drag the crossing of the splits to each corner\n"
+      "                         and check that no panel is squeezed away\n"
       "  --panel-size <n>       Settings > All panels text size, without the\n"
       "                         dialog\n"
       "  --vscroll-report       step, run, go to and reassemble, printing every\n"
@@ -533,6 +536,11 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
 
     if (arg == "--vscroll-report") {
       vscrollReport_ = true;
+      continue;
+    }
+
+    if (arg == "--squeeze-report") {
+      squeezeReport_ = true;
       continue;
     }
 
@@ -1413,8 +1421,8 @@ void EduDevtools::runAlignSweep() {
                              .arg(windows[w].height());
 
     const char* const moments[] = {"start",   "assemble", "reinitialize",
-                                   "step",    "tile",     "mirrored",
-                                   "tabbed",  "primary",  "tutorial"};
+                                   "step",    "tile",     "tabbed",
+                                   "split",   "tutorial"};
     for (unsigned m = 0; m < sizeof(moments) / sizeof(moments[0]); m += 1) {
       const QString moment = moments[m];
       QElapsedTimer momentClock;
@@ -1432,11 +1440,9 @@ void EduDevtools::runAlignSweep() {
         window_->sim_SingleStep();
       } else if (moment == "tile") {
         window_->win_Tile();
-      } else if (moment == "mirrored") {
-        window_->eduApplyLayout(1);
       } else if (moment == "tabbed") {
-        window_->eduApplyLayout(2);
-      } else if (moment == "primary") {
+        window_->eduApplyLayout(1);
+      } else if (moment == "split") {
         window_->eduApplyLayout(0);
       } else if (moment == "tutorial") {
         window_->eduShowTutorial();
@@ -1809,6 +1815,46 @@ void EduDevtools::runVerticalScrollReport() {
   }
 }
 
+
+//
+// --squeeze-report: a boundary dragged to the end leaves panels behind (EE)
+//
+void EduDevtools::runSqueezeReport() {
+  settle();
+  struct { const char* name; QWidget* panel; } const panels[] = {
+      {"intregs", window_->ui->IntRegDockWidget},
+      {"editor", (QWidget*)window_->eduEditor},
+      {"text", window_->ui->TextSegDockWidget},
+      {"data", window_->ui->DataSegDockWidget},
+      {"bottom", (QWidget*)window_->eduBottom},
+      {"inspector", (QWidget*)window_->eduInspector}};
+  const unsigned count = sizeof(panels) / sizeof(panels[0]);
+
+  // The four corners of what the crossing handle can be dragged to, and
+  // the middle again afterwards.
+  struct { const char* where; int column; int row; } const corners[] = {
+      {"left and up", -4000, -4000},   {"right and up", 4000, -4000},
+      {"left and down", -4000, 4000},  {"right and down", 4000, 4000}};
+  for (unsigned c = 0; c < sizeof(corners) / sizeof(corners[0]); c += 1) {
+    window_->eduSetSplitSizes(corners[c].column, corners[c].row);
+    settle();
+    settle();
+    for (unsigned i = 0; i < count; i += 1) {
+      QWidget* panel = panels[i].panel;
+      const bool tabbed = panel->visibleRegion().isEmpty() && !panel->isHidden();
+      const bool small = panel->width() < edu::theme::kPanelMinWidth ||
+                         panel->height() < edu::theme::kPanelMinHeight;
+      out() << "squeeze: " << corners[c].where << " " << panels[i].name << " "
+            << panel->width() << "x" << panel->height()
+            << (panel->isHidden() ? " HIDDEN" : "")
+            << (tabbed ? " (behind a tab)" : "")
+            << (small && !tabbed ? " TOO SMALL" : "") << "\n" << Qt::flush;
+      if (panel->isHidden() || (small && !tabbed)) {
+        status_ = 2;
+      }
+    }
+  }
+}
 
 void EduDevtools::run() {
   settle();
@@ -2198,6 +2244,20 @@ void EduDevtools::run() {
             << (!panels[i].w->isHidden() && !panels[i].content->visibleRegion().isEmpty() ? 1 : 0)
             << "\n" << Qt::flush;
     }
+    {
+      const QList<QDockWidget*> allDocks = window_->eduAllDocks();
+      for (int i = 0; i < allDocks.size(); i += 1) {
+        QWidget* title = allDocks.at(i)->titleBarWidget();
+        out() << "strip: " << allDocks.at(i)->objectName() << " "
+              << (title == 0 ? QString("(default title bar)")
+                             : (title->metaObject()->className() +
+                                QString(" closes=") +
+                                QString::number(
+                                    title->findChildren<QToolButton*>(
+                                        "EduPanelClose").size())))
+              << "\n" << Qt::flush;
+      }
+    }
     out() << "sizes: base=" << window_->eduPanelBasePointSize()
           << " text=" << (window_->eduTextZoom != 0
                               ? window_->eduTextZoom->pointSize() : 0)
@@ -2228,7 +2288,15 @@ void EduDevtools::run() {
                     .arg(bars.at(b)->tabText(t))
                     .arg(bars.at(b)->currentIndex() == t ? "*" : "");
       }
-      out() << "layout: tabs " << tabs << "\n" << Qt::flush;
+      const QPoint at = bars.at(b)->mapTo(window_, QPoint(0, 0));
+      QToolButton* x = bars.at(b)->findChild<QToolButton*>("EduPanelClose");
+      out() << "layout: tabs " << tabs << " bar at " << at.x() << "," << at.y()
+            << " " << bars.at(b)->width() << "x" << bars.at(b)->height()
+            << (x != 0 ? QString(" close at %1 shown=%2")
+                             .arg(x->mapTo(window_, QPoint(0, 0)).x())
+                             .arg(x->isVisible() ? 1 : 0)
+                       : QString(" no close"))
+            << "\n" << Qt::flush;
     }
     out() << "layout: text instruction column " 
           << window_->ui->TextSegView->columnWidth(EduTextModel::InstructionColumn)
@@ -2273,6 +2341,10 @@ void EduDevtools::run() {
 
   if (vscrollReport_) {
     runVerticalScrollReport();
+  }
+
+  if (squeezeReport_) {
+    runSqueezeReport();
   }
 
   // Sideways scrolling: each panel has somewhere to go, and nothing the

@@ -116,12 +116,12 @@ if [ "$file" = "$repo/helloworld.s" ]; then
   eshot r4-errors     --editor-open "$repo/tests/samples/editor-errors.s" --assemble
   eshot r4-assembled  --editor-open "$file" --assemble
   # Window > Layout: the two arrangements, and the bottom panel put away.
-  for preset in Primary Mirrored Tabbed; do
+  for preset in Split Tabbed; do
     eshot "layout-$preset" --editor-open "$file" --assemble \
       --trigger "action_Edu_Layout$preset"
   done
   eshot layout-nolog --editor-open "$file" --assemble \
-    --trigger action_Edu_LayoutPrimary --trigger action_Edu_ToggleLog
+    --trigger action_Edu_LayoutSplit --trigger action_Edu_ToggleLog
 
   # Wide panels (1.2.1): the horizontal scroll bar, and the frozen columns
   # that stay put when it is dragged to the far right.
@@ -140,7 +140,7 @@ if [ "$file" = "$repo/helloworld.s" ]; then
   wide wide-text-scrolled   text    --hscroll text=max
 
   # The three arrangements in a window half a 1920 screen wide (Z).
-  for preset in Primary Mirrored Tabbed; do
+  for preset in Split Tabbed; do
     QT_QPA_PLATFORM=offscreen "$app" --window-size 960x1080 \
       --load "$file" --editor-open "$file" \
       --editor-trigger "action_Edu_Layout$preset" \

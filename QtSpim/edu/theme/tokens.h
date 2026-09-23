@@ -80,6 +80,13 @@ const int kSplashTitleSize = 22;  // the start-up screen: product name (Bold)
 // The width of the register column: the table's own columns plus its
 // scroll bar, so that the code beside it keeps everything else.
 const int kRegisterColumnWidth = 380;
+// The least a panel may be squeezed to and still be a panel: its tab bar
+// and about three rows of what it holds.  Dragging a boundary stops here
+// instead of squeezing a panel out of existence (EE).
+const int kTabTextPadding = 40;  // what a tab adds around its name
+const int kPanelCloseSize = 18;  // the X at the right of every panel strip
+const int kPanelMinWidth = 200;
+const int kPanelMinHeight = 104;
 
 const int kSpace1 = 4;
 const int kSpace2 = 8;

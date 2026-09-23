@@ -299,14 +299,18 @@ const EduTutorial::Step EduTutorial::kStepData[] = {
 
     {EduTutorial::Finish, "마무리", "Finish",
      "준비되었습니다",
-     "Window > Layout으로 에디터와 Text의 좌우를 바꿀 수 있고, Window > Tile은 이 배치로 되돌립니다. 안내문은 "
-     "Help > User Guide, 이 튜토리얼은 Help > Tutorial입니다. 예제는 열어 둘 테니 그대로 고쳐 보거나 "
-     "Simulator > Reinitialize로 비우고 시작하세요.",
+     "창이 좁으면 Window > Layout에서 에디터·Text·Data를 한자리에 모을 수 있고, "
+     "Window > 화면 배치 초기화는 처음 배치로 되돌립니다. 안내문은 Help > User Guide, "
+     "이 튜토리얼은 Help > Tutorial입니다. 끝내면 예제는 닫히고 "
+     "[새 파일] / [파일 열기] 시작 화면으로 돌아갑니다 — 예제가 사라진 것이 아니라 "
+     "여러분의 파일을 쓸 차례입니다.",
      "You are ready",
-     "Window > Layout swaps the editor and the Text panel, and Window > Tile "
-     "puts this arrangement back. The written guide is Help > User Guide and "
-     "this tutorial is Help > Tutorial. The example stays open: change it, or clear "
-     "everything with Simulator > Reinitialize."},
+     "If the window is narrow, Window > Layout can put the editor, Text and "
+     "Data in one place, and Window > Reset Layout brings the first "
+     "arrangement back. The written guide is Help > User Guide and this "
+     "tutorial is Help > Tutorial. When you finish, the example closes and "
+     "the [New file] / [Open file] screen comes back -- the example has not "
+     "been lost, it is your turn to write one."},
 };
 
 const int EduTutorial::kStepCount =

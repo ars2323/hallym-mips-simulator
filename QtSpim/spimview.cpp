@@ -86,6 +86,10 @@ SpimView::SpimView(QWidget *parent)
   //
   ui->action_Win_Console->setChecked(true);
 
+  // EDU: below this the panels cannot all keep their minimum sizes and
+  // the window manager would start hiding things (EE).
+  setMinimumSize(820, 560);
+
   programStatus = IDLE;
   eduConstructed = true;  // EDU: the window may be redrawn now (AA)
 }
