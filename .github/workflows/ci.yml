@@ -189,11 +189,40 @@ jobs:
         shell: pwsh
         run: tools/package-msi.ps1 -OutDir dist
 
+      # The MSI of the release before this one, so that the check can put the
+      # new one in over it.  A release that Windows refuses to install over
+      # the last one would leave students on the version they have.
+      - name: Fetch the previous release's MSI
+        shell: pwsh
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          New-Item -ItemType Directory -Force -Path previous | Out-Null
+          $tag = (gh release list --limit 20 --json tagName,isDraft |
+                  ConvertFrom-Json |
+                  Where-Object { -not $_.isDraft -and $_.tagName -match '^v[0-9]' } |
+                  Select-Object -First 1).tagName
+          if ($tag) {
+            Write-Host "previous release: $tag"
+            gh release download $tag --pattern "*.msi" --dir previous
+          }
+
       # Tables, then a real silent install and uninstall next to a stand-in
-      # for a standard QtSpim installation.
+      # for a standard QtSpim installation -- and, when the previous
+      # release was fetched, an upgrade over it.
       - name: MSI does not collide with standard QtSpim
         shell: pwsh
-        run: tools/check-msi.ps1 -Msi (Get-Item dist/*.msi).FullName -Install
+        run: |
+          $previous = (Get-ChildItem previous/*.msi -ErrorAction SilentlyContinue |
+                       Select-Object -First 1)
+          if ($previous) {
+            tools/check-msi.ps1 -Msi (Get-Item dist/*.msi).FullName `
+              -Previous $previous.FullName -Install
+          } else {
+            Write-Host "no previous release MSI: the upgrade is not checked"
+            tools/check-msi.ps1 -Msi (Get-Item dist/*.msi).FullName -Install
+          }
 
       - name: Upload zip and MSI
         uses: actions/upload-artifact@v4

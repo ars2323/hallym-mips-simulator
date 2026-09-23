@@ -13,6 +13,7 @@
 #>
 param(
   [Parameter(Mandatory = $true)][string]$Msi,
+  [string]$Previous = "",
   [switch]$Install
 )
 
@@ -135,6 +136,40 @@ if ($Install) {
            (Test-Path (Join-Path $standInMenu "QtSpim.lnk")) -and
            ((Get-ItemProperty "HKCU:\Software\LarusStone\QtSpim").StandIn -eq "untouched") -and
            ((Get-ItemProperty "HKCU:\Software\HallymMIPS\HallymMIPS").StandIn -eq "untouched")
+  }
+
+  # With -Previous: the release before this one is installed first, and the
+  # new MSI has to go in over it as an upgrade -- one product in Programs
+  # and Features afterwards, at the new version.  If Windows refused this,
+  # a student who already has the older one could never leave it.
+  function InstalledVersions() {
+    $keys = @("HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+              "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*")
+    return @(Get-ItemProperty $keys -ErrorAction SilentlyContinue |
+             Where-Object { $_.DisplayName -eq "Hallym MIPS Simulator" } |
+             ForEach-Object { $_.DisplayVersion })
+  }
+
+  if ($Previous -ne "") {
+    $previousPath = (Resolve-Path $Previous).Path
+    $plog = Join-Path $env:TEMP "hallymmips-previous.log"
+    $p = Start-Process msiexec.exe -ArgumentList "/i `"$previousPath`" /qn /norestart /l*v `"$plog`"" -Wait -PassThru
+    Check ($p.ExitCode -eq 0) "the previous release installed first (exit $($p.ExitCode))"
+    if ($p.ExitCode -ne 0) { Get-Content $plog -Tail 40 }
+    $before = InstalledVersions
+    Check ($before.Count -eq 1) "one Hallym MIPS Simulator installed: $($before -join ', ')"
+
+    $ulog = Join-Path $env:TEMP "hallymmips-upgrade.log"
+    $p = Start-Process msiexec.exe -ArgumentList "/i `"$Msi`" /qn /norestart /l*v `"$ulog`"" -Wait -PassThru
+    Check ($p.ExitCode -eq 0) "the new MSI installed over it (exit $($p.ExitCode))"
+    if ($p.ExitCode -ne 0) { Get-Content $ulog -Tail 60 }
+    $after = InstalledVersions
+    Check ($after.Count -eq 1) "still one Hallym MIPS Simulator, not two: $($after -join ', ')"
+    Check ($after -contains $eduVersion) "the installed version is now $eduVersion"
+    Check (Test-Path (Join-Path $ours "HallymMIPS.exe")) "the program is there after the upgrade"
+    $p = Start-Process msiexec.exe -ArgumentList "/x `"$Msi`" /qn /norestart" -Wait -PassThru
+    Check ($p.ExitCode -eq 0) "and uninstalls (exit $($p.ExitCode))"
+    Check ((InstalledVersions).Count -eq 0) "nothing of ours is left in Programs and Features"
   }
 
   $log = Join-Path $env:TEMP "hallymmips-install.log"
