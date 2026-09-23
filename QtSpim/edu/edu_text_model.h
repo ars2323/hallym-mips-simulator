@@ -86,6 +86,9 @@ class EduTextModel : public QAbstractTableModel {
   Qt::ItemFlags flags(const QModelIndex& index) const;
 
  private:
+  // Repaints one row without repainting the panel: see setCurrentPc().
+  void markRowChanged(int row);
+
   void appendSegment(RowKind header, quint32 from, quint32 to, bool expanded);
   QString headerText(const Row& row) const;
 

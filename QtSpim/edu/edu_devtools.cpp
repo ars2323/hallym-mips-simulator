@@ -60,6 +60,7 @@
 #include "edu/edu_text_model.h"
 #include "edu/edu_text_view.h"
 #include "edu/edu_view_scroll.h"
+#include <QPaintEvent>
 #include "edu/edu_tutorial.h"
 #include "edu/theme/edu_splash.h"
 #include "edu/theme/edu_theme.h"
@@ -98,6 +99,7 @@ EduDevtools::EduDevtools(QObject* parent)
       alignSweep_(false),
       scrollbarReport_(false),
       dockReport_(false),
+      vscrollReport_(false),
       layoutReport_(false),
       expandEnvironment_(false),
       expandKernelData_(false),
@@ -172,6 +174,9 @@ QString EduDevtools::usage() {
       "                         bases, text sizes, moments and scroll positions\n"
       "                         and check that the frozen strip and the panel\n"
       "                         show the same row at the same height\n"
+      "  --vscroll-report       step, run, go to and reassemble, printing every\n"
+      "                         vertical position each panel drew; one move per\n"
+      "                         action is right, two is a flicker\n"
       "  --dock-report          every panel's dock features, and that a saved\n"
       "                         state with a floating panel still comes back\n"
       "                         with everything inside the window\n"
@@ -520,6 +525,11 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
 
     if (arg == "--dock-report") {
       dockReport_ = true;
+      continue;
+    }
+
+    if (arg == "--vscroll-report") {
+      vscrollReport_ = true;
       continue;
     }
 
@@ -1592,6 +1602,200 @@ void EduDevtools::runDockReport() {
   }
 }
 
+// Counts what each panel repaints.  A step changes two rows; a panel that
+// paints its whole viewport every time is the flicker the student sees,
+// whether or not anything scrolled (BB).
+class PaintWatcher : public QObject {
+ public:
+  explicit PaintWatcher(QAbstractScrollArea* area, QObject* parent)
+      : QObject(parent), area_(area), paints_(0), area2_(0) {
+    area->viewport()->installEventFilter(this);
+  }
+  void reset() { paints_ = 0; area2_ = 0; }
+  int paints() const { return paints_; }
+  // How much was painted, as a percentage of the viewport.
+  int coverage() const {
+    const int whole = qMax(1, area_->viewport()->width() *
+                                  area_->viewport()->height());
+    return int(qint64(area2_) * 100 / whole);
+  }
+
+ protected:
+  bool eventFilter(QObject* watched, QEvent* event) {
+    if (event->type() == QEvent::Paint && watched == area_->viewport()) {
+      paints_ += 1;
+      const QRect r = static_cast<QPaintEvent*>(event)->rect();
+      area2_ += qint64(r.width()) * r.height();
+    }
+    return QObject::eventFilter(watched, event);
+  }
+
+ private:
+  QAbstractScrollArea* area_;
+  int paints_;
+  qint64 area2_;
+};
+
+//
+// --vscroll-report: one step, one move (BB)
+//
+// Sideways, nothing may move at all.  Up and down is different: a step
+// moves the current instruction, so the panel has to follow it.  What must
+// not happen is a third position on the way -- the panel dropping to the
+// top and climbing back -- because that is what a flicker is.  So the
+// question is not "did it move" but "how many positions did it draw".
+void EduDevtools::runVerticalScrollReport() {
+  settle();
+  struct { const char* name; const char* object; QAbstractScrollArea* view; } const
+      panels[] = {{"text", "TextSegView", window_->ui->TextSegView},
+                  {"data", "DataSegView", window_->ui->DataSegPanel->view()},
+                  {"intregs", "IntRegView", window_->ui->IntRegView}};
+  const unsigned count = sizeof(panels) / sizeof(panels[0]);
+  QList<PaintWatcher*> watchers;
+  for (unsigned i = 0; i < count; i += 1) {
+    watchers << new PaintWatcher(panels[i].view, this);
+  }
+
+  // The instrument itself, first: a panel moved by hand has to show up,
+  // or a report of "nothing moved" means nothing.
+  edu::resetVerticalScrolls();
+  QScrollBar* bar = window_->ui->TextSegView->verticalScrollBar();
+  out() << "vscroll: text range 0.." << bar->maximum() << "\n" << Qt::flush;
+  bar->setValue(bar->maximum() / 2);
+  settle();
+  out() << "vscroll: self test " << edu::verticalMoves("TextSegView")
+        << " position(s): " << edu::verticalTrail("TextSegView") << "\n"
+        << Qt::flush;
+  if (bar->maximum() == 0) {
+    out() << "vscroll: this program fits the panel; nothing can scroll\n"
+          << Qt::flush;
+  } else if (edu::verticalMoves("TextSegView") == 0) {
+    err() << "vscroll: the instrument does not see a move\n" << Qt::flush;
+    status_ = 2;
+  }
+  bar->setValue(0);
+  settle();
+
+  // Somewhere in the middle of the program, so that a step has room to
+  // move the view either way.
+  for (int i = 0; i < 40; i += 1) {
+    window_->sim_SingleStep();
+  }
+  settle();
+
+  int worst = 0;
+  for (int step = 0; step < 20; step += 1) {
+    edu::resetVerticalScrolls();
+    for (unsigned i = 0; i < count; i += 1) {
+      watchers.at(i)->reset();
+    }
+    window_->sim_SingleStep();
+    settle();
+    for (unsigned i = 0; i < count; i += 1) {
+      const int moves = edu::verticalMoves(panels[i].object);
+      worst = qMax(worst, moves);
+      if (moves > 1 || step < 3) {
+        out() << "vscroll: step " << step << " " << panels[i].name << " "
+              << moves << " position(s)"
+              << (moves > 0 ? QString(": ") + edu::verticalTrail(panels[i].object)
+                            : QString())
+              << ", repainted " << watchers.at(i)->coverage() << "% of the panel in "
+              << watchers.at(i)->paints() << " paint(s)"
+              << (moves > 1 ? "  FLICKER" : "") << "\n" << Qt::flush;
+      }
+      if (moves > 1) {
+        status_ = 2;
+      }
+    }
+  }
+  out() << "vscroll: 20 steps, worst " << worst
+        << " position(s) drawn in one step\n" << Qt::flush;
+
+  // A step that needs no scrolling at all: the PC's row is in the middle
+  // of the panel, so following it moves nothing.  Two rows change, so two
+  // rows should be painted -- a panel that repaints itself whole here is
+  // the flash the student sees (BB).
+  {
+    const int row = window_->eduTextModel->rowOfAddress(PC);
+    if (row >= 0) {
+      eduScrollVerticallyTo(window_->ui->TextSegView,
+                            window_->eduTextModel->index(row, 0),
+                            QAbstractItemView::PositionAtCenter);
+      settle();
+      for (unsigned i = 0; i < count; i += 1) {
+        watchers.at(i)->reset();
+      }
+      edu::resetVerticalScrolls();
+      window_->sim_SingleStep();
+      settle();
+      for (unsigned i = 0; i < count; i += 1) {
+        out() << "vscroll: a step in the middle " << panels[i].name << " "
+              << edu::verticalMoves(panels[i].object) << " position(s), repainted "
+              << watchers.at(i)->coverage() << "% of the panel in "
+              << watchers.at(i)->paints() << " paint(s)\n" << Qt::flush;
+      }
+      if (edu::verticalMoves("TextSegView") != 0) {
+        err() << "vscroll: a step in the middle of the panel moved it\n"
+              << Qt::flush;
+        status_ = 2;
+      }
+      if (watchers.at(0)->coverage() > 25) {
+        err() << "vscroll: the Text panel repainted "
+              << watchers.at(0)->coverage()
+              << "% of itself for a step that changed two rows\n" << Qt::flush;
+        status_ = 2;
+      }
+    }
+  }
+  // The other three things that move a panel up and down.
+  struct { const char* what; } const actions[] = {{"run"}, {"goto"}, {"assemble"}};
+  for (unsigned a = 0; a < sizeof(actions) / sizeof(actions[0]); a += 1) {
+    edu::resetVerticalScrolls();
+    if (QString(actions[a].what) == "run") {
+      // Run to a breakpoint put a little way ahead, so that this ends.
+      const int row = window_->eduTextModel->rowOfAddress(PC);
+      bool stops = false;
+      for (int r = row + 1; r >= 0 && r < window_->eduTextModel->rowCount();
+           r += 1) {
+        const EduTextModel::Row* ahead = window_->eduTextModel->rowAt(r);
+        if (ahead != 0 && ahead->kind == EduTextModel::InstructionRow &&
+            r > row + 10) {
+          add_breakpoint(ahead->address);
+          stops = true;
+          break;
+        }
+      }
+      if (!stops) {
+        out() << "vscroll: run skipped, nowhere ahead to stop\n" << Qt::flush;
+        continue;
+      }
+      edu::resetVerticalScrolls();
+      for (unsigned i = 0; i < count; i += 1) {
+        watchers.at(i)->reset();
+      }
+      window_->sim_Run();
+    } else if (QString(actions[a].what) == "goto") {
+      window_->ui->DataSegPanel->goTo("$sp");
+    } else if (window_->eduEditor != 0 &&
+               !window_->eduEditor->filePath().isEmpty()) {
+      window_->eduAssemble();
+    }
+    settle();
+    for (unsigned i = 0; i < count; i += 1) {
+      const int moves = edu::verticalMoves(panels[i].object);
+      out() << "vscroll: " << actions[a].what << " " << panels[i].name << " "
+            << moves << " position(s)"
+            << (moves > 1 ? QString(": ") + edu::verticalTrail(panels[i].object)
+                          : QString())
+            << (moves > 1 ? "  FLICKER" : "") << "\n" << Qt::flush;
+      if (moves > 1) {
+        status_ = 2;
+      }
+    }
+  }
+}
+
+
 void EduDevtools::run() {
   settle();
   applyThemeOptions();
@@ -2036,6 +2240,10 @@ void EduDevtools::run() {
 
   if (dockReport_) {
     runDockReport();
+  }
+
+  if (vscrollReport_) {
+    runVerticalScrollReport();
   }
 
   // Sideways scrolling: each panel has somewhere to go, and nothing the

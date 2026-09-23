@@ -55,15 +55,41 @@ namespace edu {
 // was drawing; with the viewport's updates off the blit is skipped and
 // nothing is counted.  Zero is the promise, and the harness checks it.
 void noteSidewaysPaint(const QWidget* panel, int dx);
+
+// Up and down is different: a step *should* move the panel, because the
+// current instruction has moved.  What must not happen is a third
+// position on the way -- the panel dropping to the top and climbing back,
+// which is what a flicker is (BB).  Every vertical move that was drawn is
+// recorded in order, per panel, so that one step can be asked how many
+// positions it drew.
+void noteVerticalScroll(const QWidget* panel, int value);
+QString verticalTrail(const QString& panel);   // "120 -> 0 -> 140"
+int verticalMoves(const QString& panel);       // how many were drawn
+void resetVerticalScrolls();
 int sidewaysPaints();
 QString sidewaysPaintsSeen();  // "text +19, data -8", for the report
 void resetSidewaysPaints();
 
 }  // namespace edu
 
-// scrollTo() with the horizontal position put back afterwards.
+// The same as eduScrollVerticallyTo(); kept as the name the panels call.
 void eduScrollRowOnly(QAbstractItemView* view, const QModelIndex& index,
                       QAbstractItemView::ScrollHint hint =
                           QAbstractItemView::EnsureVisible);
+
+// Brings a row into view by moving the vertical scroll bar and nothing
+// else.  This is what the panels use in place of the base class's
+// scrollTo(), which moves both axes and therefore had to be wrapped in a
+// guard that turned the viewport's drawing off -- and turning drawing back
+// on repaints the whole panel, which is a flash on every step even when
+// nothing moved at all (BB).  Here the horizontal bar is never touched, so
+// there is nothing to undo and nothing to hide: a vertical move is one
+// ordinary scroll, and no move is no paint.
+//
+// The value of a vertical scroll bar is a pixel offset (all three panels
+// scroll per pixel, see U); with ScrollPerItem this falls back to the
+// view's own scrollTo().
+void eduScrollVerticallyTo(QAbstractItemView* view, const QModelIndex& index,
+                           QAbstractItemView::ScrollHint hint);
 
 #endif  // EDU_VIEW_SCROLL_H

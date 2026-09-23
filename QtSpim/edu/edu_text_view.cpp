@@ -327,20 +327,15 @@ void EduTextView::showAddress(quint32 address) {
   }
 }
 
-// Only down and up.  QAbstractItemView::scrollTo() moves both axes, and
-// QAbstractScrollArea blits the viewport the moment the value changes, so
-// a move made here and undone afterwards is still one frame of the wrong
-// thing on screen (V).  The guard turns the viewport's drawing off while
-// the base class does its work, so nothing is blitted and nothing has to
-// be undone visibly.  The arrow keys go the other way: moving the current
-// cell to a column off the right should bring it into view.
+// Only down and up, and only the vertical scroll bar: see
+// eduScrollVerticallyTo().  The arrow keys are the exception -- moving the
+// current cell to a column off the right should bring it into view.
 void EduTextView::scrollTo(const QModelIndex& index, ScrollHint hint) {
   if (keyNavigating_) {
     QTableView::scrollTo(index, hint);
     return;
   }
-  EduKeepHorizontalScroll keepSideways(this);
-  QTableView::scrollTo(index, hint);
+  eduScrollVerticallyTo(this, index, hint);
 }
 
 // Shift and the wheel move the panel sideways where the platform has not
@@ -364,6 +359,9 @@ void EduTextView::keyPressEvent(QKeyEvent* event) {
 void EduTextView::scrollContentsBy(int dx, int dy) {
   if (dx != 0 && viewport()->updatesEnabled()) {
     edu::noteSidewaysPaint(this, dx);
+  }
+  if (dy != 0 && viewport()->updatesEnabled()) {
+    edu::noteVerticalScroll(this, verticalScrollBar()->value());
   }
   QTableView::scrollContentsBy(dx, dy);
 }

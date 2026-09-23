@@ -171,14 +171,25 @@ int EduTextModel::setCurrentPc(quint32 pc) {
   }
   const int after = rowOfAddress(pc_);
   if (before != after) {
-    if (before >= 0) {
-      emit dataChanged(index(before, 0), index(before, ColumnCount - 1));
-    }
-    if (after >= 0) {
-      emit dataChanged(index(after, 0), index(after, ColumnCount - 1));
-    }
+    // Cell by cell.  QAbstractItemView repaints the WHOLE viewport for a
+    // dataChanged that spans more than one cell (qabstractitemview.cpp,
+    // dataChanged: only topLeft == bottomRight takes the narrow path), so
+    // saying "this row changed" in one signal made every step repaint the
+    // whole Text panel -- the flicker of BB.
+    markRowChanged(before);
+    markRowChanged(after);
   }
   return after;
+}
+
+// One signal per cell: see setCurrentPc().
+void EduTextModel::markRowChanged(int row) {
+  if (row < 0 || row >= rows_.size()) {
+    return;
+  }
+  for (int column = 0; column < ColumnCount; column += 1) {
+    emit dataChanged(index(row, column), index(row, column));
+  }
 }
 
 int EduTextModel::rowOfAddress(quint32 address) const {

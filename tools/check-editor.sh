@@ -42,6 +42,8 @@
 #  19. Every run starts from the same screen: nothing about the window is
 #      carried over, an older settings file is cleaned out, and Window >
 #      Reset Layout gives the same state back without a restart.
+#  20. One step draws one vertical position, and a step that needs no
+#      scrolling does not repaint the whole panel.
 #  17. Assemble is one cycle -- save, clear, assemble -- that says one line,
 #      keeps the breakpoints on their statements and leaves the editor and
 #      the panels where they were.  Running with nothing loaded says so.
@@ -883,6 +885,37 @@ if diff <(state "$work/aaReset.out") <(state "$work/aaPlain.out") >/dev/null; th
 else
   fail "Reset Layout differs: $(diff <(state "$work/aaReset.out") <(state "$work/aaPlain.out") | head -3 | tr '\n' ' ')"
 fi
+
+echo "== 20. a step moves a panel once, and repaints what changed"
+# Sideways nothing may move; up and down the panel has to follow the
+# current instruction.  What must not happen is a third position on the
+# way, or the whole panel being repainted when two rows changed.
+run vscroll --window-size 1400x900 --load "$repo/Tests/tt.core.s" \
+    --editor-open "$repo/Tests/tt.core.s" --vscroll-report
+if grep -q "FLICKER" "$work/vscroll.out"; then
+  fail "$(grep -m1 FLICKER "$work/vscroll.out")"
+else
+  pass "$(grep -m1 '20 steps, worst' "$work/vscroll.out" | sed 's/^vscroll: //')"
+fi
+middle=$(grep -m1 "a step in the middle text" "$work/vscroll.out")
+case "$middle" in
+  *"0 position(s)"*) pass "a step in the middle of the panel moves nothing" ;;
+  *) fail "$middle" ;;
+esac
+covered=$(echo "$middle" | sed -n 's/.*repainted \([0-9]*\)%.*/\1/p')
+if [ "${covered:-100}" -le 25 ]; then
+  pass "and repaints ${covered}% of the Text panel, not all of it"
+else
+  fail "a step in the middle repainted ${covered}% of the Text panel"
+fi
+for what in run goto assemble; do
+  line=$(grep -m1 "^vscroll: $what text " "$work/vscroll.out" || true)
+  case "$line" in
+    *"FLICKER"*) fail "$line" ;;
+    "") pass "$what: nothing to check in this program" ;;
+    *) pass "${line#vscroll: }" ;;
+  esac
+done
 
 echo
 if [ "$failures" -eq 0 ]; then

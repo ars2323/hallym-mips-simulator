@@ -80,6 +80,8 @@ class EduRegisterModel : public QAbstractItemModel {
     edu::RegisterRef reg;
     quint32 value;
     quint32 snapshot;
+    bool shownAsChanged;  // what the panel last drew, so that a row that
+                          // stops being highlighted is repainted too
   };
 
   const Row* rowFor(const QModelIndex& index) const;

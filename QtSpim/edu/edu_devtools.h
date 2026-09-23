@@ -134,7 +134,7 @@ class EduDevtools : public QObject {
   bool isActive() const {
     return !captures_.isEmpty() || !dumps_.isEmpty() || reportTime_ ||
            inspectorReport_ || hscrollReport_ || !hscroll_.isEmpty() ||
-           alignSweep_ || scrollbarReport_ || dockReport_ ||
+           alignSweep_ || scrollbarReport_ || dockReport_ || vscrollReport_ ||
            !editorSteps_.isEmpty() || layoutReport_ ||
            tutorialReport_ || !dockDrop_.isEmpty() || !menuLoads_.isEmpty() ||
            clickThrough_ || firstRunTutorial_ || !clickTabs_.isEmpty() ||
@@ -193,6 +193,7 @@ class EduDevtools : public QObject {
   void runAlignSweep();
   void runScrollbarReport();
   void runDockReport();
+  void runVerticalScrollReport();
 
   QWidget* panelWidget(const QString& name) const;
   bool grabToFile(QWidget* widget, const QString& path);
@@ -217,6 +218,7 @@ class EduDevtools : public QObject {
   bool alignSweep_;       // --align-sweep: the frozen strip and its panel
   bool scrollbarReport_;  // --scrollbar-report: every panel's scroll bars
   bool dockReport_;       // --dock-report: no panel can leave the window
+  bool vscrollReport_;    // --vscroll-report: one step, one vertical move
   bool layoutReport_;
   bool expandEnvironment_;
   bool expandKernelData_;

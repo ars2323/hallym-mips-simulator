@@ -29,6 +29,7 @@ EduRegisterModel::EduRegisterModel(QObject* parent)
       row.reg = registers.at(r);
       row.value = 0;
       row.snapshot = 0;
+      row.shownAsChanged = false;
       rows_[g].append(row);
     }
   }
@@ -288,13 +289,23 @@ bool EduRegisterModel::isChanged(const edu::RegisterRef& reg) const {
 void EduRegisterModel::refresh() {
   for (int g = 0; g < rows_.size(); g += 1) {
     for (int r = 0; r < rows_.at(g).size(); r += 1) {
-      rows_[g][r].value = readRegister(rows_.at(g).at(r).reg);
-    }
-    if (!rows_.at(g).isEmpty()) {
-      // Whole rows: the colour of every cell depends on the value.
-      emit dataChanged(createIndex(0, 0, quintptr(g + 1)),
-                       createIndex(rows_.at(g).size() - 1, ColumnCount - 1,
-                                   quintptr(g + 1)));
+      const quint32 was = rows_.at(g).at(r).value;
+      const quint32 now = readRegister(rows_.at(g).at(r).reg);
+      rows_[g][r].value = now;
+      // Only the rows that have something new to show, and cell by cell:
+      // a dataChanged that spans more than one cell makes Qt repaint the
+      // whole panel, which on every step is a flash (BB).  A row whose
+      // value is the same still changes when it stops counting as
+      // "changed", which is why the snapshot is compared as well.
+      const bool nowChanged = now != rows_.at(g).at(r).snapshot;
+      const bool wasChanged = rows_.at(g).at(r).shownAsChanged;
+      rows_[g][r].shownAsChanged = nowChanged;
+      if (was != now || wasChanged != nowChanged) {
+        for (int column = 0; column < ColumnCount; column += 1) {
+          const QModelIndex cell = createIndex(r, column, quintptr(g + 1));
+          emit dataChanged(cell, cell);
+        }
+      }
     }
   }
 }

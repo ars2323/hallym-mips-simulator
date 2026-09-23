@@ -53,6 +53,8 @@ EduRegisterView::EduRegisterView(QWidget* parent)
     : QTreeView(parent),
       model_(0),
       contentWidth_(0),
+      fontApplied_(false),
+      nameWidth_(0),
       frozen_(new QTreeView(this)),
       frozenColumns_(0),
       keyNavigating_(false),
@@ -120,8 +122,15 @@ void EduRegisterView::setRegisterModel(EduRegisterModel* model) {
   expandAll();  // groups start open; the user may fold them
 
   header()->setStretchLastSection(true);
-  header()->setSectionResizeMode(QHeaderView::ResizeToContents);
+  // Interactive, not ResizeToContents: with ResizeToContents every change
+  // to the data makes the header measure every row again and resize its
+  // sections, and a header resize repaints the whole panel -- on every
+  // step (BB).  The widths are worked out once from the font and the base
+  // instead, in fitColumns(), and the student can still drag them.
+  header()->setSectionResizeMode(QHeaderView::Interactive);
   header()->setSectionsMovable(false);
+  connect(model, SIGNAL(headerDataChanged(Qt::Orientation, int, int)), this,
+          SLOT(fitColumns()));
 
   connect(selectionModel(),
           SIGNAL(currentRowChanged(QModelIndex, QModelIndex)), this,
@@ -131,20 +140,15 @@ void EduRegisterView::setRegisterModel(EduRegisterModel* model) {
   initFrozen();
 }
 
-// Only down and up.  QAbstractItemView::scrollTo() moves both axes, and
-// QAbstractScrollArea blits the viewport the moment the value changes, so
-// a move made here and undone afterwards is still one frame of the wrong
-// thing on screen (V).  The guard turns the viewport's drawing off while
-// the base class does its work, so nothing is blitted and nothing has to
-// be undone visibly.  The arrow keys go the other way: moving the current
-// cell to a column off the right should bring it into view.
+// Only down and up, and only the vertical scroll bar: see
+// eduScrollVerticallyTo().  The arrow keys are the exception -- moving the
+// current cell to a column off the right should bring it into view.
 void EduRegisterView::scrollTo(const QModelIndex& index, ScrollHint hint) {
   if (keyNavigating_) {
     QTreeView::scrollTo(index, hint);
     return;
   }
-  EduKeepHorizontalScroll keepSideways(this);
-  QTreeView::scrollTo(index, hint);
+  eduScrollVerticallyTo(this, index, hint);
 }
 
 // Shift and the wheel move the panel sideways where the platform has not
@@ -168,6 +172,9 @@ void EduRegisterView::keyPressEvent(QKeyEvent* event) {
 void EduRegisterView::scrollContentsBy(int dx, int dy) {
   if (dx != 0 && viewport()->updatesEnabled()) {
     edu::noteSidewaysPaint(this, dx);
+  }
+  if (dy != 0 && viewport()->updatesEnabled()) {
+    edu::noteVerticalScroll(this, verticalScrollBar()->value());
   }
   QTreeView::scrollContentsBy(dx, dy);
 }
@@ -196,6 +203,13 @@ void EduRegisterView::selectRegister(const edu::RegisterRef& reg) {
 // widest texts rather than from the live columns: in binary the value column
 // is 39 characters and should scroll rather than widen the whole dock.
 void EduRegisterView::applyPanelFont(const QFont& font) {
+  // Only when it really changed.  setFont() repaints the whole panel and
+  // lays it out again, and this is called on every step (BB).
+  if (fontApplied_ && font == appliedFont_) {
+    return;
+  }
+  fontApplied_ = true;
+  appliedFont_ = font;
   setFont(font);
   header()->setFont(font);  // else it keeps the (larger) application font
   const QFontMetrics metrics(font);
@@ -212,10 +226,12 @@ void EduRegisterView::applyPanelFont(const QFont& font) {
   // The value columns scroll rather than hold the column open, so that a
   // student can put the register list down to a strip when they want the
   // room for code.
+  nameWidth_ = nameWidth;
   const int floorWidth = nameWidth + metrics.horizontalAdvance("R31") +
                          2 * cellPadding + 2 * frameWidth() +
                          style()->pixelMetric(QStyle::PM_ScrollBarExtent);
   setMinimumWidth(floorWidth);
+  fitColumns();
   syncFrozenGeometry();
   // What the whole table wants, which is what the layout gives it by
   // default (edu::theme::kRegisterColumnWidth is this, rounded).
@@ -224,6 +240,29 @@ void EduRegisterView::applyPanelFont(const QFont& font) {
                   metrics.horizontalAdvance("-2147483648") + 4 * cellPadding +
                   2 * frameWidth() +
                   style()->pixelMetric(QStyle::PM_ScrollBarExtent) + 16;
+}
+
+// The widths the font and the current base ask for.  Called when either
+// changes, and never in the middle of a step.
+void EduRegisterView::fitColumns() {
+  if (model_ == 0 || nameWidth_ <= 0) {
+    return;
+  }
+  const QFontMetrics metrics(font());
+  const int pad = 12;
+  const int base = model_->base();
+  const QString widest = base == 2
+                             ? QString(39, QLatin1Char('0'))
+                             : (base == 10 ? QString("-2147483648")
+                                           : QString("0x00000000"));
+  setColumnWidth(EduRegisterModel::NameColumn, nameWidth_ + pad);
+  setColumnWidth(EduRegisterModel::NumberColumn,
+                 metrics.horizontalAdvance("R31") + pad);
+  setColumnWidth(EduRegisterModel::BaseColumn,
+                 metrics.horizontalAdvance(widest) + pad);
+  setColumnWidth(EduRegisterModel::DecimalColumn,
+                 metrics.horizontalAdvance("-2147483648") + pad);
+  syncFrozenGeometry();
 }
 
 int EduRegisterView::fullContentHeight() const {

@@ -1392,10 +1392,15 @@ void SpimView::eduRefreshRegisterPanel() {
   eduRegisterModel->setChangedColor(QColor(st_changedRegisterColor),
                                     st_colorChangedRegisters);
 
+  // Setting a palette repaints the whole panel, and this runs on every
+  // step, so it is only set when it is not already right (BB).
   QPalette palette = ui->IntRegView->palette();
-  palette.setColor(QPalette::Base, st_regWinBackgroundColor);
-  palette.setColor(QPalette::Text, st_regWinFontColor);
-  ui->IntRegView->setPalette(palette);
+  if (palette.color(QPalette::Base) != st_regWinBackgroundColor ||
+      palette.color(QPalette::Text) != st_regWinFontColor) {
+    palette.setColor(QPalette::Base, st_regWinBackgroundColor);
+    palette.setColor(QPalette::Text, st_regWinFontColor);
+    ui->IntRegView->setPalette(palette);
+  }
   ui->IntRegView->applyPanelFont(st_regWinFont);
   eduRegisterModel->setPanelFont(st_regWinFont);
   eduInspector->setPanelFont(st_regWinFont);

@@ -59,6 +59,8 @@ class EduRegisterView : public QTreeView {
 
  private slots:
   void syncFrozenGeometry();
+  // The column widths the font and the base ask for.
+  void fitColumns();
   // The panel's own menu, opened either here or on the frozen strip.
   void showMenuAt(const QModelIndex& index, const QPoint& globalPos);
 
@@ -81,6 +83,9 @@ class EduRegisterView : public QTreeView {
 
   EduRegisterModel* model_;
   int contentWidth_;  // what the whole table wants, measured with the font
+  bool fontApplied_;  // applyPanelFont() is called on every refresh
+  QFont appliedFont_;
+  int nameWidth_;     // what the names and group titles need
   // A second view of the same model, showing only the name and the number
   // and laid over the left of this one.  In binary a value is thirty-nine
   // characters and the table scrolls sideways; without this the names go
