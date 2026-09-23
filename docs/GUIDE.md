@@ -51,8 +51,10 @@ closed is left out and the rest are renumbered.
 
 1. Write code in the **Editor** tab. (Editor > New / Open; recent files under
    Editor > Open Recent.)
-2. **Ctrl+S** saves *and* assembles. F3 and the Assemble tool-bar button do the
-   same.
+2. **Ctrl+S** saves the file, clears memory and registers, and assembles that
+   file -- one action, and F3 and the Assemble tool-bar button do the same.
+   **Breakpoints are kept**: each goes back on the statement it was on, even
+   if you have inserted lines above it, and so does your place in the file.
     - On success you are taken to the **Text** tab.
     - On errors you stay in the Editor and the errors are listed below it; click
       one to go to its line. The file has been saved.
@@ -67,9 +69,9 @@ program: the last file is reopened, but nothing is assembled for you.
 ### Text size
 
 **Ctrl +** and **Ctrl -** change the text size and **Ctrl 0** puts it back
-(Ctrl and the wheel work too). Eight to thirty-two points, remembered for
-the next time, and the same as Zoom In / Zoom Out / Reset Zoom in the right
-click menu. Each panel has its own size -- the keys go to the panel the
+(Ctrl and the wheel work too). Eight to thirty-two points, for this run only
+(the next start is back at the default size), and the same as Zoom In /
+Zoom Out / Reset Zoom in the right click menu. Each panel has its own size -- the keys go to the panel the
 mouse or the focus is in, and the editor, Text, Data, the Instruction
 Inspector and Console/Messages each remember theirs. To change them all at
 once there is "All panels text size" in **Simulator > Settings**.
@@ -181,14 +183,25 @@ on the right **Text / Data** with the **Instruction Inspector** under that.
   on it.
 - **Folding the panel**: **Ctrl+L** puts the whole Console / Messages panel
   away and brings it back. An error opens it again by itself.
-- **Swapping sides**: Window > Layout has two arrangements.
+- **Choosing an arrangement**: Window > Layout has three.
   - **Editor | Text / Data** -- as described above (the initial one).
   - **Text / Data | Editor** -- the columns swap, and the panels below them
     swap with them (Inspector in the middle, Console / Messages on the right).
+  - **Editor / Text / Data in one place** -- the three share one place, with
+    tabs above them. Use it when the window is half a screen wide (960
+    pixels on a 1920 screen): two columns leave about 300 pixels each,
+    while here one panel has nearly the whole width. A panel behind its tab
+    that has gone out of date carries a dot on its tab.
 - You can also drag a tab or a title bar to build your own arrangement; two
-  panels dropped side by side share the room evenly. The arrangement is kept
-  for the next start, and **Window > Tile** restores the initial one.
-- A panel you have closed comes back from the **Window** menu.
+  panels dropped side by side share the room evenly. **A panel cannot be
+  dragged out of the window** -- that is deliberate, so that one cannot be
+  torn off by accident and lost.
+- A panel you have closed comes back from the **Window** menu; every panel
+  has an entry there.
+- **Every run starts from the same screen.** The arrangement, the column
+  widths, the text sizes and the number bases last for this run only (a
+  machine in the laboratory is used by many people). To get back to it
+  during a session there is **Window > Reset Layout**.
 
 Questions and bugs: <https://github.com/ars2323/hallym-mips-simulator/issues>
 Developed by Hakhyeon Kim, AIAC Lab, Hallym University. The Hallym University

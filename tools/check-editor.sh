@@ -39,6 +39,9 @@
 #      one floating is brought back inside.
 #  18. The third arrangement: the editor and the two panels in one tabbed
 #      place, for a window half a screen wide.
+#  19. Every run starts from the same screen: nothing about the window is
+#      carried over, an older settings file is cleaned out, and Window >
+#      Reset Layout gives the same state back without a restart.
 #  17. Assemble is one cycle -- save, clear, assemble -- that says one line,
 #      keeps the breakpoints on their statements and leaves the editor and
 #      the panels where they were.  Running with nothing loaded says so.
@@ -761,6 +764,94 @@ if grep -q "shared=Editor" "$work/tabsavebad.out"; then
   pass "a failed assemble leaves the Editor tab in front"
 else
   fail "$(grep -m1 '^editor:' "$work/tabsavebad.out")"
+fi
+
+echo "== 19. every run starts from the same screen"
+# The "run" helper throws the settings away each time, so this part keeps
+# one settings directory across three starts of the program.
+keep="$work/keep-config"
+rm -rf "$keep"
+sticky() {  # sticky NAME ARGS...
+  local name=$1; shift
+  env -i QT_QPA_PLATFORM=offscreen HOME=/nonexistent \
+      XDG_CONFIG_HOME="$keep" timeout 300 "$app" "$@" \
+      >"$work/$name.out" 2>"$work/$name.err" || true
+  cat "$work/$name.err" >>"$work/$name.out"
+}
+sticky aaFirst --window-size 1400x900 --load "$repo/helloworld.s" \
+    --reg-base 2 --trigger action_Data_DisplayBinary \
+    --editor-trigger action_Edu_LayoutTabbed --save-settings --layout-report
+if grep -q "^bases: reg=2 data=2 .* layout=2" "$work/aaFirst.out"; then
+  pass "first run: the student changed the bases and the arrangement"
+else
+  fail "$(grep -m1 '^bases:' "$work/aaFirst.out")"
+fi
+conf=$(find "$keep" -name "HallymMIPS.conf" | head -1)
+screen=$(grep -icE "geometry|windowstate|DisplayBase|FontPointSize|DisplayUnit|^Show" "$conf" || true)
+if [ "$screen" -eq 0 ]; then
+  pass "nothing about the screen was written to the settings file"
+else
+  fail "$screen screen-state key(s) in $conf"
+fi
+sticky aaSecond --window-size 1400x900 --load "$repo/helloworld.s" --layout-report
+if grep -q "^bases: reg=16 data=16 unit=4 layout=0" "$work/aaSecond.out"; then
+  pass "the next run starts from the default screen"
+else
+  fail "$(grep -m1 '^bases:' "$work/aaSecond.out")"
+fi
+
+# A settings file from 1.2.0, with a saved window state in it.
+mkdir -p "$keep/HallymMIPS"
+cat >"$keep/HallymMIPS/HallymMIPS.conf" <<'CONF'
+[MainWin]
+Geometry=@ByteArray(nonsense)
+WindowState=@ByteArray(nonsense)
+LogVisible=false
+
+[RegWin]
+RegisterDisplayBase=2
+
+[DataWin]
+DataSegmentDisplayBase=2
+EduDisplayUnit=1
+
+[Text]
+FontPointSize=28
+CONF
+sticky aaOld --window-size 1400x900 --load "$repo/helloworld.s" \
+    --save-settings --layout-report
+if grep -q "^bases: reg=16 data=16 unit=4 layout=0" "$work/aaOld.out"; then
+  pass "a settings file from an older version starts at the defaults"
+else
+  fail "$(grep -m1 '^bases:' "$work/aaOld.out")"
+fi
+left=$(grep -icE "geometry|windowstate|DisplayBase|FontPointSize|DisplayUnit" \
+       "$keep/HallymMIPS/HallymMIPS.conf" || true)
+if [ "$left" -eq 0 ]; then
+  pass "and the old screen-state keys are gone from the file"
+else
+  fail "$left old screen-state key(s) survived"
+fi
+
+# Window > Reset Layout: the same screen again, without a restart.
+# Without --window-size, so that both runs get the size the default state
+# asks for and the two screens can be compared.  The pixel geometry is left
+# out of the comparison: what is being checked is that the same panels are
+# in the same places with the same options, not that a window manager gave
+# the same numbers twice.
+run aaReset --load "$repo/helloworld.s" \
+    --reg-base 2 --trigger action_Data_DisplayBinary \
+    --editor-trigger action_Edu_LayoutTabbed \
+    --trigger action_Win_Restore --layout-report
+run aaPlain --load "$repo/helloworld.s" --layout-report
+state() {  # state FILE -> the screen, without the pixel numbers
+  grep -E "^(layout|bases|bottom):" "$1" |
+    sed -E 's/ (x|y|w|h)=-?[0-9]+//g; s/[0-9]+/N/g' | sort
+}
+if diff <(state "$work/aaReset.out") <(state "$work/aaPlain.out") >/dev/null; then
+  pass "Reset Layout gives back the screen a run starts from"
+else
+  fail "Reset Layout differs: $(diff <(state "$work/aaReset.out") <(state "$work/aaPlain.out") | head -3 | tr '\n' ' ')"
 fi
 
 echo

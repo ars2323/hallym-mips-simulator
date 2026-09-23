@@ -248,6 +248,13 @@ void EduDataView::fitColumns() {
   }
 }
 
+// Back to the widths the base and the unit ask for (AA).
+void EduDataView::resetColumnWidths() {
+  fittedBase_ = 0;
+  fittedUnit_ = 0;
+  fitColumns();
+}
+
 bool EduDataView::currentWord(quint32* address) const {
   return model_ != 0 && currentIndex().isValid() &&
          selectionModel()->isSelected(currentIndex()) &&

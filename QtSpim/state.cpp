@@ -37,6 +37,7 @@
 #include "spimview.h"
 #include "edu/edu_bottom_panel.h"  // EDU
 #include "ui_spimview.h"
+#include <QStatusBar>
 #include "edu/edu_version.h"  // EDU
 #include "edu/theme/tokens.h"  // EDU: settings defaults
 #include "edu/theme/edu_theme.h"
@@ -45,38 +46,36 @@
 // Restore program settings and window positions
 //
 
-void SpimView::readSettings() {
-  settings.beginGroup("MainWin");
-  // EDU: first start.  Upstream's window got its size from the text
-  // window's 800x600 minimum; that is a wish now (EduTextView::sizeHint),
-  // so the size is set here instead.  A saved geometry replaces it below.
-  resize(1300, 830);
-  restoreGeometry(settings.value("Geometry").toByteArray());
-  // EDU: the layout version.  A state saved by an earlier build is ignored
-  // once and the default layout applies: 2 moved the register docks to the
-  // left area, 3 added the Editor dock, 4 allows nested docks, 5 is the
-  // three-column window with the Console / Messages panel.
-  eduApplyLayout(0);  // EDU: what the window looks like with nothing saved
-  eduSetLogVisible(settings.value("LogVisible", true).toBool());  // EDU
-  const QByteArray state = settings.value("WindowState").toByteArray();  // EDU
-  eduLayoutFromDefaults = state.isEmpty() || !restoreState(state, 5);    // EDU
-  settings.endGroup();
-
-  // If the size of the restored window exceeds the current screen size, resize
-  // the window.
-  //
-  const QRect availGeo = App->desktop()->availableGeometry(this);
-  const QRect& curFGeo = this->frameGeometry();
-  if (!availGeo.contains(curFGeo)) {
-    this->adjustSize();
+// EDU: the state of the screen is not carried from one run to the next
+// (AA).  A machine in the laboratory is used by one student after another,
+// and the second one should not inherit the first one's arrangement,
+// column widths and text sizes -- they have no way of telling what they
+// did wrong.  Upstream restores all of it; we deliberately do not, and we
+// delete what earlier versions of this program left behind.
+void SpimView::eduForgetScreenSettings() {
+  settings.remove("MainWin");  // Geometry, WindowState, LogVisible
+  const char* const keys[] = {
+      "RegWin/RegisterDisplayBase", "TextWin/ShowUserTextSeg",
+      "TextWin/ShowKernelTextSeg",  "TextWin/ShowTextComments",
+      "TextWin/ShowInstDisassembly", "DataWin/ShowUserDataSeg",
+      "DataWin/ShowUserStackSeg",   "DataWin/ShowKernelDataSeg",
+      "DataWin/DataSegmentDisplayBase", "DataWin/EduDisplayUnit",
+      "Text/FontPointSize",         "Data/FontPointSize",
+      "Inspector/FontPointSize",    "Console/FontPointSize",
+      "Editor/FontPointSize",       "Tutorial/Shown"};
+  for (unsigned i = 0; i < sizeof(keys) / sizeof(keys[0]); i += 1) {
+    settings.remove(keys[i]);
   }
+}
+
+void SpimView::readSettings() {
+  eduForgetScreenSettings();  // EDU: nothing about the screen is restored
 
   settings.beginGroup("RegWin");
   st_colorChangedRegisters = settings.value("ColorChangedRegs", true).toBool();
   st_changedRegisterColor =  // EDU: default was "red"
       settings.value("ChangedRegColor", edu::theme::color(edu::theme::kTealText).name()).toString();
-  st_regDisplayBase = settings.value("RegisterDisplayBase", 16).toInt();
-  st_regDisplayBase = setCheckedRegBase(st_regDisplayBase);
+  st_regDisplayBase = setCheckedRegBase(16);  // EDU: a run starts in hex (AA)
 
   st_regWinFont = settings.value("Font", edu::theme::codeFont()).value<QFont>();
   st_regWinFontColor =
@@ -89,14 +88,15 @@ void SpimView::readSettings() {
   settings.endGroup();
 
   settings.beginGroup("TextWin");
-  st_showUserTextSegment = settings.value("ShowUserTextSeg", true).toBool();
-  ui->action_Text_DisplayUserText->setChecked(st_showUserTextSegment);
-  st_showKernelTextSegment = settings.value("ShowKernelTextSeg", true).toBool();
-  ui->action_Text_DisplayKernelText->setChecked(st_showKernelTextSegment);
-  st_showTextComments = settings.value("ShowTextComments", true).toBool();
-  ui->action_Text_DisplayComments->setChecked(st_showTextComments);
-  st_showTextDisassembly = settings.value("ShowInstDisassembly", true).toBool();
-  ui->action_Text_DisplayInstructionValue->setChecked(st_showTextDisassembly);
+  // EDU: what the Text panel shows is screen state, not a preference (AA).
+  st_showUserTextSegment = true;
+  ui->action_Text_DisplayUserText->setChecked(true);
+  st_showKernelTextSegment = true;
+  ui->action_Text_DisplayKernelText->setChecked(true);
+  st_showTextComments = true;
+  ui->action_Text_DisplayComments->setChecked(true);
+  st_showTextDisassembly = true;
+  ui->action_Text_DisplayInstructionValue->setChecked(true);
 
   st_textWinFont = settings.value("Font", edu::theme::codeFont()).value<QFont>();
   st_textWinFontColor =
@@ -108,18 +108,15 @@ void SpimView::readSettings() {
   settings.endGroup();
 
   settings.beginGroup("DataWin");
-  st_showUserDataSegment = settings.value("ShowUserDataSeg", true).toBool();
-  ui->action_Data_DisplayUserData->setChecked(st_showUserDataSegment);
-  st_showUserStackSegment = settings.value("ShowUserStackSeg", true).toBool();
-  ui->action_Data_DisplayUserStack->setChecked(st_showUserStackSegment);
-  st_showKernelDataSegment = settings.value("ShowKernelDataSeg", true).toBool();
-  ui->action_Data_DisplayKernelData->setChecked(st_showKernelDataSegment);
-  st_dataSegmentDisplayBase =
-      settings.value("DataSegmentDisplayBase", 16).toInt();
-  st_dataSegmentDisplayBase =
-      setCheckedDataSegmentDisplayBase(st_dataSegmentDisplayBase);
-  // EDU: Words / Half words / Bytes (4 / 2 / 1)
-  eduSetDataUnit(settings.value("EduDisplayUnit", 4).toInt());
+  // EDU: likewise for the Data panel (AA).
+  st_showUserDataSegment = true;
+  ui->action_Data_DisplayUserData->setChecked(true);
+  st_showUserStackSegment = true;
+  ui->action_Data_DisplayUserStack->setChecked(true);
+  st_showKernelDataSegment = true;
+  ui->action_Data_DisplayKernelData->setChecked(true);
+  st_dataSegmentDisplayBase = setCheckedDataSegmentDisplayBase(16);
+  eduSetDataUnit(4);  // Words / Half words / Bytes (4 / 2 / 1)
 
   ui->action_Win_DataSegment->setChecked(!ui->DataSegDockWidget->isHidden());
   settings.endGroup();
@@ -153,21 +150,19 @@ void SpimView::readSettings() {
       settings.value("StartingAddress", starting_address()).toInt();
   st_commandLine = settings.value("CommandLineArguments", "").toString();
   settings.endGroup();
+
+  eduApplyDefaultState();  // EDU: the one screen every run starts from (AA)
 }
 
 void SpimView::writeSettings(bool omitWindowState) {
-  if (!omitWindowState) {
-    settings.beginGroup("MainWin");
-    settings.setValue("Geometry", saveGeometry());
-    settings.setValue("WindowState", saveState(5));  // EDU: see readSettings
-    settings.setValue("LogVisible", eduBottom != 0 && !eduBottom->isHidden());  // EDU
-    settings.endGroup();
-  }
+  // EDU: the window's size, its arrangement and which panels were open are
+  // not written at all (AA): every run starts from the same screen, and
+  // nothing of this student's is left for the next one.
+  (void)omitWindowState;
 
   settings.beginGroup("RegWin");
   settings.setValue("ColorChangedRegs", st_colorChangedRegisters);
   settings.setValue("ChangedRegColor", st_changedRegisterColor);
-  settings.setValue("RegisterDisplayBase", st_regDisplayBase);
 
   settings.setValue("Font", st_regWinFont);
   settings.setValue("FontColor", st_regWinFontColor);
@@ -175,10 +170,6 @@ void SpimView::writeSettings(bool omitWindowState) {
   settings.endGroup();
 
   settings.beginGroup("TextWin");
-  settings.setValue("ShowUserTextSeg", st_showUserTextSegment);
-  settings.setValue("ShowKernelTextSeg", st_showKernelTextSegment);
-  settings.setValue("ShowTextComments", st_showTextComments);
-  settings.setValue("ShowInstDisassembly", st_showTextDisassembly);
 
   settings.setValue("Font", st_textWinFont);
   settings.setValue("FontColor", st_textWinFontColor);
@@ -186,11 +177,6 @@ void SpimView::writeSettings(bool omitWindowState) {
   settings.endGroup();
 
   settings.beginGroup("DataWin");
-  settings.setValue("ShowUserDataSeg", st_showUserDataSegment);
-  settings.setValue("ShowUserStackSeg", st_showUserStackSegment);
-  settings.setValue("ShowKernelDataSeg", st_showKernelDataSegment);
-  settings.setValue("DataSegmentDisplayBase", st_dataSegmentDisplayBase);
-  settings.setValue("EduDisplayUnit", eduDataUnit());  // EDU
   settings.endGroup();
 
   settings.beginGroup("FileMenu");
@@ -222,24 +208,11 @@ void SpimView::writeSettings(bool omitWindowState) {
   settings.sync();
 }
 
-// Restore windows to initial, default configuration.
-//
-
+// EDU: Window > Reset Layout.  Upstream's "Restore to default" removed
+// the saved window state and told the user to restart; nothing is saved
+// any more (AA), so this simply puts the screen back to the state a run
+// starts from, without losing the program or the file being edited.
 void SpimView::win_Restore() {
-  QMessageBox msgBox;
-  msgBox.setText(
-      EDU_APP_NAME " will now exit. Start it again and the windows will be "  // EDU
-      "restored to their default configuration.");
-  msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Abort);
-  msgBox.setDefaultButton(QMessageBox::Ok);
-  if (msgBox.exec() == QMessageBox::Ok) {
-    settings.beginGroup("MainWin");
-    settings.remove("Geometry");  // Remove current window configuration
-    settings.remove("WindowState");
-    settings.endGroup();
-
-    writeSettings(true);  // Write settings without window config, so next
-                          // startup will revert to default configuration
-    exit(1);
-  }
+  eduApplyDefaultState();
+  statusBar()->showMessage("Layout reset", 5000);
 }

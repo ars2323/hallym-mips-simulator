@@ -36,6 +36,7 @@ class EduDataView : public QTableView {
   void setDataModel(EduDataModel* model);
   void applyPanelFont(const QFont& font);
   void fitColumns();  // after the base or the unit changed
+  void resetColumnWidths();  // back to what the base and unit ask for (AA)
 
   bool currentWord(quint32* address) const;
   bool goToAddress(quint32 address);  // reveal, select, scroll

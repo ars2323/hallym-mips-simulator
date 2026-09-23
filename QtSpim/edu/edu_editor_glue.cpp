@@ -341,16 +341,12 @@ bool SpimView::eduStaleBannerShowing() const { return eduStaleShowing; }
 // kept in the settings under Editor/RecentFiles.
 // The editor's text size is the student's, not a window setting: it is
 // remembered and put back at the next start.
-void SpimView::eduEditorFontSizeChanged(int points) {
-  settings.setValue("Editor/FontPointSize", points);
-}
+// EDU: the text size is the student's for this run and no longer (AA).
+// It used to be written to the settings and read back at the next start,
+// so a machine in the laboratory handed the last student's size on.
+void SpimView::eduEditorFontSizeChanged(int points) { (void)points; }
 
-void SpimView::eduRestoreEditorZoom() {
-  const int points = settings.value("Editor/FontPointSize", 0).toInt();
-  if (points > 0) {
-    eduEditor->editor()->setPointSize(points);
-  }
-}
+void SpimView::eduRestoreEditorZoom() {}
 
 void SpimView::eduEditorFileChanged() {
   eduUpdateStaleBanner();

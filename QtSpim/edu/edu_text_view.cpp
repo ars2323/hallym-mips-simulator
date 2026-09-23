@@ -278,6 +278,14 @@ void EduTextView::applyPanelFont(const QFont& font) {
   }
 }
 
+// Back to the widths the font asks for: what the student dragged is part
+// of the screen state, so a fresh run and Reset Layout undo it (AA).
+void EduTextView::resetColumnWidths() {
+  fontApplied_ = false;
+  applyPanelFont(appliedFont_);
+  afterReset();
+}
+
 void EduTextView::setColumnsShown(bool code, bool source) {
   setColumnHidden(EduTextModel::CodeColumn, !code);
   setColumnHidden(EduTextModel::SourceColumn, !source);

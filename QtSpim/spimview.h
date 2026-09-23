@@ -117,12 +117,17 @@ class SpimView : public QMainWindow {
   bool eduLayoutFromDefaults;  // EDU: no saved layout; ours is in force
   int eduLayoutPreset;         // EDU: which arrangement is in force
   bool eduLayoutSizesPending;  // EDU: waiting for the real window size
+  int eduLayoutSizeTries;      // EDU: how often the sizes have come back
+  int eduLayoutLastRegisterWidth;  // EDU: and whether that still helps
   bool eduTutorialOnStart;       // EDU: false in the scripted capture mode
   void eduSetupPanels();
   // EDU: every panel of the window, and the rule that none of them floats.
   QList<QDockWidget*> eduAllDocks() const;
   void eduDockEverything();
   void eduBringToFront(QDockWidget* dock);  // out from behind its tab (Z)
+  // EDU: the screen every run starts from, and Window > Reset Layout (AA).
+  void eduApplyDefaultState();
+  void eduForgetScreenSettings();
   // EDU: the three arrangements of the window (Window > Layout).  0 is the
   // one the program starts with, 1 is its mirror image, 2 puts the editor
   // and the two panels in one tabbed place for a narrow window.
@@ -167,6 +172,7 @@ class SpimView : public QMainWindow {
   QList<QPushButton*> eduStaleBanners;           // "Source changed" strips
   bool eduStaleShowing;                          // ... and whether they show
   bool eduInDockTabSync;                         // eduSyncDockTabs() re-entry
+  bool eduConstructed;                           // the window is built (AA)
   bool eduStaleBannerShowing() const;
   QString eduSyncedPath;                         // file the simulator last took
   QByteArray eduSyncedDigest;                    // the editor text it took

@@ -31,6 +31,9 @@ class EduTextView : public QTableView {
   // Font, and the column widths and row height that go with it.
   void applyPanelFont(const QFont& font);
 
+  // Back to the widths the font asks for (AA).
+  void resetColumnWidths();
+
   // Text > Comments / Instruction Value.
   void setColumnsShown(bool code, bool source);
 

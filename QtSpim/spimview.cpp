@@ -87,6 +87,7 @@ SpimView::SpimView(QWidget *parent)
   ui->action_Win_Console->setChecked(true);
 
   programStatus = IDLE;
+  eduConstructed = true;  // EDU: the window may be redrawn now (AA)
 }
 
 void SpimView::closeEvent(QCloseEvent *event) {

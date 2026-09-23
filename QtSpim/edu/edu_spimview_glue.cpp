@@ -3,6 +3,7 @@
    only carry one-line hooks (each marked "// EDU:"). */
 
 #include <QApplication>
+#include <QDesktopWidget>
 #include <QEvent>
 #include <QUrl>
 #include <QFileInfo>
@@ -28,6 +29,7 @@
 #include "edu/core/edu_symbols.h"
 #include "edu/edu_data_model.h"
 #include "edu/edu_data_view.h"
+#include "edu/edu_code_editor.h"
 #include "edu/edu_editor_dock.h"
 #include "edu/edu_bottom_panel.h"
 #include "edu/edu_cross_handle.h"
@@ -110,6 +112,9 @@ void SpimView::eduSetupPanels() {
 
   eduProgramLoaded = false;
   eduBannerShown = false;  // the start-up banner is printed once
+  eduConstructed = false;  // the window is still being put together
+  eduLayoutSizeTries = 0;
+  eduLayoutLastRegisterWidth = -1;
   eduTutorialSettings.saved = false;  // nothing borrowed by the tutorial yet
   eduTutorialScrollTries = 0;
 
@@ -635,10 +640,10 @@ void SpimView::eduSetupPanelZoom() {
   for (unsigned i = 0; i < sizeof(panels) / sizeof(panels[0]); i += 1) {
     EduPanelZoom* zoom =
         new EduPanelZoom(panels[i].panel, QString(panels[i].key), this);
+    // The size is this run's, not the last run's (AA): nothing is read
+    // back, and nothing is written when it changes.
     zoom->setBasePointSize(edu::theme::kCodePointSize);
-    zoom->setPointSize(
-        settings.value(QString(panels[i].key), edu::theme::kCodePointSize)
-            .toInt());
+    zoom->setPointSize(edu::theme::kCodePointSize);
     connect(zoom, SIGNAL(pointSizeChanged(int)), this,
             SLOT(eduPanelZoomChanged(int)));
     *panels[i].slot = zoom;
@@ -651,7 +656,7 @@ void SpimView::eduPanelZoomChanged(int points) {
   if (zoom == 0) {
     return;
   }
-  settings.setValue(zoom->settingsKey(), points);
+  (void)zoom;  // the size is not remembered between runs (AA)
   eduApplyPanelZoom(zoom->settingsKey(), points);
 }
 
@@ -902,6 +907,8 @@ void SpimView::eduApplyLayout(int preset) {
   // layout, and again whenever the window's size changes under it.
   eduLayoutPreset = preset;
   eduLayoutSizesPending = true;
+  eduLayoutSizeTries = 0;
+  eduLayoutLastRegisterWidth = -1;
   QTimer::singleShot(0, this, SLOT(eduApplyLayoutSizes()));
 }
 
@@ -975,9 +982,24 @@ void SpimView::eduApplyLayoutSizes() {
   eduHoldDockSize(rightBottom, -1, usable * 35 / 100);
 
   // Until the window has its real size the proportions are worked out
-  // against a shape it will not keep, so they are applied again on the
-  // next resize (eventFilter) until it does.
-  eduLayoutSizesPending = width() < 900;
+  // against a shape it will not keep.  Waiting for a resize is not enough
+  // -- a window that opens at its final size never sends one -- so this
+  // comes back a few times until the register column has the width it was
+  // given, or until it is plain that the window is too narrow for it.
+  const int registerWidth = ui->IntRegDockWidget->width();
+  const bool wide = registerWidth >= columnWidth - 8;
+  // Stop when the column has the width it was given, or when coming back
+  // has stopped helping -- in a narrow window the three columns cannot all
+  // have what they ask for, and that is not a failure.
+  const bool settled =
+      wide || (eduLayoutSizeTries > 0 &&
+               registerWidth == eduLayoutLastRegisterWidth);
+  eduLayoutLastRegisterWidth = registerWidth;
+  eduLayoutSizesPending = !settled;
+  if (!settled && eduLayoutSizeTries < 10) {
+    eduLayoutSizeTries += 1;
+    QTimer::singleShot(10, this, SLOT(eduApplyLayoutSizes()));
+  }
 }
 
 // Sizes one dock by holding it there for a single layout pass.  -1 leaves
@@ -994,6 +1016,11 @@ void SpimView::eduHoldDockSize(QDockWidget* dock, int width, int height) {
     dock->setMinimumHeight(height);
     dock->setMaximumHeight(height);
   }
+  // Twice, with the posted layout requests flushed in between: one pass
+  // is not always enough for the splitter to move, and a hold that is let
+  // go too early leaves the dock where it was (AA).
+  QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+  QCoreApplication::sendPostedEvents(0, QEvent::LayoutRequest);
   QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
   if (width > 0) {
     dock->setMinimumWidth(0);
@@ -1136,6 +1163,101 @@ void SpimView::eduSyncSplits() {
 void SpimView::eduFollowCrossHandle() {
   if (eduCrossHandle != 0) {
     eduCrossHandle->follow();
+  }
+}
+
+// The one screen every run starts from (AA), and what Window > Reset
+// Layout puts back.  A machine in the laboratory is used by one student
+// after another; the second should not inherit the first one's
+// arrangement, column widths, text sizes and number bases and wonder what
+// they did wrong.  Everything about the screen is here, in one place, so
+// that "the default" is one thing and not a dozen scattered ones.
+void SpimView::eduApplyDefaultState() {
+  // The window: a comfortable part of the screen, in the middle of it,
+  // and never larger than what the screen has.  Half a 1920 screen
+  // (960x1080) is a shape students use, so nothing may depend on width.
+  const QRect available = QApplication::desktop()->availableGeometry(this);
+  const int wanted = qBound(800, available.width() * 5 / 6, 1600);
+  const int high = qBound(600, available.height() * 5 / 6, 1000);
+  resize(qMin(wanted, available.width()), qMin(high, available.height()));
+  move(available.center() - QPoint(width() / 2, height() / 2));
+
+  // Every panel open, the bottom panel showing, the first arrangement.
+  const QList<QDockWidget*> docks = eduAllDocks();
+  for (int i = 0; i < docks.size(); i += 1) {
+    docks.at(i)->setFloating(false);
+    docks.at(i)->show();
+  }
+  eduSetLogVisible(true);
+  eduApplyLayout(0);
+
+  // What each panel shows.
+  st_regDisplayBase = setCheckedRegBase(16);
+  st_dataSegmentDisplayBase = setCheckedDataSegmentDisplayBase(16);
+  if (eduDataModel != 0) {
+    eduDataModel->setBase(16);  // the menu and the model are two things
+  }
+  eduSetDataUnit(4);
+  st_showUserTextSegment = true;
+  st_showKernelTextSegment = true;
+  st_showTextComments = true;
+  st_showTextDisassembly = true;
+  ui->action_Text_DisplayUserText->setChecked(true);
+  ui->action_Text_DisplayKernelText->setChecked(true);
+  ui->action_Text_DisplayComments->setChecked(true);
+  ui->action_Text_DisplayInstructionValue->setChecked(true);
+  st_showUserDataSegment = true;
+  st_showUserStackSegment = true;
+  st_showKernelDataSegment = true;
+  ui->action_Data_DisplayUserData->setChecked(true);
+  ui->action_Data_DisplayUserStack->setChecked(true);
+  ui->action_Data_DisplayKernelData->setChecked(true);
+  if (eduTextModel != 0) {
+    eduTextModel->setKernelExpanded(false);
+  }
+  if (eduDataModel != 0) {
+    eduDataModel->setEnvironmentExpanded(false);
+  }
+
+  // Text sizes, and the column widths that go with them.
+  eduSetAllPanelSizes(edu::theme::kCodePointSize);
+  if (eduEditor != 0) {
+    eduEditor->editor()->setPointSize(edu::theme::kCodePointSize);
+  }
+  QFont registerFont = st_regWinFont;
+  registerFont.setPointSize(edu::theme::kCodePointSize);
+  st_regWinFont = registerFont;
+  QFont panelFont = st_textWinFont;
+  panelFont.setPointSize(edu::theme::kCodePointSize);
+  st_textWinFont = panelFont;
+
+  // Not while the window is still being built: readSettings() calls this
+  // from the constructor, and the register and floating-point views are
+  // not ready to be drawn into yet.  The first display happens right
+  // afterwards anyway.
+  if (eduConstructed) {
+    eduRefreshRegisterPanel();
+    eduRefreshTextPanel();
+    UpdateDataDisplay();
+  }
+  ui->TextSegView->resetColumnWidths();
+  ui->DataSegPanel->view()->resetColumnWidths();
+
+  // Where each panel is looking: the top, and the left.
+  QAbstractScrollArea* const views[] = {ui->IntRegView, ui->TextSegView,
+                                        ui->DataSegPanel->view()};
+  for (unsigned i = 0; i < sizeof(views) / sizeof(views[0]); i += 1) {
+    views[i]->verticalScrollBar()->setValue(
+        views[i]->verticalScrollBar()->minimum());
+    views[i]->horizontalScrollBar()->setValue(0);
+  }
+
+  // And which tab is in front of each pair.
+  eduBringToFront(ui->IntRegDockWidget);
+  eduBringToFront(ui->TextSegDockWidget);
+  eduBringToFront(eduEditor);
+  if (eduBottom != 0) {
+    eduBottom->showConsole(false);
   }
 }
 
