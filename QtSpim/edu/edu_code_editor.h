@@ -40,6 +40,8 @@ class EduCodeEditor : public QPlainTextEdit {
   enum { kMinPointSize = 8, kMaxPointSize = 32 };
   int pointSize() const { return pointSize_; }
   void setPointSize(int points);
+  // The size Ctrl+0 goes back to: the one chosen in Settings (GG).
+  void setBasePointSize(int points);
 
   // The document as the file's text: '\n' line ends, nothing substituted
   // (QPlainTextEdit::toPlainText() turns no-break spaces into blanks).

@@ -475,8 +475,9 @@ void SpimView::sim_Settings() {
   panelSize->setObjectName("eduPanelTextSize");
   panelSize->setRange(EduPanelZoom::kMinPointSize, EduPanelZoom::kMaxPointSize);
   panelSize->setSuffix(" pt");
-  panelSize->setValue(eduTextZoom != 0 ? eduTextZoom->pointSize()
-                                       : edu::theme::kCodePointSize);
+  // The base, not what the keys have added to it (GG).
+  panelSize->setValue(st_panelPointSize > 0 ? st_panelPointSize
+                                            : int(edu::theme::kCodePointSize));
   QLabel* panelSizeLabel =
       new QLabel(QString::fromUtf8("All panels text size / 패널 글자 크기"), &d);
   QHBoxLayout* panelSizeRow = new QHBoxLayout;

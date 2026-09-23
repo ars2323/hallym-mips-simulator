@@ -46,6 +46,7 @@
 #      scrolling does not repaint the whole panel.
 #  21. Reset clears and assembles the file again: no strip, F5 runs at
 #      once, breakpoints kept, one line per reset.
+#  22. The size chosen in Settings is kept; what the keys add is not.
 #  17. Assemble is one cycle -- save, clear, assemble -- that says one line,
 #      keeps the breakpoints on their statements and leaves the editor and
 #      the panels where they were.  Running with nothing loaded says so.
@@ -970,6 +971,54 @@ if grep -q 'bannertext="Unsaved changes' "$work/resetUnsaved.out"; then
   pass "a reset with unsaved changes says so"
 else
   fail "$(grep -m1 -oE 'bannertext="[^"]*"' "$work/resetUnsaved.out")"
+fi
+
+echo "== 22. the size chosen in Settings stays, the keys' zoom does not"
+ggkeep="$work/gg-config"
+rm -rf "$ggkeep"
+gg() {  # gg NAME ARGS...
+  local name=$1; shift
+  env -i QT_QPA_PLATFORM=offscreen HOME=/nonexistent \
+      XDG_CONFIG_HOME="$ggkeep" timeout 200 "$app" "$@" \
+      >"$work/$name.out" 2>&1 || true
+}
+gg ggSet --panel-size 16 --save-settings --layout-report
+if grep -q "^sizes: base=16 text=16 .*textfont=16 editor=16 editorfont=16 registers=16" "$work/ggSet.out"; then
+  pass "Settings at 16pt: every panel is 16pt"
+else
+  fail "$(grep -m1 '^sizes:' "$work/ggSet.out")"
+fi
+gg ggAgain --editor-open "$repo/helloworld.s" --load "$repo/helloworld.s" \
+    --layout-report
+if grep -q "^sizes: base=16 .*textfont=16 editor=16 .*registers=16" "$work/ggAgain.out"; then
+  pass "the next run starts at the size Settings chose"
+else
+  fail "$(grep -m1 '^sizes:' "$work/ggAgain.out")"
+fi
+gg ggZoom --editor-open "$repo/helloworld.s" --editor-key ctrl+= \
+    --editor-key ctrl+= --save-settings --layout-report
+if grep -q "editor=18" "$work/ggZoom.out"; then
+  pass "Ctrl+= twice makes the editor 18pt for this run"
+else
+  fail "$(grep -m1 '^sizes:' "$work/ggZoom.out")"
+fi
+gg ggBack --editor-open "$repo/helloworld.s" --layout-report
+if grep -q "^sizes: base=16 .*editor=16 " "$work/ggBack.out"; then
+  pass "and the next run is back at 16pt"
+else
+  fail "$(grep -m1 '^sizes:' "$work/ggBack.out")"
+fi
+gg ggReset --editor-open "$repo/helloworld.s" --editor-key ctrl+= \
+    --editor-key ctrl+0 --layout-report
+if grep -q "^sizes: base=16 .*editor=16 " "$work/ggReset.out"; then
+  pass "Ctrl+0 goes back to the size Settings chose"
+else
+  fail "$(grep -m1 '^sizes:' "$work/ggReset.out")"
+fi
+if grep -q "TextSize=16" "$ggkeep/HallymMIPS/HallymMIPS.conf"; then
+  pass "the size is in the settings file, and nothing else about the text is"
+else
+  fail "the chosen size was not written to the settings file"
 fi
 
 echo

@@ -135,6 +135,7 @@ class EduDevtools : public QObject {
     return !captures_.isEmpty() || !dumps_.isEmpty() || reportTime_ ||
            inspectorReport_ || hscrollReport_ || !hscroll_.isEmpty() ||
            alignSweep_ || scrollbarReport_ || dockReport_ || vscrollReport_ ||
+           panelSize_ > 0 ||
            !editorSteps_.isEmpty() || layoutReport_ ||
            tutorialReport_ || !dockDrop_.isEmpty() || !menuLoads_.isEmpty() ||
            clickThrough_ || firstRunTutorial_ || !clickTabs_.isEmpty() ||
@@ -219,6 +220,7 @@ class EduDevtools : public QObject {
   bool scrollbarReport_;  // --scrollbar-report: every panel's scroll bars
   bool dockReport_;       // --dock-report: no panel can leave the window
   bool vscrollReport_;    // --vscroll-report: one step, one vertical move
+  int panelSize_;         // --panel-size: the base text size, as Settings sets it
   bool layoutReport_;
   bool expandEnvironment_;
   bool expandKernelData_;

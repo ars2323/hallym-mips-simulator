@@ -100,6 +100,7 @@ EduDevtools::EduDevtools(QObject* parent)
       scrollbarReport_(false),
       dockReport_(false),
       vscrollReport_(false),
+      panelSize_(0),
       layoutReport_(false),
       expandEnvironment_(false),
       expandKernelData_(false),
@@ -174,6 +175,8 @@ QString EduDevtools::usage() {
       "                         bases, text sizes, moments and scroll positions\n"
       "                         and check that the frozen strip and the panel\n"
       "                         show the same row at the same height\n"
+      "  --panel-size <n>       Settings > All panels text size, without the\n"
+      "                         dialog\n"
       "  --vscroll-report       step, run, go to and reassemble, printing every\n"
       "                         vertical position each panel drew; one move per\n"
       "                         action is right, two is a flicker\n"
@@ -530,6 +533,17 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
 
     if (arg == "--vscroll-report") {
       vscrollReport_ = true;
+      continue;
+    }
+
+    if (arg == "--panel-size") {
+      if (i + 1 >= args.size()) {
+        err() << arg << " needs a point size\n" << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      panelSize_ = args.at(i + 1).toInt();
+      i += 1;
       continue;
     }
 
@@ -2161,6 +2175,11 @@ void EduDevtools::run() {
       status_ = 2;
     }
   }
+  if (panelSize_ > 0) {
+    window_->eduSetAllPanelSizes(panelSize_);
+    settle();
+  }
+
   if (layoutReport_) {
     settle();
     struct { const char* name; QWidget* w; QWidget* content; } const panels[] = {
@@ -2179,6 +2198,16 @@ void EduDevtools::run() {
             << (!panels[i].w->isHidden() && !panels[i].content->visibleRegion().isEmpty() ? 1 : 0)
             << "\n" << Qt::flush;
     }
+    out() << "sizes: base=" << window_->eduPanelBasePointSize()
+          << " text=" << (window_->eduTextZoom != 0
+                              ? window_->eduTextZoom->pointSize() : 0)
+          << " textoffset=" << (window_->eduTextZoom != 0
+                                    ? window_->eduTextZoom->offset() : 0)
+          << " textfont=" << window_->ui->TextSegView->font().pointSize()
+          << " editor=" << window_->eduEditor->editor()->pointSize()
+          << " editorfont=" << window_->eduEditor->editor()->font().pointSize()
+          << " registers=" << window_->eduRegisterPointSize() << "\n"
+          << Qt::flush;
     out() << "bases: reg=" << window_->eduRegisterModel->base()
           << " data=" << window_->eduDataModel->base()
           << " unit=" << int(window_->eduDataModel->unit())

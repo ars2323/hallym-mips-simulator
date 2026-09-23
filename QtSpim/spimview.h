@@ -138,6 +138,7 @@ class SpimView : public QMainWindow {
   // seam "All panels text size" and the harness use.
   void eduSetRegisterPointSize(int points);
   int eduRegisterPointSize() const;
+  int eduPanelBasePointSize() const { return st_panelPointSize; }
   void eduHoldDockSize(QDockWidget* dock, int width, int height);
   // EDU: the two by two block of panels.  The line down the middle and
   // the line across it belong to the dock layout; these keep the second
@@ -274,6 +275,9 @@ class SpimView : public QMainWindow {
   bool st_loadExceptionHandler;
   QString st_exceptionHandlerFileName;
   int st_startAddress;
+  // EDU: the text size every panel starts from, chosen in Settings and
+  // kept in the settings file.  What the keys add is this run's only (GG).
+  int st_panelPointSize;
   QString st_commandLine;
 
   // Register window

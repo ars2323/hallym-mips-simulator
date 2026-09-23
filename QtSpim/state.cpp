@@ -152,6 +152,12 @@ void SpimView::readSettings() {
   st_commandLine = settings.value("CommandLineArguments", "").toString();
   settings.endGroup();
 
+  // EDU: the text size chosen in Settings is a setting, not screen
+  // state (GG): it is kept, while Ctrl+= and Ctrl+- are this run's.
+  settings.beginGroup("Panels");
+  st_panelPointSize = settings.value("TextSize", int(edu::theme::kCodePointSize)).toInt();
+  settings.endGroup();
+
   eduApplyDefaultState();  // EDU: the one screen every run starts from (AA)
 }
 
@@ -193,6 +199,10 @@ void SpimView::writeSettings(bool omitWindowState) {
   settings.setValue("ExceptionHandlerFileName", st_exceptionHandlerFileName);
   settings.setValue("StartingAddress", st_startAddress);
   settings.setValue("CommandLine", st_commandLine);
+  settings.endGroup();
+
+  settings.beginGroup("Panels");  // EDU: the base text size (GG)
+  settings.setValue("TextSize", st_panelPointSize);
   settings.endGroup();
 
   settings.sync();

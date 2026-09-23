@@ -155,6 +155,10 @@ void EduCodeEditor::zoomOutOnePoint() { setPointSize(pointSize_ - 1); }
 
 void EduCodeEditor::resetPointSize() { setPointSize(basePointSize_); }
 
+void EduCodeEditor::setBasePointSize(int points) {
+  basePointSize_ = points;
+}
+
 // Ctrl and the wheel: the same one point a step.
 void EduCodeEditor::wheelEvent(QWheelEvent* event) {
   if (event->modifiers().testFlag(Qt::ControlModifier)) {

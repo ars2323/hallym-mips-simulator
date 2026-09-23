@@ -113,6 +113,7 @@ void SpimView::eduSetupPanels() {
   eduProgramLoaded = false;
   eduBannerShown = false;  // the start-up banner is printed once
   eduConstructed = false;  // the window is still being put together
+  st_panelPointSize = int(edu::theme::kCodePointSize);  // until Settings is read
   eduLayoutSizeTries = 0;
   eduLayoutLastRegisterWidth = -1;
   eduTutorialSettings.saved = false;  // nothing borrowed by the tutorial yet
@@ -650,10 +651,12 @@ void SpimView::eduSetupPanelZoom() {
   for (unsigned i = 0; i < sizeof(panels) / sizeof(panels[0]); i += 1) {
     EduPanelZoom* zoom =
         new EduPanelZoom(panels[i].panel, QString(panels[i].key), this);
-    // The size is this run's, not the last run's (AA): nothing is read
-    // back, and nothing is written when it changes.
-    zoom->setBasePointSize(edu::theme::kCodePointSize);
-    zoom->setPointSize(edu::theme::kCodePointSize);
+    // The base is the one chosen in Settings and kept between runs; the
+    // offset the keys make is this run's only (GG).
+    zoom->setBasePointSize(st_panelPointSize > 0
+                               ? st_panelPointSize
+                               : int(edu::theme::kCodePointSize));
+    zoom->setOffset(0);
     connect(zoom, SIGNAL(pointSizeChanged(int)), this,
             SLOT(eduPanelZoomChanged(int)));
     *panels[i].slot = zoom;
@@ -672,10 +675,11 @@ void SpimView::eduPanelZoomChanged(int points) {
 
 void SpimView::eduApplyPanelZoom(const QString& key, int points) {
   if (key.startsWith("Text/")) {
+    // The editor is a panel of its own with its own keys; it does not
+    // follow the Text panel's size (GG).
     QFont font = st_textWinFont;
     font.setPointSize(points);
     ui->TextSegView->applyPanelFont(font);
-    eduEditor->setPanelFont(font);
   } else if (key.startsWith("Data/")) {
     QFont font = st_textWinFont;  // the Data panel follows the Text window
     font.setPointSize(points);
@@ -695,16 +699,24 @@ void SpimView::eduApplyPanelZoom(const QString& key, int points) {
 }
 
 // Simulator > Settings: one size for all of them at once.
+// Settings > "All panels text size": the base every panel starts from.
+// It is kept in the settings file, and it does not throw away a zoom the
+// student has going (GG).
 void SpimView::eduSetAllPanelSizes(int points) {
+  st_panelPointSize = qBound(int(EduPanelZoom::kMinPointSize), points,
+                             int(EduPanelZoom::kMaxPointSize));
   EduPanelZoom* const zooms[] = {eduTextZoom, eduDataZoom, eduInspectorZoom,
                                  eduConsoleZoom};
   for (unsigned i = 0; i < sizeof(zooms) / sizeof(zooms[0]); i += 1) {
     if (zooms[i] != 0) {
-      zooms[i]->setBasePointSize(points);
-      zooms[i]->setPointSize(points);
+      zooms[i]->setBasePointSize(st_panelPointSize);
     }
   }
-  eduSetRegisterPointSize(points);  // "all panels" includes the registers
+  eduSetRegisterPointSize(st_panelPointSize);  // "all panels" includes these
+  if (eduEditor != 0) {
+    eduEditor->editor()->setBasePointSize(st_panelPointSize);
+    eduEditor->editor()->setPointSize(st_panelPointSize);
+  }
 }
 
 // The Registers panel has no EduPanelZoom: its font is the one in Settings
@@ -1238,17 +1250,16 @@ void SpimView::eduApplyDefaultState() {
     eduDataModel->setEnvironmentExpanded(false);
   }
 
-  // Text sizes, and the column widths that go with them.
-  eduSetAllPanelSizes(edu::theme::kCodePointSize);
-  if (eduEditor != 0) {
-    eduEditor->editor()->setPointSize(edu::theme::kCodePointSize);
+  // Text sizes: back to the base chosen in Settings, which is kept, by
+  // throwing away only what the keys added in this run (GG).
+  EduPanelZoom* const zooms[] = {eduTextZoom, eduDataZoom, eduInspectorZoom,
+                                 eduConsoleZoom};
+  for (unsigned i = 0; i < sizeof(zooms) / sizeof(zooms[0]); i += 1) {
+    if (zooms[i] != 0) {
+      zooms[i]->setOffset(0);
+    }
   }
-  QFont registerFont = st_regWinFont;
-  registerFont.setPointSize(edu::theme::kCodePointSize);
-  st_regWinFont = registerFont;
-  QFont panelFont = st_textWinFont;
-  panelFont.setPointSize(edu::theme::kCodePointSize);
-  st_textWinFont = panelFont;
+  eduSetAllPanelSizes(st_panelPointSize);
 
   // Not while the window is still being built: readSettings() calls this
   // from the constructor, and the register and floating-point views are
@@ -1471,9 +1482,17 @@ void SpimView::eduRefreshTextPanel() {
   palette.setColor(QPalette::Base, st_textWinBackgroundColor);
   palette.setColor(QPalette::Text, st_textWinFontColor);
   ui->TextSegView->setPalette(palette);
-  ui->TextSegView->applyPanelFont(st_textWinFont);
+  // The family comes from Settings, the size from the panel's own base
+  // and offset -- otherwise every refresh would undo a zoom (GG).
+  QFont textFont = st_textWinFont;
+  if (eduTextZoom != 0) {
+    textFont.setPointSize(eduTextZoom->pointSize());
+  }
+  ui->TextSegView->applyPanelFont(textFont);
   eduTextModel->setColors(st_textWinFontColor, st_textWinBackgroundColor);
-  eduEditor->setPanelFont(st_textWinFont);  // the editor follows the Text window's font
+  QFont editorFont = st_textWinFont;  // the editor: same family, own size
+  editorFont.setPointSize(eduEditor->editor()->pointSize());
+  eduEditor->setPanelFont(editorFont);
 
   eduTextModel->rebuild(st_showUserTextSegment, st_showKernelTextSegment);
   ui->TextSegView->setColumnsShown(st_showTextDisassembly, st_showTextComments);

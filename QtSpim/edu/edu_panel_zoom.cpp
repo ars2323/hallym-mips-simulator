@@ -13,7 +13,7 @@
 
 EduPanelZoom::EduPanelZoom(QWidget* panel, const QString& settingsKey,
                            QObject* parent)
-    : QObject(parent), panel_(panel), key_(settingsKey), points_(0), base_(0) {
+    : QObject(parent), panel_(panel), key_(settingsKey), base_(0), offset_(0) {
   if (panel_ == 0) {
     return;
   }
@@ -36,27 +36,38 @@ EduPanelZoom::EduPanelZoom(QWidget* panel, const QString& settingsKey,
   }
 }
 
+int EduPanelZoom::pointSize() const {
+  return qBound(int(kMinPointSize), base_ + offset_, int(kMaxPointSize));
+}
+
+// The size chosen in Settings.  The offset the keys made is kept, so that
+// a student who has zoomed in and then changes the base stays zoomed in.
 void EduPanelZoom::setBasePointSize(int points) {
+  const int was = pointSize();
   base_ = points;
-  if (points_ == 0) {
-    points_ = points;
+  if (pointSize() != was) {
+    emit pointSizeChanged(pointSize());
+  }
+}
+
+void EduPanelZoom::setOffset(int points) {
+  const int was = pointSize();
+  offset_ = points;
+  if (pointSize() != was) {
+    emit pointSizeChanged(pointSize());
   }
 }
 
 void EduPanelZoom::setPointSize(int points) {
-  const int wanted = qBound(int(kMinPointSize), points, int(kMaxPointSize));
-  if (wanted == points_) {
-    return;  // at the end of the range: nothing happens, quietly
-  }
-  points_ = wanted;
-  emit pointSizeChanged(points_);
+  setOffset(qBound(int(kMinPointSize), points, int(kMaxPointSize)) - base_);
 }
 
-void EduPanelZoom::zoomIn() { setPointSize(points_ + 1); }
+void EduPanelZoom::zoomIn() { setPointSize(pointSize() + 1); }
 
-void EduPanelZoom::zoomOut() { setPointSize(points_ - 1); }
+void EduPanelZoom::zoomOut() { setPointSize(pointSize() - 1); }
 
-void EduPanelZoom::resetZoom() { setPointSize(base_); }
+// Back to the size Settings chose, not to a size of its own.
+void EduPanelZoom::resetZoom() { setOffset(0); }
 
 void EduPanelZoom::addMenuActions(QMenu* menu) {
   if (menu == 0) {

@@ -32,12 +32,16 @@ class EduPanelZoom : public QObject {
   // example "Text/FontPointSize".
   EduPanelZoom(QWidget* panel, const QString& settingsKey, QObject* parent);
 
-  int pointSize() const { return points_; }
+  // The size on screen: the base chosen in Settings plus what the keys
+  // have added (GG).  The base is kept in the settings file; the offset
+  // is this run's and starts at zero again at the next one.
+  int pointSize() const;
   // Silently clamped to the range; nothing happens at the ends.
   void setPointSize(int points);
-  // The size this panel starts from when it has never been zoomed.
   void setBasePointSize(int points);
   int basePointSize() const { return base_; }
+  int offset() const { return offset_; }
+  void setOffset(int points);
 
   void addMenuActions(QMenu* menu);
   QString settingsKey() const { return key_; }
@@ -56,8 +60,8 @@ class EduPanelZoom : public QObject {
  private:
   QWidget* panel_;
   QString key_;
-  int points_;
   int base_;
+  int offset_;
 };
 
 #endif  // EDU_PANEL_ZOOM_H
