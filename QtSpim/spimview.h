@@ -316,9 +316,18 @@ class SpimView : public QMainWindow {
   QPlainTextEdit* eduDataLog;    // EDU: and for the Data window
   QLabel* eduAssembleBadge;      // EDU: status bar, "2 errors"
   bool eduCollectingErrors;      // EDU: an Assemble is in progress
+  bool eduAssembleCycle;         // EDU: inside save -> clear -> assemble (X)
   QStringList eduCollectedErrors;
   QLabel* eduModeBadge;          // EDU: status bar, see eduUpdateModeBadge()
   bool eduProgramLoaded;         // EDU: a file was assembled since Reinitialize
+  // EDU: breakpoints survive an assemble by their statement, not their
+  // address (X): the source line's number and the text after it.
+  struct EduBreakpointMark {
+    int line;
+    QString text;
+  };
+  QList<EduBreakpointMark> eduBreakpointMarks() const;
+  void eduRestoreBreakpointMarks(const QList<EduBreakpointMark>& marks);
   bool eduBannerShown;           // EDU: the start-up banner, once per run
   QString eduLoadedSymbols;      // EDU: print_symbols() text of every file loaded
   void eduFillDataLog();

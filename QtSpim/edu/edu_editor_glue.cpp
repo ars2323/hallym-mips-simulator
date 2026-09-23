@@ -6,6 +6,8 @@
 #include <QCryptographicHash>
 #include <QFileInfo>
 #include <QDir>
+#include <QScrollBar>
+#include <QTextCursor>
 #include <QLabel>
 #include <QDockWidget>
 #include <QMenu>
@@ -21,12 +23,16 @@
 #include "edu/edu_code_editor.h"
 #include "edu/edu_bottom_panel.h"
 #include "edu/edu_editor_dock.h"
+#include "edu/edu_text_model.h"
+#include "edu/edu_view_scroll.h"
+#include "edu/core/edu_source_text.h"
 #include "spimview.h"
 #include "ui_spimview.h"
 
 // Called from eduSetupPanels(), i.e. before win_Tile() and readSettings().
 void SpimView::eduSetupEditor() {
   eduCollectingErrors = false;
+  eduAssembleCycle = false;
 
   eduEditor = new EduEditorDock(this);
   addDockWidget(Qt::TopDockWidgetArea, eduEditor);
@@ -487,6 +493,91 @@ bool SpimView::eduCollectError(const QString& message) {
 // Simulator > Assemble: save, then exactly File > Reinitialize and Load File
 // (file_ReloadFile(), with the file named instead of asked for).  No errors:
 // on to the Text tab.  Errors: stay here, list them, mark their lines.
+QList<SpimView::EduBreakpointMark> SpimView::eduBreakpointMarks() const {
+  QList<EduBreakpointMark> marks;
+  if (eduTextModel == 0) {
+    return marks;
+  }
+  EduBreakpointMark current;
+  current.line = 0;
+  for (int i = 0; i < eduTextModel->rowCount(); i += 1) {
+    const EduTextModel::Row* row = eduTextModel->rowAt(i);
+    if (row == 0 || row->kind != EduTextModel::InstructionRow) {
+      continue;
+    }
+    if (row->startsSourceLine) {
+      current.line = edu::sourceLineNumber(row->source);
+      current.text = edu::sourceLineStatement(row->source);
+    }
+    if (current.line > 0 && inst_is_breakpoint(row->address)) {
+      bool already = false;
+      for (int m = 0; m < marks.size(); m += 1) {
+        already = already || marks.at(m).line == current.line;
+      }
+      if (!already) {
+        marks << current;
+      }
+    }
+  }
+  return marks;
+}
+
+// Puts each one back on the statement it was on.  The same text at the
+// nearest line wins; a statement that the edit changed or removed is
+// dropped without a word, because a breakpoint on the wrong line is worse
+// than none.
+void SpimView::eduRestoreBreakpointMarks(const QList<EduBreakpointMark>& marks) {
+  if (eduTextModel == 0 || marks.isEmpty()) {
+    return;
+  }
+  // Every statement of the new program, in source order.
+  QList<EduBreakpointMark> now;
+  QList<quint32> addresses;
+  for (int i = 0; i < eduTextModel->rowCount(); i += 1) {
+    const EduTextModel::Row* row = eduTextModel->rowAt(i);
+    if (row == 0 || row->kind != EduTextModel::InstructionRow ||
+        !row->startsSourceLine) {
+      continue;
+    }
+    EduBreakpointMark mark;
+    mark.line = edu::sourceLineNumber(row->source);
+    mark.text = edu::sourceLineStatement(row->source);
+    if (mark.line > 0) {
+      now << mark;
+      addresses << row->address;
+    }
+  }
+  for (int m = 0; m < marks.size(); m += 1) {
+    int best = -1;
+    for (int i = 0; i < now.size(); i += 1) {
+      if (now.at(i).text != marks.at(m).text) {
+        continue;
+      }
+      if (best < 0 || qAbs(now.at(i).line - marks.at(m).line) <
+                          qAbs(now.at(best).line - marks.at(m).line)) {
+        best = i;
+      }
+    }
+    if (best >= 0) {
+      add_breakpoint(addresses.at(best));
+      eduTextModel->breakpointChanged(addresses.at(best));
+    }
+  }
+}
+
+// Ctrl+S, F3 and the tool bar's Assemble are one action: save the file,
+// clear memory and registers, assemble that file.  It was already those
+// three things, but each of them left its own mark -- a "Memory and
+// registers cleared" line on every press, breakpoints gone, the editor
+// and the panels jumped -- and a student pressing Ctrl+S ten times had a
+// message pane full of clearing and no breakpoints left (X).  Now the
+// cycle says one line, puts the breakpoints back on the source lines they
+// were on, and leaves the editor and the panels where they were.
+// Breakpoints belong to source lines, not to addresses: an edit above one
+// moves every instruction after it, and a breakpoint left at its old
+// address would be on a different statement (X).  The line number is the
+// one the core keeps with each instruction, which the Text panel shows at
+// the start of its Source column ("183: lw $a0 0($sp)").
 void SpimView::eduAssemble() {
   eduEditor->show();
   eduEditor->raise();
@@ -496,6 +587,16 @@ void SpimView::eduAssemble() {
       !eduEditor->save()) {
     return;
   }
+
+  // What the student had, to be given back at the end of the cycle.
+  const QList<EduBreakpointMark> breakpoints = eduBreakpointMarks();
+  const int cursor = eduEditor->editor()->textCursor().position();
+  const int editorScroll =
+      eduEditor->editor()->verticalScrollBar()->value();
+  EduKeepHorizontalScroll keepText(ui->TextSegView);
+  EduKeepHorizontalScroll keepData(ui->DataSegPanel->view());
+  EduKeepHorizontalScroll keepRegisters(ui->IntRegView);
+  eduAssembleCycle = true;  // the clear in the middle says nothing of its own
 
   eduCollectedErrors.clear();
   eduCollectingErrors = true;
@@ -509,6 +610,15 @@ void SpimView::eduAssemble() {
   eduExtraProgram = false;  // this assemble started from a clean simulator
   eduUpdateStaleBanner();
 
+  eduAssembleCycle = false;
+  eduRestoreBreakpointMarks(breakpoints);
+  // The editor is where it was: an assemble is not a reason to lose your
+  // place in the file you are writing.
+  QTextCursor back = eduEditor->editor()->textCursor();
+  back.setPosition(qMin(cursor, eduEditor->editor()->document()->characterCount() - 1));
+  eduEditor->editor()->setTextCursor(back);
+  eduEditor->editor()->verticalScrollBar()->setValue(editorScroll);
+
   QList<edu::AssemblerMessage> messages;
   for (int i = 0; i < eduCollectedErrors.size(); i += 1) {
     messages << edu::parseAssemblerMessage(eduCollectedErrors.at(i));
@@ -518,6 +628,14 @@ void SpimView::eduAssemble() {
   if (messages.isEmpty()) {
     eduAssembleBadge->hide();
     statusBar()->showMessage("Saved and assembled", 5000);
+    // One line for the cycle, in place of the clear's own.
+    write_output(message_out, "%s\n",
+                 qPrintable(QFileInfo(eduEditor->filePath()).fileName() +
+                            QString(" assembled") +
+                            (breakpoints.isEmpty()
+                                 ? QString()
+                                 : QString(" (%1 breakpoint(s) kept)")
+                                       .arg(breakpoints.size()))));
     // On to the Text panel -- unless it is on screen already (side by side
     // with the editor), where a "switch" would only take the editor away.
     ui->TextSegDockWidget->show();

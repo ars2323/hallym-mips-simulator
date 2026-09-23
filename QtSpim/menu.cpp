@@ -239,7 +239,12 @@ void SpimView::sim_ClearRegisters() {
 }
 
 void SpimView::sim_ReinitializeSimulator() {
-  write_output(message_out, "<hr>Memory and registers cleared\n\n");
+  // EDU: inside an Assemble the clear is one step of a cycle that says its
+  // own line at the end; announcing it here as well put a "Memory and
+  // registers cleared" in the message pane on every Ctrl+S (X).
+  if (!eduAssembleCycle) {
+    write_output(message_out, "<hr>Memory and registers cleared\n\n");
+  }
   InitializeWorld();
   SpimConsole->Clear();
   initStack();

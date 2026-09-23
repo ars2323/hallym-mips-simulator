@@ -299,6 +299,22 @@ QString SpimView::WriteOutput(QString message) {
 void SpimView::SetOutputColor(QString color) { outputColor = color; }
 
 void SpimView::Error(QString message, bool fatal) {
+  // EDU: nothing has been loaded, so the start stub the core puts at
+  // 0x00400000 runs into a "jal main" with no main to jump to.  The
+  // core names an address the student has never seen and raises a
+  // box over it; say what to do instead, in the message pane, and let
+  // the simulator stop exactly as it did (X).
+  if (!fatal && !eduProgramLoaded &&
+      message.startsWith("Instruction references undefined symbol")) {
+    const QString normal = outputColor;
+    outputColor = edu::theme::color(edu::theme::kError).name();
+    WriteOutput("No program is loaded.\n"
+                "Open one with File > Open (Ctrl+O), or write it in the "
+                "Editor and press Ctrl+S.\n");
+    outputColor = normal;
+    eduShowLog();
+    return;
+  }
   // EDU: errors in the log stand out in the error colour (display only).
   const QString normalColor = outputColor;
   outputColor = edu::theme::color(edu::theme::kError).name();

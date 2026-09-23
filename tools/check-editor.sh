@@ -37,6 +37,9 @@
 #      height, through every base, text size, moment and scroll position.
 #  16. No panel can be taken out of the window, and a saved state that has
 #      one floating is brought back inside.
+#  17. Assemble is one cycle -- save, clear, assemble -- that says one line,
+#      keeps the breakpoints on their statements and leaves the editor and
+#      the panels where they were.  Running with nothing loaded says so.
 
 set -euo pipefail
 
@@ -140,8 +143,16 @@ if [ "$(grep -c '^dialog:' "$work/bad-asm.out" || true)" -eq 0 ] &&
 else
   fail "dialogs: Assemble $(grep -c '^dialog:' "$work/bad-asm.out" || true), File menu $(grep -c '^dialog:' "$work/bad-rel.out" || true)"
 fi
-if [ -s "$work/bad-asm.log" ] && cmp -s "$work/bad-asm.log" "$work/bad-rel.log"; then
-  pass "message log is the File menu route's, byte for byte"
+# The errors are word for word the File menu route's.  The one line that
+# differs is by design: inside an Assemble the clear in the middle says
+# nothing of its own, because the cycle says one line at the end (X).
+grep -v -e "Memory and registers cleared" -e "^$" "$work/bad-asm.log" \
+    >"$work/bad-asm.errors"
+grep -v -e "Memory and registers cleared" -e "^$" "$work/bad-rel.log" \
+    >"$work/bad-rel.errors"
+if [ -s "$work/bad-asm.errors" ] &&
+   cmp -s "$work/bad-asm.errors" "$work/bad-rel.errors"; then
+  pass "message log is the File menu route's, but for the clearing line"
 else
   fail "message log differs from the File menu route's"
 fi
@@ -620,6 +631,59 @@ if grep -q "^dock: after eduDockEverything() 0 panel" "$work/docks.out"; then
   pass "a saved state with a floating panel comes back inside the window"
 else
   fail "$(grep -m1 'after eduDockEverything' "$work/docks.out")"
+fi
+
+echo "== 17. Assemble is one cycle"
+cp "$repo/helloworld.s" "$work/cycle.s"
+run cycle10 --editor-open "$work/cycle.s" \
+    --assemble --assemble --assemble --assemble --assemble \
+    --assemble --assemble --assemble --assemble --assemble \
+    --dump log "$work/cycle10.log"
+assembled=$(grep -c "cycle.s assembled" "$work/cycle10.log" || true)
+cleared=$(grep -c "Memory and registers cleared" "$work/cycle10.log" || true)
+if [ "$assembled" -eq 10 ] && [ "$cleared" -le 1 ]; then
+  pass "ten saves: ten lines in Messages, no pile of clearings"
+else
+  fail "ten saves left $assembled lines and $cleared clearings"
+fi
+if grep -qE "undefined symbol|already defined|Duplicate" "$work/cycle10.log"; then
+  fail "$(grep -m1 -E 'undefined symbol|already defined|Duplicate' "$work/cycle10.log")"
+else
+  pass "ten saves of the same file: no duplicate-label or undefined-symbol error"
+fi
+
+# A breakpoint set between two assembles is still on its statement
+# afterwards, even when a line has been inserted above it.
+printf '\t.text\nmain:\tli $v0, 1\n\tli $a0, 7\n\tsyscall\n\tli $v0, 10\n\tsyscall\n' \
+    >"$work/bp.s"
+run bpkeep --editor-open "$work/bp.s" --assemble \
+    --editor-breakpoint 0040002c --editor-goto-line 2 \
+    --editor-type '\tnop\n' --assemble --dump text-log "$work/bpkeep.text" \
+    --dump log "$work/bpkeep.log"
+if grep -q "bp.s assembled (1 breakpoint(s) kept)" "$work/bpkeep.log"; then
+  pass "the assemble said it kept the breakpoint"
+else
+  fail "$(grep -m1 'bp.s assembled' "$work/bpkeep.log")"
+fi
+if grep -qE "^N .*; 5: syscall" "$work/bpkeep.text"; then
+  pass "the breakpoint moved with its statement (line 4 -> line 5)"
+else
+  fail "the breakpoint is not on the statement it was on"
+fi
+
+# Run with nothing loaded: a sentence, not the core's address, and no box.
+run noprogram --trigger action_Sim_Reinitialize --run \
+    --dump log "$work/noprogram.log"
+if grep -q "No program is loaded" "$work/noprogram.log" &&
+   ! grep -q "undefined symbol" "$work/noprogram.log"; then
+  pass "running with nothing loaded says what to do"
+else
+  fail "$(grep -m1 -E 'undefined symbol|No program' "$work/noprogram.log")"
+fi
+if grep -q "^dialog:" "$work/noprogram.out"; then
+  fail "$(grep -m1 '^dialog:' "$work/noprogram.out")"
+else
+  pass "and does not put a box over the window"
 fi
 
 echo

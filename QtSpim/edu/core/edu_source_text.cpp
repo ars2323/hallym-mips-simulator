@@ -34,4 +34,33 @@ QString decodeSourceBytes(const QByteArray& raw) {
   return QString::fromLatin1(bytes);
 }
 
+int sourceLineNumber(const QString& source) {
+  int i = 0;
+  while (i < source.size() && source.at(i).isSpace()) {
+    i += 1;
+  }
+  int digits = 0;
+  int value = 0;
+  while (i < source.size() && source.at(i).isDigit()) {
+    value = value * 10 + (source.at(i).unicode() - '0');
+    digits += 1;
+    i += 1;
+    if (digits > 9) {
+      return 0;  // not a line number
+    }
+  }
+  if (digits == 0 || i >= source.size() || source.at(i) != QLatin1Char(':')) {
+    return 0;
+  }
+  return value;
+}
+
+QString sourceLineStatement(const QString& source) {
+  const int colon = source.indexOf(QLatin1Char(':'));
+  if (sourceLineNumber(source) == 0 || colon < 0) {
+    return source.trimmed();
+  }
+  return source.mid(colon + 1).trimmed();
+}
+
 }  // namespace edu

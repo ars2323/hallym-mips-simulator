@@ -146,6 +146,8 @@ QString EduDevtools::usage() {
       "  --editor-key <key>     a real key press in the editor, on the route\n"
       "                         shortcuts are looked up: ctrl+s, f3, ctrl+=,\n"
       "                         ctrl++, ctrl+-, ctrl+0\n"
+      "  --editor-breakpoint <hexaddr>  click that row's BP cell, in editor-step\n"
+      "                         order (so it can sit between two --assemble)\n"
       "  --editor-click-banner  click the \"Source changed\" strip on the Text panel\n"
       "  --editor-report        print the editor's file, modified flag, whether the\n"
       "                         strip shows, which tab is in front, the status text\n"
@@ -472,6 +474,17 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
       i += 1;
       continue;
     }
+    if (arg == "--editor-breakpoint") {
+      if (i + 1 >= args.size()) {
+        err() << arg << " needs a hex address\n" << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      editorSteps_ << QString("breakpoint=") + args.at(i + 1);
+      i += 1;
+      continue;
+    }
+
     if (arg == "--editor-save" || arg == "--assemble" ||
         arg == "--editor-report" || arg == "--editor-click-banner") {
       editorSteps_ << (arg == "--assemble" ? QString("assemble=")
@@ -1621,11 +1634,39 @@ void EduDevtools::run() {
       } else {
         action->trigger();
       }
+    } else if (step == "breakpoint") {  // a BP cell click, in step order
+      bool parsed = false;
+      const quint32 address = value.toUInt(&parsed, 16);
+      const int row = parsed ? window_->eduTextModel->rowOfAddress(address) : -1;
+      if (row < 0) {
+        err() << "no instruction shown at " << value << "\n" << Qt::flush;
+        status_ = 2;
+      } else {
+        const QModelIndex cell =
+            window_->eduTextModel->index(row, EduTextModel::BpColumn);
+        QAbstractItemView* target =
+            window_->ui->TextSegView->findChild<QTableView*>("EduTextFrozen");
+        if (target == 0) {
+          target = window_->ui->TextSegView;
+        }
+        target->scrollTo(cell);
+        const QPoint at = target->visualRect(cell).center();
+        QMouseEvent press(QEvent::MouseButtonPress, at, Qt::LeftButton,
+                          Qt::LeftButton, Qt::NoModifier);
+        QMouseEvent release(QEvent::MouseButtonRelease, at, Qt::LeftButton,
+                            Qt::NoButton, Qt::NoModifier);
+        QApplication::sendEvent(target->viewport(), &press);
+        QApplication::sendEvent(target->viewport(), &release);
+        out() << "editor step: breakpoint at " << value << " is now "
+              << (inst_is_breakpoint(address) ? "set" : "clear") << "\n"
+              << Qt::flush;
+      }
     } else if (step == "goto-line") {
       dock->editor()->goToLine(value.toInt());
     } else if (step == "type") {
       QString text = value;
       text.replace("\\n", "\n");
+      text.replace("\\t", "\t");
       dock->editor()->insertPlainText(text);
     } else if (step == "save") {  // saving is assembling
       window_->findChild<QAction*>("action_Edu_Assemble")->trigger();
