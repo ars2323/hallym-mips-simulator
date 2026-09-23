@@ -54,16 +54,20 @@ def label(width, text, colour):
 
 
 def compose(left, right, left_text, right_text):
-    # Same height as the old image; the right half keeps the old width.
+    # The right half keeps the old width.  The image is as tall as the taller
+    # of the two halves: cutting the last line off a panel to match the old
+    # height is how a screenshot starts looking careless.
     half = left.width // 2
     right = right.convert("RGB")
     if right.width > half:
         right = right.crop((0, 0, half, right.height))
-    canvas = Image.new("RGB", (left.width, left.height), WHITE)
+    height = max(left.height, right.height + BAR)
+    canvas = Image.new("RGB", (left.width, height), WHITE)
     canvas.paste(left.crop((0, 0, half, left.height)), (0, 0))
-    panel = Image.new("RGB", (half, left.height - BAR), WHITE)
-    panel.paste(right.crop((0, 0, min(right.width, half), min(right.height, left.height - BAR))), (0, 0))
+    panel = Image.new("RGB", (half, height - BAR), WHITE)
+    panel.paste(right.crop((0, 0, min(right.width, half), min(right.height, height - BAR))), (0, 0))
     canvas.paste(label(half, right_text, NAVY), (half, 0))
+    del height
     canvas.paste(panel, (half, BAR))
     # The old left label (Korean or English) is kept as it was.
     del left_text

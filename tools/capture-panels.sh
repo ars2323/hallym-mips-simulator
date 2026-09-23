@@ -115,13 +115,13 @@ if [ "$file" = "$repo/helloworld.s" ]; then
   eshot r4-helloworld --editor-open "$file" --editor-goto-line 40
   eshot r4-errors     --editor-open "$repo/tests/samples/editor-errors.s" --assemble
   eshot r4-assembled  --editor-open "$file" --assemble
-  # Window > Layout presets and the message log toggle (1.0.1).
-  for preset in Tabs SideBySide Stacked; do
+  # Window > Layout: the two arrangements, and the bottom panel put away.
+  for preset in Primary Mirrored; do
     eshot "layout-$preset" --editor-open "$file" --assemble \
       --trigger "action_Edu_Layout$preset"
   done
   eshot layout-nolog --editor-open "$file" --assemble \
-    --trigger action_Edu_LayoutSideBySide --trigger action_Edu_ToggleLog
+    --trigger action_Edu_LayoutPrimary --trigger action_Edu_ToggleLog
 fi
 
 echo

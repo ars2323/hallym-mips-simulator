@@ -99,7 +99,7 @@ export FONTCONFIG_FILE="$fontsconf"
 theme=(--font-dir "$fonts" --ui-font "Pretendard,13px"
        --qss "$qss" --icon-dir "$icons")
 state=(--editor-open "$repo/helloworld.s" --assemble
-       --trigger action_Edu_LayoutSideBySide --run --select-instruction 00400028)
+       --trigger action_Edu_LayoutPrimary --run --select-instruction 00400028)
 
 XDG_CONFIG_HOME="$config" QT_QPA_PLATFORM=offscreen "$app" "${theme[@]}" "${state[@]}" \
   --window-size 1920x1080 \

@@ -39,7 +39,8 @@
 #include "ui_spimview.h"
 
 #include "edu/core/edu_format.h"
-#include "edu/edu_inspector.h"
+#include "edu/edu_bottom_panel.h"
+#include "edu/edu_instruction_inspector.h"
 #include "edu/edu_register_model.h"
 #include "edu/edu_data_model.h"
 #include "edu/edu_data_view.h"
@@ -80,6 +81,7 @@ EduDevtools::EduDevtools(QObject* parent)
       hasSelectInstruction_(false),
       selectInstruction_(0),
       saveSettings_(false),
+      inspectorReport_(false),
       layoutReport_(false),
       expandEnvironment_(false),
       expandKernelData_(false),
@@ -142,12 +144,10 @@ QString EduDevtools::usage() {
       "  --assemble             Simulator > Assemble (the real action)\n"
       "                         editor steps run in command-line order, after\n"
       "                         --load / --reload and before --trigger\n"
-      "  --drag-inspector <dy>  drag the separator above the Inspector by dy\n"
-      "                         pixels with real mouse events, then report\n"
+
       "  --layout-report        print each panel's geometry and whether it is on\n"
       "                         screen (Editor, Text, Data, message log)\n"
-      "  --inspector-report     print the Inspector dock's height, the content's\n"
-      "                         preferred height and whether the user sized it\n"
+      "  --inspector-report     print what the Instruction Inspector shows\n"
       "  --save-settings        write the settings file on exit, as closing the\n"
       "                         window does (the script otherwise leaves none)\n"
       "  --raise <panel>        bring that dock's tab to the front\n"
@@ -169,6 +169,13 @@ QString EduDevtools::usage() {
       "                         \"unsaved changes\" question (discard)\n"
       "  --tutorial-click-through  walk the whole tour by clicking the card's\n"
       "                         buttons with the mouse, reporting each step\n"
+      "  --console-type <text>  type that into the Console tab (\\n = Enter)\n"
+      "                         before the program runs, for read_int and\n"
+      "                         friends; reports where the focus went\n"
+      "  --tutorial-exit <finish|skip|escape|close>  run the tour and leave\n"
+      "                         it that way, then report what it left behind\n"
+      "  --click-tab <title>    press that dock tab with the mouse and report\n"
+      "                         which panel came forward; repeatable\n"
       "  --tutorial-first-run   open the tour the way a first start does (the\n"
       "                         route the Tutorial/Shown setting guards)\n"
       "                         rather than the way Help > Tutorial does;\n"
@@ -437,25 +444,13 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
       continue;
     }
 
-    if (arg == "--drag-inspector") {
-      bool parsed = false;
-      if (i + 1 < args.size()) {
-        dragInspector_ << args.at(i + 1).toInt(&parsed);
-      }
-      if (!parsed) {
-        err() << "--drag-inspector needs a pixel count (negative = up)\n" << Qt::flush;
-        *ok = false;
-        return rest;
-      }
-      i += 1;
-      continue;
-    }
     if (arg == "--layout-report") {
       layoutReport_ = true;
       continue;
     }
+
     if (arg == "--inspector-report") {
-      dragInspector_ << 0;  // a drag of nothing: just the report
+      inspectorReport_ = true;
       continue;
     }
 
@@ -527,6 +522,48 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
 
     if (arg == "--tutorial-first-run") {
       firstRunTour_ = true;
+      continue;
+    }
+
+    if (arg == "--console-type") {
+      if (i + 1 >= args.size()) {
+        err() << arg << " needs the text to type\n" << usage() << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      consoleType_ = args.at(i + 1);
+      consoleType_.replace("\\n", "\n");
+      i += 1;
+      continue;
+    }
+
+    if (arg == "--tutorial-exit") {
+      if (i + 1 >= args.size()) {
+        err() << arg << " needs finish, skip, escape or close\n" << usage()
+              << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      tourExit_ = args.at(i + 1);
+      if (tourExit_ != "finish" && tourExit_ != "skip" &&
+          tourExit_ != "escape" && tourExit_ != "close") {
+        err() << arg << " takes finish, skip, escape or close\n" << usage()
+              << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      i += 1;
+      continue;
+    }
+
+    if (arg == "--click-tab") {
+      if (i + 1 >= args.size()) {
+        err() << arg << " needs a tab title\n" << usage() << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      clickTabs_ << args.at(i + 1);
+      i += 1;
       continue;
     }
 
@@ -693,6 +730,21 @@ bool EduDevtools::clickTourButton(const char* objectName) {
   return true;
 }
 
+// A dock is "on screen" when its own contents are actually painted: a
+// tabbed dock that is not the current tab is parked off the window.
+bool EduDevtools::panelOnScreen(const QString& title) const {
+  const QList<QDockWidget*> docks = window_->findChildren<QDockWidget*>();
+  for (int i = 0; i < docks.size(); i += 1) {
+    if (!docks.at(i)->windowTitle().startsWith(title)) {
+      continue;
+    }
+    QWidget* content = docks.at(i)->widget();
+    return !docks.at(i)->isHidden() && content != 0 &&
+           !content->visibleRegion().isEmpty();
+  }
+  return false;
+}
+
 void EduDevtools::settle() {
   for (int i = 0; i < 3; i += 1) {
     QApplication::processEvents(QEventLoop::AllEvents, 50);
@@ -707,7 +759,7 @@ QWidget* EduDevtools::panelWidget(const QString& name) const {
   if (name == "text") return ui->TextSegDockWidget;
   if (name == "data") return ui->DataSegDockWidget;
   if (name == "editor") return window_->eduEditor;
-  if (name == "log") return ui->centralWidget;
+  if (name == "log") return window_->eduBottom->messages();
   if (name == "inspector") return window_->eduInspector;
   if (name == "console") return window_->SpimConsole;
   if (name == "window") return window_;
@@ -756,7 +808,8 @@ bool EduDevtools::writeDump(const Dump& dump) {
   if (dump.stream == "console") {
     text = window_->SpimConsole->toPlainText();
   } else if (dump.stream == "log") {
-    text = window_->ui->centralWidget->toPlainText();
+    text = qobject_cast<QTextEdit*>(window_->eduBottom->messages())
+               ->toPlainText();
   } else if (dump.stream == "intregs-log") {
     text = window_->intRegistersLogText();
   } else if (dump.stream == "text-log") {
@@ -1149,13 +1202,15 @@ void EduDevtools::run() {
       const QAbstractButton* banner =
           window_->ui->TextSegDockWidget->findChild<QAbstractButton*>("EduStaleBanner");
       const QLabel* badge = window_->findChild<QLabel*>("EduAssembleBadge");
-      // isVisible() is true for every tab of a dock group; the tab in front
-      // is the one with something to paint.
+      // Which of the Text / Data pair is the current tab.  The editor is
+      // a column of its own now, so whether it is on screen is a separate
+      // question (editor_onscreen below).
       const QString front =
           !window_->ui->TextSegView->visibleRegion().isEmpty()
               ? QString("Text")
-              : (!dock->editor()->visibleRegion().isEmpty() ? QString("Editor")
-                                                            : QString("other"));
+              : (!window_->ui->DataSegPanel->visibleRegion().isEmpty()
+                     ? QString("Data")
+                     : QString("other"));
       const bool editorOn = !dock->editor()->visibleRegion().isEmpty();
       out() << "editor: file=" << QFileInfo(dock->filePath()).fileName()
             << " modified=" << (dock->isModified() ? 1 : 0)
@@ -1194,6 +1249,34 @@ void EduDevtools::run() {
     window_->UpdateDataDisplay();
   }
   settle();
+
+  // Keys into the Console tab, for a program that asks for input.  They
+  // are typed before the run: the console keeps what was typed until a
+  // syscall asks for it, exactly as it does for a student who types ahead.
+  if (!consoleType_.isEmpty()) {
+    window_->eduRevealConsole(true);
+    settle();
+    // The window's own focus widget, not the application's: an offscreen
+    // run has no active window, so the application would report none.
+    const bool focused =
+        window_->focusWidget() == (QWidget*)window_->SpimConsole;
+    out() << "console: focus=" << (focused ? 1 : 0) << " tab="
+          << (window_->eduBottom->consoleIsCurrent() ? "Console" : "other")
+          << "\n" << Qt::flush;
+    if (!focused) {
+      status_ = 1;
+    }
+    for (int i = 0; i < consoleType_.size(); i += 1) {
+      const QString text = consoleType_.mid(i, 1);
+      const int key = text == "\n" ? int(Qt::Key_Return)
+                                    : int(text.at(0).toUpper().unicode());
+      QKeyEvent press(QEvent::KeyPress, key, Qt::NoModifier, text);
+      QKeyEvent release(QEvent::KeyRelease, key, Qt::NoModifier, text);
+      QApplication::sendEvent(window_->SpimConsole, &press);
+      QApplication::sendEvent(window_->SpimConsole, &release);
+    }
+    settle();
+  }
 
   QElapsedTimer stopwatch;
   stopwatch.start();
@@ -1279,6 +1362,11 @@ void EduDevtools::run() {
 
   if (!raisePanel_.isEmpty()) {
     QWidget* panel = panelWidget(raisePanel_);
+    if (raisePanel_ == "console") {
+      window_->eduBottom->showConsole(false);
+    } else if (raisePanel_ == "log") {
+      window_->eduBottom->showMessages();
+    }
     if (panel != 0) {
       panel->show();
       panel->raise();
@@ -1293,7 +1381,10 @@ void EduDevtools::run() {
         {"editor", window_->eduEditor, window_->eduEditor->editor()},
         {"text", window_->ui->TextSegDockWidget, window_->ui->TextSegView},
         {"data", window_->ui->DataSegDockWidget, window_->ui->DataSegPanel},
-        {"log", window_->ui->centralWidget, window_->ui->centralWidget},
+        {"intregs", window_->ui->IntRegDockWidget, window_->ui->IntRegView},
+        {"fpregs", window_->ui->FPRegDockWidget, window_->ui->FPRegDockWidget},
+        {"log", window_->eduBottom, window_->eduBottom->messages()},
+        {"inspector", window_->eduInspector, window_->eduInspector},
     };
     for (unsigned i = 0; i < sizeof(panels) / sizeof(panels[0]); i += 1) {
       const QRect r(panels[i].w->mapTo(window_, QPoint(0, 0)), panels[i].w->size());
@@ -1302,48 +1393,27 @@ void EduDevtools::run() {
             << (!panels[i].w->isHidden() && !panels[i].content->visibleRegion().isEmpty() ? 1 : 0)
             << "\n" << Qt::flush;
     }
+    out() << "bottom: tab=" << window_->eduBottom->currentTabName()
+          << " visible=" << (window_->eduBottom->isHidden() ? 0 : 1)
+          << " dot=" << (window_->eduBottom->hasUnread() ? 1 : 0) << "\n"
+          << Qt::flush;
+    out() << "layout: intregs minimum view=" << window_->ui->IntRegView->minimumWidth()
+          << " dock=" << window_->ui->IntRegDockWidget->minimumSizeHint().width()
+          << " hint=" << window_->ui->IntRegView->sizeHint().width() << "\n" << Qt::flush;
     out() << "layout: text instruction column " 
           << window_->ui->TextSegView->columnWidth(EduTextModel::InstructionColumn)
           << " source column " << window_->ui->TextSegView->columnWidth(EduTextModel::SourceColumn)
           << "\n" << Qt::flush;
   }
 
-  for (int i = 0; i < dragInspector_.size(); i += 1) {
-    const int dy = dragInspector_.at(i);
-    EduInspector* dock = window_->eduInspector;
-    if (dy != 0) {
-      // The separator is the gap just above the dock; QMainWindow handles
-      // the mouse events on it itself (no child widget there).
-      const QPoint top = dock->mapTo(window_, QPoint(dock->width() / 2, 0));
-      const QPoint from(top.x(), top.y() - 2);
-      const QPoint to(from.x(), from.y() + dy);
-      const QPoint fromG = window_->mapToGlobal(from);
-      const QPoint toG = window_->mapToGlobal(to);
-      if (window_->childAt(from) != 0) {
-        err() << "no separator at " << from.x() << "," << from.y() << "\n"
-              << Qt::flush;
-        status_ = 2;
-      }
-      QMouseEvent press(QEvent::MouseButtonPress, from, fromG, Qt::LeftButton,
-                        Qt::LeftButton, Qt::NoModifier);
-      QMouseEvent move(QEvent::MouseMove, to, toG, Qt::NoButton, Qt::LeftButton,
-                       Qt::NoModifier);
-      QMouseEvent release(QEvent::MouseButtonRelease, to, toG, Qt::LeftButton,
-                          Qt::NoButton, Qt::NoModifier);
-      QApplication::sendEvent(window_, &press);
-      QApplication::sendEvent(window_, &move);
-      settle();
-      QApplication::sendEvent(window_, &release);
-      settle();
-    }
+  // What the Instruction Inspector is showing, as text.
+  if (inspectorReport_) {
     settle();
-    out() << "inspector: height=" << dock->widget()->height()
-          << " preferred=" << dock->preferredHeight()
-          << " locked=" << (dock->isHeightLocked() ? 1 : 0)
-          << " userSized=" << (window_->eduInspectorUserSized ? 1 : 0)
-          << " intregs_height=" << window_->ui->IntRegDockWidget->height()
-          << " column_width=" << dock->width()
-          << "\n" << Qt::flush;
+    const QStringList lines =
+        window_->eduInspector->text().split('\n', Qt::SkipEmptyParts);
+    for (int i = 0; i < lines.size(); i += 1) {
+      out() << "inspector: " << lines.at(i) << "\n" << Qt::flush;
+    }
   }
 
   if (expandEnvironment_) {
@@ -1593,6 +1663,103 @@ void EduDevtools::run() {
     settle();  // a raised tab needs one more turn before its geometry is right
   }
 
+  // The tour, left by one of its four exits.  What matters is what is
+  // left behind: a tour that is gone but still holds the application's
+  // event filter, or still puts its step's panel in front on a timer,
+  // leaves the window unusable until the program is restarted.
+  if (!tourExit_.isEmpty()) {
+    window_->eduShowTutorial();
+    EduTutorial* tour = window_->eduTutorial;
+    if (tour == 0 || !tour->isRunning()) {
+      err() << "the tour did not start\n" << Qt::flush;
+      status_ = 2;
+    } else {
+      if (tourExit_ == "finish") {
+        // To the last step, then its button.
+        while (tour->currentStep() + 1 < tour->stepCount()) {
+          if (!clickTourButton("EduTutorialNext")) {
+            break;
+          }
+        }
+        clickTourButton("EduTutorialNext");
+      } else if (tourExit_ == "skip") {
+        clickTourButton("EduTutorialSkip");
+      } else if (tourExit_ == "escape") {
+        QKeyEvent escape(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+        QApplication::sendEvent(window_, &escape);
+      } else {
+        tour->close();  // what a window manager's close button does
+      }
+      settle();
+      settle();
+      out() << "tour exit " << tourExit_ << ": running="
+            << (tour->isRunning() ? 1 : 0) << " visible="
+            << (tour->isVisible() ? 1 : 0) << "\n" << Qt::flush;
+      if (tour->isRunning() || tour->isVisible()) {
+        err() << "the tour is still there after " << tourExit_ << "\n"
+              << Qt::flush;
+        status_ = 1;
+      }
+      // The keys the tour took while it was up must reach the editor again.
+      if (window_->eduEditor != 0) {
+        window_->eduEditor->show();
+        window_->eduEditor->raise();
+        window_->eduEditor->editor()->setFocus();
+        settle();
+        QKeyEvent press(QEvent::KeyPress, Qt::Key_Right, Qt::NoModifier);
+        QKeyEvent typed(QEvent::KeyPress, Qt::Key_X, Qt::NoModifier, "x");
+        QApplication::sendEvent(window_->eduEditor->editor(), &press);
+        QApplication::sendEvent(window_->eduEditor->editor(), &typed);
+        settle();
+        const bool reaches = window_->eduEditor->isModified();
+        out() << "tour exit " << tourExit_ << ": keys reach the editor="
+              << (reaches ? 1 : 0) << "\n" << Qt::flush;
+        if (!reaches) {
+          status_ = 1;
+        }
+      }
+    }
+  }
+
+  // Dock tabs, pressed the way a student presses them.  A panel that will
+  // not come forward on a click is the kind of thing only a real click
+  // finds (docs/ARCHITECTURE.md 12, 89).
+  for (int i = 0; i < clickTabs_.size(); i += 1) {
+    const QString title = clickTabs_.at(i);
+    QList<QTabBar*> bars = window_->findChildren<QTabBar*>();
+    QTabBar* found = 0;
+    int index = -1;
+    for (int b = 0; b < bars.size() && found == 0; b += 1) {
+      for (int t = 0; t < bars.at(b)->count(); t += 1) {
+        if (bars.at(b)->tabText(t).startsWith(title)) {
+          found = bars.at(b);
+          index = t;
+          break;
+        }
+      }
+    }
+    if (found == 0) {
+      err() << "no tab titled " << title << "\n" << Qt::flush;
+      status_ = 1;
+      continue;
+    }
+    const QPoint centre = found->tabRect(index).center();
+    const QPoint global = found->mapToGlobal(centre);
+    QMouseEvent press(QEvent::MouseButtonPress, centre, global, Qt::LeftButton,
+                      Qt::LeftButton, Qt::NoModifier);
+    QMouseEvent release(QEvent::MouseButtonRelease, centre, global,
+                        Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+    QApplication::sendEvent(found, &press);
+    QApplication::sendEvent(found, &release);
+    settle();
+    settle();
+    out() << "clicked tab " << title << ": current=" << found->tabText(found->currentIndex())
+          << " onscreen=" << (panelOnScreen(title) ? 1 : 0) << "\n" << Qt::flush;
+    if (!panelOnScreen(title)) {
+      status_ = 1;
+    }
+  }
+
   // Stop before the captures: the About box below is a modal dialog this
   // harness opens on purpose and must not answer for itself.
   if (dialogTimer_ != 0) {
@@ -1637,6 +1804,16 @@ void EduDevtools::run() {
             << usage() << Qt::flush;
       status_ = 2;
       continue;
+    }
+
+    // The console and the log are tabs of the bottom panel: the one being
+    // captured has to be the current tab, or the grab is of the other one.
+    if (capture.panel == "console") {
+      window_->eduBottom->showConsole(false);
+      settle();
+    } else if (capture.panel == "log") {
+      window_->eduBottom->showMessages();
+      settle();
     }
 
     // Text/Data and IntRegs/FPRegs are tabbed onto each other, so the one

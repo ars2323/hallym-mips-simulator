@@ -60,17 +60,18 @@ class EduTutorial : public QWidget {
     RegisterGroups,
     RegisterColumns,
     RegisterChanged,
-    InspectorBits,
+    EditorPanel,
+    ConsoleTab,
+    MessagesTab,
     TextColumns,
     TextBadge,
-    TextFields,
     TextPcAndBreakpoints,
+    InspectorBits,
     DataWords,
     DataLabels,
     DataString,
     DataStack,
     DataEnvironment,
-    EditorPanel,
     Finish
   };
 
@@ -129,6 +130,7 @@ class EduTutorial : public QWidget {
   void keyPressEvent(QKeyEvent* event);
   void mousePressEvent(QMouseEvent* event);
   void resizeEvent(QResizeEvent* event);
+  void closeEvent(QCloseEvent* event);
   bool eventFilter(QObject* watched, QEvent* event);
 
  private slots:
@@ -164,6 +166,7 @@ class EduTutorial : public QWidget {
   QRect dataCellAt(quint32 address) const;   // reveals it first
   QRect dataLabelCellAt(quint32 address) const;
   QRect registerRowRect(const char* name) const;
+  QRect tabBarRect(const QString& title) const;  // the tab of that name
   bool dockIsOpen(const char* name) const;
   void raiseDock(const char* name) const;
   void placeCard();
@@ -178,6 +181,7 @@ class EduTutorial : public QWidget {
   bool programLoaded_;
   bool running_;  // between start() and finish(), whatever is on screen
   QStringList skipped_;  // steps with nothing to point at, for the harness
+  QString bodyPlain_;   // the body as text, for the harness and the tests
   QList<QRect> spots_;  // what is lit; the first one is what the arrow means
   QString tip_;         // a tool tip drawn next to tipAnchor_, or empty
   QRect tipAnchor_;

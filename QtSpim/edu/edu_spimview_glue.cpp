@@ -27,7 +27,8 @@
 #include "edu/edu_data_model.h"
 #include "edu/edu_data_view.h"
 #include "edu/edu_editor_dock.h"
-#include "edu/edu_inspector.h"
+#include "edu/edu_bottom_panel.h"
+#include "edu/edu_instruction_inspector.h"
 #include "edu/edu_path_check.h"
 #include "edu/edu_tutorial.h"
 #include "edu/edu_loader.h"
@@ -51,6 +52,9 @@ void SpimView::eduSetupPanels() {
   eduLogAction = 0;
   eduTutorial = 0;  // built on the first run of the tour
   eduLayoutSettled = false;  // until the saved layout has been restored
+  eduLayoutFromDefaults = true;  // readSettings() decides for real
+  eduLayoutPreset = 0;
+  eduLayoutSizesPending = false;
   eduTourOnStart = true;     // main.cpp turns this off for a scripted run
   eduEverAssembled = false;  // nothing has been assembled this session yet
   eduExtraProgram = false;   // nothing has been added on top of it
@@ -63,12 +67,26 @@ void SpimView::eduSetupPanels() {
   ui->FPRegDockWidget->setAllowedAreas(Qt::LeftDockWidgetArea |
                                        Qt::TopDockWidgetArea);
 
-  eduInspector = new EduInspector(this);
-  addDockWidget(Qt::LeftDockWidgetArea, eduInspector);
-  eduInspectorUserSized = false;  // readSettings() restores the saved flag
-  eduInspectorSeparatorPressed = false;
-  eduInspectorPressHeight = 0;
-  installEventFilter(this);  // the separator drags, which the main window sees
+  // The instruction inspector, under the Text / Data panel.
+  eduInspector = new EduInstructionInspector(this);
+  addDockWidget(Qt::RightDockWidgetArea, eduInspector);
+
+  // The bottom panel takes over the window's central widget -- the text
+  // pane the simulator logs into -- and the console window upstream kept
+  // separate.  With no central widget left, the docks fill the window.
+  eduBottom = new EduBottomPanel(this);
+  QWidget* logPane = takeCentralWidget();
+  // A window with no central widget at all leaves QMainWindow's layout
+  // with nothing to arrange the docks around; a zero-sized one keeps the
+  // layout in its usual shape and takes no room.
+  QWidget* filler = new QWidget(this);
+  filler->setObjectName("EduNoCentralWidget");
+  filler->setFixedSize(0, 0);
+  setCentralWidget(filler);
+  eduBottom->setConsole(SpimConsole);
+  eduBottom->setMessages(logPane);
+  addDockWidget(Qt::BottomDockWidgetArea, eduBottom);
+  installEventFilter(this);  // the window chrome follows the system theme
   // Which program and version this is, at the far right of the status bar
   // (a student's screenshot then says which build it came from).
   QLabel* version = new QLabel(QString(EDU_APP_NAME " " EDU_VERSION), this);
@@ -83,11 +101,6 @@ void SpimView::eduSetupPanels() {
   eduModeBadge->hide();
 
   eduProgramLoaded = false;
-  eduInspectorSubject = EduNoSubject;
-  connect(ui->IntRegView, SIGNAL(registerSelectionChanged()), this,
-          SLOT(eduRegisterSelected()));
-  connect(ui->IntRegView, SIGNAL(clicked(QModelIndex)), this,
-          SLOT(eduRegisterSelected()));
 
   eduTextModel = new EduTextModel(this);
   ui->TextSegView->setTextModel(eduTextModel);
@@ -96,9 +109,9 @@ void SpimView::eduSetupPanels() {
   connect(ui->TextSegView, SIGNAL(instructionRowsReset()), this,
           SLOT(eduUpdateInspector()));
 
-  // Window > Inspector, next to the other panels' entries.
+  // Window > Instruction Inspector, next to the other panels' entries.
   QAction* toggle = eduInspector->toggleViewAction();
-  toggle->setText("Inspector");
+  toggle->setText("Instruction Inspector");
   toggle->setObjectName("action_Edu_ToggleInspector");  // devtools --trigger
   ui->menu_Window->insertAction(ui->action_Win_Console, toggle);
 
@@ -261,6 +274,12 @@ void SpimView::eduRevealWindows() {
   edu::theme::applyWindowChrome(this);  // a light title bar on Windows
   eduRestoreEditorZoom();               // the text size the student left
   // From here on, a dock that moves was moved by the user.
+  // The proportions were set while the window was still its start-up size;
+  // now that it has its real one, say them again -- unless a saved layout
+  // is in force, which is the student's own arrangement.
+  if (eduLayoutFromDefaults) {
+    eduApplyLayout(0);
+  }
   eduLayoutSettled = true;
   // The tour is for a person sitting in front of the program.  A scripted
   // run must not have it start by itself: it would load the sample over
@@ -392,6 +411,7 @@ void SpimView::eduUpdateWindowTitle() {
 // splitter itself is left alone; this runs only when a dock lands somewhere
 // new, and only once.
 void SpimView::eduDockMoved() {
+  eduSyncDockTitles();  // it may have joined or left a tab group
   if (eduLayoutSettled) {
     QTimer::singleShot(0, this, SLOT(eduEqualiseDocks()));
   }
@@ -439,6 +459,33 @@ void SpimView::eduEqualiseDocks() {
 // an ellipsis says that there is more.  The tab bars are made by
 // QMainWindow when docks are tabbed together, so this runs after every
 // arrangement as well as at start-up.
+// A panel that sits in a tab group is named by its tab; its own title bar
+// would say the same thing again, one line below.  It is put back the
+// moment the panel is on its own, because then the title bar is the only
+// name it has -- and the only thing to drag it by.
+void SpimView::eduSyncDockTitles() {
+  QDockWidget* const docks[] = {
+      ui->IntRegDockWidget,     ui->FPRegDockWidget,
+      ui->TextSegDockWidget,    ui->DataSegDockWidget,
+      eduEditor,                (QDockWidget*)eduBottom,
+      (QDockWidget*)eduInspector};
+  for (unsigned i = 0; i < sizeof(docks) / sizeof(docks[0]); i += 1) {
+    QDockWidget* dock = docks[i];
+    if (dock == 0) {
+      continue;
+    }
+    const bool tabbed =
+        !dock->isFloating() && !tabifiedDockWidgets(dock).isEmpty();
+    if (tabbed && dock->titleBarWidget() == 0) {
+      dock->setTitleBarWidget(new QWidget(dock));
+    } else if (!tabbed && dock->titleBarWidget() != 0) {
+      QWidget* bar = dock->titleBarWidget();
+      dock->setTitleBarWidget(0);
+      delete bar;
+    }
+  }
+}
+
 void SpimView::eduElideDockTabs() {
   const QList<QTabBar*> bars = findChildren<QTabBar*>();
   for (int i = 0; i < bars.size(); i += 1) {
@@ -485,40 +532,146 @@ void SpimView::eduInsetDockContent(QDockWidget* dock) {
   dock->setWidget(box);
 }
 
-// The register column lives in the LEFT dock area, not in upstream's top
-// row.  Upstream already hands both left corners to the left area
-// (setCorner() in the constructor), so a left dock runs the full height of
-// the window beside the message log instead of stopping above it.  That
-// height is what lets all 47 rows (8 groups + 39 registers) and the
-// inspector fit a 1080-line screen: in the top row, 1080 lines minus menus,
-// tabs, log and inspector leave room for about 33 rows at any readable row
-// height.
+// The window, in two arrangements:
 //
-// Order matters: splitDockWidget() would add the inspector as a third tab if
-// its target were already tabbed, so this runs before win_Tile() tabs the
-// two register docks.
-void SpimView::eduTileInspector() {
-  addDockWidget(Qt::LeftDockWidgetArea, ui->FPRegDockWidget);
-  eduInspector->setFloating(false);
-  eduInspector->show();
-  splitDockWidget(ui->FPRegDockWidget, eduInspector, Qt::Vertical);
-  addDockWidget(Qt::LeftDockWidgetArea, ui->IntRegDockWidget);
-  eduInspectorSizing(false);  // back to the content's height
+//   preset 0        registers | editor        | text / data
+//                             | console / msg | inspector
+//
+//   preset 1        registers | text / data   | editor
+//                             | inspector     | console / msg
+//
+// The register column is the LEFT dock area, which runs the full height of
+// the window (setCorner() in the constructor gives it both left corners),
+// so all eight groups and their thirty-nine registers are one column with
+// no second tab bar down the side.  There is no central widget: the docks
+// have the window to themselves.
+void SpimView::eduApplyLayout(int preset) {
+  const bool mirrored = preset == 1;
+  QDockWidget* const all[] = {
+      ui->IntRegDockWidget,     ui->FPRegDockWidget,
+      eduEditor,                ui->TextSegDockWidget,
+      ui->DataSegDockWidget,    (QDockWidget*)eduBottom,
+      (QDockWidget*)eduInspector};
+  for (unsigned i = 0; i < sizeof(all) / sizeof(all[0]); i += 1) {
+    if (all[i] == 0) {
+      continue;
+    }
+    all[i]->setFloating(false);
+    all[i]->show();
+  }
+
+  // Everything goes into one dock area, side by side: docks in different
+  // areas cannot be sized against each other (resizeDocks() works within
+  // an area), and the window has no central widget to arrange them around.
+  // The .ui asks for vertical tabs, which would run the titles down the
+  // side of the window; tabs belong above what they open.
+  setDockOptions(dockOptions() & ~QMainWindow::VerticalTabs);
+  setTabPosition(Qt::AllDockWidgetAreas, QTabWidget::North);
+
+  QDockWidget* const middleTop = mirrored ? ui->TextSegDockWidget : eduEditor;
+  QDockWidget* const rightTop = mirrored ? eduEditor : ui->TextSegDockWidget;
+  QDockWidget* const middleBottom =
+      mirrored ? (QDockWidget*)eduInspector : (QDockWidget*)eduBottom;
+  QDockWidget* const rightBottom =
+      mirrored ? (QDockWidget*)eduBottom : (QDockWidget*)eduInspector;
+
+  addDockWidget(Qt::RightDockWidgetArea, ui->IntRegDockWidget);
+  splitDockWidget(ui->IntRegDockWidget, middleTop, Qt::Horizontal);
+  splitDockWidget(middleTop, rightTop, Qt::Horizontal);
+  splitDockWidget(middleTop, middleBottom, Qt::Vertical);
+  splitDockWidget(rightTop, rightBottom, Qt::Vertical);
+
+  // The two pairs that share a place: the registers, and Text with Data.
+  tabifyDockWidget(ui->IntRegDockWidget, ui->FPRegDockWidget);
+  ui->IntRegDockWidget->raise();
+  tabifyDockWidget(ui->TextSegDockWidget, ui->DataSegDockWidget);
+  ui->TextSegDockWidget->raise();
+
+  eduElideDockTabs();   // the tab bars are new
+  eduSyncDockTitles();  // a tabbed panel needs no second title
+
+  // The proportions are set once this arrangement has been through the
+  // layout, and again whenever the window's size changes under it.
+  eduLayoutPreset = preset;
+  eduLayoutSizesPending = true;
+  QTimer::singleShot(0, this, SLOT(eduApplyLayoutSizes()));
 }
 
-// The inspector's height: the content's (the dock is locked to it), until
-// the user drags the separator above the dock; then theirs, kept with the
-// window state (MainWin/InspectorUserSized and saveState(), state.cpp).
-// Window > Tile locks it to the content again.
-void SpimView::eduInspectorSizing(bool byUser) {
-  eduInspectorUserSized = byUser;  // saved with the window state (state.cpp)
-  eduInspector->setHeightLocked(!byUser);
+// The register column keeps to the width of its table; the other two
+// columns share what is left of the window, half each; and in both of them
+// the panel above is about twice the height of the one below it (65:35).
+// This runs after the splits have been through the layout: asked for in
+// the same breath, the sizes are worked out against the window's old shape
+// and then redistributed.
+void SpimView::eduApplyLayoutSizes() {
+  const bool mirrored = eduLayoutPreset == 1;
+  QDockWidget* const middleTop = mirrored ? ui->TextSegDockWidget : eduEditor;
+  QDockWidget* const rightTop = mirrored ? eduEditor : ui->TextSegDockWidget;
+  QDockWidget* const middleBottom =
+      mirrored ? (QDockWidget*)eduInspector : (QDockWidget*)eduBottom;
+  QDockWidget* const rightBottom =
+      mirrored ? (QDockWidget*)eduBottom : (QDockWidget*)eduInspector;
+
+  const int columnWidth = edu::theme::kRegisterColumnWidth;
+  const int rest = qMax(200, width() - columnWidth);
+  QList<QDockWidget*> columns;
+  columns << ui->IntRegDockWidget << middleTop << rightTop;
+  QList<int> widths;
+  widths << columnWidth << rest / 2 << rest / 2;
+  resizeDocks(columns, widths, Qt::Horizontal);
+
+  const int usable = qMax(200, height() - 140);  // menus, tool bar, status
+  QList<QDockWidget*> rows;
+  rows << middleTop << middleBottom << rightTop << rightBottom;
+  QList<int> heights;
+  heights << usable * 65 / 100 << usable * 35 / 100 << usable * 65 / 100
+          << usable * 35 / 100;
+  resizeDocks(rows, heights, Qt::Vertical);
+
+  // resizeDocks() only reaches docks that sit directly in the same
+  // splitter, and these are nested one level deeper, so the sizes above
+  // are a wish rather than an instruction.  Holding a dock to a size for
+  // one pass of the layout is what actually moves the splitter; the hold
+  // is let go immediately, so nothing is fixed afterwards.
+  eduHoldDockSize(ui->IntRegDockWidget, columnWidth, -1);
+  eduHoldDockSize(middleBottom, -1, usable * 35 / 100);
+  eduHoldDockSize(rightBottom, -1, usable * 35 / 100);
+
+  // Until the window has its real size the proportions are worked out
+  // against a shape it will not keep, so they are applied again on the
+  // next resize (eventFilter) until it does.
+  eduLayoutSizesPending = width() < 900;
 }
 
-// QMainWindow gets the mouse events on a separator itself (a separator is a
-// gap, not a child widget).  A locked inspector could not follow the drag,
-// so it is unlocked on the press; if the release finds its height changed,
-// the user has sized it, otherwise it is locked again.
+// Sizes one dock by holding it there for a single layout pass.  -1 leaves
+// that direction alone.
+void SpimView::eduHoldDockSize(QDockWidget* dock, int width, int height) {
+  if (dock == 0 || dock->isHidden()) {
+    return;
+  }
+  if (width > 0) {
+    dock->setMinimumWidth(width);
+    dock->setMaximumWidth(width);
+  }
+  if (height > 0) {
+    dock->setMinimumHeight(height);
+    dock->setMaximumHeight(height);
+  }
+  QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+  if (width > 0) {
+    dock->setMinimumWidth(0);
+    dock->setMaximumWidth(QWIDGETSIZE_MAX);
+  }
+  if (height > 0) {
+    dock->setMinimumHeight(0);
+    dock->setMaximumHeight(QWIDGETSIZE_MAX);
+  }
+}
+
+void SpimView::eduLayoutPrimary() { eduApplyLayout(0); }
+
+void SpimView::eduLayoutMirrored() { eduApplyLayout(1); }
+
 bool SpimView::eventFilter(QObject* watched, QEvent* event) {
   // The system switched between its light and dark theme: say again what
   // this window's title bar should look like.
@@ -526,23 +679,11 @@ bool SpimView::eventFilter(QObject* watched, QEvent* event) {
                           event->type() == QEvent::ApplicationPaletteChange)) {
     edu::theme::applyWindowChrome(this);
   }
-  if (watched == this && !eduInspectorUserSized && !eduInspector->isFloating()) {
-    if (event->type() == QEvent::MouseButtonPress) {
-      QMouseEvent* mouse = static_cast<QMouseEvent*>(event);
-      if (mouse->button() == Qt::LeftButton && childAt(mouse->pos()) == 0) {
-        eduInspectorSeparatorPressed = true;
-        eduInspectorPressHeight = eduInspector->height();
-        eduInspector->setHeightLocked(false);
-      }
-    } else if (event->type() == QEvent::MouseButtonRelease &&
-               eduInspectorSeparatorPressed) {
-      eduInspectorSeparatorPressed = false;
-      if (eduInspector->height() != eduInspectorPressHeight) {
-        eduInspectorSizing(true);
-      } else {
-        eduInspector->setHeightLocked(true);
-      }
-    }
+  // The window has grown into its real size at last: the arrangement's
+  // proportions were waiting for exactly that.
+  if (watched == this && event->type() == QEvent::Resize &&
+      eduLayoutSizesPending) {
+    QTimer::singleShot(0, this, SLOT(eduApplyLayoutSizes()));
   }
   return QMainWindow::eventFilter(watched, event);
 }
@@ -570,76 +711,33 @@ void SpimView::eduRefreshRegisterPanel() {
   eduUpdateInspector();
 }
 
-// The inspector shows whatever was picked last, a register or an
-// instruction.  After that, refreshes (a step, a redraw) keep the subject.
-void SpimView::eduRegisterSelected() {
-  edu::RegisterRef reg;
-  if (ui->IntRegView->currentRegister(&reg)) {
-    eduInspectorSubject = EduRegisterSubject;
-  }
-  eduUpdateInspector();
-}
+// The inspector follows the Text panel: selecting an instruction fills it,
+// and a redraw keeps it on that instruction.  Choosing a register or a word
+// of memory does not disturb it -- a register's bits are in the register
+// panel itself (Registers > Binary) and a word of memory says what it holds
+// in the tool tip of its cell.
+void SpimView::eduRegisterSelected() {}
 
-void SpimView::eduInstructionSelected() {
-  quint32 address = 0;
-  if (ui->TextSegView->currentInstruction(&address)) {
-    eduInspectorSubject = EduInstructionSubject;
-  }
-  eduUpdateInspector();
-}
+void SpimView::eduInstructionSelected() { eduUpdateInspector(); }
 
-void SpimView::eduMemorySelected() {
-  quint32 address = 0;
-  if (ui->DataSegPanel->view()->currentWord(&address)) {
-    eduInspectorSubject = EduMemorySubject;
-  }
-  eduUpdateInspector();
-}
+void SpimView::eduMemorySelected() {}
 
 void SpimView::eduUpdateInspector() {
-  if (eduInspectorSubject == EduMemorySubject) {
-    quint32 address = 0;
-    EduDataModel::WordInfo info;
-    if (ui->DataSegPanel->view()->currentWord(&address) &&
-        eduDataModel->wordInfo(address, &info)) {
-      eduInspector->showMemory(edu::memoryDetailLines(
-          info.address, info.value, info.bytes, info.labels, info.segment,
-          info.pointers));
-      return;
-    }
-    eduInspectorSubject = EduRegisterSubject;  // the word went away
-  }
-
-  if (eduInspectorSubject == EduInstructionSubject) {
-    quint32 address = 0;
-    const EduTextModel::Row* row =
-        ui->TextSegView->currentInstruction(&address)
-            ? eduTextModel->rowAt(eduTextModel->rowOfAddress(address))
-            : 0;
-    if (row != 0) {
-      // Which branch encoding this machine uses (ARCHITECTURE 13.2).
-      const edu::BranchConvention convention =
-          delayed_branches ? edu::MipsDelaySlot : edu::SpimNoDelaySlot;
-      const edu::DecodedInstruction decoded =
-          edu::decode(row->word, row->address, convention);
-      eduInspector->showInstruction(
-          edu::instructionDetailLines(decoded, row->address, row->disassembly,
-                                      row->label, convention),
-          edu::instructionNoteLines(decoded, convention));
-      return;
-    }
-    eduInspectorSubject = EduRegisterSubject;  // the instruction went away
-  }
-
-  edu::RegisterRef reg;
-  if (!ui->IntRegView->currentRegister(&reg)) {
+  quint32 address = 0;
+  const EduTextModel::Row* row =
+      ui->TextSegView->currentInstruction(&address)
+          ? eduTextModel->rowAt(eduTextModel->rowOfAddress(address))
+          : 0;
+  if (row == 0) {
     eduInspector->showNothing();
     return;
   }
-  const QModelIndex index = eduRegisterModel->indexOf(reg);
-  eduInspector->showRegister(reg, EduRegisterModel::readRegister(reg),
-                             eduRegisterModel->isChanged(reg),
-                             index.parent().data().toString());
+  // Which branch encoding this machine uses (ARCHITECTURE 13.2).
+  const edu::BranchConvention convention =
+      delayed_branches ? edu::MipsDelaySlot : edu::SpimNoDelaySlot;
+  eduInspector->showInstruction(
+      edu::decode(row->word, row->address, convention), row->address,
+      row->disassembly, row->label, convention);
 }
 
 // These settings are saved and survive a restart.  With Bare Machine on, a

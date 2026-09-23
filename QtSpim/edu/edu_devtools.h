@@ -132,9 +132,10 @@ class EduDevtools : public QObject {
   // run the script and exit instead of waiting for the user.
   bool isActive() const {
     return !captures_.isEmpty() || !dumps_.isEmpty() || reportTime_ ||
-           !dragInspector_.isEmpty() || !editorSteps_.isEmpty() || layoutReport_ ||
+           inspectorReport_ || !editorSteps_.isEmpty() || layoutReport_ ||
            tutorialReport_ || !dockDrop_.isEmpty() || !menuLoads_.isEmpty() ||
-           clickThrough_ || firstRunTour_;
+           clickThrough_ || firstRunTour_ || !clickTabs_.isEmpty() ||
+           !tourExit_.isEmpty() || !consoleType_.isEmpty();
   }
 
   // Starts answering modal dialogs.  Call as soon as the mode is known and
@@ -147,6 +148,9 @@ class EduDevtools : public QObject {
   // the activation a window manager sends when the overlay is clicked,
   // which is what used to end the tour (docs/ARCHITECTURE.md 12, 83).
   bool clickTourButton(const char* objectName);
+
+  // Whether the panel behind a dock tab of that title is really on screen.
+  bool panelOnScreen(const QString& title) const;
 
   // Runs the script once the event loop is up.  Call, then a.exec().
   void scheduleRun(SpimView* window);
@@ -184,8 +188,8 @@ class EduDevtools : public QObject {
   bool expandKernel_;
   bool hasSelectInstruction_;
   quint32 selectInstruction_;  // Text panel row to select before capturing
-  QList<int> dragInspector_;  // separator drags (0 = report only)
   bool saveSettings_;
+  bool inspectorReport_;  // --inspector-report: what the inspector shows
   bool layoutReport_;
   bool expandEnvironment_;
   bool expandKernelData_;
@@ -214,6 +218,11 @@ class EduDevtools : public QObject {
                          // mouse, on the card's own buttons
   bool firstRunTour_;    // --tutorial-first-run: let the start-up route open
                          // the tour, and report on that one
+  QStringList clickTabs_;  // --click-tab: a dock tab pressed with the mouse
+  QString tourExit_;       // --tutorial-exit: how to leave the tour before
+                           // the rest of the script runs
+  QString consoleType_;    // --console-type: keys typed into the Console tab
+                           // before the program runs, for an input syscall
   SpimView* window_;
   QString modalOut_;
   QString dialogShotDir_;

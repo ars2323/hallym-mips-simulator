@@ -23,6 +23,8 @@
 #      one of its buttons works when clicked with the mouse.
 #  10. The first-run route and Help > Tutorial produce the same tour, line
 #      for line.
+#  11. The Console tab takes typed input for a read syscall, and an error
+#      brings the Messages tab forward.
 
 set -euo pipefail
 
@@ -155,9 +157,9 @@ mapfile -t rep < <(grep '^editor:' "$work/keys.out")
 expect() {  # expect INDEX WHAT PATTERN
   if [[ "${rep[$1]:-}" == *$3* ]]; then pass "$2"; else fail "$2: ${rep[$1]:-<no report>}"; fi
 }
-expect 0 "start: Editor tab in front, no strip"          'banner=0 front=Editor'
+expect 0 "start: the editor is on screen, no strip"      'modified=0 banner=0 front='
 expect 1 "file opened, not assembled: strip shows"      'file=keys.s modified=0 banner=1'
-expect 2 "typed: modified, strip shows"                 'modified=1 banner=1 front=Editor'
+expect 2 "typed: modified, strip shows"                 'modified=1 banner=1 front='
 expect 3 "Ctrl+S: saved, assembled, Text tab, strip gone" 'modified=0 banner=0 front=Text errors=0 status="Saved and assembled"'
 expect 4 "typed again: strip is back"                   'modified=1 banner=1'
 expect 5 "click on the strip: saved and assembled"      'modified=0 banner=0 front=Text errors=0'
@@ -176,7 +178,7 @@ run fails --editor-open "$work/fails.s" --editor-key f3 \
     --dump text-log "$work/fails.text"
 mapfile -t rep < <(grep '^editor:' "$work/fails.out")
 expect 0 "F3 on a broken file: stays in the Editor, one error, no strip" \
-    'modified=0 banner=0 front=Editor errors=1'
+    'modified=0 banner=0 front=Text errors=1'
 expect 0 "status bar: failed, simulator was reset" \
     'badge="Assemble failed — 1 error. Simulator was reset."'
 if [ "$(head -c 4 "$work/fails.s")" = "addi" ]; then
@@ -226,8 +228,8 @@ persist last1 --editor-open "$work/last.s" --assemble --save-settings \
 persist last2 --editor-report --dump text-log "$work/last2.text"
 run fresh --dump text-log "$work/fresh.text"
 mapfile -t rep < <(grep '^editor:' "$work/last2.out")
-expect 0 "second start: last.s is open, strip shows, Editor in front" \
-    'file=last.s modified=0 banner=1 front=Editor'
+expect 0 "second start: last.s is open and not assembled" \
+    'file=last.s modified=0 banner=1 front='
 if [ -s "$work/last2.text" ] && cmp -s "$work/last2.text" "$work/fresh.text"; then
   pass "nothing was assembled: the text segment is a fresh start's"
 else
@@ -307,10 +309,10 @@ tour_case() {  # tour_case NAME ANSWER WANT_STARTED WANT_ASKS ARGS...
       fail "$name: cancelled but the tour ran ($steps steps)"
     fi
   else
-    if [ "$steps" = "19" ] && [ "$skipped" = "0" ]; then
-      pass "$name: 19 steps, none left out"
+    if [ "$steps" = "20" ] && [ "$skipped" = "0" ]; then
+      pass "$name: 20 steps, none left out"
     else
-      fail "$name: expected 19 steps and none skipped, got \"$steps\" and \"$skipped\" skipped"
+      fail "$name: expected 20 steps and none skipped, got \"$steps\" and \"$skipped\" skipped"
       sed -n 's/^tutorial skipped: /  left out: /p' "$out"
     fi
   fi
@@ -336,10 +338,10 @@ fi
 # Next because clicking the overlay deactivated the main window.
 run tourClicks --window-size 1600x900 --tutorial-click-through
 clicks=$(grep -c '^tutorial click Next: visible=1' "$work/tourClicks.out" || true)
-if [ "$clicks" = "18" ]; then
-  pass "Next, clicked with the mouse, walks all 19 steps"
+if [ "$clicks" = "19" ]; then
+  pass "Next, clicked with the mouse, walks all 20 steps"
 else
-  fail "expected 18 mouse clicks on Next, got $clicks"
+  fail "expected 19 mouse clicks on Next, got $clicks"
 fi
 for what in "click Back: visible=1" "click finish: visible=0" "click Skip: visible=0"; do
   if grep -q "^tutorial $what" "$work/tourClicks.out"; then
@@ -370,6 +372,42 @@ elif diff -u "$work/tour-menu.txt" "$work/tour-first.txt" >"$work/tour.diff"; th
 else
   fail "the two routes differ:"
   head -20 "$work/tour.diff"
+fi
+
+echo
+echo "== 11. the Console and Messages tabs"
+# The console is a tab of the bottom panel now.  Two things have to hold:
+# a program that asks for input gets what is typed into that tab, and an
+# error puts the Messages tab in front by itself.
+printf '\t.data\nask:\t.asciiz "N? "\n\t.text\n\t.globl main\nmain:\tli $v0, 4\n\tla $a0, ask\n\tsyscall\n\tli $v0, 5\n\tsyscall\n\tadd $t0, $v0, $v0\n\tli $v0, 1\n\tmove $a0, $t0\n\tsyscall\n\tli $v0, 10\n\tsyscall\n' >"$work/ask.s"
+run consoleIn --load "$work/ask.s" --console-type '21\n' --run \
+    --dump console "$work/ask.console"
+if grep -q '^console: focus=1 tab=Console' "$work/consoleIn.out"; then
+  pass "input syscall: the Console tab takes the keyboard"
+else
+  fail "input syscall: $(grep -m1 '^console:' "$work/consoleIn.out" || echo 'nothing reported')"
+fi
+if [ "$(tr -d '\r\n ' <"$work/ask.console")" = "21N?42" ]; then
+  pass "input syscall: what was typed reached the program (21 -> 42)"
+else
+  fail "input syscall: the console holds \"$(tr '\n' ' ' <"$work/ask.console")\""
+fi
+
+printf '\t.text\nmain:\tbogus\n' >"$work/bad.s"
+run consoleErr --editor-open "$work/bad.s" --assemble --window-size 1600x900 \
+    --layout-report
+if grep -q '^bottom: tab=Messages visible=1' "$work/consoleErr.out"; then
+  pass "an error brings the Messages tab forward"
+else
+  fail "after an error: $(grep -m1 '^bottom:' "$work/consoleErr.out" || echo 'nothing reported')"
+fi
+
+run consoleOut --load "$repo/samples/tutorial.s" --run --window-size 1600x900 \
+    --layout-report
+if grep -q '^bottom: tab=Console' "$work/consoleOut.out"; then
+  pass "a program that prints leaves the Console tab in front"
+else
+  fail "after a run: $(grep -m1 '^bottom:' "$work/consoleOut.out" || echo 'nothing reported')"
 fi
 
 echo

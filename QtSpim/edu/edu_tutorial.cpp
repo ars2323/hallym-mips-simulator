@@ -18,16 +18,19 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPushButton>
+#include <QCloseEvent>
 #include <QResizeEvent>
 #include <QTimer>
+#include <QTabBar>
 #include <QToolBar>
 #include <QVBoxLayout>
 
 #include "edu/core/edu_registers.h"
+#include "edu/edu_bottom_panel.h"
 #include "edu/edu_data_model.h"
 #include "edu/edu_data_view.h"
 #include "edu/edu_editor_dock.h"
-#include "edu/edu_inspector.h"
+#include "edu/edu_instruction_inspector.h"
 #include "edu/edu_register_model.h"
 #include "edu/edu_register_view.h"
 #include "edu/edu_text_model.h"
@@ -97,183 +100,197 @@ QWidget* buttonFor(QToolBar* bar, QAction* action) {
 // The tour.  The card shows the section and the position: "Registers · 6 / 18".
 const EduTutorial::Step EduTutorial::kStepData[] = {
     {EduTutorial::Welcome, "시작", "Start",
-     "한림 MIPS 시뮬레이터에 오신 것을 환영합니다",
-     "표준 QtSpim과 시뮬레이션 결과는 같고, 화면과 편집 기능이 다릅니다. 예제 프로그램 samples/tutorial.s를 "
-     "열어 함수 안까지 실행해 두었습니다. 무엇이 다른지 그 화면 위에서 차례대로 짚어 드립니다.",
-     "Welcome to Hallym MIPS Simulator",
-     "Programs assemble and run exactly as in the standard QtSpim; what "
-     "changed is the screen and the editing. The example samples/tutorial.s "
-     "is open and has been run into the middle of a function, and this tour "
-     "points at each difference on that screen."},
+     "한림 MIPS 시뮬레이터입니다",
+     "MIPS 어셈블리 프로그램을 작성하고, 한 줄씩 실행하며, 레지스터와 메모리가 어떻게 변하는지 보는 프로그램입니다. 예제 "
+     "samples/tutorial.s를 열어 함수 안까지 실행해 두었습니다. 화면을 한 곳씩 짚어 가며 어디에 무엇이 있는지 알려 "
+     "드립니다.",
+     "This is the Hallym MIPS Simulator",
+     "You write MIPS assembly here, run it an instruction at a time, and watch "
+     "what happens to the registers and to memory. The example "
+     "samples/tutorial.s is open and has been run into the middle of a function. "
+     "This tour points at each part of the screen and says what it is for."},
 
     {EduTutorial::ToolbarFile, "툴바", "Tool bar",
      "파일 버튼",
      "왼쪽부터 파일 열기, 다시 읽기, 로그 저장, 인쇄입니다. 버튼에 마우스를 올리면 이름과 단축키가 나옵니다.",
      "The file buttons",
-     "From the left: open a file, load it again, save the log, print. "
-     "Hovering a button names it and gives its shortcut."},
+     "From the left: open a file, load it again, save the log, print. Hovering a "
+     "button names it and gives its shortcut."},
 
     {EduTutorial::ToolbarAssemble, "툴바", "Tool bar",
-     "Assemble 버튼",
-     "에디터의 파일을 저장하고 곧바로 어셈블합니다. Ctrl+S, F3과 같은 동작입니다. 표준 QtSpim에서는 다른 편집기로 "
-     "저장한 뒤 File > Load File을 따로 눌러야 합니다.",
-     "The Assemble button",
-     "It saves the editor's file and assembles it in one step; Ctrl+S and F3 "
-     "do the same. In the standard QtSpim you save in another editor and then "
-     "use File > Load File yourself."},
+     "Assemble: 저장하고 어셈블",
+     "에디터의 파일을 저장하고 곧바로 어셈블합니다. 키보드로는 Ctrl+S 또는 F3입니다. 어셈블에 성공하면 기계어가 Text 패널에 "
+     "나타나고, 실패하면 에디터 아래에 오류 목록이 열립니다.",
+     "Assemble: save and build",
+     "It saves the file in the editor and assembles it at once; Ctrl+S and F3 do "
+     "the same. If it succeeds the machine code appears in the Text panel; if it "
+     "fails, the list of errors opens under the editor."},
 
     {EduTutorial::ToolbarRun, "툴바", "Tool bar",
      "실행 버튼",
-     "Run(F5), Pause, Stop, Single Step(F10)입니다. 예제는 이 버튼들로 함수 안까지 실행해 둔 "
-     "상태입니다. 아래에 보이는 것이 Single Step 버튼의 툴팁입니다.",
+     "Run(F5)은 끝까지 또는 다음 브레이크포인트까지, Single Step(F10)은 한 명령만 실행합니다. Pause와 Stop으로 "
+     "멈춥니다. 아래에 보이는 것이 Single Step 버튼의 툴팁입니다.",
      "The run buttons",
-     "Run (F5), Pause, Stop and Single Step (F10). The example was run with "
-     "these into the middle of a function. What you see below is the tool tip "
-     "of the Single Step button."},
+     "Run (F5) goes to the end or to the next breakpoint, Single Step (F10) runs "
+     "one instruction. Pause and Stop halt a program. What you see below is the "
+     "tool tip of the Single Step button."},
 
     {EduTutorial::RegisterGroups, "레지스터", "Registers",
-     "용도별 8개 그룹",
-     "레지스터를 Special, Arguments, Temporaries처럼 쓰임새로 묶었습니다. 그룹 이름에 마우스를 올리면 그 "
-     "그룹이 어떤 용도인지 나옵니다. 표준 QtSpim은 R0부터 R31까지 한 줄로 늘어놓습니다.",
-     "Eight groups by role",
-     "The registers are grouped by what they are for: Special, Arguments, "
-     "Temporaries and so on. Hovering a group name says what it is used for. "
-     "The standard QtSpim lists R0 to R31 in one flat column."},
+     "레지스터: 두 개의 탭, 여덟 개의 그룹",
+     "왼쪽 열이 레지스터입니다. Int Regs 탭이 정수, FP Regs 탭이 부동소수점 레지스터입니다. 정수 레지스터는 Special, "
+     "Arguments, Temporaries처럼 쓰임새로 묶여 있고, 그룹 이름에 마우스를 올리면 그 그룹의 용도가 나옵니다.",
+     "Registers: two tabs, eight groups",
+     "The left column holds the registers: integer ones under the Int Regs tab, "
+     "floating point under FP Regs. The integer registers are grouped by what "
+     "they are for -- Special, Arguments, Temporaries and so on -- and hovering "
+     "a group name says what that group is used for."},
 
     {EduTutorial::RegisterColumns, "레지스터", "Registers",
-     "16진수와 10진수를 한 번에",
-     "지금 밝힌 줄이 스택 포인터 $sp입니다. Hex 열과 Decimal 열에 같은 값이 16진수와 10진수로 나란히 있습니다. "
-     "표준 QtSpim은 메뉴에서 고른 진법 하나만 보여 줍니다.",
-     "Hexadecimal and decimal together",
-     "The row lit up is the stack pointer, $sp, with the same value in the "
-     "Hex and the Decimal column side by side. The standard QtSpim shows one "
-     "base at a time, the one picked in its menu."},
+     "같은 값을 16진수와 10진수로",
+     "밝힌 줄이 스택 포인터 $sp입니다. Hex 열과 Decimal 열에 같은 값이 두 가지 진법으로 나란히 있습니다. 값을 바꾸고 "
+     "싶으면 그 줄을 두 번 누르세요. 진법은 Registers 메뉴에서 2진수까지 바꿀 수 있습니다.",
+     "The same value in hexadecimal and decimal",
+     "The row lit up is the stack pointer, $sp: the Hex column and the Decimal "
+     "column show the same value two ways. Double-click a row to change a "
+     "register's value, and the Registers menu switches the base, binary "
+     "included."},
 
     {EduTutorial::RegisterChanged, "레지스터", "Registers",
      "이번 실행으로 바뀐 값",
-     "청록색 굵은 글씨는 실행으로 값이 바뀐 레지스터입니다. $sp는 함수가 스택 프레임을 잡으면서 12만큼 줄었고, $t "
-     "레지스터들은 배열을 도는 동안 바뀌었습니다. 한 번 실행할 때마다 무엇이 움직였는지 바로 보입니다.",
+     "청록색 굵은 글씨는 방금 실행한 부분이 바꾼 레지스터입니다. $sp는 함수가 스택 프레임을 잡으면서 16 줄었고, $t 레지스터들은 "
+     "배열을 도는 동안 바뀌었습니다. 한 번 실행할 때마다 무엇이 움직였는지 바로 보입니다.",
      "What this run changed",
-     "Teal, bold, is a register the run has changed. $sp went down by twelve "
-     "when the function made its stack frame, and the $t registers moved as "
-     "the loop walked the array. Every run marks what it touched."},
+     "Teal and bold marks a register that the run just changed. $sp went down by "
+     "sixteen when the function made its stack frame, and the $t registers moved "
+     "as the loop walked the array. Every run marks what it touched."},
 
-    {EduTutorial::InspectorBits, "인스펙터", "Inspector",
-     "고른 것의 비트와 필드",
-     "지금 Text 패널에서 고른 명령어를 인스펙터가 2진수로 펼치고 opcode·rs·rt 같은 기계어 필드로 나눠 보여 줍니다. "
-     "레지스터나 메모리 워드를 고르면 그 값을 같은 방식으로 보여 줍니다. 표준 QtSpim에는 없습니다.",
-     "The bits of whatever is selected",
-     "The instruction selected in the Text panel is spelled out in binary and "
-     "split into its machine fields -- opcode, rs, rt and the rest. Select a "
-     "register or a memory word and it does the same for that. The standard "
-     "QtSpim has nothing like it."},
+    {EduTutorial::EditorPanel, "에디터", "Editor",
+     "가운데 위: 에디터",
+     "소스를 여기서 씁니다. 지금은 예제가 그대로 들어 있습니다. Ctrl+S로 저장과 어셈블을 함께 하고, 어셈블 오류는 아래 목록에 "
+     "모여 클릭하면 그 줄로 갑니다. Ctrl+휠이나 Ctrl+=로 글자 크기를 바꿉니다.",
+     "Top middle: the editor",
+     "This is where you write your program; the example is in it now. Ctrl+S "
+     "saves and assembles in one step, assembler errors gather in a list below "
+     "and clicking one jumps to its line, and Ctrl+wheel or Ctrl+= changes the "
+     "text size."},
+
+    {EduTutorial::ConsoleTab, "콘솔", "Console",
+     "가운데 아래: Console 탭",
+     "프로그램이 출력하는 곳입니다. 예제를 끝까지 실행하면 여기에 Array sum: 55가 찍힙니다. read_int나 "
+     "read_string처럼 입력을 기다리는 syscall을 만나면 이 탭이 저절로 앞으로 나오고, 그때 타이핑한 내용이 프로그램으로 "
+     "들어갑니다.",
+     "Bottom middle: the Console tab",
+     "This is where your program's output appears; run the example to the end "
+     "and Array sum: 55 shows up here. When the program reaches a syscall that "
+     "waits for input, such as read_int or read_string, this tab comes forward "
+     "by itself and what you type goes into the program."},
+
+    {EduTutorial::MessagesTab, "콘솔", "Console",
+     "Messages 탭: 시뮬레이터의 기록",
+     "무엇을 불러왔는지, 어셈블이나 실행에서 어떤 오류가 났는지가 여기에 쌓입니다. 오류가 나면 이 탭이 저절로 앞으로 나오고, 다른 탭을 "
+     "보고 있을 때 새 메시지가 오면 탭에 점이 붙습니다. Ctrl+L로 이 패널 전체를 접었다 펼 수 있습니다.",
+     "The Messages tab: the simulator's log",
+     "What was loaded, and every assembler or run-time error, collects here. An "
+     "error brings this tab forward by itself, and a message that arrives while "
+     "you are on another tab puts a dot on it. Ctrl+L folds the whole panel away "
+     "and back."},
 
     {EduTutorial::TextColumns, "Text", "Text",
-     "기계어와 소스가 열로 나뉜다",
-     "밝힌 칸이 함수를 부르는 jal 명령의 기계어(Code)와 형식(Type)입니다. 표준 QtSpim은 이 모두를 한 줄의 글로 "
-     "붙여 놓습니다.",
-     "Columns for the word and the format",
-     "The cells lit up are the machine word and the format of the jal that "
-     "calls the function. The standard QtSpim runs all of this together in "
-     "one line of text."},
+     "오른쪽 위: Text 패널",
+     "어셈블된 프로그램이 명령어 한 줄에 한 행씩 놓입니다. 밝힌 칸은 함수를 부르는 jal 명령의 기계어(Code)와 "
+     "형식(Type)입니다. 오른쪽 Source 열은 그 명령이 나온 소스 줄입니다.",
+     "Top right: the Text panel",
+     "The assembled program, one row per instruction. The cells lit up are the "
+     "machine word and the format of the jal that calls the function, and the "
+     "Source column on the right is the line of your file it came from."},
 
     {EduTutorial::TextBadge, "Text", "Text",
      "R·I·J 형식 배지",
-     "명령마다 형식을 배지로 붙였습니다. 밝힌 것은 차례로 jal(J 형식), beq(I 형식), 그리고 레지스터끼리 더하는 R "
-     "형식입니다. 배지에 마우스를 올리면 그 형식이 무엇인지 나옵니다.",
+     "명령마다 형식을 배지로 붙였습니다. 밝힌 것은 차례로 jal(J 형식), beq(I 형식), 레지스터끼리 더하는 R 형식입니다. "
+     "배지에 마우스를 올리면 그 형식이 무엇인지 나옵니다.",
      "The R / I / J badges",
-     "Every instruction carries its format as a badge. Lit up here: the jal "
-     "(a J), the beq (an I) and a register-to-register add (an R). Hovering a "
-     "badge says what that format means."},
-
-    {EduTutorial::TextFields, "Text", "Text",
-     "명령을 고르면 필드가 열린다",
-     "jal 줄을 골라 두었습니다. 인스펙터에 그 32비트가 opcode와 주소 필드로 나뉘어 나옵니다. 어느 줄이든 눌러 보면 같은 "
-     "것을 보여 줍니다.",
-     "Select an instruction and its fields open up",
-     "The jal row is selected, and the inspector splits its thirty-two bits "
-     "into the opcode and the address field. Click any row to see the same "
-     "for it."},
+     "Every instruction carries its format as a badge. Lit up here: the jal (a "
+     "J), the beq (an I) and a register-to-register add (an R). Hovering a badge "
+     "says what that format means."},
 
     {EduTutorial::TextPcAndBreakpoints, "Text", "Text",
      "다음에 실행할 줄과 브레이크포인트",
      "파란 막대가 붙은 줄이 지금 PC가 가리키는 명령, 곧 다음에 실행될 루프의 beq입니다. 맨 왼쪽 BP 칸을 누르면 그 명령에 "
-     "브레이크포인트가 걸립니다. 밝힌 BP 칸은 루프를 되돌리는 j 명령의 것입니다.",
+     "브레이크포인트가 걸리고 Run이 거기서 멈춥니다. 밝힌 BP 칸은 루프를 되돌리는 j 명령의 것입니다.",
      "The next instruction, and breakpoints",
-     "The row with the blue bar is where the program counter is: the beq at "
-     "the top of the loop, which runs next. Clicking a cell in the BP column "
-     "sets a breakpoint on that instruction; the one lit up belongs to the j "
+     "The row with the blue bar is where the program counter is: the beq at the "
+     "top of the loop, which runs next. Clicking a cell in the BP column sets a "
+     "breakpoint there and Run stops on it; the cell lit up belongs to the j "
      "that closes the loop."},
 
+    {EduTutorial::InspectorBits, "인스펙터", "Inspector",
+     "오른쪽 아래: Instruction Inspector",
+     "Text 패널에서 고른 명령을 32비트로 펼쳐 보여 줍니다. 왼쪽이 MSB(31번 비트), 오른쪽이 LSB(0번 비트)이고, 색이 "
+     "다른 묶음이 각각 하나의 필드입니다. 아래에는 필드마다 비트 범위와 2진수, 값, 뜻이 있고, 분기나 점프면 목적지 계산식까지 "
+     "나옵니다.",
+     "Bottom right: the Instruction Inspector",
+     "It spreads the instruction selected in the Text panel over its thirty-two "
+     "bits: MSB (bit 31) on the left, LSB (bit 0) on the right, and each "
+     "coloured group is one field. Under the grid every field gives its bit "
+     "range, its bits, its value and what that value means, and for a branch or "
+     "a jump the sum that produced its destination."},
+
     {EduTutorial::DataWords, "Data", "Data",
-     "주소와 네 개의 워드",
-     "밝힌 줄이 배열 nums입니다. 왼쪽이 그 줄의 시작 주소이고, +0부터 +C 까지 네 워드가 7, 11, 5, 23입니다. "
-     "표준 QtSpim은 주소와 값을 글로 이어 붙여 보여 줍니다.",
-     "An address and four words",
-     "The row lit up is the array nums: the address it starts at on the left, "
-     "then the words at +0 to +C -- 7, 11, 5 and 23. The standard QtSpim runs "
-     "the addresses and the values together as text."},
+     "Data 탭: 주소와 네 개의 워드",
+     "Text 옆의 Data 탭이 메모리입니다. 한 줄이 16바이트이고, 왼쪽이 그 줄의 시작 주소, +0부터 +C까지가 네 개의 "
+     "워드입니다. 밝힌 줄은 예제의 배열 nums로, 값이 7, 11, 5, 23입니다.",
+     "The Data tab: an address and four words",
+     "The Data tab beside Text is memory. Each row is sixteen bytes: the address "
+     "it starts at on the left, then the words at +0 to +C. The row lit up is "
+     "the example's array nums, holding 7, 11, 5 and 23."},
 
     {EduTutorial::DataLabels, "Data", "Data",
-     "Labels 열과 갱신된 값",
-     "Labels 열은 소스에서 그 주소에 붙인 이름을 보여 줍니다. total은 루프가 한 번 돌 때마다 sw로 갱신한 값이고, "
-     "지금은 두 번 더한 값 18입니다. 표준 QtSpim은 이름 없이 주소만 보여 줍니다.",
+     "Labels 열과 값이 바뀌는 곳",
+     "Labels 열은 소스에서 그 주소에 붙인 이름을 보여 줍니다. total은 루프가 한 번 돌 때마다 sw로 갱신하는 자리이고, "
+     "지금은 두 번 더한 값 18이 들어 있습니다. 셀에 마우스를 올리면 주소와 값을 16진수와 10진수로 함께 보여 줍니다.",
      "The Labels column, and a value being written",
-     "The Labels column gives the names the source put at those addresses. "
-     "total is written by the sw inside the loop, and right now it holds 18, "
-     "the first two elements. The standard QtSpim shows the address only."},
+     "The Labels column gives the names your source put at those addresses. "
+     "total is where the sw inside the loop writes each time round, and right "
+     "now it holds 18, the first two elements. Hovering a cell shows its address "
+     "and its value in hexadecimal and decimal."},
 
     {EduTutorial::DataString, "Data", "Data",
      "문자열과 ASCII 열",
-     "prompt는 .asciiz 문자열입니다. 워드 열은 바이트를 16진수로, ASCII 열은 같은 바이트를 글자로 보여 주어 "
-     "문자열이 메모리에 어떻게 놓이는지 한눈에 보입니다. 출력할 수 없는 바이트는 점입니다.",
+     "prompt는 .asciiz 문자열입니다. 워드 열은 바이트를 16진수로, ASCII 열은 같은 바이트를 글자로 보여 주어 문자열이 "
+     "메모리에 어떻게 놓이는지 한눈에 보입니다. 출력할 수 없는 바이트는 점으로 나옵니다.",
      "A string, and the ASCII column",
      "prompt is an .asciiz string. The word columns show the bytes in "
-     "hexadecimal and the ASCII column shows the same bytes as characters, so "
-     "you can see how a string sits in memory. A byte that does not print is "
-     "a dot."},
+     "hexadecimal and the ASCII column shows those same bytes as characters, so "
+     "you can see how a string sits in memory. A byte that does not print shows "
+     "as a dot."},
 
     {EduTutorial::DataStack, "Data", "Data",
      "스택과 $sp가 가리키는 곳",
-     "함수가 프레임을 잡아 $sp가 16바이트 내려왔습니다. 밝힌 네 워드가 "
-     "그 프레임입니다. 위쪽 두 워드에 돌아갈 주소 $ra와 부른 쪽의 $s0 값 "
-     "42가 저장되어 있고, 아래 두 워드는 지역 변수 자리입니다. $sp 단추를 "
-     "누르면 언제든 이 자리로 옵니다.",
+     "함수가 프레임을 잡아 $sp가 16바이트 내려왔습니다. 밝힌 네 워드가 그 프레임이고, 위쪽 두 워드에 돌아갈 주소 $ra와 부른 "
+     "쪽의 $s0 값 42가 저장되어 있습니다. 위쪽 $sp 단추를 누르면 언제든 이 자리로 옵니다.",
      "The stack, and where $sp points",
-     "The function made a frame, so $sp has come down by sixteen bytes. The "
-     "four words lit up are that frame: the upper two hold the return address "
-     "and the caller's $s0, 42, and the lower two are room for locals. The "
-     "$sp button jumps here at any time."},
+     "The function made a frame, so $sp has come down by sixteen bytes. The four "
+     "words lit up are that frame: the upper two hold the return address and the "
+     "caller's $s0, 42. The $sp button above jumps here at any time."},
 
     {EduTutorial::DataEnvironment, "Data", "Data",
      "환경변수 영역은 접어 둔다",
-     "스택 위쪽의 프로그램 인자·환경변수 영역은 접어 두었습니다. 표준 QtSpim은 이 수천 바이트를 항상 펼쳐 놓아서 정작 볼 "
-     "것을 찾기 어렵습니다. 눌러서 펼칠 수 있습니다.",
+     "스택 위쪽의 프로그램 인자와 환경변수 영역은 수천 바이트라서 접어 두었습니다. 눌러서 펼칠 수 있고, 커널 영역도 같은 방식입니다.",
      "The environment is folded away",
-     "The program arguments and the environment above the stack are folded "
-     "up. The standard QtSpim always prints those few thousand bytes, which "
-     "buries what you wanted to see. Click to unfold it."},
-
-    {EduTutorial::EditorPanel, "에디터", "Editor",
-     "에디터가 들어 있다",
-     "예제 소스가 이 안에 있습니다. Ctrl+S가 저장과 어셈블을 함께 하고, 어셈블 에러는 아래 목록에 모여 클릭하면 그 줄로 "
-     "갑니다. Ctrl+휠로 글자 크기도 바꿉니다. 표준 QtSpim에는 에디터가 없습니다.",
-     "There is an editor",
-     "The example's source is in here. Ctrl+S saves and assembles in one go, "
-     "assembler errors gather in the list below and clicking one jumps to its "
-     "line, and Ctrl+wheel changes the text size. The standard QtSpim has no "
-     "editor."},
+     "The program arguments and the environment above the stack run to thousands "
+     "of bytes, so they start folded up. Click to unfold them; the kernel areas "
+     "work the same way."},
 
     {EduTutorial::Finish, "마무리", "Finish",
      "준비되었습니다",
-     "Window > Layout으로 에디터와 Text를 나란히 놓을 수 있고, Ctrl+L로 아래 메시지 창을 접을 수 있습니다. "
-     "안내문은 Help > User Guide, 이 투어는 Help > Tutorial입니다. 예제는 열어 둘 테니 그대로 고쳐 "
-     "보거나 Simulator > Reinitialize로 비우고 시작하세요.",
+     "Window > Layout으로 에디터와 Text의 좌우를 바꿀 수 있고, Window > Tile은 이 배치로 되돌립니다. 안내문은 "
+     "Help > User Guide, 이 투어는 Help > Tutorial입니다. 예제는 열어 둘 테니 그대로 고쳐 보거나 "
+     "Simulator > Reinitialize로 비우고 시작하세요.",
      "You are ready",
-     "Window > Layout puts the editor and the text panel side by side, and "
-     "Ctrl+L folds the message pane away. The written guide is Help > User "
-     "Guide and this tour is Help > Tutorial. The example stays open: change "
-     "it, or clear everything with Simulator > Reinitialize."},
+     "Window > Layout swaps the editor and the Text panel, and Window > Tile "
+     "puts this arrangement back. The written guide is Help > User Guide and "
+     "this tour is Help > Tutorial. The example stays open: change it, or clear "
+     "everything with Simulator > Reinitialize."},
 };
 
 const int EduTutorial::kStepCount =
@@ -340,15 +357,20 @@ EduTutorial::EduTutorial(SpimView* window)
     buttons[i]->setFocusPolicy(Qt::NoFocus);
   }
 
+  // The card's own text is the main thing on the screen while the tour is
+  // up, so none of it is set in a grey: the body is the same weight and
+  // darkness as the text in the editor beside it.
   QFont titleFont = uiFont();
-  titleFont.setPixelSize(kTitlePixelSize);
-  titleFont.setWeight(QFont::Bold);
+  titleFont.setPixelSize(kCardTitleSize);
+  titleFont.setWeight(QFont::DemiBold);
   title_->setFont(titleFont);
   QFont bodyFont = uiFont();
-  bodyFont.setPixelSize(kUiPixelSize);
+  bodyFont.setPixelSize(kCardBodySize);
+  bodyFont.setWeight(QFont::Medium);
   body_->setFont(bodyFont);
   QFont smallFont = uiFont();
   smallFont.setPixelSize(kFontSmall);
+  smallFont.setWeight(QFont::Medium);
   progress_->setFont(smallFont);
   language_->setFont(smallFont);
 
@@ -358,18 +380,18 @@ EduTutorial::EduTutorial(SpimView* window)
               "QLabel#EduTutorialTitle { color: %3; background: %1; }"
               "QLabel#EduTutorialBody { color: %4; background: %1; }"
               "QLabel#EduTutorialProgress { color: %5; background: %1; }"
-              "QPushButton#EduTutorialLanguage { color: %5; border: none;"
-              " padding: 2px 4px; background: %1; }"
+              "QPushButton#EduTutorialLanguage { color: %7; border: none;"
+              " padding: 2px 4px; background: %1; font-weight: 500; }"
               "QPushButton#EduTutorialLanguage:hover { color: %3; }"
               "QPushButton { background: %1; color: %3; border: 1px solid %2;"
-              " border-radius: 4px; padding: 5px 14px; font-weight: 600; }"
+              " border-radius: 4px; padding: 5px 14px; font-weight: 500; }"
               "QPushButton:hover { background: %6; }"
               "QPushButton#EduTutorialNext { background: %7; color: %1;"
-              " border-color: %7; }"
+              " border-color: %7; font-weight: 600; }"
               "QPushButton#EduTutorialNext:hover { background: %3;"
               " border-color: %3; }")
-          .arg(hex(kWhite), hex(kBorder), hex(kNavy), hex(kText), hex(kText2),
-               hex(kHover), hex(kBlue)));
+          .arg(hex(kWhite), hex(kBorder), hex(kNavy), hex(kTextLog),
+               hex(kText2), hex(kHover), hex(kBlue)));
 
   QHBoxLayout* head = new QHBoxLayout;
   head->setContentsMargins(0, 0, 0, 0);
@@ -409,7 +431,7 @@ void EduTutorial::setProgramLoaded(bool loaded) { programLoaded_ = loaded; }
 
 QString EduTutorial::titleText() const { return title_->text(); }
 
-QString EduTutorial::bodyText() const { return body_->text(); }
+QString EduTutorial::bodyText() const { return bodyPlain_; }
 
 void EduTutorial::setKorean(bool korean) {
   if (korean_ == korean || steps_.isEmpty()) {
@@ -576,6 +598,30 @@ QRect EduTutorial::registerRowRect(const char* name) const {
                  window_);
 }
 
+// One tab of a dock or of the bottom panel, by the name on it.
+QRect EduTutorial::tabBarRect(const QString& title) const {
+  const QList<QTabBar*> bars = window_->findChildren<QTabBar*>();
+  for (int b = 0; b < bars.size(); b += 1) {
+    QTabBar* bar = bars.at(b);
+    if (!bar->isVisible()) {
+      continue;
+    }
+    for (int t = 0; t < bar->count(); t += 1) {
+      if (!bar->tabText(t).startsWith(title)) {
+        continue;
+      }
+      const QRect tab = bar->tabRect(t);
+      if (tab.isEmpty()) {
+        return QRect();
+      }
+      return tab.translated(bar->mapTo(window_, QPoint(0, 0)))
+          .adjusted(-2, -2, 2, 2)
+          .intersected(rect());
+    }
+  }
+  return QRect();
+}
+
 bool EduTutorial::collectSpots(StepId id, QList<QRect>* spots, QString* tip,
                                QRect* tipAnchor) {
   Ui::SpimView* ui = window_->ui;
@@ -623,6 +669,7 @@ bool EduTutorial::collectSpots(StepId id, QList<QRect>* spots, QString* tip,
 
     case RegisterGroups: {
       raiseDock("IntRegDockWidget");
+      const QRect tabs = tabBarRect("Int Regs");
       EduRegisterModel* model = window_->eduRegisterModel;
       if (model == 0) {
         return false;
@@ -645,6 +692,9 @@ bool EduTutorial::collectSpots(StepId id, QList<QRect>* spots, QString* tip,
         return false;
       }
       *spots << r;
+      if (!tabs.isEmpty()) {
+        *spots << tabs;
+      }
       *tip = group.data(Qt::ToolTipRole).toString();
       *tipAnchor = r;
       return true;
@@ -698,6 +748,30 @@ bool EduTutorial::collectSpots(StepId id, QList<QRect>* spots, QString* tip,
       return !spots->isEmpty();
     }
 
+    // The bottom panel: what the program printed, and the simulator's log.
+    case ConsoleTab:
+    case MessagesTab: {
+      if (window_->eduBottom == 0 || window_->eduBottom->isHidden()) {
+        return false;
+      }
+      if (id == ConsoleTab) {
+        window_->eduBottom->showConsole(false);
+      } else {
+        window_->eduBottom->showMessages();
+      }
+      QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+      const QRect panel = rectOf(window_->eduBottom);
+      if (panel.isEmpty()) {
+        return false;
+      }
+      *spots << panel;
+      const QRect tab = tabBarRect(id == ConsoleTab ? "Console" : "Messages");
+      if (!tab.isEmpty()) {
+        *spots << tab;
+      }
+      return true;
+    }
+
     // The inspector, with the instruction the program counter is on
     // actually selected, so what it shows belongs to what is lit up.
     case InspectorBits: {
@@ -731,7 +805,6 @@ bool EduTutorial::collectSpots(StepId id, QList<QRect>* spots, QString* tip,
 
     case TextColumns:
     case TextBadge:
-    case TextFields:
     case TextPcAndBreakpoints: {
       if (!programLoaded_ || !dockIsOpen("TextSegDockWidget")) {
         return false;
@@ -784,26 +857,6 @@ bool EduTutorial::collectSpots(StepId id, QList<QRect>* spots, QString* tip,
               model->index(call, EduTextModel::TypeColumn);
           *tip = badge.data(Qt::ToolTipRole).toString();
           *tipAnchor = spots->first();
-        }
-        return true;
-      }
-
-      if (id == TextFields) {
-        if (call < 0) {
-          return false;
-        }
-        view->setCurrentIndex(model->index(call,
-                                           EduTextModel::InstructionColumn));
-        QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
-        const QRect line = textRowRect(call, EduTextModel::BpColumn,
-                                       EduTextModel::InstructionColumn);
-        if (line.isEmpty()) {
-          return false;
-        }
-        *spots << line;
-        const QRect inspector = rectOf(window_->eduInspector);
-        if (!inspector.isEmpty()) {
-          *spots << inspector;
         }
         return true;
       }
@@ -1068,7 +1121,10 @@ void EduTutorial::showStep(int index) {
                           : QString::fromUtf8(step.titleEn));
   const QString body =
       korean_ ? QString::fromUtf8(step.bodyKo) : QString::fromUtf8(step.bodyEn);
-  body_->setText(body);
+  bodyPlain_ = body;
+  // A QLabel has no line spacing of its own; rich text does.
+  body_->setText(QString("<div style=\"line-height:150%;\">") +
+                 body.toHtmlEscaped() + "</div>");
   progress_->setText(
       QString::fromUtf8(korean_ ? step.sectionKo : step.sectionEn) +
       QString::fromUtf8("  \xc2\xb7  ") + QString::number(current_ + 1) + " / " +
@@ -1267,8 +1323,20 @@ void EduTutorial::keyPressEvent(QKeyEvent* event) {
 }
 
 // Clicks anywhere but on the card do nothing: the tour is left through its
-// own buttons or Escape, never by a stray click.
-void EduTutorial::mousePressEvent(QMouseEvent*) { setFocus(); }
+// own buttons or Escape, never by a stray click.  It does not take the
+// focus either -- the keys it answers come through the application filter,
+// and taking the focus from the main window is what made the tour fight
+// the window manager over which window is active.
+void EduTutorial::mousePressEvent(QMouseEvent*) {}
+
+// The window manager can close this window (its own close button, Alt+F4).
+// That has to be the end of the tour, not a hidden window that is still
+// running: a running tour holds the application filter and comes back the
+// next time the program is activated.
+void EduTutorial::closeEvent(QCloseEvent* event) {
+  finish();
+  event->accept();
+}
 
 void EduTutorial::resizeEvent(QResizeEvent* event) {
   QWidget::resizeEvent(event);
@@ -1362,10 +1430,22 @@ void EduTutorial::toggleLanguage() {
   showStep(current_);
 }
 
+// Every way out of the tour comes through here: the last step's button,
+// Skip, Escape, and the window manager closing the overlay.  Nothing of
+// the tour may outlive it -- not the application event filter that takes
+// the arrow keys, not the timer that follows the window and puts the
+// step's panel back in front, and not the window itself.
 void EduTutorial::finish() {
   running_ = false;
   follow_->stop();
   qApp->removeEventFilter(this);
+  spots_.clear();
+  tip_.clear();
   hide();
+  // The overlay is a window of its own; with it gone, the keyboard belongs
+  // to the main window again.
+  if (window_ != 0 && window_->isVisible()) {
+    window_->activateWindow();
+  }
   emit closed();
 }
