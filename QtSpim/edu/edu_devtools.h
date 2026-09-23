@@ -124,8 +124,8 @@ class EduDevtools : public QObject {
   static bool wantsCaptureMode(const QStringList& args);
 
   // --tutorial-first-run: take the start-up route into the tour (the one
-  // the "Tutorial/Shown" setting guards) instead of calling it as Help >
-  // Tutorial does, so the two can be compared.
+  // the start-up card's "take the tour" button opens) instead of calling
+  // it as Help > Tutorial does, so the two can be compared.
   static bool wantsFirstRunTour(const QStringList& args);
 
   // True when --capture or --dump was given, i.e. when the program should
@@ -135,7 +135,8 @@ class EduDevtools : public QObject {
            inspectorReport_ || !editorSteps_.isEmpty() || layoutReport_ ||
            tutorialReport_ || !dockDrop_.isEmpty() || !menuLoads_.isEmpty() ||
            clickThrough_ || firstRunTour_ || !clickTabs_.isEmpty() ||
-           !tourExit_.isEmpty() || !consoleType_.isEmpty();
+           !tourExit_.isEmpty() || !consoleType_.isEmpty() ||
+           !splitDrags_.isEmpty();
   }
 
   // Starts answering modal dialogs.  Call as soon as the mode is known and
@@ -151,6 +152,7 @@ class EduDevtools : public QObject {
 
   // Whether the panel behind a dock tab of that title is really on screen.
   bool panelOnScreen(const QString& title) const;
+  void reportPanels(const QString& what);
 
   // Runs the script once the event loop is up.  Call, then a.exec().
   void scheduleRun(SpimView* window);
@@ -223,6 +225,8 @@ class EduDevtools : public QObject {
                            // the rest of the script runs
   QString consoleType_;    // --console-type: keys typed into the Console tab
                            // before the program runs, for an input syscall
+  QStringList splitDrags_; // --drag-split: a drag on one of the three lines
+                           // between the four panels
   SpimView* window_;
   QString modalOut_;
   QString dialogShotDir_;

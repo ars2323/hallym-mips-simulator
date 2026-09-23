@@ -21,6 +21,8 @@
 #include "edu/core/edu_text_file.h"
 
 class EduCodeEditor;
+class QPushButton;
+class QStackedWidget;
 class QFileSystemWatcher;
 class QLabel;
 class QListWidget;
@@ -46,6 +48,20 @@ class EduEditorDock : public QDockWidget {
   bool save();                  // Save As if the file has no name yet
   bool saveAs();
   bool maybeSave();             // "Save changes?"  true = go on
+
+  // Nothing open: the panel shows two buttons instead of an empty page.
+  // The editor comes back the moment a file is opened or made.
+  void showStartScreen();
+  bool startScreenShown() const;
+
+  // The tour opens its example here and must not have it edited.
+  void setReadOnly(bool readOnly);
+  bool isReadOnly() const { return readOnly_; }
+
+  // Closes whatever is open and goes back to the start screen.  Asks
+  // about unsaved work unless told not to (the tour's example is
+  // read-only, so there is never anything to ask about).
+  bool closeFile(bool ask = true);
   // The question has been answered and the text is about to be replaced:
   // whoever opens the next file must not ask about it a second time.
   void forgetChanges();
@@ -70,10 +86,14 @@ class EduEditorDock : public QDockWidget {
   void onCursorMoved();
   void onErrorActivated(QListWidgetItem* item);
   void onFileChangedOnDisk(const QString& path);
+  void onStartNewFile();
+  void onStartOpenFile();
   void askAboutDiskChange();
 
  private:
   bool writeTo(const QString& path);
+  QWidget* buildStartScreen();
+  void showEditorPage();
   void watch(const QString& path);
   void updateTitle();
   void updateInfo();
@@ -87,6 +107,9 @@ class EduEditorDock : public QDockWidget {
   QString path_;
   edu::TextFileFormat format_;
   QByteArray bytesOnDisk_;  // what we last read or wrote
+  QStackedWidget* pages_;   // 0: the start screen, 1: the editor
+  QWidget* startScreen_;
+  bool readOnly_;
   bool askingAboutDisk_;
   QString lastDirectory_;
 };

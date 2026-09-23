@@ -106,9 +106,9 @@ int EduInstructionCanvas::contentHeight(int forWidth) const {
   const int grid = kSpace3 + gridRows * (12 + kCellHeight + 14) + kSpace2;
   const int fields = owner_->fieldLines().size() * 20 + kSpace2;
   const int destination = owner_->destinationLine().isEmpty() ? 0 : 22;
-  const QStringList notes = owner_->noteLines();
-  const int note = notes.isEmpty() ? 0 : 34;
-  return header + grid + fields + destination + note + kMargin;
+  const int expansion =
+      edu::mnemonicExpansion(owner_->decoded_.name).isEmpty() ? 0 : 18;
+  return header + expansion + grid + fields + destination + kMargin;
 }
 
 void EduInstructionCanvas::paintEvent(QPaintEvent*) {
@@ -119,17 +119,22 @@ void EduInstructionCanvas::paintEvent(QPaintEvent*) {
   QFont ui = uiFont();
   ui.setPixelSize(kUiPixelSize);
   QFont small = uiFont();
-  small.setPixelSize(kFontSmall);
+  small.setPixelSize(kUiPixelSize);
+  small.setWeight(QFont::Medium);
+  // One step smaller than the body, never half of it: the bit numbers are
+  // what a student counts along, and the labels are read as often as the
+  // values (P).
   QFont tiny = uiFont();
-  tiny.setPixelSize(9);
+  tiny.setPixelSize(kFontSmall);
+  tiny.setWeight(QFont::DemiBold);
   QFont code = owner_->codeFont_;
   code.setPixelSize(kUiPixelSize);
   QFont codeSmall = owner_->codeFont_;
-  codeSmall.setPixelSize(kFontSmall);
+  codeSmall.setPixelSize(kUiPixelSize);
 
   if (!owner_->hasInstruction()) {
     painter.setFont(ui);
-    painter.setPen(QColor(kText2));
+    painter.setPen(QColor(kText));
     painter.drawText(rect().adjusted(kMargin, kMargin, -kMargin, -kMargin),
                      Qt::AlignCenter | Qt::TextWordWrap,
                      QString::fromUtf8(
@@ -176,10 +181,22 @@ void EduInstructionCanvas::paintEvent(QPaintEvent*) {
   y += 22;
 
   painter.setFont(codeSmall);
-  painter.setPen(QColor(kText2));
+  painter.setPen(QColor(kText));
   painter.drawText(kMargin, y + 12,
                    edu::hex32(owner_->address_) + "   " + edu::hex32(d.word));
-  y += 18 + kSpace3;
+  y += 18;
+
+  // What the letters of the mnemonic stand for, for the instructions whose
+  // names are abbreviations.
+  const QString expansion = edu::mnemonicExpansion(d.name);
+  if (!expansion.isEmpty()) {
+    painter.setFont(small);
+    painter.setPen(QColor(kNavy));
+    painter.drawText(QRect(kMargin, y, width() - 2 * kMargin, 16),
+                     Qt::AlignLeft | Qt::AlignVCenter, expansion);
+    y += 18;
+  }
+  y += kSpace3;
 
   // 2. The word, as boxes: one group per field, MSB on the left.
   bool twoRows = false;
@@ -195,7 +212,7 @@ void EduInstructionCanvas::paintEvent(QPaintEvent*) {
 
     // MSB / LSB, so that which end is which is never a guess.
     painter.setFont(tiny);
-    painter.setPen(QColor(kTextMuted));
+    painter.setPen(QColor(kText));
     if (row == 0) {
       painter.drawText(QRect(kMargin, top, kEndLabel - 4, kCellHeight),
                        Qt::AlignRight | Qt::AlignVCenter, "MSB");
@@ -233,7 +250,7 @@ void EduInstructionCanvas::paintEvent(QPaintEvent*) {
       const bool everyFourth = cell < 20;
       if (!everyFourth || bit % 4 == 0) {
         painter.setFont(tiny);
-        painter.setPen(QColor(kTextMuted));
+        painter.setPen(QColor(kText));
         painter.drawText(QRect(box.x(), top - 12, cell, 11), Qt::AlignCenter,
                          QString::number(bit));
       }
@@ -253,7 +270,7 @@ void EduInstructionCanvas::paintEvent(QPaintEvent*) {
       painter.setBrush(Qt::NoBrush);
       painter.setPen(QColor(kBorder));
       painter.drawRect(group);
-      painter.setPen(QColor(kTextMuted));
+      painter.setPen(QColor(kText));
       const QString name = field.name;
       if (smallMetrics.horizontalAdvance(name) < group.width()) {
         painter.drawText(QRect(group.x(), group.bottom() + 1, group.width(), 12),
@@ -284,7 +301,7 @@ void EduInstructionCanvas::paintEvent(QPaintEvent*) {
     painter.drawText(QRect(x, y, nameWidth, 18), Qt::AlignLeft | Qt::AlignVCenter,
                      line.name);
     x += nameWidth;
-    painter.setPen(QColor(kTextMuted));
+    painter.setPen(QColor(kText));
     painter.drawText(QRect(x, y, rangeWidth, 18),
                      Qt::AlignLeft | Qt::AlignVCenter, line.range);
     x += rangeWidth;
@@ -298,7 +315,7 @@ void EduInstructionCanvas::paintEvent(QPaintEvent*) {
                      Qt::AlignRight | Qt::AlignVCenter, line.value);
     x += valueWidth + kSpace2;
     painter.setFont(small);
-    painter.setPen(QColor(kText2));
+    painter.setPen(QColor(kText));
     const QFontMetrics metrics(small);
     const int room = width() - kMargin - x;
     if (room > 20) {
@@ -317,13 +334,6 @@ void EduInstructionCanvas::paintEvent(QPaintEvent*) {
     painter.drawText(QRect(kMargin, y, width() - 2 * kMargin, 18),
                      Qt::AlignLeft | Qt::AlignVCenter, destination);
     y += 22;
-  }
-  const QStringList notes = owner_->noteLines();
-  if (!notes.isEmpty()) {
-    painter.setFont(tiny);
-    painter.setPen(QColor(kTextMuted));
-    painter.drawText(QRect(kMargin, y, width() - 2 * kMargin, 34),
-                     Qt::AlignLeft | Qt::TextWordWrap, notes.join(" "));
   }
 }
 
@@ -446,13 +456,6 @@ QString EduInstructionInspector::destinationLine() const {
   return QString("Dest = (PC & 0xf0000000) | (target x 4) = %1").arg(where);
 }
 
-QStringList EduInstructionInspector::noteLines() const {
-  if (!hasInstruction_) {
-    return QStringList();
-  }
-  return edu::instructionNoteLines(decoded_, convention_);
-}
-
 QString EduInstructionInspector::text() const {
   if (!hasInstruction_) {
     return QString("no instruction selected");
@@ -461,6 +464,10 @@ QString EduInstructionInspector::text() const {
   out << disassembly_.trimmed() + "  " + edu::formatName(decoded_.format) +
              "-type";
   out << edu::hex32(address_) + "  " + edu::hex32(decoded_.word);
+  const QString expansion = edu::mnemonicExpansion(decoded_.name);
+  if (!expansion.isEmpty()) {
+    out << expansion;
+  }
   const QList<FieldLine> lines = fieldLines();
   for (int i = 0; i < lines.size(); i += 1) {
     QString line = lines.at(i).name + " " + lines.at(i).range + " " +
@@ -474,6 +481,5 @@ QString EduInstructionInspector::text() const {
   if (!destination.isEmpty()) {
     out << destination;
   }
-  out += noteLines();
   return out.join("\n");
 }

@@ -1,7 +1,8 @@
 Hallym MIPS Simulator @VERSION@ for Windows   (based on QtSpim @BASE_VERSION@)
 =====================================================================
 
-  Run HallymMIPS.exe.  Nothing is installed; delete this folder to remove it.
+  Run HallymMIPS.exe in this folder.  Nothing is installed; delete the
+  folder to remove it.
   If "Windows protected your PC" appears: More info -> Run anyway
   (the program is not code-signed).
 

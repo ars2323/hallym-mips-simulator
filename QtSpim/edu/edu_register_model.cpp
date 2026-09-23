@@ -120,11 +120,6 @@ QVariant EduRegisterModel::data(const QModelIndex& index, int role) const {
     if (role == Qt::ToolTipRole) {
       return group.description;
     }
-    if (role == Qt::FontRole) {
-      QFont font = panelFont_;
-      font.setBold(true);
-      return font;
-    }
     if (role == Qt::ForegroundRole) {
       return QBrush(QColor(edu::theme::kNavy));
     }
@@ -162,13 +157,13 @@ QVariant EduRegisterModel::data(const QModelIndex& index, int role) const {
       }
       break;
 
-    // Bold as well as coloured: a selected row is drawn in the highlight
-    // colours, which would otherwise hide that it changed.
-    case Qt::FontRole:
-      if (colorChanges_ && row->value != row->snapshot) {
-        QFont font = panelFont_;
-        font.setWeight(QFont::DemiBold);  // tokens.md: SemiBold, no background
-        return font;
+    // A changed value is marked with colour and a tint behind it, never
+    // with weight: D2Coding has no bold face, so Windows fakes one by
+    // smearing the glyphs wider, and the column stops lining up (E).
+    case Qt::BackgroundRole:
+      if (colorChanges_ && row->value != row->snapshot &&
+          index.column() != NameColumn && index.column() != NumberColumn) {
+        return QBrush(QColor(edu::theme::kTealTint));
       }
       break;
 

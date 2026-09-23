@@ -41,6 +41,10 @@ class EduRegisterView : public QTreeView {
   int fullContentHeight() const;
   QSize sizeHint() const;
 
+  // The width the name and number columns need: the column may be dragged
+  // down to this and no further, so that a register is always named.
+  int frozenWidth() const;
+
  signals:
   // Emitted when the selection moves; hasRegister is false on a group row.
   void registerSelectionChanged();
@@ -48,7 +52,11 @@ class EduRegisterView : public QTreeView {
  public slots:
   void changeValueOfCurrent();
 
+ private slots:
+  void syncFrozenGeometry();
+
  protected:
+  void resizeEvent(QResizeEvent* event);
   void contextMenuEvent(QContextMenuEvent* event);
   void hideEvent(QHideEvent* event);
   void showEvent(QShowEvent* event);
@@ -59,8 +67,15 @@ class EduRegisterView : public QTreeView {
 
  private:
   void changeValue(const edu::RegisterRef& reg);
+  void initFrozen();
 
   EduRegisterModel* model_;
+  int contentWidth_;  // what the whole table wants, measured with the font
+  // A second view of the same model, showing only the name and the number
+  // and laid over the left of this one.  In binary a value is thirty-nine
+  // characters and the table scrolls sideways; without this the names go
+  // with it and the panel becomes a wall of digits (L).
+  QTreeView* frozen_;
   QAction* changeValueAction_;
 };
 

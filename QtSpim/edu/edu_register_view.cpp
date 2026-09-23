@@ -7,6 +7,7 @@
 #include <QAction>
 #include <QContextMenuEvent>
 #include <QHeaderView>
+#include <QScrollBar>
 #include <QStyle>
 #include <QMenu>
 #include <QMessageBox>
@@ -46,10 +47,14 @@ class CompactRowDelegate : public QStyledItemDelegate {
 }  // namespace
 
 EduRegisterView::EduRegisterView(QWidget* parent)
-    : QTreeView(parent), model_(0), changeValueAction_(new QAction(this)) {
-  // The column is as wide as its table needs and no wider: a register list
-  // gains nothing from extra width, and the code beside it loses it.
-  setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Expanding);
+    : QTreeView(parent),
+      model_(0),
+      contentWidth_(0),
+      frozen_(new QTreeView(this)),
+      changeValueAction_(new QAction(this)) {
+  // The column can be dragged to any width the student wants: in binary a
+  // value is thirty-nine characters, which the default width cannot show.
+  // What the layout gives it to begin with is set in eduApplyLayoutSizes().
   changeValueAction_->setObjectName("action_ChangeValue");
   changeValueAction_->setText("Change Register Contents");
   connect(changeValueAction_, SIGNAL(triggered(bool)), this,
@@ -68,6 +73,87 @@ EduRegisterView::EduRegisterView(QWidget* parent)
           SLOT(onDoubleClicked(QModelIndex)));
 }
 
+// The name and the number, laid over the left of the table and never
+// scrolled sideways.  It is the same model and the same selection, so it
+// behaves as one table however it is scrolled or expanded.
+void EduRegisterView::initFrozen() {
+  // Both views scroll the same way, or the names slide out of step with
+  // the values they belong to.
+  setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+  setUniformRowHeights(true);
+  frozen_->setObjectName("EduRegisterFrozen");
+  frozen_->setFrameShape(QFrame::NoFrame);
+  frozen_->setFocusPolicy(Qt::NoFocus);
+  frozen_->setRootIsDecorated(rootIsDecorated());
+  frozen_->setIndentation(indentation());
+  frozen_->setUniformRowHeights(true);
+  frozen_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  frozen_->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  frozen_->setSelectionMode(selectionMode());
+  frozen_->setSelectionBehavior(selectionBehavior());
+  frozen_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+  frozen_->setExpandsOnDoubleClick(false);
+  frozen_->header()->setSectionsClickable(false);
+  frozen_->header()->setSectionsMovable(false);
+  viewport()->stackUnder(frozen_);
+
+  connect(verticalScrollBar(), SIGNAL(valueChanged(int)),
+          frozen_->verticalScrollBar(), SLOT(setValue(int)));
+  connect(frozen_->verticalScrollBar(), SIGNAL(valueChanged(int)),
+          verticalScrollBar(), SLOT(setValue(int)));
+  connect(this, SIGNAL(expanded(QModelIndex)), frozen_,
+          SLOT(expand(QModelIndex)));
+  connect(this, SIGNAL(collapsed(QModelIndex)), frozen_,
+          SLOT(collapse(QModelIndex)));
+  connect(frozen_, SIGNAL(expanded(QModelIndex)), this,
+          SLOT(expand(QModelIndex)));
+  connect(frozen_, SIGNAL(collapsed(QModelIndex)), this,
+          SLOT(collapse(QModelIndex)));
+  connect(header(), SIGNAL(sectionResized(int, int, int)), this,
+          SLOT(syncFrozenGeometry()));
+  connect(this, SIGNAL(doubleClicked(QModelIndex)), this,
+          SLOT(onDoubleClicked(QModelIndex)));
+}
+
+int EduRegisterView::frozenWidth() const {
+  if (model_ == 0) {
+    return 0;
+  }
+  return columnWidth(EduRegisterModel::NameColumn) +
+         columnWidth(EduRegisterModel::NumberColumn);
+}
+
+void EduRegisterView::syncFrozenGeometry() {
+  if (model_ == 0 || frozen_->model() == 0) {
+    return;
+  }
+  // The same fonts, or the rows are different heights and the names slide
+  // away from the values they belong to.
+  frozen_->setFont(font());
+  frozen_->header()->setFont(header()->font());
+  frozen_->setIndentation(indentation());
+  for (int column = 0; column < model_->columnCount(); column += 1) {
+    const bool frozenColumn = column == EduRegisterModel::NameColumn ||
+                              column == EduRegisterModel::NumberColumn;
+    frozen_->setColumnHidden(column, !frozenColumn);
+    if (frozenColumn) {
+      frozen_->setColumnWidth(column, columnWidth(column));
+    }
+  }
+  const int width = frozenWidth();
+  frozen_->setGeometry(frameWidth(), frameWidth(), width,
+                       viewport()->height() + header()->height());
+  frozen_->setVisible(width > 0);
+  // The names cover the left of the table, so the table must not draw its
+  // own copy of them underneath as it scrolls sideways.
+  frozen_->verticalScrollBar()->setValue(verticalScrollBar()->value());
+}
+
+void EduRegisterView::resizeEvent(QResizeEvent* event) {
+  QTreeView::resizeEvent(event);
+  syncFrozenGeometry();
+}
+
 void EduRegisterView::setRegisterModel(EduRegisterModel* model) {
   model_ = model;
   setModel(model);
@@ -80,6 +166,14 @@ void EduRegisterView::setRegisterModel(EduRegisterModel* model) {
   connect(selectionModel(),
           SIGNAL(currentRowChanged(QModelIndex, QModelIndex)), this,
           SLOT(onCurrentChanged()));
+
+  // The frozen name column follows the same model and the same selection.
+  initFrozen();
+  frozen_->setModel(model);
+  frozen_->setSelectionModel(selectionModel());
+  frozen_->expandAll();
+  frozen_->header()->setStretchLastSection(false);
+  syncFrozenGeometry();
 }
 
 bool EduRegisterView::currentRegister(edu::RegisterRef* reg) const {
@@ -105,9 +199,7 @@ void EduRegisterView::selectRegister(const edu::RegisterRef& reg) {
 void EduRegisterView::applyPanelFont(const QFont& font) {
   setFont(font);
   header()->setFont(font);  // else it keeps the (larger) application font
-  QFont bold = font;
-  bold.setBold(true);
-  const QFontMetrics metrics(bold);
+  const QFontMetrics metrics(font);
   const int cellPadding = 12;
   // The Name column holds the group titles too ("Return values" is wider
   // than "BadVAddr" plus its extra indentation level).
@@ -117,15 +209,22 @@ void EduRegisterView::applyPanelFont(const QFont& font) {
     nameWidth = qMax(nameWidth,
                      indentation() + metrics.horizontalAdvance(title));
   }
-  const int width =
-      nameWidth + metrics.horizontalAdvance("R31") +
-      metrics.horizontalAdvance("0x00000000") +
-      metrics.horizontalAdvance("-2147483648") + 4 * cellPadding +
-      2 * frameWidth() +
-      // + the vertical scroll bar, which shows whenever the inspector below
-      // is taller than its six-line minimum (an instruction is selected)
-      style()->pixelMetric(QStyle::PM_ScrollBarExtent) + 16;
-  setMinimumWidth(width);
+  // The narrowest the column may be dragged: the name and the number, whole.
+  // The value columns scroll rather than hold the column open, so that a
+  // student can put the register list down to a strip when they want the
+  // room for code.
+  const int floorWidth = nameWidth + metrics.horizontalAdvance("R31") +
+                         2 * cellPadding + 2 * frameWidth() +
+                         style()->pixelMetric(QStyle::PM_ScrollBarExtent);
+  setMinimumWidth(floorWidth);
+  syncFrozenGeometry();
+  // What the whole table wants, which is what the layout gives it by
+  // default (edu::theme::kRegisterColumnWidth is this, rounded).
+  contentWidth_ = nameWidth + metrics.horizontalAdvance("R31") +
+                  metrics.horizontalAdvance("0x00000000") +
+                  metrics.horizontalAdvance("-2147483648") + 4 * cellPadding +
+                  2 * frameWidth() +
+                  style()->pixelMetric(QStyle::PM_ScrollBarExtent) + 16;
 }
 
 int EduRegisterView::fullContentHeight() const {
@@ -142,10 +241,9 @@ int EduRegisterView::fullContentHeight() const {
 }
 
 QSize EduRegisterView::sizeHint() const {
-  // The width the columns actually need (minimumWidth(), measured in
-  // applyPanelFont()), not QTreeView's, which asks for room the table does
-  // not use and takes it from the code beside it.
-  return QSize(qMax(minimumWidth(), 100), fullContentHeight());
+  // The width the columns actually need, not QTreeView's, which asks for
+  // room the table does not use and takes it from the code beside it.
+  return QSize(qMax(contentWidth_, 100), fullContentHeight());
 }
 
 void EduRegisterView::onCurrentChanged() { emit registerSelectionChanged(); }

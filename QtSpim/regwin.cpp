@@ -77,9 +77,10 @@ void SpimView::DisplayIntRegisters() {
 
   te->clear();
   te->appendHtml(windowContents);
-  ui->IntRegDockWidget->setWindowTitle(QString("Int Regs [") +
-                                       QString::number(st_regDisplayBase) +
-                                       QString("] "));
+  // EDU: the base is the column heading ("Hex", "Dec", "Bin"), so the tab
+  // does not repeat it -- and a tab that says "Int Regs [16]" is the first
+  // thing to be cut short when the column is narrow.
+  ui->IntRegDockWidget->setWindowTitle(QString("Int Regs"));
 
   CaptureIntRegisters();
   eduRefreshRegisterPanel();  // EDU

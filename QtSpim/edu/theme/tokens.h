@@ -65,8 +65,13 @@ const int kCodePointSize = 10;               // ~13 px at 96 dpi
 const int kBadgePixelSize = 11;
 const int kFontSmall = 12;        // status bar, splash version line
 const int kTitlePixelSize = 15;   // About: name
-const int kCardTitleSize = 15;    // tour card: the step's title
-const int kCardBodySize = 14;     // tour card: the step's text
+const int kCardTitleSize = 16;    // tour card: the step's title
+const int kCardBodySize = 15;     // tour card: the step's text
+// Korean is denser than Latin at the same size: more strokes in the same
+// square, and Windows renders them thinner than X11 does.  Pretendard has
+// a real SemiBold, so asking for one costs nothing in width (unlike
+// D2Coding, which has no bold at all -- see the register panel).
+const int kKoreanWeight = 600;
 const int kDisplayPixelSize = 20; // About: product name
 const int kSplashTitleSize = 22;  // the start-up screen: product name (Bold)
 

@@ -13,9 +13,13 @@
 #include <QPushButton>
 #include <QSplitter>
 #include <QTimer>
+#include <QStackedWidget>
+#include <QHBoxLayout>
 #include <QVBoxLayout>
 
 #include "edu/edu_code_editor.h"
+#include "edu/theme/edu_theme.h"
+#include "edu/theme/tokens.h"
 
 namespace {
 
@@ -30,6 +34,9 @@ EduEditorDock::EduEditorDock(QWidget* parent)
       info_(new QLabel(this)),
       watcher_(new QFileSystemWatcher(this)),
       pointSizeTimer_(new QTimer(this)),
+      pages_(0),
+      startScreen_(0),
+      readOnly_(false),
       askingAboutDisk_(false) {
   setObjectName("EditorDockWidget");  // saveState()/restoreState() key
   setAllowedAreas(Qt::TopDockWidgetArea | Qt::BottomDockWidgetArea);
@@ -54,13 +61,20 @@ EduEditorDock::EduEditorDock(QWidget* parent)
   splitter->setStretchFactor(1, 1);
   splitter->setChildrenCollapsible(false);
 
-  QWidget* body = new QWidget(this);
-  QVBoxLayout* layout = new QVBoxLayout(body);
-  layout->setContentsMargins(0, 0, 0, 0);
-  layout->setSpacing(0);
-  layout->addWidget(splitter, 1);
-  layout->addWidget(info_);
-  setWidget(body);
+  QWidget* editorPage = new QWidget(this);
+  QVBoxLayout* editorLayout = new QVBoxLayout(editorPage);
+  editorLayout->setContentsMargins(0, 0, 0, 0);
+  editorLayout->setSpacing(0);
+  editorLayout->addWidget(splitter, 1);
+  editorLayout->addWidget(info_);
+
+  // Two pages: what to do when nothing is open, and the editor itself.
+  pages_ = new QStackedWidget(this);
+  startScreen_ = buildStartScreen();
+  pages_->addWidget(startScreen_);
+  pages_->addWidget(editorPage);
+  pages_->setCurrentWidget(startScreen_);
+  setWidget(pages_);
 
   connect(editor_->document(), SIGNAL(modificationChanged(bool)), this,
           SLOT(onModificationChanged()));
@@ -81,6 +95,159 @@ EduEditorDock::EduEditorDock(QWidget* parent)
   updateTitle();
   updateInfo();
 }
+
+// Nothing is open yet: two things to do, and the one line a student needs
+// to know to get going.  No list of recent files -- a lab machine is
+// shared, and the last person's paths are not this person's business.
+QWidget* EduEditorDock::buildStartScreen() {
+  using namespace edu::theme;
+  QWidget* page = new QWidget(this);
+  page->setObjectName("EduStartScreen");
+  page->setAutoFillBackground(true);
+  QPalette colours = page->palette();
+  colours.setColor(QPalette::Window, QColor(kWhite));
+  page->setPalette(colours);
+
+  QLabel* title = new QLabel(QString::fromUtf8("MIPS 어셈블리를 시작하세요"),
+                             page);
+  QFont titleFont = uiFont();
+  titleFont.setPixelSize(kCardTitleSize + 3);
+  titleFont.setWeight(QFont::Bold);
+  title->setFont(titleFont);
+  title->setAlignment(Qt::AlignCenter);
+  title->setStyleSheet(QString("color: %1;").arg(QColor(kNavy).name()));
+
+  QLabel* subtitle = new QLabel(QString("Start writing MIPS assembly"), page);
+  QFont subtitleFont = uiFont();
+  subtitleFont.setPixelSize(kCardBodySize);
+  subtitleFont.setWeight(QFont::Medium);
+  subtitle->setFont(subtitleFont);
+  subtitle->setAlignment(Qt::AlignCenter);
+  subtitle->setStyleSheet(QString("color: %1;").arg(QColor(kText2).name()));
+
+  QPushButton* newFile =
+      new QPushButton(QString::fromUtf8("새 파일  New file"), page);
+  newFile->setObjectName("EduStartNew");
+  QPushButton* openFile =
+      new QPushButton(QString::fromUtf8("파일 열기  Open file"), page);
+  openFile->setObjectName("EduStartOpen");
+  QFont buttonFont = uiFont();
+  buttonFont.setPixelSize(kCardBodySize);
+  buttonFont.setWeight(QFont::DemiBold);
+  newFile->setFont(buttonFont);
+  openFile->setFont(buttonFont);
+  newFile->setMinimumSize(200, 44);
+  openFile->setMinimumSize(200, 44);
+  newFile->setCursor(Qt::PointingHandCursor);
+  openFile->setCursor(Qt::PointingHandCursor);
+  newFile->setStyleSheet(
+      QString("QPushButton { background: %1; color: %2; border: none;"
+              " border-radius: 6px; padding: 10px 18px; }"
+              "QPushButton:hover { background: %3; }")
+          .arg(QColor(kBlue).name(), QColor(kWhite).name(),
+               QColor(kNavy).name()));
+  openFile->setStyleSheet(
+      QString("QPushButton { background: %1; color: %2; border: 1px solid %3;"
+              " border-radius: 6px; padding: 10px 18px; }"
+              "QPushButton:hover { background: %4; }")
+          .arg(QColor(kWhite).name(), QColor(kNavy).name(),
+               QColor(kBorder).name(), QColor(kHover).name()));
+
+  QLabel* hint = new QLabel(
+      QString::fromUtf8("Ctrl+S로 저장하면 바로 어셈블됩니다  ·  "
+                        "Ctrl+S saves and assembles"),
+      page);
+  QFont hintFont = uiFont();
+  hintFont.setPixelSize(kFontSmall);
+  hintFont.setWeight(QFont::Medium);
+  hint->setFont(hintFont);
+  hint->setAlignment(Qt::AlignCenter);
+  hint->setStyleSheet(QString("color: %1;").arg(QColor(kTextMuted).name()));
+
+  QHBoxLayout* buttons = new QHBoxLayout;
+  buttons->addStretch(1);
+  buttons->addWidget(newFile);
+  buttons->addSpacing(kSpace3);
+  buttons->addWidget(openFile);
+  buttons->addStretch(1);
+
+  QVBoxLayout* layout = new QVBoxLayout(page);
+  layout->addStretch(2);
+  layout->addWidget(title);
+  layout->addSpacing(kSpace1);
+  layout->addWidget(subtitle);
+  layout->addSpacing(kSpace4 + kSpace2);
+  layout->addLayout(buttons);
+  layout->addSpacing(kSpace4);
+  layout->addWidget(hint);
+  layout->addStretch(3);
+
+  connect(newFile, SIGNAL(clicked()), this, SLOT(onStartNewFile()));
+  connect(openFile, SIGNAL(clicked()), this, SLOT(onStartOpenFile()));
+  return page;
+}
+
+void EduEditorDock::showStartScreen() {
+  pages_->setCurrentWidget(startScreen_);
+  emit fileChanged();
+}
+
+bool EduEditorDock::startScreenShown() const {
+  return pages_->currentWidget() == startScreen_;
+}
+
+void EduEditorDock::showEditorPage() {
+  pages_->setCurrentIndex(1);
+  emit fileChanged();
+}
+
+void EduEditorDock::setReadOnly(bool readOnly) {
+  readOnly_ = readOnly;
+  editor_->setReadOnly(readOnly);
+  updateInfo();
+}
+
+// Back to the start screen, with nothing open.
+bool EduEditorDock::closeFile(bool ask) {
+  if (ask && !readOnly_ && !maybeSave()) {
+    return false;
+  }
+  setReadOnly(false);
+  watch(QString());
+  path_.clear();
+  editor_->clear();
+  editor_->document()->setModified(false);
+  clearErrors();
+  showStartScreen();
+  return true;
+}
+
+// "New file" starts by asking where it goes: an untitled buffer that is
+// only saved later is one more thing to forget, and the simulator wants a
+// file on disk to assemble anyway.
+void EduEditorDock::onStartNewFile() {
+  const QString path = QFileDialog::getSaveFileName(
+      this, "New Assembly File", QString(),
+      "Assembly (*.s *.asm);;All files (*)");
+  if (path.isEmpty()) {
+    return;  // cancelled: the start screen stays
+  }
+  path_ = path;
+  editor_->clear();
+  editor_->document()->setModified(false);
+  format_ = edu::TextFileFormat();
+  if (!writeTo(path_)) {
+    path_.clear();
+    return;
+  }
+  watch(path_);
+  showEditorPage();
+  updateTitle();
+  updateInfo();
+  editor_->setFocus();
+}
+
+void EduEditorDock::onStartOpenFile() { open(); }
 
 bool EduEditorDock::isModified() const {
   return editor_->document()->isModified();
@@ -125,6 +292,7 @@ bool EduEditorDock::newFile() {
   if (!maybeSave()) {
     return false;
   }
+  showEditorPage();
   watch(QString());
   path_.clear();
   format_ = edu::TextFileFormat();  // UTF-8, no mark, LF
@@ -180,6 +348,7 @@ bool EduEditorDock::openFile(const QString& path, bool askAboutChanges) {
                    QString("   (mixed line ends; saving makes them all %1)")
                        .arg(edu::lineEndName(format_.lineEnd)));
   }
+  showEditorPage();  // whatever route brought the file here
   emit fileChanged();
   return true;
 }
@@ -390,6 +559,10 @@ void EduEditorDock::updateInfo() {
                      .arg(editor_->currentLine())
                      .arg(editor_->currentColumn())
                      .arg(pointSizeNote_));
+  if (readOnly_) {
+    info_->setText(QString::fromUtf8("읽기 전용 / Read-only   ") +
+                   info_->text());
+  }
 }
 
 void EduEditorDock::onPointSizeChanged(int points) {

@@ -67,28 +67,44 @@ QRect sectionRect(QHeaderView* header, int section, QWidget* window) {
   return QRect(origin.x() + x, origin.y(), width, header->height());
 }
 
-// A cell of an item view, scrolled into sight first.
+// A cell of an item view, scrolled into sight first -- sideways as well as
+// down: a table scrolled right (a register panel in binary, say) would
+// otherwise be lit where the cell used to be (N).  What comes back never
+// reaches outside the panel it is in.
 QRect cellRect(QAbstractItemView* view, const QModelIndex& index,
                QWidget* window) {
   if (view == 0 || !index.isValid() || !view->isVisible()) {
     return QRect();
   }
   view->scrollTo(index, QAbstractItemView::EnsureVisible);
+  QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
   const QRect r = view->visualRect(index);
   if (r.isEmpty()) {
     return QRect();
   }
-  return r.translated(view->viewport()->mapTo(window, QPoint(0, 0)));
+  const QPoint origin = view->viewport()->mapTo(window, QPoint(0, 0));
+  const QRect viewport(origin, view->viewport()->size());
+  const QRect cell = r.translated(origin).intersected(viewport);
+  // A sliver of a cell is worse than nothing: it points at the wrong
+  // thing with great confidence.
+  return cell.width() < 8 || cell.height() < 6 ? QRect() : cell;
 }
 
+// From one cell to another on the same row.  Both ends are scrolled into
+// sight before either is measured, and the result stays inside the panel.
 QRect rowRect(QAbstractItemView* view, const QModelIndex& first,
               const QModelIndex& last, QWidget* window) {
-  const QRect a = cellRect(view, first, window);
   const QRect b = cellRect(view, last, window);
+  const QRect a = cellRect(view, first, window);
   if (a.isEmpty()) {
-    return QRect();
+    return b;
   }
-  return b.isEmpty() ? a : a.united(b);
+  if (b.isEmpty()) {
+    return a;
+  }
+  const QPoint origin = view->viewport()->mapTo(window, QPoint(0, 0));
+  const QRect viewport(origin, view->viewport()->size());
+  return a.united(b).intersected(viewport);
 }
 
 QWidget* buttonFor(QToolBar* bar, QAction* action) {
@@ -112,9 +128,10 @@ const EduTutorial::Step EduTutorial::kStepData[] = {
 
     {EduTutorial::ToolbarFile, "툴바", "Tool bar",
      "파일 버튼",
-     "왼쪽부터 파일 열기, 다시 읽기, 로그 저장, 인쇄입니다. 버튼에 마우스를 올리면 이름과 단축키가 나옵니다.",
+     "왼쪽부터 파일 열기(Ctrl+O), 로그 저장, 인쇄입니다. 파일을 열면 시뮬레이터를 비운 뒤 그 프로그램만 올립니다. 버튼에 마우스를 올리면 이름과 단축키가 나옵니다.",
      "The file buttons",
-     "From the left: open a file, load it again, save the log, print. Hovering a "
+     "From the left: open a file (Ctrl+O), save the log, print. Opening a file "
+     "clears the simulator and loads that program on its own. Hovering a "
      "button names it and gives its shortcut."},
 
     {EduTutorial::ToolbarAssemble, "툴바", "Tool bar",
@@ -147,13 +164,12 @@ const EduTutorial::Step EduTutorial::kStepData[] = {
 
     {EduTutorial::RegisterColumns, "레지스터", "Registers",
      "같은 값을 16진수와 10진수로",
-     "밝힌 줄이 스택 포인터 $sp입니다. Hex 열과 Decimal 열에 같은 값이 두 가지 진법으로 나란히 있습니다. 값을 바꾸고 "
-     "싶으면 그 줄을 두 번 누르세요. 진법은 Registers 메뉴에서 2진수까지 바꿀 수 있습니다.",
+     "밝힌 줄이 스택 포인터 $sp입니다. 지금은 16진수와 10진수로 보고 있습니다. Registers 메뉴에서 2진수로도 바꿀 수 있고, 그때도 이름과 번호 열은 자리에 남습니다. 값을 바꾸려면 그 줄을 두 번 누르세요.",
      "The same value in hexadecimal and decimal",
-     "The row lit up is the stack pointer, $sp: the Hex column and the Decimal "
-     "column show the same value two ways. Double-click a row to change a "
-     "register's value, and the Registers menu switches the base, binary "
-     "included."},
+     "The row lit up is the stack pointer, $sp, shown here in hexadecimal and "
+     "in decimal. The Registers menu can switch to binary as well, and the "
+     "name and number columns stay put when it does. Double-click a row to "
+     "change a register's value."},
 
     {EduTutorial::RegisterChanged, "레지스터", "Registers",
      "이번 실행으로 바뀐 값",
@@ -166,13 +182,13 @@ const EduTutorial::Step EduTutorial::kStepData[] = {
 
     {EduTutorial::EditorPanel, "에디터", "Editor",
      "가운데 위: 에디터",
-     "소스를 여기서 씁니다. 지금은 예제가 그대로 들어 있습니다. Ctrl+S로 저장과 어셈블을 함께 하고, 어셈블 오류는 아래 목록에 "
-     "모여 클릭하면 그 줄로 갑니다. Ctrl+휠이나 Ctrl+=로 글자 크기를 바꿉니다.",
+     "소스를 여기서 씁니다. 지금은 투어의 예제가 읽기 전용으로 들어 있고, 투어가 끝나면 이 자리에 새 파일과 파일 열기 버튼이 나옵니다. Ctrl+S로 저장과 어셈블을 함께 하고, 어셈블 오류는 아래 목록에 모여 클릭하면 그 줄로 갑니다. Ctrl+휠이나 Ctrl+=로 글자 크기를 바꿉니다.",
      "Top middle: the editor",
-     "This is where you write your program; the example is in it now. Ctrl+S "
-     "saves and assembles in one step, assembler errors gather in a list below "
-     "and clicking one jumps to its line, and Ctrl+wheel or Ctrl+= changes the "
-     "text size."},
+     "This is where you write your program. The tour's example is in it now, "
+     "read-only; when the tour ends, a New file and an Open file button take "
+     "its place. Ctrl+S saves and assembles in one step, assembler errors "
+     "gather in a list below and clicking one jumps to its line, and "
+     "Ctrl+wheel or Ctrl+= changes the text size."},
 
     {EduTutorial::ConsoleTab, "콘솔", "Console",
      "가운데 아래: Console 탭",
@@ -362,15 +378,15 @@ EduTutorial::EduTutorial(SpimView* window)
   // darkness as the text in the editor beside it.
   QFont titleFont = uiFont();
   titleFont.setPixelSize(kCardTitleSize);
-  titleFont.setWeight(QFont::DemiBold);
+  titleFont.setWeight(QFont::Bold);
   title_->setFont(titleFont);
   QFont bodyFont = uiFont();
   bodyFont.setPixelSize(kCardBodySize);
-  bodyFont.setWeight(QFont::Medium);
+  bodyFont.setWeight(QFont::DemiBold);
   body_->setFont(bodyFont);
   QFont smallFont = uiFont();
   smallFont.setPixelSize(kFontSmall);
-  smallFont.setWeight(QFont::Medium);
+  smallFont.setWeight(QFont::DemiBold);
   progress_->setFont(smallFont);
   language_->setFont(smallFont);
 
@@ -381,10 +397,10 @@ EduTutorial::EduTutorial(SpimView* window)
               "QLabel#EduTutorialBody { color: %4; background: %1; }"
               "QLabel#EduTutorialProgress { color: %5; background: %1; }"
               "QPushButton#EduTutorialLanguage { color: %7; border: none;"
-              " padding: 2px 4px; background: %1; font-weight: 500; }"
+              " padding: 2px 4px; background: %1; font-weight: 600; }"
               "QPushButton#EduTutorialLanguage:hover { color: %3; }"
               "QPushButton { background: %1; color: %3; border: 1px solid %2;"
-              " border-radius: 4px; padding: 5px 14px; font-weight: 500; }"
+              " border-radius: 4px; padding: 5px 14px; font-weight: 600; }"
               "QPushButton:hover { background: %6; }"
               "QPushButton#EduTutorialNext { background: %7; color: %1;"
               " border-color: %7; font-weight: 600; }"
@@ -637,8 +653,8 @@ bool EduTutorial::collectSpots(StepId id, QList<QRect>* spots, QString* tip,
     case ToolbarFile:
     case ToolbarAssemble:
     case ToolbarRun: {
-      QAction* file[] = {ui->action_File_Load, ui->action_File_Reload,
-                         ui->action_File_SaveLog, ui->action_File_Print};
+      QAction* file[] = {ui->action_File_Reload, ui->action_File_SaveLog,
+                         ui->action_File_Print, ui->action_File_Print};
       QAction* run[] = {ui->action_Sim_Run, ui->action_Sim_Pause,
                         ui->action_Sim_Stop, ui->action_Sim_SingleStep};
       QRect united;

@@ -31,7 +31,10 @@
    POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <QSpinBox>
+#include <QBoxLayout>
 #include "spimview.h"
+#include "edu/edu_panel_zoom.h"
 #include "ui_savelogfile.h"
 #include "ui_printwindows.h"
 #include "ui_runparams.h"
@@ -70,21 +73,18 @@
 //
 
 void SpimView::file_LoadFile() {
-  // EDU: Load File on top of a loaded program adds to it, and the usual
-  // result is "Label is defined for the second time ... main".  Ask first.
-  // (Not when called from Reinitialize and Load File below.)
-  if (((QAction*)sender())->objectName() != "action_File_Reload" &&
-      !eduConfirmLoadOnTop()) {
-    return;
-  }
-
+  // EDU: there is one way to open a program now, and it starts from a
+  // clean simulator.  Loading on top of a program that is already there
+  // is what "Label is defined for the second time" comes from, and a
+  // course that works on one file at a time never wants it.  Every route
+  // -- Open, a recent file, the command line, the editor's Ctrl+S -- comes
+  // through here and through sim_ReinitializeSimulator() below.
   QString file;
   if (!eduAssembleFile.isEmpty()) {  // EDU: Assemble names the file itself
     file = eduAssembleFile;
     eduAssembleFile.clear();
   } else
-  if (((QAction*)sender())->objectName() != "action_File_Load" &&
-      ((QAction*)sender())->objectName() != "action_File_Reload") {
+  if (((QAction*)sender())->objectName() != "action_File_Reload") {
     file = ((QAction*)sender())
                ->text();  // Recent file menu entry's names are file names
   } else {
@@ -97,6 +97,12 @@ void SpimView::file_LoadFile() {
     // code page; explain instead of letting fopen() fail on "???".
     if (!edu::confirmPathLoadable(this, file)) {
       return;
+    }
+    // EDU: from a clean simulator, always (see the comment above).  The
+    // caller may have done it already -- Reinitialize and Load File, the
+    // editor's assemble -- and doing it twice costs one line of log.
+    if (eduProgramLoaded) {
+      sim_ReinitializeSimulator();
     }
     // EDU: read_assembly_file() with the file's labels kept; see
     // edu/edu_loader.h.
@@ -246,13 +252,19 @@ void SpimView::sim_ReinitializeSimulator() {
   // LICENSE file that ships with the program.  This is display only -- Save
   // Log File and Print write the register, text, data and console windows,
   // never this pane.
-  SetOutputColor(edu::theme::color(edu::theme::kTextLog).name());
-  write_output(message_out, "%s\n", EDU_APP_NAME " " EDU_VERSION);
-  write_output(message_out, "%s\n",
-               "MIPS32 assembler and simulator \xc2\xb7 AIAC Lab, Hallym University");
-  write_output(message_out, "%s\n",
-               "Based on SPIM " EDU_BASE_VERSION " by James Larus (BSD). "
-               "See Help > About > License.");
+  // EDU: once per run.  Reinitialize happens on every assemble, on every
+  // Reinitialize and every time the tour opens its example, and three
+  // lines of banner each time bury what the student is looking for.
+  if (!eduBannerShown) {
+    eduBannerShown = true;
+    SetOutputColor(edu::theme::color(edu::theme::kTextLog).name());
+    write_output(message_out, "%s\n", EDU_APP_NAME " " EDU_VERSION);
+    write_output(message_out, "%s\n",
+                 "MIPS32 assembler and simulator \xc2\xb7 AIAC Lab, Hallym University");
+    write_output(message_out, "%s\n",
+                 "Based on SPIM " EDU_BASE_VERSION " by James Larus (BSD). "
+                 "See Help > About > License.");
+  }
 
   CaptureIntRegisters();
   CaptureSFPRegisters();
@@ -440,8 +452,38 @@ void SpimView::sim_Settings() {
   Ui::SpimSettingDialog sd;
   sd.setupUi(&d);
 
-  sd.bareMachineCheckBox->setChecked(bare_machine);
+  // EDU: the bare machine is not a mode this course uses -- it turns the
+  // pseudo instructions the textbook teaches (li, la, move) into syntax
+  // errors, and a student who leaves it on hunts for the mistake in their
+  // program.  It is off, always, and its checkbox and the "Bare Machine"
+  // preset button are not offered.
+  bare_machine = false;
+  sd.bareMachineCheckBox->setChecked(false);
+  sd.bareMachineCheckBox->hide();
+  sd.barePushButton->hide();
   sd.pseudoInstCheckBox->setChecked(accept_pseudo_insts);
+
+  // EDU: one text size for every panel, next to the other settings.  A
+  // panel zoomed on its own (Ctrl+= in that panel) overrides this until
+  // it is set again.
+  QSpinBox* panelSize = new QSpinBox(&d);
+  panelSize->setObjectName("eduPanelTextSize");
+  panelSize->setRange(EduPanelZoom::kMinPointSize, EduPanelZoom::kMaxPointSize);
+  panelSize->setSuffix(" pt");
+  panelSize->setValue(eduTextZoom != 0 ? eduTextZoom->pointSize()
+                                       : edu::theme::kCodePointSize);
+  QLabel* panelSizeLabel =
+      new QLabel(QString::fromUtf8("All panels text size / 패널 글자 크기"), &d);
+  QHBoxLayout* panelSizeRow = new QHBoxLayout;
+  panelSizeRow->addWidget(panelSizeLabel);
+  panelSizeRow->addWidget(panelSize);
+  panelSizeRow->addStretch(1);
+  if (d.layout() != 0) {
+    QBoxLayout* box = qobject_cast<QBoxLayout*>(d.layout());
+    if (box != 0) {
+      box->insertLayout(box->count() - 1, panelSizeRow);
+    }
+  }
   sd.delayedBranchCheckBox->setChecked(delayed_branches);
   sd.delayedLoadCheckBox->setChecked(delayed_loads);
   sd.mappedIOCheckBox->setChecked(mapped_io);
@@ -535,7 +577,8 @@ void SpimView::sim_Settings() {
                    SLOT(setTextWinBackground(QColor)));
 
   if (d.exec() == QDialog::Accepted) {
-    bare_machine = sd.bareMachineCheckBox->isChecked();
+    bare_machine = false;  // EDU: never on (see sim_Settings above)
+    eduSetAllPanelSizes(panelSize->value());  // EDU
     accept_pseudo_insts = sd.pseudoInstCheckBox->isChecked();
     delayed_branches = sd.delayedBranchCheckBox->isChecked();
     delayed_loads = sd.delayedLoadCheckBox->isChecked();

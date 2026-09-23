@@ -99,8 +99,8 @@ void SpimView::closeEvent(QCloseEvent *event) {
 }
 
 void SpimView::wireCommands() {
-  QObject::connect(ui->action_File_Load, SIGNAL(triggered(bool)), this,
-                   SLOT(file_LoadFile()));
+  // EDU: File > Load File is gone; Open (action_File_Reload) is the one
+  // way in, and it starts from a clean simulator.
   QObject::connect(ui->action_File_Reload, SIGNAL(triggered(bool)), this,
                    SLOT(file_ReloadFile()));
   QObject::connect(ui->action_File_SaveLog, SIGNAL(triggered(bool)), this,

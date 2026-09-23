@@ -25,6 +25,10 @@
 #      for line.
 #  11. The Console tab takes typed input for a read syscall, and an error
 #      brings the Messages tab forward.
+#  12. The three lines between the four panels: the vertical one moves both
+#      rows, the horizontal one both columns, the crossing handle both.
+#  13. The tour's example is read-only, the display settings are the ones
+#      its cards describe, and all four exits give everything back.
 
 set -euo pipefail
 
@@ -268,9 +272,14 @@ cleared=$(strip_text stripB --editor-open "$work/strip.s" --assemble \
     --editor-trigger action_Sim_Reinitialize --editor-report)
 expect_strip "reinitialized" "Simulator was reinitialized" "$cleared"
 
-added=$(strip_text stripC --editor-open "$work/strip.s" --assemble \
-    --editor-load "$work/other.s" --load-answer add --editor-report)
-expect_strip "another program on top" "Text shows a different program" "$added"
+# The Text panel holding one program while the editor holds another: a
+# file on the command line, then a different one opened in the editor.
+# (Loading one program on top of another is gone -- every load starts from
+# a clean simulator now -- so that is no longer the way to get here.)
+added=$(strip_text stripC --load "$work/other.s" --editor-open "$work/strip.s" \
+    --editor-report)
+expect_strip "the Text panel holds another program" \
+    "Text shows a different program" "$added"
 
 instep=$(strip_text stripD --editor-open "$work/strip.s" --assemble --editor-report)
 if [ -z "$instep" ]; then
@@ -408,6 +417,104 @@ if grep -q '^bottom: tab=Console' "$work/consoleOut.out"; then
   pass "a program that prints leaves the Console tab in front"
 else
   fail "after a run: $(grep -m1 '^bottom:' "$work/consoleOut.out" || echo 'nothing reported')"
+fi
+
+echo
+echo "== 12. the three lines between the four panels"
+# The vertical line moves both rows, the horizontal line moves both
+# columns, and the handle where they cross moves everything.  What is
+# checked is the line, not the panel heights: a panel with a tab bar above
+# it is shorter than one without.
+split_case() {  # split_case NAME DRAG WANT
+  local name=$1 drag=$2 want=$3
+  run "$name" --editor-open "$repo/samples/tutorial.s" --assemble \
+      --window-size 1600x900 --drag-split "$drag"
+  local before after
+  before=$(sed -n 's/^split before .*: lines y=\([0-9]*\)\/\([0-9]*\) x=\([0-9]*\)/\1 \2 \3/p' "$work/$name.out")
+  after=$(sed -n 's/^split after  .*: lines y=\([0-9]*\)\/\([0-9]*\) x=\([0-9]*\)/\1 \2 \3/p' "$work/$name.out")
+  local bl br bx al ar ax
+  read -r bl br bx <<<"$before"
+  read -r al ar ax <<<"$after"
+  if [ -z "$al" ]; then
+    fail "$name: nothing reported"
+    return
+  fi
+  if [ "$al" = "$ar" ]; then
+    pass "$name: the horizontal line is level across both columns ($al)"
+  else
+    fail "$name: the two columns' lines are at $al and $ar"
+  fi
+  case "$want" in
+    horizontal)
+      if [ "$al" != "$bl" ] && [ "$ax" = "$bx" ]; then
+        pass "$name: the rows moved, the columns did not"
+      else
+        fail "$name: rows $bl->$al, columns $bx->$ax"
+      fi ;;
+    vertical)
+      if [ "$ax" != "$bx" ] && [ "$al" = "$bl" ]; then
+        pass "$name: the columns moved, the rows did not"
+      else
+        fail "$name: rows $bl->$al, columns $bx->$ax"
+      fi ;;
+    both)
+      if [ "$ax" != "$bx" ] && [ "$al" != "$bl" ]; then
+        pass "$name: both moved"
+      else
+        fail "$name: rows $bl->$al, columns $bx->$ax"
+      fi ;;
+  esac
+}
+
+split_case splitH "horizontal=-90" horizontal
+split_case splitV "vertical=-120" vertical
+split_case splitX "cross=-100,-70" both
+
+# With a panel closed there is no block, and nothing is synchronised.
+run splitNone --editor-open "$repo/samples/tutorial.s" --assemble \
+    --window-size 1600x900 --trigger action_Edu_ToggleInspector \
+    --drag-split "horizontal=-60"
+if grep -q "no block" "$work/splitNone.out"; then
+  pass "a closed panel breaks the block, and the drag is left alone"
+else
+  fail "with the inspector closed: $(grep -m1 '^split' "$work/splitNone.out" || echo 'nothing reported')"
+fi
+
+echo
+echo "== 13. the tour borrows the screen and gives it back"
+# While it runs, the example is read-only and the display settings are the
+# ones the cards describe.  However it ends, the settings come back, the
+# example is closed and the editor shows its start screen -- and the file
+# in the installation folder is untouched.
+sample_before=$(md5sum <"$repo/samples/tutorial.s")
+run tourReadOnly --reg-base 2 --window-size 1600x900 --tutorial-report \
+    --layout-report
+if grep -q '^tutorial state .* readonly=1 base=16' "$work/tourReadOnly.out"; then
+  pass "during the tour: the example is read-only and the base is hexadecimal"
+else
+  fail "during the tour: $(grep -m1 '^tutorial state' "$work/tourReadOnly.out")"
+fi
+# (The layout report runs before the tour opens, so what it prints is the
+# state the tour was handed -- which is the thing the exits below restore.)
+
+for exit in finish skip escape close; do
+  run "tourBack-$exit" --reg-base 2 --window-size 1600x900 \
+      --tutorial-exit "$exit" --editor-report --layout-report
+  if grep -q 'start_screen=1 readonly=0' "$work/tourBack-$exit.out"; then
+    pass "$exit: the editor is back to its start screen"
+  else
+    fail "$exit: $(grep -m1 '^editor:' "$work/tourBack-$exit.out")"
+  fi
+  if grep -q '^bases: reg=2 ' "$work/tourBack-$exit.out"; then
+    pass "$exit: the register base the student had is back"
+  else
+    fail "$exit: $(grep -m1 '^bases:' "$work/tourBack-$exit.out")"
+  fi
+done
+if [ "$sample_before" = "$(md5sum <"$repo/samples/tutorial.s")" ]; then
+  pass "the example in the installation folder is unchanged"
+else
+  fail "the tour wrote to samples/tutorial.s"
 fi
 
 echo

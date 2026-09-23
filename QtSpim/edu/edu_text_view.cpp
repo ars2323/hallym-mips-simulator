@@ -14,6 +14,7 @@
 
 #include "edu/edu_text_model.h"
 #include "edu/theme/tokens.h"
+#include "edu/edu_panel_zoom.h"
 #include "spimview.h"
 #include "ui_spimview.h"
 
@@ -210,8 +211,10 @@ void EduTextView::applyPanelFont(const QFont& font) {
   setColumnWidth(EduTextModel::TypeColumn,
                  qMax(bold.horizontalAdvance("CP0") + 8,
                       metrics.horizontalAdvance("Type")) + pad);
+  // The instruction column is not drawn bold any more (E), so it is
+  // measured as it is drawn.
   instructionColumnMax_ =
-      bold.horizontalAdvance(QString(38, QLatin1Char('0'))) + pad;
+      metrics.horizontalAdvance(QString(38, QLatin1Char('0'))) + pad;
   setColumnWidth(EduTextModel::InstructionColumn, instructionColumnMax_);
 }
 
@@ -336,6 +339,9 @@ void EduTextView::contextMenuEvent(QContextMenuEvent* event) {
   menu.addSeparator();
   menu.addAction(setBreakpointAction_);
   menu.addAction(clearBreakpointAction_);
+  if (Window != 0 && Window->eduTextZoom != 0) {
+    Window->eduTextZoom->addMenuActions(&menu);  // Zoom In / Out / Reset
+  }
   menu.exec(event->globalPos());
 }
 

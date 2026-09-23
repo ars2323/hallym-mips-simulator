@@ -23,6 +23,7 @@
 #include "edu/core/edu_registers.h"
 #include "edu/edu_data_model.h"
 #include "edu/edu_register_model.h"
+#include "edu/edu_panel_zoom.h"
 #include "spimview.h"
 #include "ui_spimview.h"
 
@@ -301,6 +302,9 @@ void EduDataView::contextMenuEvent(QContextMenuEvent* event) {
   menu.addActions(unitGroup_->actions());
   menu.addSeparator();
   menu.addAction(changeValueAction_);
+  if (Window != 0 && Window->eduDataZoom != 0) {
+    Window->eduDataZoom->addMenuActions(&menu);  // Zoom In / Out / Reset
+  }
   menu.exec(event->globalPos());
   menuHasAddress_ = false;
 }

@@ -7,10 +7,10 @@ the same results as in standard QtSpim.** You can check your work in either.
 
 ## 1. Installing
 
-1. Unzip `HallymMIPS-1.0.1-win64.zip` anywhere. (There is an MSI installer too,
-   but the zip is recommended: no administrator rights, and removing it is
-   deleting the folder.)
-2. Run `HallymMIPS.exe`.
+1. Unzip `HallymMIPS-<version>-win64.zip` anywhere; unzipping makes one
+   folder. (There is an MSI installer too, but the zip is recommended: no
+   administrator rights, and removing it is deleting the folder.)
+2. Run `HallymMIPS.exe` inside that folder.
 3. If "Windows protected your PC" appears, click **More info → Run anyway**. The
    program is not code-signed.
 
@@ -19,7 +19,9 @@ settings location differ, so neither affects the other.
 
 ## 2. The first run: a tour of the screen
 
-The first time you start the program a **tour** appears. It opens the example
+Every start asks, on the start-up card, whether to **take the tour** or to
+**start now** -- every time, because a lab machine has a different student in
+front of it every hour. Choosing the tour opens it. It opens the example
 program (`samples/tutorial.s`), runs it into the middle of a function, then
 dims the window and lights up one real thing at a time -- a group of tool bar
 buttons, the machine word of one instruction, a format badge, a label in the
@@ -34,8 +36,10 @@ registers, editor, console, text, instruction inspector, data.
 - To see it again: **Help > Tutorial**. The tour **always opens the example**.
   If the editor holds unsaved work it asks about that first, and **Cancel**
   means the tour does not start and nothing changes.
-- The example stays open when the tour ends: change it, or clear everything
-  with **Simulator > Reinitialize**.
+- While the tour runs the example is **read-only**, and the bases, the memory
+  unit and the arrangement are set to their defaults so that what the cards
+  say matches what is on the screen. When the tour ends your settings come
+  back, the example is closed, and the editor shows its start screen.
 
 The example adds up an array in a function, so everything the tour points at
 is there: a stack frame (`addiu $sp, $sp, -16`, kept 8-byte aligned), a loop

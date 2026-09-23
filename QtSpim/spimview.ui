@@ -77,7 +77,6 @@
       <string>Recent Files</string>
      </property>
     </widget>
-    <addaction name="action_File_Load"/>
     <addaction name="menuRecent_Files"/>
     <addaction name="action_File_Reload"/>
     <addaction name="separator"/>
@@ -246,7 +245,6 @@
    <attribute name="toolBarArea">
     <enum>TopToolBarArea</enum>
    </attribute>
-   <addaction name="action_File_Load"/>
    <addaction name="action_File_Reload"/>
    <addaction name="action_File_SaveLog"/>
    <addaction name="action_File_Print"/>
@@ -260,11 +258,6 @@
    <addaction name="separator"/>
    <addaction name="action_Help_ViewHelp"/>
   </widget>
-  <action name="action_File_Load">
-   <property name="text">
-    <string>&amp;Load File</string>
-   </property>
-  </action>
   <action name="action_File_SaveLog">
    <property name="text">
     <string>&amp;Save Log File</string>
@@ -287,7 +280,10 @@
   </action>
   <action name="action_File_Reload">
    <property name="text">
-    <string>Re&amp;initialize and Load File</string>
+    <string>&amp;Open</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
    </property>
   </action>
   <action name="action_Sim_SetRunParameters">

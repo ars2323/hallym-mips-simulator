@@ -9,7 +9,7 @@
 
       <OutDir>\HallymMIPS-<version>-win64\
 
-  and zips that folder.  <version> is read from QtSpim/edu/edu_version.h.
+  and zips its contents (flat: the exe is at the root of the archive).
 
   Run after building with qmake/nmake (see .github/workflows/ci.yml for the
   exact commands).  Needs windeployqt.exe on PATH or -QtBinDir, and the
@@ -143,9 +143,30 @@ $missing = $required | Where-Object { -not (Test-Path (Join-Path $stage $_)) }
 if ($missing) { Fail ("zip would be incomplete, missing: " + ($missing -join ", ")) }
 
 # ---- zip ---------------------------------------------------------------
+# Flat: HallymMIPS.exe sits at the root of the archive, not inside a folder
+# of the same name.  Windows Explorer's "Extract All" and 7-Zip both make a
+# folder named after the zip, so a folder inside the zip as well gave
+# students HallymMIPS-1.1.0-win64\HallymMIPS-1.1.0-win64\HallymMIPS.exe.
 $zip = Join-Path $OutDir "$name.zip"
 if (Test-Path $zip) { Remove-Item -Force $zip }
-Compress-Archive -Path $stage -DestinationPath $zip -CompressionLevel Optimal
+Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $zip -CompressionLevel Optimal
+
+# The archive must start with the program, not with one directory.
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$archive = [System.IO.Compression.ZipFile]::OpenRead($zip)
+$topLevel = $archive.Entries | ForEach-Object { ($_.FullName -split "/")[0] } |
+            Sort-Object -Unique
+$hasExe = $archive.Entries | Where-Object { $_.FullName -eq "HallymMIPS.exe" }
+$archive.Dispose()
+if (-not $hasExe) {
+  Fail ("the zip has no HallymMIPS.exe at its root; top level: " +
+        ($topLevel -join ", "))
+}
+if ($topLevel.Count -eq 1) {
+  Fail ("the zip wraps everything in one folder (" + $topLevel[0] +
+        "); it should be flat")
+}
+Write-Host ("zip is flat: " + $topLevel.Count + " items at the root")
 
 Write-Host ""
 Write-Host "contents of $name":

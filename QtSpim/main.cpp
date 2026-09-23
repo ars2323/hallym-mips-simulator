@@ -87,6 +87,11 @@ int main(int argc, char* argv[]) {
 #else
   const bool scripted = false;
 #endif
+#ifdef EDU_DEVTOOLS
+  const bool firstRunTour = EduDevtools::wantsFirstRunTour(rawArguments);
+#else
+  const bool firstRunTour = false;
+#endif
   edu::theme::EduSplash* splash = scripted ? 0 : edu::theme::showSplash();
 
   SpimView win;
@@ -94,11 +99,6 @@ int main(int argc, char* argv[]) {
   // EDU: a scripted run never opens the tour by itself -- it would load the
   // sample over whatever the script is doing.  --tutorial-step still does,
   // and --tutorial-first-run asks for exactly the start-up route.
-#ifdef EDU_DEVTOOLS
-  const bool firstRunTour = EduDevtools::wantsFirstRunTour(rawArguments);
-#else
-  const bool firstRunTour = false;
-#endif
   win.eduTourOnStart = !scripted || firstRunTour;
 
   // Initialize Spim
@@ -109,7 +109,9 @@ int main(int argc, char* argv[]) {
   // EDU: with a splash up, the windows appear when it closes, so that
   // nothing of the program shows behind it.
   if (splash == 0) {
-    win.eduRevealWindows();
+    // EDU: a scripted run has no card to answer; --tutorial-first-run asks
+    // for the route the card's "take the tour" button takes.
+    win.eduRevealWindows(firstRunTour);
   }
 
   QStringList arguments = rawArguments;
@@ -152,12 +154,12 @@ int main(int argc, char* argv[]) {
   win.DisplayTextSegments(true);
   win.UpdateDataDisplay();
 
-  // EDU: the splash closes itself after edu::theme::kSplashMillis, or at
-  // once when it is clicked; the windows come up then, and the first-run
-  // tutorial after them (SpimView::eduRevealWindows).
+  // EDU: the start-up card asks whether to take the tour and waits for an
+  // answer; the window comes up when it has one, and the tour with it if
+  // that is what was asked for (SpimView::eduRevealWindows).
   if (splash != 0) {
-    QObject::connect(splash, SIGNAL(finished()), &win,
-                     SLOT(eduRevealWindows()));
+    QObject::connect(splash, SIGNAL(finished(bool)), &win,
+                     SLOT(eduRevealWindows(bool)));
   }
 
 #ifdef EDU_DEVTOOLS
@@ -182,6 +184,10 @@ static QStringList parseCommandLine(QStringList args) {
       delayed_branches = false;
       delayed_loads = false;
     } else if ((args[i] == "-bare") || (args[i] == "-b")) {
+      // EDU: the bare machine is not offered in the window any more, but
+      // the flag still works: the upstream test programs in Tests/ are
+      // written for it, and tools/regress.sh runs them that way against a
+      // vanilla build.
       bare_machine = true;
       delayed_branches = true;
       delayed_loads = true;

@@ -40,6 +40,7 @@
 
 #include "edu/core/edu_format.h"
 #include "edu/edu_bottom_panel.h"
+#include "edu/edu_cross_handle.h"
 #include "edu/edu_instruction_inspector.h"
 #include "edu/edu_register_model.h"
 #include "edu/edu_data_model.h"
@@ -169,6 +170,10 @@ QString EduDevtools::usage() {
       "                         \"unsaved changes\" question (discard)\n"
       "  --tutorial-click-through  walk the whole tour by clicking the card's\n"
       "                         buttons with the mouse, reporting each step\n"
+      "  --drag-split <what>    drag one of the lines between the four\n"
+      "                         panels with the mouse: vertical=<dx>,\n"
+      "                         horizontal=<dy> or cross=<dx>,<dy>, and\n"
+      "                         report the four panels before and after\n"
       "  --console-type <text>  type that into the Console tab (\\n = Enter)\n"
       "                         before the program runs, for read_int and\n"
       "                         friends; reports where the focus went\n"
@@ -177,7 +182,7 @@ QString EduDevtools::usage() {
       "  --click-tab <title>    press that dock tab with the mouse and report\n"
       "                         which panel came forward; repeatable\n"
       "  --tutorial-first-run   open the tour the way a first start does (the\n"
-      "                         route the Tutorial/Shown setting guards)\n"
+      "                         route the start-up card opens)\n"
       "                         rather than the way Help > Tutorial does;\n"
       "                         with --tutorial-report the two can be\n"
       "                         compared line for line\n"
@@ -525,6 +530,19 @@ QStringList EduDevtools::takeOptions(const QStringList& args, bool* ok) {
       continue;
     }
 
+    if (arg == "--drag-split") {
+      if (i + 1 >= args.size()) {
+        err() << arg << " needs vertical=<dx>, horizontal=<dy> or "
+                 "cross=<dx>,<dy>\n"
+              << usage() << Qt::flush;
+        *ok = false;
+        return rest;
+      }
+      splitDrags_ << args.at(i + 1);
+      i += 1;
+      continue;
+    }
+
     if (arg == "--console-type") {
       if (i + 1 >= args.size()) {
         err() << arg << " needs the text to type\n" << usage() << Qt::flush;
@@ -745,6 +763,24 @@ bool EduDevtools::panelOnScreen(const QString& title) const {
   return false;
 }
 
+// The four panels of the block, for the split checks.
+void EduDevtools::reportPanels(const QString& what) {
+  QDockWidget *middleTop = 0, *middleBottom = 0, *rightTop = 0,
+              *rightBottom = 0;
+  if (!window_->eduSplitPanels(&middleTop, &middleBottom, &rightTop,
+                               &rightBottom)) {
+    out() << "split " << what << ": no block\n" << Qt::flush;
+    return;
+  }
+  out() << "split " << what << ": lines y=" << middleBottom->y() << "/"
+        << rightBottom->y() << " x=" << rightTop->x() << "\n" << Qt::flush;
+  out() << "split " << what << ": middleTop " << middleTop->width() << "x"
+        << middleTop->height() << " middleBottom " << middleBottom->width()
+        << "x" << middleBottom->height() << " rightTop " << rightTop->width()
+        << "x" << rightTop->height() << " rightBottom " << rightBottom->width()
+        << "x" << rightBottom->height() << "\n" << Qt::flush;
+}
+
 void EduDevtools::settle() {
   for (int i = 0; i < 3; i += 1) {
     QApplication::processEvents(QEventLoop::AllEvents, 50);
@@ -895,7 +931,8 @@ void EduDevtools::dismissBlockingDialog() {
     return;
   }
 
-  // Load File while a program is loaded (SpimView::eduConfirmLoadOnTop()).
+  // The old "a program is already loaded" question, which no longer
+  // exists: every load starts from a clean simulator now.
   if (modal->objectName() == "EduLoadConfirm") {
     const QString answer =
         loadAnswers_.isEmpty() ? QString("add") : loadAnswers_.takeFirst();
@@ -1085,7 +1122,7 @@ void EduDevtools::run() {
     pendingMenuFile_ = menuLoads_.at(i).mid(1);
     out() << (reload ? "menu: Reinitialize and Load File " : "menu: Load File ")
           << pendingMenuFile_ << "\n" << Qt::flush;
-    (reload ? window_->ui->action_File_Reload : window_->ui->action_File_Load)
+    (reload ? window_->ui->action_File_Reload : window_->ui->action_File_Reload)
         ->trigger();
     if (!pendingMenuFile_.isEmpty()) {
       err() << "the file dialog never came up\n" << Qt::flush;
@@ -1111,7 +1148,7 @@ void EduDevtools::run() {
       }
     } else if (step == "load") {  // File > Load File, where the order matters
       pendingMenuFile_ = QFileInfo(value).absoluteFilePath();
-      window_->ui->action_File_Load->trigger();
+      window_->ui->action_File_Reload->trigger();
       if (!pendingMenuFile_.isEmpty()) {
         err() << "the file dialog never came up\n" << Qt::flush;
         pendingMenuFile_.clear();
@@ -1219,7 +1256,9 @@ void EduDevtools::run() {
             << " status=\"" << window_->statusBar()->currentMessage() << "\""
             << " badge=\""
             << (badge != 0 && !badge->isHidden() ? badge->text() : QString())
-            << "\" editor_onscreen=" << (editorOn ? 1 : 0)
+            << "\" start_screen=" << (dock->startScreenShown() ? 1 : 0)
+            << " readonly=" << (dock->isReadOnly() ? 1 : 0)
+            << " editor_onscreen=" << (editorOn ? 1 : 0)
             // New fields go at the end: the checks match on runs of the
             // older ones (tools/check-editor.sh).
             << " pt=" << dock->editor()->pointSize() << " bannertext=\""
@@ -1393,6 +1432,10 @@ void EduDevtools::run() {
             << (!panels[i].w->isHidden() && !panels[i].content->visibleRegion().isEmpty() ? 1 : 0)
             << "\n" << Qt::flush;
     }
+    out() << "bases: reg=" << window_->eduRegisterModel->base()
+          << " data=" << window_->eduDataModel->base()
+          << " unit=" << int(window_->eduDataModel->unit())
+          << " layout=" << window_->eduLayoutPreset << "\n" << Qt::flush;
     out() << "bottom: tab=" << window_->eduBottom->currentTabName()
           << " visible=" << (window_->eduBottom->isHidden() ? 0 : 1)
           << " dot=" << (window_->eduBottom->hasUnread() ? 1 : 0) << "\n"
@@ -1609,7 +1652,11 @@ void EduDevtools::run() {
               : QFileInfo(window_->eduEditor->filePath()).fileName();
       out() << "tutorial state pc=" << QString::number(PC, 16) << " sp="
             << QString::number(pointer, 16) << " program="
-            << (window_->eduTutorial != 0 ? 1 : 0) << " file=" << file << "\n"
+            << (window_->eduTutorial != 0 ? 1 : 0) << " file=" << file
+            << " readonly="
+            << (window_->eduEditor != 0 && window_->eduEditor->isReadOnly() ? 1
+                                                                           : 0)
+            << " base=" << window_->eduRegisterModel->base() << "\n"
             << Qt::flush;
       const QStringList skipped = tour->skippedSteps();
       out() << "tutorial steps=" << tour->stepCount() << " skipped="
@@ -1719,6 +1766,56 @@ void EduDevtools::run() {
         }
       }
     }
+  }
+
+  // The lines between the four panels, dragged with the mouse.
+  for (int i = 0; i < splitDrags_.size(); i += 1) {
+    const QString what = splitDrags_.at(i).section('=', 0, 0);
+    const QString byText = splitDrags_.at(i).section('=', 1);
+    const int dx = byText.section(',', 0, 0).toInt();
+    const int dy = what == "horizontal" ? byText.section(',', 0, 0).toInt()
+                                        : byText.section(',', 1).toInt();
+    QRect crossing;
+    if (!window_->eduSplitCrossing(&crossing)) {
+      // Not a failure: a panel closed or floated breaks the block, and
+      // the check asks for exactly that case too.
+      out() << "split " << splitDrags_.at(i) << ": no block\n" << Qt::flush;
+      continue;
+    }
+    reportPanels("before " + splitDrags_.at(i));
+
+    QPoint from = crossing.center();
+    if (what == "vertical") {
+      from.setY(crossing.center().y() - 80);  // the line above the crossing
+    } else if (what == "horizontal") {
+      from.setX(crossing.center().x() - 80);  // the line left of it
+    }
+    const QPoint to(from.x() + (what == "horizontal" ? 0 : dx),
+                    from.y() + (what == "vertical" ? 0 : dy));
+
+    QWidget* target = window_;
+    if (what == "cross") {
+      // The crossing has a handle of its own; everything else is a dock
+      // separator, which QMainWindow handles itself.
+      target = window_->eduCrossHandle;
+    }
+    const QPoint fromLocal = target->mapFrom(window_, from);
+    const QPoint toLocal = target->mapFrom(window_, to);
+    QMouseEvent press(QEvent::MouseButtonPress, fromLocal,
+                      window_->mapToGlobal(from), Qt::LeftButton,
+                      Qt::LeftButton, Qt::NoModifier);
+    QMouseEvent move(QEvent::MouseMove, toLocal, window_->mapToGlobal(to),
+                     Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+    QMouseEvent release(QEvent::MouseButtonRelease, toLocal,
+                        window_->mapToGlobal(to), Qt::LeftButton,
+                        Qt::NoButton, Qt::NoModifier);
+    QApplication::sendEvent(target, &press);
+    QApplication::sendEvent(target, &move);
+    settle();
+    QApplication::sendEvent(target, &release);
+    settle();
+    settle();
+    reportPanels("after  " + splitDrags_.at(i));
   }
 
   // Dock tabs, pressed the way a student presses them.  A panel that will

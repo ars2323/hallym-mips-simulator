@@ -73,7 +73,6 @@ class EduInstructionInspector : public QDockWidget {
   };
   QList<FieldLine> fieldLines() const;
   QString destinationLine() const;  // empty unless branch or jump
-  QStringList noteLines() const;
 };
 
 #endif  // EDU_INSTRUCTION_INSPECTOR_H

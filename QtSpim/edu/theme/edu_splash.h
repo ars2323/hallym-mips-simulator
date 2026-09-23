@@ -1,11 +1,11 @@
 /* Hallym MIPS Simulator -- the start-up screen.
 
    A frameless white card in the middle of the screen: the university
-   signature, the product name and version, the lab, and an indeterminate
-   progress bar along the bottom edge.  It closes itself after
-   kSplashMillis, or at once when it is clicked, and emits finished() either
-   way.  main() shows the main window on that signal, so nothing of the
-   program appears behind the splash.
+   signature, the product name and version, the lab, and two buttons --
+   take the tour, or go straight to work.  It asks every time the program
+   starts, because a lab machine has a different student in front of it
+   every hour and a setting remembered from the last one would hide the
+   tour from the next.  Nothing closes it but a choice.
 
    Not shown in the scripted capture mode (edu/edu_devtools.h): a screenshot
    run must not wait for it.  --capture splash grabs one instead. */
@@ -15,7 +15,7 @@
 
 #include <QWidget>
 
-class QTimer;
+class QPushButton;
 
 namespace edu {
 namespace theme {
@@ -30,7 +30,9 @@ class EduSplash : public QWidget {
   void showCentred();
 
  signals:
-  void finished();
+  // True when the student asked for the tour.  main() brings the window up
+  // on this signal, so nothing of the program appears behind the card.
+  void finished(bool withTutorial);
 
  protected:
   void paintEvent(QPaintEvent* event);
@@ -39,12 +41,14 @@ class EduSplash : public QWidget {
   void closeEvent(QCloseEvent* event);
 
  private slots:
-  void animate();
-  void expire();
+  void chooseTutorial();
+  void chooseStraightToWork();
 
  private:
-  QTimer* animation_;
-  int phase_;        // 0..kPhaseSteps, position of the progress segment
+  void finish(bool withTutorial);
+
+  QPushButton* tutorial_;
+  QPushButton* straight_;
   bool finished_;    // finished() is emitted once
 };
 

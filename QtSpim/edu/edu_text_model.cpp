@@ -342,8 +342,12 @@ QVariant EduTextModel::data(const QModelIndex& index, int role) const {
         default:                return QVariant();
       }
 
+    // Weight only on the segment header rows, which span the table and
+    // line up with nothing.  The instruction column used to be bold too,
+    // and on Windows a faked bold in a fixed-pitch font is wider than the
+    // real one, which pushed the source column about (E).
     case Qt::FontRole:
-      if (header || index.column() == InstructionColumn) {
+      if (header) {
         QFont bold;  // resolved against the view's font by the delegate
         bold.setBold(true);
         return bold;

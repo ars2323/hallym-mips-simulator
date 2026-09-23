@@ -100,6 +100,10 @@ quint32 reassemble(const DecodedInstruction& instruction);
 // "R", "I", "J", "CP0", "FR", "FI".
 QString formatName(DecodedInstruction::Format format);
 
+// "lui" -> "Load Upper Immediate".  Empty for an instruction whose name is
+// a word already ("add", "or", "nop"): spelling those out says nothing.
+QString mnemonicExpansion(const QString& name);
+
 // The format rule on its own.
 DecodedInstruction::Format formatOf(quint32 word);
 

@@ -138,7 +138,7 @@ void SpimView::readSettings() {
   settings.beginGroup("Spim");
   quiet = settings.value("Quiet", false).toBool();
 
-  bare_machine = settings.value("BareMachine", 0).toBool();
+  bare_machine = false;  // EDU: not a mode this build offers
   accept_pseudo_insts = settings.value("AcceptPseudoInsts", 1).toBool();
   delayed_branches = settings.value("DelayedBranches", 0).toBool();
   delayed_loads = settings.value("DelayedLoads", 0).toBool();
@@ -208,7 +208,6 @@ void SpimView::writeSettings(bool omitWindowState) {
   settings.beginGroup("Spim");
   settings.setValue("Quiet", quiet);
 
-  settings.setValue("BareMachine", bare_machine);
   settings.setValue("AcceptPseudoInsts", accept_pseudo_insts);
   settings.setValue("DelayedBranches", delayed_branches);
   settings.setValue("DelayedLoads", delayed_loads);

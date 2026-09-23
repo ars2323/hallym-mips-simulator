@@ -71,10 +71,8 @@ harness reload  --reload "$file"
 harness reload2 --reload "$file" --reload "$file"
 harness loadreload --load "$file" --reload "$file"
 harness load2   --load "$file" --load "$file"
-harness load2reinit --load "$file" --load-answer reinit --load "$file"
-harness load2cancel --load "$file" --load-answer cancel --load "$file"
 
-for case in load reload reload2 loadreload load2reinit load2cancel; do
+for case in load reload reload2 loadreload load2; do
   if [ "$(dialogs $case)" -eq 0 ]; then
     pass "$case: no error dialog"
   else
@@ -87,30 +85,22 @@ for case in load reload reload2 loadreload load2reinit load2cancel; do
   fi
 done
 
-if [ "$(dialogs load2)" -eq 1 ] &&
-   grep -q '^dialog: spim: (parser) Label is defined for the second time on line 40 of file .*helloworld.s main:' "$work/load2.out"; then
-  pass "load2: upstream's 'Label is defined for the second time ... main' and nothing else"
+# Opening the same file twice used to add it to the program that was
+# already there, and the second one's labels were then defined twice.
+# Every load starts from a clean simulator now, so twice is the same as
+# once, and no question is asked about it (D).
+if [ "$(dialogs load2)" -eq 0 ]; then
+  pass "load2: the same file twice, no duplicate-label error"
 else
-  fail "load2: expected exactly upstream's duplicate-label error, got:"
+  fail "load2: expected no dialog, got:"
   grep '^dialog:' "$work/load2.out" | head -5
 fi
-
-# Hallym MIPS Simulator (as QtSpim-Edu did) asks before loading on top of a loaded program (PLAN decision
-# "Load File 확인"); the three answers are the cases load2 (the harness's
-# default answer, "Add to current program"), load2reinit and load2cancel.
 questions() { grep -c '^load question:' "$work/$1.out" || true; }
-for case in load2 load2reinit load2cancel; do
-  if [ "$(questions $case)" -eq 1 ]; then
-    pass "$case: asked once whether to reinitialize"
-  else
-    fail "$case: expected one question, got $(questions $case)"
-  fi
-done
-for case in load reload reload2 loadreload; do
+for case in load reload reload2 loadreload load2; do
   if [ "$(questions $case)" -eq 0 ]; then
-    pass "$case: not asked"
+    pass "$case: nothing was asked"
   else
-    fail "$case: asked, but nothing was loaded (or it was a Reinitialize and Load)"
+    fail "$case: asked $(questions $case) question(s); there is no such question any more"
   fi
 done
 

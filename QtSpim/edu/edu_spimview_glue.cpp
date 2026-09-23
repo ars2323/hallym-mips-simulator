@@ -11,6 +11,7 @@
 #include <QTimer>
 #include <QMouseEvent>
 #include <QLabel>
+#include <QLayout>
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPushButton>
@@ -28,6 +29,8 @@
 #include "edu/edu_data_view.h"
 #include "edu/edu_editor_dock.h"
 #include "edu/edu_bottom_panel.h"
+#include "edu/edu_cross_handle.h"
+#include "edu/edu_panel_zoom.h"
 #include "edu/edu_instruction_inspector.h"
 #include "edu/edu_path_check.h"
 #include "edu/edu_tutorial.h"
@@ -75,6 +78,10 @@ void SpimView::eduSetupPanels() {
   // pane the simulator logs into -- and the console window upstream kept
   // separate.  With no central widget left, the docks fill the window.
   eduBottom = new EduBottomPanel(this);
+  eduCrossHandle = new EduCrossHandle(this);
+  eduSeparatorDragging = false;
+  eduDragMiddleTop = 0;
+  eduDragRightTop = 0;
   QWidget* logPane = takeCentralWidget();
   // A window with no central widget at all leaves QMainWindow's layout
   // with nothing to arrange the docks around; a zero-sized one keeps the
@@ -101,6 +108,8 @@ void SpimView::eduSetupPanels() {
   eduModeBadge->hide();
 
   eduProgramLoaded = false;
+  eduBannerShown = false;  // the start-up banner is printed once
+  eduTourSettings.saved = false;  // nothing borrowed by the tour yet
 
   eduTextModel = new EduTextModel(this);
   ui->TextSegView->setTextModel(eduTextModel);
@@ -146,6 +155,7 @@ void SpimView::eduSetupPanels() {
   eduDataLog->hide();
 
   eduSetupEditor();
+  eduSetupPanelZoom();
 
   // Every tool bar button says what it is and what its shortcut is, in both
   // languages (docs/ARCHITECTURE.md 12, 71).
@@ -153,12 +163,9 @@ void SpimView::eduSetupPanels() {
     QAction* action;
     const char* tip;
   } const tips[] = {
-      {ui->action_File_Load,
-       "Open a program and load it into the simulator (Ctrl+O)\n"
-       "프로그램을 열어 시뮬레이터에 올립니다 (Ctrl+O)"},
       {ui->action_File_Reload,
-       "Reinitialize the simulator and load the same file again\n"
-       "시뮬레이터를 초기화하고 같은 파일을 다시 올립니다"},
+       "Open a program: the simulator starts clean and loads it (Ctrl+O)\n"
+       "프로그램 열기. 시뮬레이터를 비우고 새로 올립니다 (Ctrl+O)"},
       {ui->action_File_SaveLog,
        "Write the registers, the text and the data windows to a text file\n"
        "레지스터·Text·Data 창의 내용을 텍스트 파일로 저장합니다"},
@@ -202,8 +209,8 @@ void SpimView::eduSetupPanels() {
     QAction* action;
     const char* icon;
   } const icons[] = {
-      {ui->action_File_Load, "folder-open"},
-      {ui->action_File_Reload, "refresh-cw"},
+      {ui->action_File_Reload, "folder-open"},
+
       {ui->action_File_SaveLog, "save"},
       {ui->action_File_Print, "printer"},
       {ui->action_Sim_ClearRegisters, "eraser"},
@@ -265,7 +272,7 @@ void SpimView::eduSetupHelpMenu() {
 
 // The windows come up when the splash closes (main.cpp), and the tour --
 // once, on the first run -- after them.
-void SpimView::eduRevealWindows() {
+void SpimView::eduRevealWindows(bool withTutorial) {
   SpimConsole->show();
   show();
   raise();
@@ -281,13 +288,89 @@ void SpimView::eduRevealWindows() {
     eduApplyLayout(0);
   }
   eduLayoutSettled = true;
-  // The tour is for a person sitting in front of the program.  A scripted
-  // run must not have it start by itself: it would load the sample over
-  // whatever the script is testing (tools/check-editor.sh caught exactly
-  // that).  --tutorial-step still opens it on purpose.
-  if (eduTourOnStart && !settings.value("Tutorial/Shown", false).toBool()) {
+  // The tour starts when the start-up card was answered with "take the
+  // tour", and never by itself: a scripted run would have it load the
+  // example over whatever the script is testing, and a student who said
+  // "start now" has said what they want.  --tutorial-step and
+  // --tutorial-first-run still open it on purpose.
+  if (eduTourOnStart && withTutorial) {
     QTimer::singleShot(250, this, SLOT(eduShowTutorial()));
   }
+}
+
+// What the tour needs the screen to be showing, and what the student had
+// before it.  Everything here is a display setting: nothing about how a
+// program assembles or runs is touched.
+void SpimView::eduTourTakeSettings() {
+  if (eduTourSettings.saved) {
+    return;  // a second tour before the first was put back
+  }
+  eduTourSettings.saved = true;
+  eduTourSettings.registerBase = st_regDisplayBase;
+  eduTourSettings.dataBase = eduDataModel != 0 ? eduDataModel->base() : 16;
+  eduTourSettings.dataUnit =
+      eduDataModel != 0 ? int(eduDataModel->unit()) : int(edu::WordUnit);
+  eduTourSettings.showUserText = st_showUserTextSegment;
+  eduTourSettings.showKernelText = st_showKernelTextSegment;
+  eduTourSettings.layoutPreset = eduLayoutPreset;
+
+  st_regDisplayBase = 16;
+  setCheckedRegBase(st_regDisplayBase);
+  if (ui->DataSegPanel != 0) {
+    eduDataModel->setBase(16);
+    ui->DataSegPanel->view()->setUnit(edu::WordUnit);
+  }
+  st_showUserTextSegment = true;
+  st_showKernelTextSegment = true;
+  ui->action_Text_DisplayUserText->setChecked(true);
+  ui->action_Text_DisplayKernelText->setChecked(true);
+  eduApplyLayout(0);
+  DisplayIntRegisters();
+  DisplayTextSegments(false);
+  UpdateDataDisplay();
+}
+
+void SpimView::eduTourPutSettingsBack() {
+  if (!eduTourSettings.saved) {
+    return;
+  }
+  eduTourSettings.saved = false;
+  st_regDisplayBase = eduTourSettings.registerBase;
+  setCheckedRegBase(st_regDisplayBase);
+  if (ui->DataSegPanel != 0) {
+    eduDataModel->setBase(eduTourSettings.dataBase);
+    ui->DataSegPanel->view()->setUnit(
+        edu::MemoryUnit(eduTourSettings.dataUnit));
+  }
+  st_showUserTextSegment = eduTourSettings.showUserText;
+  st_showKernelTextSegment = eduTourSettings.showKernelText;
+  ui->action_Text_DisplayUserText->setChecked(st_showUserTextSegment);
+  ui->action_Text_DisplayKernelText->setChecked(st_showKernelTextSegment);
+  if (eduTourSettings.layoutPreset != 0) {
+    eduApplyLayout(eduTourSettings.layoutPreset);
+  }
+  DisplayIntRegisters();
+  DisplayTextSegments(false);
+  UpdateDataDisplay();
+}
+
+// The tour is over, whichever way it ended.  What it borrowed goes back:
+// the display settings the student had, the editor (its example is closed
+// rather than left for someone to edit by accident), and the simulator.
+// What is left is the start screen, which is where a student begins.
+void SpimView::eduTourFinished() {
+  eduTourPutSettingsBack();
+  if (eduEditor != 0) {
+    eduEditor->setReadOnly(false);
+    eduEditor->closeFile(false);  // read-only: there is nothing to save
+  }
+  sim_ReinitializeSimulator();
+  eduProgramLoaded = false;
+  eduSyncedPath.clear();
+  eduSyncedDigest.clear();
+  eduEverAssembled = false;
+  eduUpdateStaleBanner();
+  eduUpdateWindowTitle();
 }
 
 void SpimView::eduShowTutorial() {
@@ -305,7 +388,9 @@ void SpimView::eduShowTutorial() {
   if (eduTutorial == 0) {
     eduTutorial = new EduTutorial(this);
   }
-  settings.setValue("Tutorial/Shown", true);
+  connect(eduTutorial, SIGNAL(closed()), this, SLOT(eduTourFinished()),
+          Qt::UniqueConnection);
+  eduTourTakeSettings();
   eduTutorial->setProgramLoaded(eduLoadTutorialSample());
   eduTutorial->start();
 }
@@ -340,6 +425,12 @@ bool SpimView::eduLoadTutorialSample() {
   DisplayTextSegments(true);
   UpdateDataDisplay();
   eduRunToTutorialStop();
+  // The example belongs to the tour while the tour is running: a student
+  // editing it would be editing a file in the installation folder, and
+  // the tour would be describing something that had changed under it.
+  if (eduEditor != 0) {
+    eduEditor->setReadOnly(true);
+  }
   return eduProgramLoaded;
 }
 
@@ -463,6 +554,79 @@ void SpimView::eduEqualiseDocks() {
 // would say the same thing again, one line below.  It is put back the
 // moment the panel is on its own, because then the title bar is the only
 // name it has -- and the only thing to drag it by.
+// Every panel answers the same three shortcuts and the same wheel, each
+// with its own size.  What a size means is the panel's own business, which
+// is what eduApplyPanelZoom() sorts out.
+void SpimView::eduSetupPanelZoom() {
+  struct {
+    QWidget* panel;
+    const char* key;
+    EduPanelZoom** slot;
+  } const panels[] = {
+      {ui->TextSegView, "Text/FontPointSize", &eduTextZoom},
+      {ui->DataSegPanel->view(), "Data/FontPointSize", &eduDataZoom},
+      {eduInspector->widget(), "Inspector/FontPointSize", &eduInspectorZoom},
+      {SpimConsole, "Console/FontPointSize", &eduConsoleZoom},
+  };
+  for (unsigned i = 0; i < sizeof(panels) / sizeof(panels[0]); i += 1) {
+    EduPanelZoom* zoom =
+        new EduPanelZoom(panels[i].panel, QString(panels[i].key), this);
+    zoom->setBasePointSize(edu::theme::kCodePointSize);
+    zoom->setPointSize(
+        settings.value(QString(panels[i].key), edu::theme::kCodePointSize)
+            .toInt());
+    connect(zoom, SIGNAL(pointSizeChanged(int)), this,
+            SLOT(eduPanelZoomChanged(int)));
+    *panels[i].slot = zoom;
+  }
+}
+
+// The size for one panel changed: apply it, and remember it.
+void SpimView::eduPanelZoomChanged(int points) {
+  EduPanelZoom* zoom = qobject_cast<EduPanelZoom*>(sender());
+  if (zoom == 0) {
+    return;
+  }
+  settings.setValue(zoom->settingsKey(), points);
+  eduApplyPanelZoom(zoom->settingsKey(), points);
+}
+
+void SpimView::eduApplyPanelZoom(const QString& key, int points) {
+  if (key.startsWith("Text/")) {
+    QFont font = st_textWinFont;
+    font.setPointSize(points);
+    ui->TextSegView->applyPanelFont(font);
+    eduEditor->setPanelFont(font);
+  } else if (key.startsWith("Data/")) {
+    QFont font = st_textWinFont;  // the Data panel follows the Text window
+    font.setPointSize(points);
+    ui->DataSegPanel->view()->applyPanelFont(font);
+  } else if (key.startsWith("Inspector/")) {
+    QFont font = edu::theme::codeFont();
+    font.setPointSize(points);
+    eduInspector->setPanelFont(font);
+  } else if (key.startsWith("Console/")) {
+    QFont font = edu::theme::codeFont();
+    font.setPointSize(points);
+    SpimConsole->setFont(font);
+    if (eduBottom != 0 && eduBottom->messages() != 0) {
+      eduBottom->messages()->setFont(font);
+    }
+  }
+}
+
+// Simulator > Settings: one size for all of them at once.
+void SpimView::eduSetAllPanelSizes(int points) {
+  EduPanelZoom* const zooms[] = {eduTextZoom, eduDataZoom, eduInspectorZoom,
+                                 eduConsoleZoom};
+  for (unsigned i = 0; i < sizeof(zooms) / sizeof(zooms[0]); i += 1) {
+    if (zooms[i] != 0) {
+      zooms[i]->setBasePointSize(points);
+      zooms[i]->setPointSize(points);
+    }
+  }
+}
+
 void SpimView::eduSyncDockTitles() {
   QDockWidget* const docks[] = {
       ui->IntRegDockWidget,     ui->FPRegDockWidget,
@@ -589,6 +753,7 @@ void SpimView::eduApplyLayout(int preset) {
 
   eduElideDockTabs();   // the tab bars are new
   eduSyncDockTitles();  // a tabbed panel needs no second title
+  QTimer::singleShot(0, this, SLOT(eduFollowCrossHandle()));
 
   // The proportions are set once this arrangement has been through the
   // layout, and again whenever the window's size changes under it.
@@ -668,6 +833,137 @@ void SpimView::eduHoldDockSize(QDockWidget* dock, int width, int height) {
   }
 }
 
+// The four panels of the two by two block, in the order they are on
+// screen.  False when the block is not there: a panel closed, floated, or
+// dragged somewhere else.
+bool SpimView::eduSplitPanels(QDockWidget** middleTop,
+                              QDockWidget** middleBottom,
+                              QDockWidget** rightTop,
+                              QDockWidget** rightBottom) const {
+  const bool mirrored = eduLayoutPreset == 1;
+  QDockWidget* const top = mirrored ? ui->TextSegDockWidget : eduEditor;
+  QDockWidget* const other = mirrored ? eduEditor : ui->TextSegDockWidget;
+  QDockWidget* const under =
+      mirrored ? (QDockWidget*)eduInspector : (QDockWidget*)eduBottom;
+  QDockWidget* const underOther =
+      mirrored ? (QDockWidget*)eduBottom : (QDockWidget*)eduInspector;
+  QDockWidget* const all[] = {top, under, other, underOther};
+  for (unsigned i = 0; i < sizeof(all) / sizeof(all[0]); i += 1) {
+    if (all[i] == 0 || all[i]->isHidden() || all[i]->isFloating() ||
+        all[i]->visibleRegion().isEmpty()) {
+      return false;
+    }
+  }
+  // They have to be where the arrangement puts them: two columns, two rows.
+  if (top->x() >= other->x() || under->y() <= top->y() ||
+      underOther->y() <= other->y()) {
+    return false;
+  }
+  *middleTop = top;
+  *middleBottom = under;
+  *rightTop = other;
+  *rightBottom = underOther;
+  return true;
+}
+
+// Where the line down the middle meets the line across: the gap between
+// the four panels.
+bool SpimView::eduSplitCrossing(QRect* crossing) const {
+  QDockWidget *middleTop = 0, *middleBottom = 0, *rightTop = 0,
+              *rightBottom = 0;
+  if (!eduSplitPanels(&middleTop, &middleBottom, &rightTop, &rightBottom)) {
+    return false;
+  }
+  const int left = middleTop->geometry().right() + 1;
+  const int right = rightTop->geometry().left();
+  const int top = middleTop->geometry().bottom() + 1;
+  const int bottom = middleBottom->geometry().top();
+  *crossing = QRect(QPoint(left, top), QPoint(right, bottom));
+  return true;
+}
+
+void SpimView::eduSplitSizes(int* columnWidth, int* rowHeight) const {
+  QDockWidget *middleTop = 0, *middleBottom = 0, *rightTop = 0,
+              *rightBottom = 0;
+  *columnWidth = 0;
+  *rowHeight = 0;
+  if (eduSplitPanels(&middleTop, &middleBottom, &rightTop, &rightBottom)) {
+    *columnWidth = middleTop->width();
+    *rowHeight = middleTop->height();
+  }
+}
+
+// The crossing handle's drag: both lines at once.
+void SpimView::eduSetSplitSizes(int columnWidth, int rowHeight) {
+  QDockWidget *middleTop = 0, *middleBottom = 0, *rightTop = 0,
+              *rightBottom = 0;
+  if (!eduSplitPanels(&middleTop, &middleBottom, &rightTop, &rightBottom)) {
+    return;
+  }
+  const int columns = middleTop->width() + rightTop->width();
+  const int rows = middleTop->height() + middleBottom->height();
+  const int wantedWidth = qBound(120, columnWidth, columns - 120);
+  const int wantedHeight = qBound(80, rowHeight, rows - 80);
+
+  QList<QDockWidget*> horizontal;
+  horizontal << middleTop << rightTop;
+  QList<int> widths;
+  widths << wantedWidth << columns - wantedWidth;
+  resizeDocks(horizontal, widths, Qt::Horizontal);
+
+  QList<QDockWidget*> vertical;
+  vertical << middleTop << middleBottom << rightTop << rightBottom;
+  QList<int> heights;
+  heights << wantedHeight << rows - wantedHeight << wantedHeight
+          << rows - wantedHeight;
+  resizeDocks(vertical, heights, Qt::Vertical);
+  eduDragMiddleTop = wantedHeight;
+  eduDragRightTop = wantedHeight;
+}
+
+// One of the two horizontal lines was dragged: the other goes with it, so
+// that the block reads as one grid rather than two columns that happen to
+// be side by side.
+void SpimView::eduSyncSplits() {
+  QDockWidget *middleTop = 0, *middleBottom = 0, *rightTop = 0,
+              *rightBottom = 0;
+  if (!eduSplitPanels(&middleTop, &middleBottom, &rightTop, &rightBottom)) {
+    eduFollowCrossHandle();
+    return;
+  }
+  // The two columns start out with their lines level, though their top
+  // panels are not the same height: one of them has a tab bar above it.
+  // So the follower moves by the same amount the leader moved, which
+  // keeps whatever alignment they had.
+  const int middleMoved = middleTop->height() - eduDragMiddleTop;
+  const int rightMoved = rightTop->height() - eduDragRightTop;
+  if (middleMoved != 0 || rightMoved != 0) {
+    QDockWidget* const leaderBottom =
+        middleMoved != 0 ? middleBottom : rightBottom;
+    QDockWidget* const followerBottom =
+        middleMoved != 0 ? rightBottom : middleBottom;
+    // Where the line has to end up, and how much of the follower's column
+    // is below it.  resizeDocks() only asks; holding the panel at that
+    // height for one pass of the layout is what moves the line exactly
+    // (the same trick the register column's width uses).
+    const int wantedLine = leaderBottom->y();
+    const int height =
+        followerBottom->geometry().bottom() - wantedLine + 1;
+    if (height >= 80) {
+      eduHoldDockSize(followerBottom, -1, height);
+    }
+  }
+  eduDragMiddleTop = middleTop->height();
+  eduDragRightTop = rightTop->height();
+  eduFollowCrossHandle();
+}
+
+void SpimView::eduFollowCrossHandle() {
+  if (eduCrossHandle != 0) {
+    eduCrossHandle->follow();
+  }
+}
+
 void SpimView::eduLayoutPrimary() { eduApplyLayout(0); }
 
 void SpimView::eduLayoutMirrored() { eduApplyLayout(1); }
@@ -684,6 +980,33 @@ bool SpimView::eventFilter(QObject* watched, QEvent* event) {
   if (watched == this && event->type() == QEvent::Resize &&
       eduLayoutSizesPending) {
     QTimer::singleShot(0, this, SLOT(eduApplyLayoutSizes()));
+  }
+  if (watched == this && event->type() == QEvent::Resize) {
+    QTimer::singleShot(0, this, SLOT(eduFollowCrossHandle()));
+  }
+
+  // A dock separator is a gap, not a child widget, so a press with no
+  // child under it is a press on one of the lines between the panels.
+  // QMainWindow moves the line itself; what is added here is the second
+  // horizontal line following the first, so that the block stays a block.
+  if (watched == this && event->type() == QEvent::MouseButtonPress) {
+    QMouseEvent* mouse = static_cast<QMouseEvent*>(event);
+    if (mouse->button() == Qt::LeftButton && childAt(mouse->pos()) == 0) {
+      eduSeparatorDragging = true;
+      QDockWidget *middleTop = 0, *middleBottom = 0, *rightTop = 0,
+                  *rightBottom = 0;
+      if (eduSplitPanels(&middleTop, &middleBottom, &rightTop, &rightBottom)) {
+        eduDragMiddleTop = middleTop->height();
+        eduDragRightTop = rightTop->height();
+      }
+    }
+  } else if (watched == this && event->type() == QEvent::MouseMove &&
+             eduSeparatorDragging) {
+    QTimer::singleShot(0, this, SLOT(eduSyncSplits()));
+  } else if (watched == this && event->type() == QEvent::MouseButtonRelease &&
+             eduSeparatorDragging) {
+    eduSeparatorDragging = false;
+    QTimer::singleShot(0, this, SLOT(eduSyncSplits()));
   }
   return QMainWindow::eventFilter(watched, event);
 }
@@ -746,7 +1069,6 @@ void SpimView::eduUpdateInspector() {
 // (state.cpp): not bare, pseudo instructions accepted, no delay slots.
 void SpimView::eduUpdateModeBadge() {
   QStringList modes;
-  if (bare_machine) modes << "Bare Machine";
   if (!accept_pseudo_insts) modes << "Pseudo instructions off";
   if (delayed_branches) modes << "Delayed branches";
   if (delayed_loads) modes << "Delayed loads";
@@ -756,7 +1078,7 @@ void SpimView::eduUpdateModeBadge() {
       modes.isEmpty()
           ? QString()
           : QString("Simulator > Settings differs from the defaults.%1")
-                .arg(bare_machine || !accept_pseudo_insts
+                .arg(!accept_pseudo_insts
                          ? "\nPseudo instructions (li, la, move, ...) are "
                            "syntax errors in this mode."
                          : ""));
@@ -810,47 +1132,6 @@ void SpimView::eduForgetLoadedLabels() {
   }
 }
 
-// File > Load File (and the recent files) while a program is loaded.
-// Upstream loads on top without a word, which is right for a program made of
-// several files and wrong for the usual case, the same file again.  Returns
-// false for Cancel; reinitializes first if that was the answer.
-bool SpimView::eduConfirmLoadOnTop() {
-  if (!eduProgramLoaded) {
-    return true;
-  }
-  QMessageBox box(this);
-  box.setObjectName("EduLoadConfirm");
-  box.setIcon(QMessageBox::Question);
-  box.setWindowTitle("Load File");
-  box.setText("A program is already loaded.");
-  box.setInformativeText(
-      "Reinitialize and load: clear memory and registers first, then load the "
-      "file (what you want when loading the same program again).\n\n"
-      "Add to current program: keep what is loaded and assemble the file on "
-      "top of it (for a program made of several files). A label both define, "
-      "such as main, is reported as an error.");
-  QPushButton* reinitialize =
-      box.addButton("Reinitialize and load", QMessageBox::AcceptRole);
-  QPushButton* add =
-      box.addButton("Add to current program", QMessageBox::ActionRole);
-  box.addButton(QMessageBox::Cancel);
-  reinitialize->setObjectName("EduLoadReinitialize");
-  add->setObjectName("EduLoadAdd");
-  box.setDefaultButton(reinitialize);
-  box.exec();
-
-  if (box.clickedButton() == reinitialize) {
-    sim_ReinitializeSimulator();
-    return true;
-  }
-  if (box.clickedButton() == add) {
-    // What the simulator holds is now more than the editor's file, which is
-    // what the strip over the Text panel will say (eduUpdateStaleBanner).
-    eduExtraProgram = true;
-    return true;
-  }
-  return false;
-}
 
 // Labels by address for the Data panel (ARCHITECTURE 15.2).  Three sources:
 //   - print_symbols() as of the end of each file we loaded, local labels

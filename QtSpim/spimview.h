@@ -64,6 +64,8 @@ class EduTutorial;
 class EduEditorDock;
 class EduInstructionInspector;
 class EduBottomPanel;
+class EduCrossHandle;
+class EduPanelZoom;
 class EduRegisterModel;
 class EduTextModel;
 class QLabel;
@@ -122,6 +124,19 @@ class SpimView : public QMainWindow {
   void eduApplyLayout(int preset);
   void eduRevealConsole(bool withFocus);  // a program is printing or waiting
   void eduHoldDockSize(QDockWidget* dock, int width, int height);
+  // EDU: the two by two block of panels.  The line down the middle and
+  // the line across it belong to the dock layout; these keep the second
+  // horizontal line in step with the first, tell the crossing handle
+  // where the two meet, and let it drag both at once.
+  bool eduSplitPanels(QDockWidget** middleTop, QDockWidget** middleBottom,
+                      QDockWidget** rightTop, QDockWidget** rightBottom) const;
+  bool eduSplitCrossing(QRect* crossing) const;
+  void eduSplitSizes(int* columnWidth, int* rowHeight) const;
+  void eduSetSplitSizes(int columnWidth, int rowHeight);
+  EduCrossHandle* eduCrossHandle;
+  bool eduSeparatorDragging;
+  int eduDragMiddleTop;       // heights at the press, to see which one moved
+  int eduDragRightTop;
   bool eventFilter(QObject* watched, QEvent* event);
   void eduUpdateModeBadge();  // status bar: settings that change assembling
 
@@ -152,12 +167,37 @@ class SpimView : public QMainWindow {
   void eduSetupHelpMenu();                      // User Guide, MIPS Reference
   void eduElideDockTabs();                      // long tab titles get an ellipsis
   void eduSyncDockTitles();                     // a tabbed panel hides its title bar
+  // EDU: text size, per panel: Ctrl+= / Ctrl+- / Ctrl+0 and Ctrl+wheel
+  // wherever the focus is, kept under its own settings key.
+  void eduSetupPanelZoom();
+  void eduApplyPanelZoom(const QString& key, int points);
+  void eduSetAllPanelSizes(int points);   // Simulator > Settings
+  EduPanelZoom* eduTextZoom;
+  EduPanelZoom* eduDataZoom;
+  EduPanelZoom* eduInspectorZoom;
+  EduPanelZoom* eduConsoleZoom;
   void eduUpdateWindowTitle();                  // "file.s -- Hallym MIPS Simulator"
   QByteArray eduEditorDigest() const;           // the editor text, hashed
   void eduRestoreEditorZoom();                  // the saved editor text size
   bool eduLoadTutorialSample();                 // samples/tutorial.s, for the tour
   QString eduTutorialSamplePath() const;        // where it is, or empty
   void eduRunToTutorialStop();                  // into sum_array, third turn
+  // EDU: the tour explains what it points at, so what it points at has to
+  // be in the state the explanation describes: hexadecimal, words, both
+  // text segments, the first arrangement.  Whatever the student had is put
+  // back when the tour ends.
+  void eduTourTakeSettings();
+  void eduTourPutSettingsBack();
+  struct EduTourSettings {
+    bool saved;
+    int registerBase;
+    int dataBase;
+    int dataUnit;
+    bool showUserText;
+    bool showKernelText;
+    int layoutPreset;
+  };
+  EduTourSettings eduTourSettings;
   void eduRefreshRegisterPanel();
 
   // EDU: Text panel (edu/edu_text_model.h, edu/edu_text_view.h).
@@ -174,7 +214,6 @@ class SpimView : public QMainWindow {
   void eduCollectLabels();        // after the text segment changed (a load)
   bool eduLoadAssemblyFile(const QString& file);  // read_assembly_file() + labels
   void eduForgetLoadedLabels();   // the symbol table was cleared
-  bool eduConfirmLoadOnTop();     // Load File while a program is loaded
   void eduNoteStackInitialized(); // right after the core's initialize_stack()
 
   void DisplayTextSegments(bool force);
@@ -268,6 +307,7 @@ class SpimView : public QMainWindow {
   QStringList eduCollectedErrors;
   QLabel* eduModeBadge;          // EDU: status bar, see eduUpdateModeBadge()
   bool eduProgramLoaded;         // EDU: a file was assembled since Reinitialize
+  bool eduBannerShown;           // EDU: the start-up banner, once per run
   QString eduLoadedSymbols;      // EDU: print_symbols() text of every file loaded
   void eduFillDataLog();
   // EDU: the inspector follows the Text panel and nothing else; a
@@ -389,11 +429,13 @@ class SpimView : public QMainWindow {
 
   void help_ViewHelp();          // EDU: Help > MIPS Reference
   void eduShowUserGuide();       // EDU: Help > User Guide ("?" in the tool bar)
-  void eduRevealWindows();       // EDU: after the splash closes
+  void eduRevealWindows(bool withTutorial = false);  // EDU: the card was answered
   void eduShowTutorial();        // EDU: Help > Tutorial
+  void eduTourFinished();        // EDU: the tour ended, whichever way
   void eduDockMoved();           // EDU: a dock was dragged somewhere new
   void eduEqualiseDocks();       // EDU: after a drag, share the room evenly
   void eduEditorFontSizeChanged(int points);  // EDU: remember the zoom
+  void eduPanelZoomChanged(int points);       // EDU: one panel was zoomed
   void help_AboutSPIM();
 
   void continueBreakpoint();
@@ -411,6 +453,8 @@ class SpimView : public QMainWindow {
   void eduEditorOpenRecent();
   void eduToggleLog(bool on);
   void eduApplyLayoutSizes();  // the proportions, once the splits are in
+  void eduSyncSplits();        // the second horizontal line follows the first
+  void eduFollowCrossHandle();  // the handle sits on the crossing
   void eduLayoutPrimary();    // Editor | Text/Data
   void eduLayoutMirrored();   // Text/Data | Editor
   void eduEditorFileChanged();

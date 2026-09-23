@@ -7,6 +7,9 @@
 #include <QCursor>
 #include <QKeyEvent>
 #include <QMouseEvent>
+#include <QHBoxLayout>
+#include <QPushButton>
+#include <QVBoxLayout>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPixmap>
@@ -23,7 +26,7 @@ namespace theme {
 namespace {
 
 const int kWidth = 480;
-const int kHeight = 300;
+const int kHeight = 360;  // room for the question and the two buttons
 const int kRadius = 8;
 const int kSignatureWidth = 260;
 const int kBarHeight = 2;
@@ -35,8 +38,8 @@ const int kFrameMillis = 16;  // ~60 frames a second
 EduSplash::EduSplash(QWidget* parent)
     : QWidget(parent, Qt::SplashScreen | Qt::FramelessWindowHint |
                           Qt::WindowStaysOnTopHint),
-      animation_(new QTimer(this)),
-      phase_(kPhaseSteps / 3),  // a still capture shows the bar too
+      tutorial_(new QPushButton(QString::fromUtf8("튜토리얼 보기"), this)),
+      straight_(new QPushButton(QString::fromUtf8("바로 시작"), this)),
       finished_(false) {
   setObjectName("EduSplash");
   setAttribute(Qt::WA_TranslucentBackground);  // the card's rounded corners
@@ -44,9 +47,53 @@ EduSplash::EduSplash(QWidget* parent)
   setFixedSize(kWidth, kHeight);
   setFocusPolicy(Qt::StrongFocus);
 
-  connect(animation_, SIGNAL(timeout()), this, SLOT(animate()));
-  animation_->start(kFrameMillis);
-  QTimer::singleShot(kSplashMillis, this, SLOT(expire()));
+  QFont buttonFont = uiFont();
+  buttonFont.setPixelSize(kUiPixelSize);
+  buttonFont.setWeight(QFont::DemiBold);
+  tutorial_->setObjectName("EduSplashTutorial");
+  straight_->setObjectName("EduSplashStraight");
+  tutorial_->setFont(buttonFont);
+  straight_->setFont(buttonFont);
+  tutorial_->setCursor(Qt::PointingHandCursor);
+  straight_->setCursor(Qt::PointingHandCursor);
+  tutorial_->setToolTip(QString::fromUtf8(
+      "화면을 하나씩 짚어 가며 사용법을 알려 줍니다\n"
+      "A guided tour of the window"));
+  straight_->setToolTip(QString::fromUtf8(
+      "바로 시작합니다. 투어는 Help > Tutorial에서 언제든 볼 수 있습니다\n"
+      "Start now; the tour is in Help > Tutorial whenever you want it"));
+  tutorial_->setStyleSheet(
+      QString("QPushButton { background: %1; color: %2; border: 1px solid %3;"
+              " border-radius: 6px; padding: 8px 18px; }"
+              "QPushButton:hover { background: %4; }"
+              "QPushButton:focus { border: 2px solid %5; }")
+          .arg(QColor(kWhite).name(), QColor(kNavy).name(),
+               QColor(kBorder).name(), QColor(kHover).name(),
+               QColor(kBlue).name()));
+  straight_->setStyleSheet(
+      QString("QPushButton { background: %1; color: %2; border: none;"
+              " border-radius: 6px; padding: 8px 18px; }"
+              "QPushButton:hover { background: %3; }"
+              "QPushButton:focus { border: 2px solid %4; }")
+          .arg(QColor(kBlue).name(), QColor(kWhite).name(),
+               QColor(kNavy).name(), QColor(kNavy).name()));
+
+  QHBoxLayout* buttons = new QHBoxLayout;
+  buttons->setSpacing(kSpace2);
+  buttons->addStretch(1);
+  buttons->addWidget(tutorial_);
+  buttons->addWidget(straight_);
+  buttons->addStretch(1);
+
+  QVBoxLayout* layout = new QVBoxLayout(this);
+  layout->setContentsMargins(kSpace4, kSpace4, kSpace4, kSpace4 + kSpace1);
+  layout->addStretch(1);
+  layout->addLayout(buttons);
+
+  connect(tutorial_, SIGNAL(clicked()), this, SLOT(chooseTutorial()));
+  connect(straight_, SIGNAL(clicked()), this, SLOT(chooseStraightToWork()));
+  straight_->setDefault(true);
+  straight_->setFocus();
 }
 
 void EduSplash::showCentred() {
@@ -62,29 +109,40 @@ void EduSplash::showCentred() {
   raise();
 }
 
-void EduSplash::animate() {
-  phase_ = (phase_ + 1) % kPhaseSteps;
-  update();
+void EduSplash::chooseTutorial() { finish(true); }
+
+void EduSplash::chooseStraightToWork() { finish(false); }
+
+void EduSplash::finish(bool withTutorial) {
+  if (!finished_) {
+    finished_ = true;
+    emit finished(withTutorial);
+  }
+  close();
 }
 
-void EduSplash::expire() { close(); }
-
-void EduSplash::mousePressEvent(QMouseEvent*) { close(); }
+// A click anywhere else does nothing: the card is a question, and it waits
+// for an answer.
+void EduSplash::mousePressEvent(QMouseEvent*) {}
 
 void EduSplash::keyPressEvent(QKeyEvent* event) {
-  if (event->key() == Qt::Key_Escape || event->key() == Qt::Key_Return ||
-      event->key() == Qt::Key_Space) {
-    close();
+  // Tab and the arrows move between the two buttons; Enter takes the one
+  // with the focus, and Escape is "straight to work".
+  if (event->key() == Qt::Key_Escape) {
+    finish(false);
+    return;
+  }
+  if (event->key() == Qt::Key_Left || event->key() == Qt::Key_Right) {
+    (tutorial_->hasFocus() ? straight_ : tutorial_)->setFocus();
     return;
   }
   QWidget::keyPressEvent(event);
 }
 
 void EduSplash::closeEvent(QCloseEvent* event) {
-  animation_->stop();
   if (!finished_) {
     finished_ = true;
-    emit finished();
+    emit finished(false);
   }
   QWidget::closeEvent(event);
 }
@@ -144,14 +202,17 @@ void EduSplash::paintEvent(QPaintEvent*) {
                    Qt::AlignHCenter | Qt::AlignTop,
                    QString::fromUtf8("AIAC Lab \xc2\xb7 Hallym University"));
 
-  // An indeterminate progress bar: a segment sweeping left to right.  It
-  // says "still starting", not how far along it is.
-  const int track = height() - kBarHeight;
-  painter.fillRect(QRect(0, track, width(), kBarHeight), color(kBorder));
-  const int segment = width() / 3;
-  const int span = width() + segment;
-  const int x = (span * phase_) / kPhaseSteps - segment;
-  painter.fillRect(QRect(x, track, segment, kBarHeight), color(kBlue));
+  // The card waits for a choice, so there is nothing to show progress of.
+  // The question the two buttons answer, just above them.
+  QFont ask = uiFont();
+  ask.setPixelSize(kUiPixelSize);
+  ask.setWeight(QFont::DemiBold);
+  painter.setFont(ask);
+  painter.setPen(color(kText));
+  painter.drawText(
+      QRect(0, height() - 92, width(), kUiPixelSize + 8),
+      Qt::AlignHCenter | Qt::AlignTop,
+      QString::fromUtf8("처음이라면 투어를 보고 시작하세요"));
 
   painter.setClipping(false);
   painter.setPen(color(kBorder));
