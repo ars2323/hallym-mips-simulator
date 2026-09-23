@@ -185,6 +185,29 @@ jobs:
         shell: pwsh
         run: tools/package-windows.ps1 -BuildDir build -OutDir dist -GuideDir guide-pdf
 
+      # The zip as a student gets it: unpack it somewhere else and start the
+      # program.  A packaged Qt program that is missing a DLL or the
+      # platform plugin dies at once with a box, so a process that is still
+      # alive after a few seconds is the thing worth checking here.
+      - name: The packaged program starts
+        shell: pwsh
+        run: |
+          $zip = (Get-Item dist/*.zip).FullName
+          $out = Join-Path $env:RUNNER_TEMP "smoke"
+          Remove-Item -Recurse -Force $out -ErrorAction SilentlyContinue
+          Expand-Archive -Path $zip -DestinationPath $out
+          $exe = Join-Path $out "HallymMIPS.exe"
+          if (-not (Test-Path $exe)) { throw "no HallymMIPS.exe at the root of the zip" }
+          $p = Start-Process $exe -PassThru
+          Start-Sleep -Seconds 10
+          if ($p.HasExited) {
+            throw "the program exited by itself with code $($p.ExitCode)"
+          }
+          Write-Host "PASS  the unpacked program was still running after 10 seconds"
+          Stop-Process -Id $p.Id -Force
+          Start-Sleep -Seconds 2
+          Write-Host "PASS  and stopped cleanly"
+
       - name: Package MSI (WiX)
         shell: pwsh
         run: tools/package-msi.ps1 -OutDir dist
