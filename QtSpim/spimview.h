@@ -62,7 +62,8 @@ class SpimView;
 class EduDataModel;
 class EduTutorial;
 class EduEditorDock;
-class EduInspector;
+class EduInstructionInspector;
+class EduBottomPanel;
 class EduRegisterModel;
 class EduTextModel;
 class QLabel;
@@ -107,16 +108,20 @@ class SpimView : public QMainWindow {
   // EDU: register panel and inspector; implemented in
   // edu/edu_spimview_glue.cpp.
   EduRegisterModel* eduRegisterModel;
-  EduInspector* eduInspector;
+  EduInstructionInspector* eduInspector;  // EDU: follows the Text panel
+  EduBottomPanel* eduBottom;              // EDU: Console / Messages tabs
   EduTutorial* eduTutorial;  // EDU: the first-run tour (edu/edu_tutorial.h)
   bool eduLayoutSettled;     // EDU: start-up is over; dock moves are the user's
+  bool eduLayoutFromDefaults;  // EDU: no saved layout; ours is in force
+  int eduLayoutPreset;         // EDU: which arrangement is in force
+  bool eduLayoutSizesPending;  // EDU: waiting for the real window size
   bool eduTourOnStart;       // EDU: false in the scripted capture mode
   void eduSetupPanels();
-  void eduTileInspector();
-  void eduInspectorSizing(bool byUser);  // false: follow the content again
-  bool eduInspectorUserSized;
-  bool eduInspectorSeparatorPressed;
-  int eduInspectorPressHeight;
+  // EDU: the two arrangements of the window (Window > Layout).  0 is the
+  // one the program starts with, 1 is its mirror image.
+  void eduApplyLayout(int preset);
+  void eduRevealConsole(bool withFocus);  // a program is printing or waiting
+  void eduHoldDockSize(QDockWidget* dock, int width, int height);
   bool eventFilter(QObject* watched, QEvent* event);
   void eduUpdateModeBadge();  // status bar: settings that change assembling
 
@@ -124,11 +129,10 @@ class SpimView : public QMainWindow {
   // edu/edu_editor_glue.cpp.
   EduEditorDock* eduEditor;
   void eduSetupEditor();
-  void eduTileEditor();
-  void eduShowLog();                 // the message log, if hidden
-  void eduSetLogVisible(bool on);
+  void eduShowLog();                 // the Messages tab, panel and all
+  void eduSetLogVisible(bool on);    // the bottom panel as a whole
   QAction* eduLogAction;             // Window > Message Log
-  void eduArrangePanels(int layout); // 0 tabs, 1 side by side, 2 stacked
+
   void eduEditorAtStartup();
   bool eduEditorMaybeSave();                     // false = the user cancelled
   void eduEditorFileLoaded(const QString& file); // File > Load File, command line
@@ -147,6 +151,7 @@ class SpimView : public QMainWindow {
   void eduInsetDockContent(QDockWidget* dock);  // 4 px under the title
   void eduSetupHelpMenu();                      // User Guide, MIPS Reference
   void eduElideDockTabs();                      // long tab titles get an ellipsis
+  void eduSyncDockTitles();                     // a tabbed panel hides its title bar
   void eduUpdateWindowTitle();                  // "file.s -- Hallym MIPS Simulator"
   QByteArray eduEditorDigest() const;           // the editor text, hashed
   void eduRestoreEditorZoom();                  // the saved editor text size
@@ -265,9 +270,9 @@ class SpimView : public QMainWindow {
   bool eduProgramLoaded;         // EDU: a file was assembled since Reinitialize
   QString eduLoadedSymbols;      // EDU: print_symbols() text of every file loaded
   void eduFillDataLog();
-  enum { EduNoSubject, EduRegisterSubject, EduInstructionSubject,
-         EduMemorySubject };
-  int eduInspectorSubject;       // EDU: what the inspector is showing
+  // EDU: the inspector follows the Text panel and nothing else; a
+  // register's bits are in the register panel (Registers > Binary) and a
+  // word of memory explains itself in the tool tip of its cell.
 
   reg_word oldR[R_LENGTH];
   mem_addr oldPC;
@@ -405,9 +410,9 @@ class SpimView : public QMainWindow {
   void eduEditorSaveAs();
   void eduEditorOpenRecent();
   void eduToggleLog(bool on);
-  void eduLayoutTabs();
-  void eduLayoutSideBySide();
-  void eduLayoutStacked();
+  void eduApplyLayoutSizes();  // the proportions, once the splits are in
+  void eduLayoutPrimary();    // Editor | Text/Data
+  void eduLayoutMirrored();   // Text/Data | Editor
   void eduEditorFileChanged();
 
 };

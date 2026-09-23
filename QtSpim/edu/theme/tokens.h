@@ -65,10 +65,16 @@ const int kCodePointSize = 10;               // ~13 px at 96 dpi
 const int kBadgePixelSize = 11;
 const int kFontSmall = 12;        // status bar, splash version line
 const int kTitlePixelSize = 15;   // About: name
+const int kCardTitleSize = 15;    // tour card: the step's title
+const int kCardBodySize = 14;     // tour card: the step's text
 const int kDisplayPixelSize = 20; // About: product name
 const int kSplashTitleSize = 22;  // the start-up screen: product name (Bold)
 
 // ---- Metrics (tokens.md 3) ------------------------------------------------
+
+// The width of the register column: the table's own columns plus its
+// scroll bar, so that the code beside it keeps everything else.
+const int kRegisterColumnWidth = 380;
 
 const int kSpace1 = 4;
 const int kSpace2 = 8;

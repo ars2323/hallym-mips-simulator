@@ -728,27 +728,20 @@ void SpimView::win_TextSegment() { winUpDown(sender(), ui->TextSegDockWidget); }
 
 void SpimView::win_DataSegment() { winUpDown(sender(), ui->DataSegDockWidget); }
 
-void SpimView::win_Console() { winUpDown(sender(), SpimConsole); }
+// EDU: the console is a tab of the bottom panel, not a window of its own;
+// this entry brings that tab forward (and the panel back, if it was put
+// away) instead of showing and hiding a second window.
+void SpimView::win_Console() { eduRevealConsole(false); }
 
 void SpimView::win_Tile() {
-  ui->IntRegDockWidget->show();
+  // EDU: "put everything back" is the layout the program starts with
+  // (Window > Layout > Editor | Text / Data), panels and all.
   ui->action_Win_IntRegisters->setChecked(true);
-  ui->FPRegDockWidget->show();
   ui->action_Win_FPRegisters->setChecked(true);
-  ui->TextSegDockWidget->show();
   ui->action_Win_TextSegment->setChecked(true);
-  ui->DataSegDockWidget->show();
   ui->action_Win_DataSegment->setChecked(true);
-
-  ui->IntRegDockWidget->setFloating(false);
-  ui->FPRegDockWidget->setFloating(false);
-  eduTileInspector();  // EDU: below the register docks, before they are tabbed
-  tabifyDockWidget(ui->FPRegDockWidget, ui->IntRegDockWidget);
-  ui->TextSegDockWidget->setFloating(false);
-  ui->DataSegDockWidget->setFloating(false);
-  tabifyDockWidget(ui->DataSegDockWidget, ui->TextSegDockWidget);
-  eduTileEditor();  // EDU: a third tab with Data and Text
-  eduShowLog();     // EDU: Tile restores the default layout, log included
+  eduSetLogVisible(true);
+  eduApplyLayout(0);
 }
 
 // Help menu

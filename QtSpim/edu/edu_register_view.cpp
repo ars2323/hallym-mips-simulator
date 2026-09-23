@@ -47,6 +47,9 @@ class CompactRowDelegate : public QStyledItemDelegate {
 
 EduRegisterView::EduRegisterView(QWidget* parent)
     : QTreeView(parent), model_(0), changeValueAction_(new QAction(this)) {
+  // The column is as wide as its table needs and no wider: a register list
+  // gains nothing from extra width, and the code beside it loses it.
+  setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Expanding);
   changeValueAction_->setObjectName("action_ChangeValue");
   changeValueAction_->setText("Change Register Contents");
   connect(changeValueAction_, SIGNAL(triggered(bool)), this,
@@ -139,7 +142,10 @@ int EduRegisterView::fullContentHeight() const {
 }
 
 QSize EduRegisterView::sizeHint() const {
-  return QSize(QTreeView::sizeHint().width(), fullContentHeight());
+  // The width the columns actually need (minimumWidth(), measured in
+  // applyPanelFont()), not QTreeView's, which asks for room the table does
+  // not use and takes it from the code beside it.
+  return QSize(qMax(minimumWidth(), 100), fullContentHeight());
 }
 
 void EduRegisterView::onCurrentChanged() { emit registerSelectionChanged(); }

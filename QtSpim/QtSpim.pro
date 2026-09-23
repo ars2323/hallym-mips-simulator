@@ -70,12 +70,13 @@ SOURCES += main.cpp\
         edu/core/edu_asm_errors.cpp\
         edu/core/edu_text_file.cpp\
         edu/core/edu_tutorial_layout.cpp\
+        edu/edu_bottom_panel.cpp\
         edu/edu_code_editor.cpp\
         edu/edu_editor_dock.cpp\
         edu/edu_editor_glue.cpp\
         edu/edu_register_model.cpp\
         edu/edu_register_view.cpp\
-        edu/edu_inspector.cpp\
+        edu/edu_instruction_inspector.cpp\
         edu/edu_tutorial.cpp\
         edu/edu_spimview_glue.cpp\
         edu/theme/edu_theme.cpp\
@@ -121,11 +122,12 @@ HEADERS  += spimview.h\
         edu/core/edu_asm_errors.h\
         edu/core/edu_text_file.h\
         edu/core/edu_tutorial_layout.h\
+        edu/edu_bottom_panel.h\
         edu/edu_code_editor.h\
         edu/edu_editor_dock.h\
         edu/edu_register_model.h\
         edu/edu_register_view.h\
-        edu/edu_inspector.h\
+        edu/edu_instruction_inspector.h\
         edu/edu_tutorial.h\
         edu/theme/tokens.h\
         edu/theme/edu_theme.h\

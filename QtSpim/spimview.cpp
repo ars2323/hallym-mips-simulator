@@ -55,8 +55,10 @@ SpimView::SpimView(QWidget *parent)
   //
   ui->setupUi(this);
   setWindowTitle(EDU_APP_NAME);  // EDU: spimview.ui still says "QtSpim"
-  eduSetupPanels();              // EDU: register tree, inspector dock
+  // EDU: the console exists before the panels are built: it is a tab of
+  // the bottom panel now, so eduSetupPanels() needs it already there.
   SpimConsole = new Console(0);
+  eduSetupPanels();              // EDU: register tree, panels, docks
 
   // EDU: sentinel for "use the built-in handler"; it is shown in Settings.
   stdExceptionHandler = QString("<<Built-in Exception Handler>>");

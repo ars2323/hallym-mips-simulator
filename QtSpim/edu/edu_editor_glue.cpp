@@ -19,6 +19,7 @@
 #include "edu/core/edu_asm_errors.h"
 #include "edu/theme/tokens.h"
 #include "edu/edu_code_editor.h"
+#include "edu/edu_bottom_panel.h"
 #include "edu/edu_editor_dock.h"
 #include "spimview.h"
 #include "ui_spimview.h"
@@ -135,12 +136,12 @@ void SpimView::eduSetupEditor() {
   toggle->setText("Editor");
   ui->menu_Window->insertAction(ui->action_Win_IntRegisters, toggle);
 
-  // Window > Message Log: the central text pane can be put away, and the
-  // panels take its room.  Ctrl+L: free upstream (F5, Shift-F5, F10) and in
-  // the editor (Ctrl+N/O/S, Ctrl+Shift+S, F3).  It comes back by itself
-  // when the simulator reports an error (SpimView::Error()).
-  ui->centralWidget->setMinimumHeight(120);  // never squeezed to a sliver
-  eduLogAction = new QAction("Message &Log", this);
+  // Window > Console & Messages: the whole bottom panel can be put away,
+  // and the panels above take its room.  Ctrl+L: free upstream (F5,
+  // Shift-F5, F10) and in the editor (Ctrl+N/O/S, Ctrl+Shift+S, F3).  It
+  // comes back by itself when the simulator reports an error
+  // (SpimView::Error()) or when a program prints.
+  eduLogAction = new QAction("&Console && Messages", this);
   eduLogAction->setObjectName("action_Edu_ToggleLog");
   eduLogAction->setCheckable(true);
   eduLogAction->setChecked(true);
@@ -148,9 +149,10 @@ void SpimView::eduSetupEditor() {
   connect(eduLogAction, SIGNAL(toggled(bool)), this, SLOT(eduToggleLog(bool)));
   ui->menu_Window->insertAction(ui->action_Win_Console, eduLogAction);
 
-  // Window > Layout: how Editor, Text and Data share the right-hand area.
-  // Any arrangement can also be made by dragging a tab or a title bar
-  // (AllowNestedDocks in spimview.ui); these are the three that matter.
+  // Window > Layout: which side the editor is on.  Everything else about
+  // the arrangement is the same in both, and any other arrangement can
+  // still be made by dragging a tab or a title bar (AllowNestedDocks in
+  // spimview.ui).
   QMenu* layouts = new QMenu("&Layout", this);
   layouts->setObjectName("menu_Edu_Layout");
   struct {
@@ -158,9 +160,10 @@ void SpimView::eduSetupEditor() {
     const char* text;
     const char* slot;
   } const presets[] = {
-      {"action_Edu_LayoutTabs", "&Tabs (Editor, Text, Data in one group)", SLOT(eduLayoutTabs())},
-      {"action_Edu_LayoutSideBySide", "Editor &| Text  (side by side)", SLOT(eduLayoutSideBySide())},
-      {"action_Edu_LayoutStacked", "Editor &/ Text  (Editor above Text)", SLOT(eduLayoutStacked())},
+      {"action_Edu_LayoutPrimary", "&Editor | Text / Data",
+       SLOT(eduLayoutPrimary())},
+      {"action_Edu_LayoutMirrored", "Text / Data | Edi&tor",
+       SLOT(eduLayoutMirrored())},
   };
   for (unsigned i = 0; i < sizeof(presets) / sizeof(presets[0]); i += 1) {
     QAction* action = new QAction(presets[i].text, this);
@@ -171,7 +174,9 @@ void SpimView::eduSetupEditor() {
   ui->menu_Window->insertMenu(ui->action_Win_Tile, layouts);
   // The three panels can be moved and floated; closing is what the Window
   // menu entries do.
-  QDockWidget* const movable[] = {eduEditor, ui->TextSegDockWidget, ui->DataSegDockWidget};
+  QDockWidget* const movable[] = {
+      eduEditor,           ui->TextSegDockWidget, ui->DataSegDockWidget,
+      (QDockWidget*)eduBottom, (QDockWidget*)eduInspector};
   for (unsigned i = 0; i < sizeof(movable) / sizeof(movable[0]); i += 1) {
     // Dropped somewhere new: share the room out evenly (eduEqualiseDocks).
     // A drag ends either in a new area (dockLocationChanged) or by the dock
@@ -305,15 +310,6 @@ void SpimView::eduUpdateStaleBanner() {
   }
 }
 
-// win_Tile(): the editor is a third tab beside Data and Text, in front until
-// a program is loaded (there is nothing in the other two to look at).
-void SpimView::eduTileEditor() {
-  eduEditor->setFloating(false);
-  eduEditor->show();
-  tabifyDockWidget(ui->TextSegDockWidget, eduEditor);
-  eduEditor->raise();
-}
-
 // Editor > Open Recent: files the editor opened or saved, newest first,
 // kept in the settings under Editor/RecentFiles.
 // The editor's text size is the student's, not a window setting: it is
@@ -389,7 +385,9 @@ void SpimView::eduEditorAtStartup() {
 //
 
 void SpimView::eduSetLogVisible(bool on) {
-  ui->centralWidget->setVisible(on);
+  if (eduBottom != 0) {
+    eduBottom->setVisible(on);
+  }
   if (eduLogAction->isChecked() != on) {
     eduLogAction->setChecked(on);  // triggers eduToggleLog(), harmless
   }
@@ -397,44 +395,28 @@ void SpimView::eduSetLogVisible(bool on) {
 
 void SpimView::eduToggleLog(bool on) { eduSetLogVisible(on); }
 
+// Something was logged that the student should see: the panel comes back
+// if it was put away, and the Messages tab comes to the front.
 void SpimView::eduShowLog() {
-  if (eduLogAction != 0 && ui->centralWidget->isHidden()) {
-    eduSetLogVisible(true);
-  }
-}
-
-//
-// Layout presets
-//
-
-// Each preset starts from the three docks re-added to the top area (which
-// takes them out of any tab group or split they were in), then arranges.
-void SpimView::eduArrangePanels(int layout) {
-  QDockWidget* const docks[] = {eduEditor, ui->TextSegDockWidget, ui->DataSegDockWidget};
-  for (unsigned i = 0; i < sizeof(docks) / sizeof(docks[0]); i += 1) {
-    docks[i]->setFloating(false);
-    docks[i]->show();
-    addDockWidget(Qt::TopDockWidgetArea, docks[i]);
-  }
-  if (layout == 0) {
-    tabifyDockWidget(ui->DataSegDockWidget, ui->TextSegDockWidget);
-    tabifyDockWidget(ui->TextSegDockWidget, eduEditor);
-    (eduProgramLoaded ? ui->TextSegDockWidget : eduEditor)->raise();
+  if (eduLogAction == 0 || eduBottom == 0) {
     return;
   }
-  const Qt::Orientation o = layout == 1 ? Qt::Horizontal : Qt::Vertical;
-  splitDockWidget(eduEditor, ui->TextSegDockWidget, o);
-  tabifyDockWidget(ui->TextSegDockWidget, ui->DataSegDockWidget);
-  ui->TextSegDockWidget->raise();
-  // Halves, whatever the size hints say (equal wishes, scaled to fit).
-  resizeDocks(QList<QDockWidget*>() << eduEditor << ui->TextSegDockWidget,
-              QList<int>() << 1000 << 1000, o);
-  eduElideDockTabs();  // EDU: the tab bars are remade by the arrangement
+  if (eduBottom->isHidden()) {
+    eduSetLogVisible(true);
+  }
+  eduBottom->showMessages();
 }
 
-void SpimView::eduLayoutTabs() { eduArrangePanels(0); }
-void SpimView::eduLayoutSideBySide() { eduArrangePanels(1); }
-void SpimView::eduLayoutStacked() { eduArrangePanels(2); }
+// A program is printing, or waiting for something to be typed.
+void SpimView::eduRevealConsole(bool withFocus) {
+  if (eduBottom == 0) {
+    return;
+  }
+  if (eduBottom->isHidden()) {
+    eduSetLogVisible(true);
+  }
+  eduBottom->showConsole(withFocus);
+}
 
 bool SpimView::eduEditorMaybeSave() { return eduEditor->maybeSave(); }
 

@@ -46,7 +46,11 @@ Console::Console(QWidget* parent) : QPlainTextEdit(parent) {
 }
 
 void Console::WriteOutput(QString out) {
-  activateWindow();
+  // EDU: the console is a tab of the bottom panel; bring that tab forward
+  // instead of activating a window of its own (edu/edu_bottom_panel.h).
+  if (Window != NULL) {
+    Window->eduRevealConsole(false);
+  }
   moveCursor(QTextCursor::End);
   insertPlainText(out);
   ensureCursorVisible();
@@ -57,7 +61,11 @@ QString Console::ReadChar() {
   {
     return QString("\n");
   } else {
-    activateWindow();
+    // EDU: a program is waiting to be typed into: the Console tab comes
+    // forward and takes the keyboard, wherever the focus was.
+    if (Window != NULL) {
+      Window->eduRevealConsole(true);
+    }
     while (1) {
       if (InputAvailable()) {
         QString firstChar = inputBuffer.left(1);
@@ -109,19 +117,12 @@ void Console::mousePressEvent(QMouseEvent* /*e*/) {
   // Ignore
 }
 
-void Console::closeEvent(QCloseEvent* event) {
-  Window->ui->action_Win_Console->setChecked(false);
-  event->accept();
-}
+// EDU: these kept the Window > Console tick in step while the console was
+// a window of its own.  As a tab it is shown and hidden whenever the tab is
+// switched, which says nothing about whether the panel is open, so they no
+// longer touch the menu.
+void Console::closeEvent(QCloseEvent* event) { event->accept(); }
 
-void Console::hideEvent(QHideEvent* event) {
-  Window->ui->action_Win_Console->setChecked(false);
-  event->accept();
-}
+void Console::hideEvent(QHideEvent* event) { event->accept(); }
 
-void Console::showEvent(QShowEvent* event) {
-  if (Window != NULL) {
-    Window->ui->action_Win_Console->setChecked(true);
-  }
-  event->accept();
-}
+void Console::showEvent(QShowEvent* event) { event->accept(); }

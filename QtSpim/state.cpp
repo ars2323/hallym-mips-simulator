@@ -35,6 +35,7 @@
 #include <QMessageBox>
 
 #include "spimview.h"
+#include "edu/edu_bottom_panel.h"  // EDU
 #include "ui_spimview.h"
 #include "edu/edu_version.h"  // EDU
 #include "edu/theme/tokens.h"  // EDU: settings defaults
@@ -53,13 +54,12 @@ void SpimView::readSettings() {
   restoreGeometry(settings.value("Geometry").toByteArray());
   // EDU: the layout version.  A state saved by an earlier build is ignored
   // once and the default layout applies: 2 moved the register docks to the
-  // left area, 3 added the Editor dock, 4 allows nested docks (a state saved
-  // with ForceTabbedDocks would keep the three panels tabbed).
-  // EDU: an inspector the user sized keeps its height; unlocked before the
-  // state is restored, else the content's height would win.
-  eduInspectorSizing(settings.value("InspectorUserSized", false).toBool());
+  // left area, 3 added the Editor dock, 4 allows nested docks, 5 is the
+  // three-column window with the Console / Messages panel.
+  eduApplyLayout(0);  // EDU: what the window looks like with nothing saved
   eduSetLogVisible(settings.value("LogVisible", true).toBool());  // EDU
-  restoreState(settings.value("WindowState").toByteArray(), 4);
+  const QByteArray state = settings.value("WindowState").toByteArray();  // EDU
+  eduLayoutFromDefaults = state.isEmpty() || !restoreState(state, 5);    // EDU
   settings.endGroup();
 
   // If the size of the restored window exceeds the current screen size, resize
@@ -159,9 +159,8 @@ void SpimView::writeSettings(bool omitWindowState) {
   if (!omitWindowState) {
     settings.beginGroup("MainWin");
     settings.setValue("Geometry", saveGeometry());
-    settings.setValue("WindowState", saveState(4));  // EDU: see readSettings
-    settings.setValue("InspectorUserSized", eduInspectorUserSized);  // EDU
-    settings.setValue("LogVisible", !ui->centralWidget->isHidden());  // EDU
+    settings.setValue("WindowState", saveState(5));  // EDU: see readSettings
+    settings.setValue("LogVisible", eduBottom != 0 && !eduBottom->isHidden());  // EDU
     settings.endGroup();
   }
 
