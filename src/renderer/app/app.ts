@@ -29,6 +29,8 @@ import { Inspector } from './panels/inspector.ts';
 import { RegisterPanel } from './panels/registers.ts';
 import { TextPanel } from './panels/text.ts';
 import { welcome } from './panels/welcome.ts';
+import { aboutDialog } from './panels/about.ts';
+import { defaultAdvanced, sameAdvanced, settingsDialog, type Advanced } from './panels/settings.ts';
 
 type Phase = 'welcome' | 'code' | 'run';
 const api = window.app;
@@ -82,15 +84,14 @@ const bAssemble = button('어셈블', 'hammer', 'Ctrl+S', () => void saveAndAsse
 const bRun = button('실행', 'play', 'F5', () => void runOrStop());
 const bStep = button('한 줄', 'step-forward', 'F10', () => void step());
 const bRestart = button('처음으로', 'rotate-ccw', '', () => void restart());
-const settingsPop = h('div', { class: 'popover', hidden: true });
-const bSettings = iconButton('설정', 'settings', () => toggleSettings());
+const bSettings = iconButton('설정', 'settings', () => settingsBox.open());
 const top = h('header', { class: 'top' },
   h('span', { class: 'title' }, '한림 MIPS'), h('span', { class: 'sep' }), fileLabel, seg, h('span', { class: 'grow' }),
   bAssemble, bRun, bStep, bRestart, h('span', { class: 'sep' }),
   iconButton('튜토리얼 열기', 'circle-question-mark', () => void openTutorial()),
   iconButton('새 파일', 'file-plus', () => newFile()),
   iconButton('파일 열기 (Ctrl+O)', 'folder-open', () => void openFile()),
-  bSettings, settingsPop);
+  bSettings);
 const status = h('footer', { class: 'status' });
 
 // A: first screen
@@ -182,42 +183,45 @@ function applyFont(): void {
   editor.view.requestMeasure();
 }
 
-function toggleSettings(): void {
-  if (!settingsPop.hidden) { settingsPop.hidden = true; return; }
-  const size = h('span', { class: 'mono value' }, `${settings.fontSize}px`);
-  const change = (d: number) => async () => {
-    settings = await api.setSettings({ ...settings, fontSize: Math.max(10, Math.min(24, settings.fontSize + d)) });
-    size.textContent = `${settings.fontSize}px`;
+// ---- settings and about -----------------------------------------------------------
+
+// 고급: this session only, from QtSpim's defaults at every start.  `applied`
+// is what the machine on screen was assembled with.
+let advanced: Advanced = defaultAdvanced();
+let applied: Advanced = defaultAdvanced();
+
+const about = aboutDialog();
+const settingsBox = settingsDialog({
+  fontSize: () => settings.fontSize,
+  setFontSize: async (px) => {
+    settings = await api.setSettings({ ...settings, fontSize: Math.max(10, Math.min(24, px)) });
     applyFont();
-  };
-  const minus = h('button', { class: 'btn small', type: 'button', 'aria-label': '작게' }, '−');
-  const plus = h('button', { class: 'btn small', type: 'button', 'aria-label': '크게' }, '+');
-  minus.addEventListener('click', change(-1));
-  plus.addEventListener('click', change(+1));
-  const bases = h('span', { class: 'seg' }, ...([16, 10, 2] as const).map((b) => {
-    const el = h('button', { type: 'button', class: settings.dataBase === b ? 'on' : '' }, `${b}진`);
-    el.addEventListener('click', async () => {
-      settings = await api.setSettings({ ...settings, dataBase: b });
-      for (const x of bases.children) x.classList.toggle('on', x === el);
-      if (text.tab === 'data') void refreshData();
-    });
-    return el;
-  }));
-  settingsPop.replaceChildren(
-    h('div', { class: 'prow' }, h('span', {}, '글자 크기'), h('span', { class: 'grow' }), minus, size, plus),
-    h('div', { class: 'phint' }, 'Ctrl + / Ctrl − 는 이번 실행에만 적용됩니다'),
-    h('div', { class: 'prow' }, h('span', {}, 'Data 진법'), h('span', { class: 'grow' }), bases));
-  settingsPop.hidden = false;
-}
-document.addEventListener('mousedown', (e) => {
-  if (!settingsPop.hidden && !settingsPop.contains(e.target as Node) && !bSettings.contains(e.target as Node)) settingsPop.hidden = true;
+    return settings.fontSize;
+  },
+  dataBase: () => settings.dataBase,
+  setDataBase: async (base) => {
+    settings = await api.setSettings({ ...settings, dataBase: base });
+    if (text.tab === 'data') void refreshData();
+  },
+  advanced: () => advanced,
+  setAdvanced: (a) => { advanced = a; renderStatus(); },
+  pickHandler: () => api.openHandler(),
+  about: () => void about.open(),
+});
+document.body.append(settingsBox.root, about.root);
+
+const assembleOptions = (a: Advanced) => ({
+  fileName: file.name,
+  machine: a.machine,
+  run: { argv: ['program.s', ...a.args.split(/\s+/).filter(Boolean)], env: [] },
+  handler: a.handler.kind === 'default' ? undefined : a.handler.kind === 'none' ? null : a.handler.text,
 });
 
 // ---- chrome: top bar and status bar ----------------------------------------------------
 
 function renderChrome(): void {
   document.title = `${file.name}${dirty ? ' •' : ''} — 한림 MIPS 시뮬레이터`;
-  fileLabel.replaceChildren(phase === 'welcome' ? '' : h('b', {}, file.name), dirty ? h('span', { class: 'dirty', title: '저장하지 않은 변경' }, ' •') : '');
+  fileLabel.replaceChildren(phase === 'welcome' ? '' : h('b', { class: 'mono' }, file.name), dirty ? h('span', { class: 'dirty', title: '저장하지 않은 변경' }, ' •') : '');
   seg.hidden = phase === 'welcome';
   segCode.className = phase === 'code' ? 'on' : '';
   segRun.className = phase === 'run' ? 'on' : assembledText === null ? 'dim' : '';
@@ -234,7 +238,7 @@ function renderChrome(): void {
   setBtn(bRun, phase !== 'welcome' && (running || (runState !== 'finished' && runState !== 'input')), running);
   setBtn(bStep, phase !== 'welcome' && !running && runState !== 'finished', phase === 'run' && !running);
   setBtn(bRestart, lastProgram !== null && phase === 'run' && !busy, false);
-  editorMeta.textContent = `${file.name} · ${file.format?.encoding ?? 'UTF-8'} · ${file.format?.lineEnd ?? 'LF'}`;
+  editorMeta.replaceChildren(code(file.name), ` · ${file.format?.encoding ?? 'UTF-8'} · ${file.format?.lineEnd ?? 'LF'}`);
   renderStatus();
 }
 
@@ -268,6 +272,7 @@ function renderStatus(): void {
       if (inspector.open && selected >= 0) parts.push(span('', '고른 명령 ', code(hex32(selected))));
     }
     if (dirty) parts.push(span('warn', '코드가 바뀌었습니다 — Ctrl+S 로 다시 어셈블'));
+    else if (!sameAdvanced(advanced, applied)) parts.push(span('warn', '고급 설정이 바뀌었습니다 — 처음으로 또는 Ctrl+S 로 다시 어셈블'));
   }
   status.replaceChildren(...parts);
 }
@@ -352,7 +357,7 @@ async function assemble(source: string, again: boolean): Promise<boolean> {
     const same = again || source === lastProgram;
     let r: Awaited<ReturnType<typeof api.call<'assemble'>>>;
     try {
-      r = await api.call('assemble', source, { fileName: file.name });
+      r = await api.call('assemble', source, assembleOptions(advanced));
     } catch {
       return false; // the process died (a .err directive): onCrashed says so
     }
@@ -378,6 +383,7 @@ async function assemble(source: string, again: boolean): Promise<boolean> {
     for (const a of breakpoints) await api.call('setBreakpoint', a);
     assembledText = source;
     lastProgram = source;
+    applied = structuredClone(advanced);
     runState = 'ready';
     rows = textRows(await api.call('textSegment'));
     text.setRows(rows);
@@ -442,6 +448,7 @@ async function run(): Promise<void> {
   steps = 0;
   progress = null;
   renderChrome();
+  if (applied.machine.mappedIo) consolePanel.waitForInput(true); // the program polls the receiver as it runs
   await go(() => api.call('run'));
 }
 
@@ -504,6 +511,7 @@ async function restart(): Promise<void> {
 
 async function giveInput(line: string): Promise<void> {
   await api.call('provideInput', line + '\n');
+  if (runState === 'running') return; // mapped I/O: the program reads it as it runs
   consolePanel.waitForInput(false);
   runState = 'paused';
   if (resumeWith === 'run') await run();
@@ -527,7 +535,7 @@ function select(addr: number): void {
 
 function showSelected(): void {
   const row = text.rowFor(selected);
-  if (row) inspector.show(row, (lastRegs ?? ZERO_REGS).general);
+  if (row) inspector.show(row, (lastRegs ?? ZERO_REGS).general, applied.machine.delayedBranches ? 'MipsDelaySlot' : 'SpimNoDelaySlot');
   else inspector.empty();
 }
 
@@ -577,13 +585,13 @@ function showCongrats(): void {
 // ---- keys -----------------------------------------------------------------------------------
 
 window.addEventListener('keydown', (e) => {
+  if (document.querySelector('dialog[open]')) return; // the dialog has the keys (Esc closes it)
   const mod = e.ctrlKey || e.metaKey;
   const inEditor = editorHost.contains(e.target as Node);
   if (e.key === 'F5') { e.preventDefault(); void runOrStop(); return; }
   if (e.key === 'F10') { e.preventDefault(); void step(); return; }
   if (e.key === 'Escape') {
     if (runState === 'running') { e.preventDefault(); void stop(); }
-    else if (!settingsPop.hidden) settingsPop.hidden = true;
     else if (inspector.open) closeInspector();
     return;
   }

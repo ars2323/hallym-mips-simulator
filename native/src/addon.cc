@@ -214,13 +214,17 @@ static void readAssemblyBytes(const std::string &bytes, const std::string &name,
 static void initializeWorld(const std::string &handler) {
   initialize_world(NULL, false);
 
-  bool old_bare = bare_machine;
-  bool old_accept = accept_pseudo_insts;
-  bare_machine = false;
-  accept_pseudo_insts = true;
-  readAssemblyBytes(handler, "exceptions.s", NULL);
-  bare_machine = old_bare;
-  accept_pseudo_insts = old_accept;
+  // No handler: nothing to read (flex cannot scan an empty buffer, and
+  // QtSpim with "Load exception handler" unticked reads no file either).
+  if (!handler.empty()) {
+    bool old_bare = bare_machine;
+    bool old_accept = accept_pseudo_insts;
+    bare_machine = false;
+    accept_pseudo_insts = true;
+    readAssemblyBytes(handler, "exceptions.s", NULL);
+    bare_machine = old_bare;
+    accept_pseudo_insts = old_accept;
+  }
 
   if (!bare_machine) {
     char main_label[] = "main";
@@ -271,6 +275,12 @@ static Napi::String stringOf(Napi::Env env, const std::string &bytes) {
   return Napi::String::New(env, bytes);  // the core's text is UTF-8 by now
 }
 
+static bool flagOf(Napi::Value options, const char *name, bool otherwise) {
+  if (!options.IsObject()) return otherwise;
+  Napi::Value v = options.As<Napi::Object>().Get(name);
+  return v.IsBoolean() ? v.As<Napi::Boolean>().Value() : otherwise;
+}
+
 static Napi::Value throwType(Napi::Env env, const char *usage) {
   Napi::TypeError::New(env, usage).ThrowAsJavaScriptException();
   return env.Null();
@@ -278,10 +288,15 @@ static Napi::Value throwType(Napi::Env env, const char *usage) {
 
 // ------------------------------------------------------------ bindings
 
-// assemble(source, handler, argv, env, fileName)
-//   source, handler  Uint8Array (bytes; UTF-8 by Node's doing)
+// assemble(source, handler, argv, env, fileName[, options])
+//   source, handler  Uint8Array (bytes; UTF-8 by Node's doing); an empty
+//                    handler loads none, as QtSpim with the box unticked
 //   argv, env        Uint8Array[] (each one string's bytes)
 //   fileName         Uint8Array, for the core's messages only
+//   options          { acceptPseudo, delayedBranches, delayedLoads, mappedIo,
+//                    quiet }: QtSpim's Settings, each defaulting to QtSpim's
+//                    default.  The bare machine is never on (QtSpim/menu.cpp
+//                    sim_Settings, "EDU": this course does not use it).
 // -> { ok, errors: string[], symbols: string }
 //
 // What QtSpim's load does: reinitialize (world + handler), build the stack,
@@ -307,13 +322,14 @@ static Napi::Value Assemble(const Napi::CallbackInfo &info) {
     environment.push_back(bytesOf(envv.Get(i)));
   }
 
-  // QtSpim's defaults (QtSpim/state.cpp).
+  // QtSpim's defaults (QtSpim/state.cpp), or what the options say.
+  Napi::Value options = info.Length() > 5 ? info[5] : env.Undefined();
   bare_machine = false;
-  accept_pseudo_insts = true;
-  delayed_branches = false;
-  delayed_loads = false;
-  mapped_io = false;
-  quiet = false;
+  accept_pseudo_insts = flagOf(options, "acceptPseudo", true);
+  delayed_branches = flagOf(options, "delayedBranches", false);
+  delayed_loads = flagOf(options, "delayedLoads", false);
+  mapped_io = flagOf(options, "mappedIo", false);
+  quiet = flagOf(options, "quiet", false);
 
   errors.clear();
   consoleBytes.clear();

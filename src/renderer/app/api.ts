@@ -14,8 +14,17 @@ export interface AppApi {
   saveFile(file: { path: string | null; name: string; text: string; format: TextFileFormat | null }):
     Promise<{ path: string; name: string } | null>;
   openExample(name: string): Promise<OpenedFile>;
+  openHandler(): Promise<{ name: string; text: string } | null>;
+  about(): Promise<AboutInfo>;
+  license(index: number): Promise<string>;  // LICENSES[index]; one past the end: Electron's
+  openCredits(): Promise<void>;             // LICENSES.chromium.html, in the browser
   getSettings(): Promise<Settings>;
   setSettings(s: Settings): Promise<Settings>;
+}
+
+export interface AboutInfo {
+  version: string; electron: string; chrome: string; node: string;
+  licenses: string[]; // titles, in order
 }
 
 declare global { interface Window { app: AppApi } }

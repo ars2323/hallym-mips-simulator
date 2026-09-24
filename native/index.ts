@@ -12,6 +12,7 @@
 
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import path from 'node:path';
 
 import { decodeTextFile, type TextFileFormat } from '../src/node/text-file.ts';
 
@@ -48,7 +49,7 @@ export interface Segments {
 
 interface NativeCore {
   assemble(source: Uint8Array, handler: Uint8Array, argv: Uint8Array[],
-           env: Uint8Array[], fileName: Uint8Array): { ok: boolean; errors: string[]; symbols: string };
+           env: Uint8Array[], fileName: Uint8Array, options: MachineOptions): { ok: boolean; errors: string[]; symbols: string };
   run(steps: number): RunStop;
   consoleOutput(): Uint8Array;
   provideInput(bytes: Uint8Array): void;
@@ -65,11 +66,31 @@ interface NativeCore {
   disassemble(word: number, addr: number): string;
 }
 
-const core = createRequire(import.meta.url)('./build/Release/spim.node') as NativeCore;
+// In the packaged app this file is bundled (tools/package.ts defines
+// SPIM_BUNDLE), and the addon and the handler sit next to the bundle.
+const bundled = process.env.SPIM_BUNDLE === '1';
+const here = import.meta.dirname;
+const core = createRequire(import.meta.url)(
+  bundled ? path.join(here, 'spim.node') : path.join(here, 'build/Release/spim.node')) as NativeCore;
 
 // The default exception handler, as QtSpim loads it (QtSpim/exception.qrc
 // embeds ../CPU/exceptions.s).
-const handler = readFileSync(new URL('../CPU/exceptions.s', import.meta.url));
+const defaultHandler = readFileSync(bundled ? path.join(here, 'exceptions.s') : path.join(here, '../CPU/exceptions.s'));
+
+/* QtSpim's Simulator > Settings, the machine part.  Each defaults to
+   QtSpim's default.  There is no bare machine: the Qt build keeps it off
+   and does not offer it (QtSpim/menu.cpp, "EDU"), and so does this one. */
+export interface MachineOptions {
+  acceptPseudo: boolean;     // pseudo instructions (li, la, move ...)
+  delayedBranches: boolean;  // branches and jumps take effect one instruction late
+  delayedLoads: boolean;     // a load's register is written one instruction late
+  mappedIo: boolean;         // the console as memory-mapped device registers
+  quiet: boolean;            // no message from the exception handler
+}
+
+export const DEFAULT_MACHINE: Readonly<MachineOptions> = Object.freeze({
+  acceptPseudo: true, delayedBranches: false, delayedLoads: false, mappedIo: false, quiet: false,
+});
 
 /* What the simulated program finds on its stack: argv (argv[0] included)
    and its environment -- Simulator > Run Parameters in the Qt build.
@@ -92,6 +113,11 @@ export interface AssembleOptions {
   // What the core's messages call the file ("... of file lab04.s").  Only
   // text: nothing is opened by this name.
   fileName?: string;
+  machine?: Partial<MachineOptions>;
+  // The exception handler's source: undefined for the default one
+  // (CPU/exceptions.s), null for none -- the program then needs its own
+  // __start.  Bytes are decoded like the program's.
+  handler?: Uint8Array | string | null;
 }
 
 export interface AssembleResult {
@@ -129,8 +155,11 @@ export function assemble(source: Uint8Array | string, options: AssembleOptions =
     text = decoded.text;
     format = decoded.format;
   }
-  const result = core.assemble(utf8(text), new Uint8Array(handler), run.argv.map(utf8),
-                               run.env.map(utf8), utf8(options.fileName ?? 'program.s'));
+  const handler = options.handler === undefined ? new Uint8Array(defaultHandler)
+    : options.handler === null ? new Uint8Array(0)
+      : utf8(typeof options.handler === 'string' ? options.handler : decodeTextFile(options.handler).text);
+  const result = core.assemble(utf8(text), handler, run.argv.map(utf8), run.env.map(utf8),
+                               utf8(options.fileName ?? 'program.s'), { ...DEFAULT_MACHINE, ...options.machine });
   return { ...result, format };
 }
 

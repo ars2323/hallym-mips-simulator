@@ -21,6 +21,10 @@ contextBridge.exposeInMainWorld('app', {
   openFile: () => ipcRenderer.invoke('file:open').then(unwrap),
   saveFile: (file) => ipcRenderer.invoke('file:save', file).then(unwrap),
   openExample: (name) => ipcRenderer.invoke('example:open', name).then(unwrap),
+  openHandler: () => ipcRenderer.invoke('file:openHandler').then(unwrap),
+  about: () => ipcRenderer.invoke('about:info'),
+  license: (i) => ipcRenderer.invoke('about:license', i).then(unwrap),
+  openCredits: () => ipcRenderer.invoke('about:openCredits').then(unwrap),
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setSettings: (s) => ipcRenderer.invoke('settings:set', s),
 });

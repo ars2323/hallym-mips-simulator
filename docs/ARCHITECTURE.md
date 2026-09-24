@@ -158,7 +158,10 @@ Windows 의 코어 타이머(이름 있는 대기 타이머 + APC)는 호출한 
 | 창: 첫 화면 → 새 파일 → 붙여넣기 → Ctrl+S → 오류 → 고치기 → Text, F10, Inspector, 브레이크포인트, 무한 루프 정지, 콘솔 입력, 프로세스 사망 | `tests/e2e/flows.e2e.ts` (Playwright `_electron.launch()`, 실제 앱) |
 | 창: 한글 조합이 깨지지 않고, 조합 중 Ctrl+S 는 조합이 끝난 뒤 저장한다 | `tests/e2e/ime.e2e.ts` (CDP `Input.imeSetComposition`) |
 | 창: 16진수가 나올 수 있는 모든 자리가 D2Coding 이다 | `tests/e2e/hex-mono.e2e.ts` (그려진 DOM 의 텍스트 노드 전부) |
-| 위 테스트가 틀린 구현을 실제로 잡는다 | `tools/mutants.ts` (경계·실행 제어·콘솔 입력 돌연변이 포함, 그중 7개는 애드온을 다시 빌드하고 8개는 창을 띄운다) |
+| 설정의 머신 옵션(의사 명령, delayed branches·loads, mapped I/O, quiet)과 예외 처리기(기본·없음·파일)가 코어에 닿는다 | `tests/node/machine-options.test.ts`, `tests/sim/process.test.ts`(mapped I/O 입력) |
+| 창: 글자 크기·진법만 저장, Ctrl +/− 와 고급은 이번 실행만, About 의 고지 | `tests/e2e/settings.e2e.ts` |
+| 같은 e2e 를 패키지된 앱으로 (리눅스 `--dir`, Windows 설치본) | `SPIM_E2E_EXE`, `.github/workflows/windows.yml` |
+| 위 테스트가 틀린 구현을 실제로 잡는다 | `tools/mutants.ts` (77개. 그중 9개는 애드온을 다시 빌드하고 12개는 창을 띄운다) |
 
 ## 6. 창
 
@@ -181,4 +184,22 @@ src/renderer/app/
   Ctrl + / Ctrl − 는 이번 실행에만 적용된다.
 - 레지스터 패널은 레지스터마다 DOM 행을 한 번 만들고, 멈출 때마다 글자가 바뀐 칸과 강조가 바뀐 행만 고친다.
   Text 는 보이는 행과 앞뒤 10행만 DOM 에 둔다. 둘 다 잰 값은 `docs/screens/README.md` 에 있다.
+
+## 7. 패키지된 앱
+
+```text
+HallymMIPS.exe  LICENSE.txt  NOTICE.txt  LICENSE.electron.txt  LICENSES.chromium.html
+resources/app.asar
+  main.js         src/main/main.ts 와 그것이 가져오는 것(iconv-lite, src/node, src/sim/host·transport)
+  worker.js       src/sim/worker.ts + native/index.ts  -- utilityProcess 가 띄운다
+  preload.cjs  exceptions.s  examples/  licenses/
+  renderer/app/{index.html, app.css, app.js}  renderer/assets/
+resources/app.asar.unpacked/spim.node   (네이티브 모듈은 asar 밖)
+```
+
+- 소스 트리와 패키지의 차이는 "파일이 어디 있나" 하나다. esbuild 가 `process.env.SPIM_BUNDLE` 을 `"1"` 로 바꿔 넣고,
+  `src/main/paths.ts`·`src/sim/transport.ts`·`native/index.ts` 가 그 값으로 경로를 고른다. 나머지 코드는 같다.
+- 그래서 e2e 테스트를 그대로 패키지에 돌린다: `SPIM_E2E_EXE=<HallymMIPS.exe>` 면 하네스가 그 실행 파일을 띄운다.
+- 사용자 데이터는 `%APPDATA%\HallymMIPS2`(Windows) — Qt판(레지스트리 `HKCU\Software\HallymMIPS`)과 겹치지 않는다.
+- 자세한 결정과 Qt판 1.2.4 옆에서의 검사는 `docs/PORTING.md` 13절, Windows 에서 확인한 것은 `docs/WINDOWS.md`.
 

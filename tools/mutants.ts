@@ -208,7 +208,29 @@ const MUTANTS: Mutant[] = [
   { module: 'explain', file: 'src/core/explain.ts', what: 'jal return address is PC',
     find: '`돌아올 주소(${code(hex32(pc + 4))})를 ${reg(31)}', replace: '`돌아올 주소(${code(hex32(pc))})를 ${reg(31)}',
     tests: ['tests/core/explain.test.ts'] },
+  // ---- Settings: machine options and the exception handler
+  { module: 'addon options', file: 'native/src/addon.cc', what: 'delayed branches never reach the core', rebuild: true,
+    find: 'delayed_branches = flagOf(options, "delayedBranches", false);', replace: 'delayed_branches = false;',
+    tests: ['tests/node/machine-options.test.ts'] },
+  { module: 'addon options', file: 'native/src/addon.cc', what: 'an empty handler is read (flex dies on it)', rebuild: true,
+    find: '  if (!handler.empty()) {', replace: '  if (true) {', tests: ['tests/node/machine-options.test.ts'] },
+  { module: 'native/index.ts', file: 'native/index.ts', what: 'no handler taken as the default one',
+    find: ': options.handler === null ? new Uint8Array(0)', replace: ': options.handler === null ? new Uint8Array(defaultHandler)',
+    tests: ['tests/node/machine-options.test.ts'] },
+  { module: 'sim worker', file: 'src/sim/worker.ts', what: 'input refused while running (mapped I/O)',
+    find: "'readBytes', 'disassemble', 'provideInput']);", replace: "'readBytes', 'disassemble']);",
+    tests: ['tests/sim/process.test.ts'] },
   // ---- the window, end to end
+  { module: 'window', file: 'src/renderer/app/app.ts', what: 'font size kept for the session only',
+    find: 'settings = await api.setSettings({ ...settings, fontSize: Math.max(10, Math.min(24, px)) });',
+    replace: 'settings = { ...settings, fontSize: Math.max(10, Math.min(24, px)) };', tests: ['tests/e2e/settings.e2e.ts'] },
+  { module: 'window', file: 'src/renderer/app/app.ts', what: 'Run Parameters not passed on',
+    find: "run: { argv: ['program.s', ...a.args.split(/\\s+/).filter(Boolean)], env: [] },", replace: "run: { argv: ['program.s'], env: [] },",
+    tests: ['tests/e2e/settings.e2e.ts'] },
+  { module: 'window', file: 'src/main/paths.ts', what: 'a notice missing from About',
+    find: "  { name: 'lucide-LICENSE.txt', title: 'Lucide icons — ISC License' },\n", replace: '', tests: ['tests/e2e/settings.e2e.ts'] },
+  { module: 'window', file: 'src/renderer/app/panels/registers.ts', what: "CP0 in Pretendard (reads 'CPO')",
+    find: "group === 'CP0' ? code('CP0') : group", replace: 'group', tests: ['tests/e2e/hex-mono.e2e.ts'] },
   { module: 'window', file: 'src/renderer/app/editor.ts', what: 'Ctrl+S saves in the middle of a syllable',
     find: '    if (composing || view.composing || view.compositionStarted) saveAfterComposition = true;\n    else onSave();',
     replace: '    onSave();', tests: ['tests/e2e/ime.e2e.ts'] },
@@ -232,7 +254,7 @@ const MUTANTS: Mutant[] = [
 
 function copyTree(dir: string, linkBuild: boolean): void {
   for (const d of ['src', 'tests', 'tools']) cpSync(path.join(root, d), path.join(dir, d), { recursive: true });
-  for (const f of ['package.json', 'tsconfig.json', 'playwright.config.ts']) cpSync(path.join(root, f), path.join(dir, f));
+  for (const f of ['package.json', 'tsconfig.json', 'playwright.config.ts', 'LICENSE', 'NOTICE']) cpSync(path.join(root, f), path.join(dir, f));
   cpSync(path.join(root, 'native'), path.join(dir, 'native'), {
     recursive: true, filter: (from) => !from.startsWith(path.join(root, 'native', 'build')),
   });

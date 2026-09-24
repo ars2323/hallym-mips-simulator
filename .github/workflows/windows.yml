@@ -1,8 +1,18 @@
-# One question only: does the core build and assemble on Windows the way it
-# does on Linux?  It checks the two things never tried there -- flex's
-# memory buffer (yy_scan_bytes) under win_flex, and the MSVC flags in
-# native/binding.gyp -- with the spike's word-level golden check on
-# tt.core.s.  No packaging, no artifacts, no release, no Linux job.
+# Windows, for real: build, test, package, install next to the Qt build.
+#
+#   1. the core builds with MSVC + win_flex/win_bison; tt.core.s words match
+#   2. the Node tests on Windows: the simulator process (fork), stop,
+#      breakpoints, console input rewind, the modules, the goldens
+#   3. the package: NSIS installer (per user) and zip, artifacts only --
+#      no tag, no release
+#   4. the zip, unpacked, starts
+#   5. side by side with the Qt build 1.2.4 (its release MSI):
+#      tools/windows/check-side-by-side.ps1
+#   6. the e2e tests against the INSTALLED app (utilityProcess, .err, stop,
+#      breakpoints, console input, fonts, settings, About)
+#   7. tools/probe-platform.ts: simulator handles while running/stepping
+#      (the core's waitable timer), screenshots of the native file dialogs;
+#      and the four scenes captured on Windows
 name: windows
 
 on:
@@ -10,8 +20,11 @@ on:
   workflow_dispatch:
 
 jobs:
-  core:
+  windows:
     runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'   # no code signing
     steps:
       - uses: actions/checkout@v4
 
@@ -32,20 +45,106 @@ jobs:
       - name: npm ci
         run: npm ci --ignore-scripts
 
-      - name: Build the addon
+      - name: Build the addon (Node)
         run: npx node-gyp rebuild --directory native
 
       - name: tt.core.s words against the Qt golden
         run: node tests/spike/check-text.js
+
+      - name: Node tests
+        run: npm test
+
+      - name: Build the addon (Electron)
+        run: node tools/build-electron.ts
+
+      - name: Package (NSIS installer + zip)
+        run: node tools/package.ts
+
+      - name: Files and sizes
+        shell: pwsh
+        run: |
+          Get-ChildItem dist -File | Where-Object { $_.Extension -in '.exe', '.zip' } |
+            ForEach-Object { '{0}  {1:N1} MB  ({2} bytes)' -f $_.Name, ($_.Length / 1MB), $_.Length } |
+            Tee-Object -FilePath sizes.txt
+
+      - name: The zip, unpacked, starts
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP 'zip'
+          Expand-Archive -Path (Get-Item dist/*.zip).FullName -DestinationPath $out
+          $exe = Join-Path $out 'HallymMIPS.exe'
+          if (-not (Test-Path $exe)) { throw 'no HallymMIPS.exe at the root of the zip' }
+          foreach ($f in 'LICENSE.txt', 'NOTICE.txt') { if (-not (Test-Path (Join-Path $out $f))) { throw "no $f in the zip" } }
+          $p = Start-Process $exe -PassThru
+          Start-Sleep -Seconds 10
+          if ($p.HasExited) { throw "exited by itself with code $($p.ExitCode)" }
+          Write-Host 'PASS  the unpacked program was still running after 10 seconds'
+          $null = $p.CloseMainWindow(); if (-not $p.WaitForExit(10000)) { Stop-Process -Id $p.Id -Force }
+
+      - name: The Qt build's 1.2.4 MSI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download v1.2.4 -R ars2323/hallym-mips-simulator --pattern "*.msi" --dir qt
+
+      - name: Side by side with 1.2.4 (install, both running)
+        shell: pwsh
+        run: tools/windows/check-side-by-side.ps1 -Phase before -QtMsi (Get-Item qt/*.msi).FullName -Setup (Get-Item dist/*-setup.exe).FullName -Report report
+
+      - name: e2e against the installed app
+        timeout-minutes: 15
+        shell: pwsh
+        run: |
+          $env:SPIM_E2E_EXE = (Get-Content report/installed.txt).Trim()
+          npx playwright test
+
+      - name: Probe (simulator handles, native file dialogs)
+        if: always() && hashFiles('report/installed.txt') != ''
+        timeout-minutes: 12
+        shell: pwsh
+        run: |
+          $env:SPIM_E2E_EXE = (Get-Content report/installed.txt).Trim()
+          node tools/probe-platform.ts report/probe
+
+      - name: The four scenes, captured on Windows
+        if: always() && hashFiles('report/installed.txt') != ''
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          $env:SPIM_E2E_EXE = (Get-Content report/installed.txt).Trim()
+          $env:SCREENS_OUT = 'report/screens'
+          node tools/capture-screens.ts
+
+      - name: Side by side with 1.2.4 (after; uninstall ours)
+        if: always() && hashFiles('report/qt-settings-together.reg') != ''
+        shell: pwsh
+        run: tools/windows/check-side-by-side.ps1 -Phase after -Report report
+
+      - name: Upload installer and zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: HallymMIPS-windows
+          path: |
+            dist/*-setup.exe
+            dist/*.zip
+          if-no-files-found: error
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-report
+          path: |
+            sizes.txt
+            report/
+            test-results/
+          if-no-files-found: ignore
 
       # Diagnosis only: what the generators wrote, when the build fails.
       - name: Generated parser header (on failure)
         if: failure()
         shell: pwsh
         run: |
-          $h = Get-ChildItem -Recurse native/build -Filter parser_yacc.h | Select-Object -First 1
+          $h = Get-ChildItem -Recurse native/build -Filter parser_yacc.h -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($h) {
             Select-String -Path $h.FullName -Pattern '#define yy|yylval|yyparse|api.prefix|YYSTYPE' | ForEach-Object { "$($_.LineNumber): $($_.Line)" }
-            "---- lines 440-465"
-            Get-Content $h.FullName | Select-Object -Skip 439 -First 26
           }

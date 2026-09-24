@@ -33,7 +33,7 @@ export class RegisterPanel {
       const target = full ? list : columns[i < Math.ceil(all.length / 2) ? 0 : 1];
       if (full && r.group !== group) {
         group = r.group;
-        target.append(h('div', { class: `rgroup${group === 'CP0' ? ' cp0' : ''}` }, group));
+        target.append(h('div', { class: `rgroup${group === 'CP0' ? ' cp0' : ''}` }, group === 'CP0' ? code('CP0') : group));
       }
       const hex = code('', 'hex');
       const dec = code('', 'dec');
@@ -48,10 +48,10 @@ export class RegisterPanel {
       list.classList.toggle('show-cp0', show);
       const b = h('button', { class: 'linkbtn', type: 'button' }, show ? '숨기기' : '보기');
       b.addEventListener('click', () => setFold(!show));
-      fold.replaceChildren(show ? 'CP0 레지스터' : 'CP0 레지스터는 기본으로 숨김', b);
+      fold.replaceChildren(code('CP0'), show ? ' 레지스터' : ' 레지스터는 기본으로 숨김', b);
     };
     if (full) setFold(false);
-    else fold.textContent = 'CP0 레지스터는 넓은 화면에서';
+    else fold.replaceChildren(code('CP0'), ' 레지스터는 넓은 화면에서');
     this.root = h('section', { class: `panel regs r-${mode}`, 'aria-label': '레지스터' },
       h('div', { class: 'phead' }, h('span', { class: 'name' }, '레지스터'), h('span', { class: 'grow' }),
         h('span', { class: 'meta' }, full ? '16진 · 10진 · 2진' : '16진 · 10진 — 2진은 바뀐 것만')),

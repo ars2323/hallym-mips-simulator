@@ -15,7 +15,10 @@ test.afterEach(async () => { await r.close(); });
 
 async function offenders(page: Page): Promise<string[]> {
   return page.evaluate(() => {
-    const hexish = /0x[0-9a-f]|\b[0-9a-f]{8}\b/i;
+    // Hexadecimal (0x..., eight hex digits), and any Latin identifier with
+    // the digit zero in it ($t0, CP0, F10): Pretendard's zero is a plain
+    // oval, next to letters it reads as the letter O.
+    const hexish = /0x[0-9a-f]|\b[0-9a-f]{8}\b|[A-Za-z$][A-Za-z0-9$]*0|0[A-Za-z]/i;
     const bad: string[] = [];
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     for (let n = walker.nextNode(); n; n = walker.nextNode()) {
@@ -66,4 +69,17 @@ test('hexadecimal is monospaced in every scene', async () => {
   await page.locator('.console-bar').click();
   await check('console folded');
   expect(seen.length).toBeGreaterThan(8);
+});
+
+test('Pretendard and D2Coding are loaded, not stood in for by a system font', async () => {
+  const { page } = r;
+  await openAndAssemble(r, sample(r.dir, 'tests/samples/lab04-ok.s', 'lab04.s'));
+  await page.locator('.trow[data-addr="0x00400054"] .dis').click(); // headings, bold, mono: every face in use
+  await page.evaluate(() => document.fonts.ready);
+  const faces = await page.evaluate(() => [...document.fonts].map((f) => `${f.family} ${f.weight} ${f.status}`));
+  expect(faces.sort()).toEqual([
+    'D2Coding normal loaded', // its @font-face gives no weight
+    'Pretendard 400 loaded', 'Pretendard 500 loaded', 'Pretendard 600 loaded', 'Pretendard 700 loaded',
+  ]);
+  expect(await page.evaluate(() => document.fonts.check('13px D2Coding') && document.fonts.check('600 13px Pretendard'))).toBe(true);
 });

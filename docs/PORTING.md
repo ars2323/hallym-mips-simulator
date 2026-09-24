@@ -281,6 +281,23 @@ SPIM 은 0x2000워드(32 KB) 이상 앞으로 가는 분기를 **오류 없이 �
 - `read_mem_*()` 는 데이터 세그먼트 밖 주소에서 예외를 일으켜 CP0 를 **쓴다.**
   애드온의 `readWords`/`readBytes` 는 범위를 먼저 검사하고 밖이면 `RangeError` 를 던진다.
 
+### 같은 워드의 두 이름 — 플랫폼마다 다르다
+
+`CPU/op.h` 에는 인코딩이 같은 이름 짝이 둘 있다: `trunc.w.s`/`suxc1`(`0x4600000d`), `floor.w.s`/`prefx`(`0x4600000f`).
+뒤의 둘은 MIPS32 Rev 2 명령으로, SPIM 이 실행하지 않는다. 코어는 역어셈블할 표를 `qsort` 로 정렬하는데,
+C 표준은 키가 같은 원소의 순서를 라이브러리에 맡긴다. 그래서 어느 이름이 보이는지가 플랫폼마다 다르다.
+
+| | `trunc.w.s` 워드 | `floor.w.s` 워드 |
+|---|---|---|
+| 리눅스(glibc) | `suxc1` 로 보인다 | `floor.w.s` |
+| Windows(MSVC) | `trunc.w.s` | `prefx` 로 보인다 |
+
+- 실행에는 영향이 없다. 어셈블한 명령은 파서가 만든 명령 구조체로 실행되고, 이 표는 워드를 글자로 바꿀 때만 쓴다.
+- Qt판 Windows 빌드도 같은 MSVC `qsort` 라 이 앱의 Windows 판과 같은 이름을 보인다.
+- 우리 디코더(`src/core/decoder.ts`)는 두 플랫폼 모두 MIPS32 이름(`trunc.w.s`, `floor.w.s`)을 쓴다.
+  Inspector 는 이 이름이다.
+- `tests/core/decoder.test.ts` 가 플랫폼별로 둘 다 고정한다. Windows CI 에서 처음 드러났다.
+
 ### 프로세스 전역 상태
 
 코어는 전부 프로세스 전역 변수이고 한 프로세스에 한 대뿐이다. 실행할 때마다
@@ -422,9 +439,12 @@ Qt판은 코어가 `read_input()` 을 부르면 그 안에서 입력 대화를 �
   있는 모든 자리(주소, 워드, 레지스터 값, 설명 문장의 값, 오류 메시지 안의 주소, 콘솔 출력, 상태 표시줄)를
   mono 로 쓴다. 코어에서 온 문장(오류 메시지)은 `withHex()` 가 16진수처럼 보이는 부분을 떼어 mono 로 감싼다.
   `tests/e2e/hex-mono.e2e.ts` 가 그려진 DOM 의 텍스트 노드 전부를 훑어 확인한다.
-- **설정은 글자 크기와 Data 진법 둘뿐이다.** 글꼴·색 설정은 없앴다(테마는 한 벌). 글자 크기는 저장되고,
-  Ctrl + / Ctrl − / Ctrl 0 은 이번 실행에만 적용된다. 설정 대화상자 대신 상단의 톱니 버튼이 작은 창을 연다.
+- **저장하는 설정은 글자 크기와 Data 진법 둘뿐이다.** 글꼴·색 설정은 없앴다(테마는 한 벌).
+  Ctrl + / Ctrl − / Ctrl 0 은 이번 실행에만 적용된다. 고급 항목은 접혀 있고 이번 실행에만 쓴다(12절).
   D2Coding 한자 글꼴은 그대로 둔다.
+- **숫자 0 이 든 식별자도 D2Coding.** Pretendard 의 0 은 빗금·점 없는 타원이라, 글자 옆에서는 영문 O 로 읽힌다
+  (`CP0` → "CPO", `$t0`, `F10`, `lab04.s`). 16진수 규칙과 같은 갈래라 같은 검사(`hex-mono.e2e.ts`)가
+  "라틴 식별자 안의 0" 도 본다. 레지스터 이름, `CP0`, 단축키, 파일 이름, 형식 배지를 mono 로 바꿨다.
 - **상태를 되살리지 않는다.** 창 크기·열린 파일·최근 파일·브레이크포인트·펼친 패널은 저장하지 않는다.
 - **Ctrl+S = 저장 + 어셈블.** 새 파일이면 저장 대화상자가 뜨고, 취소해도 어셈블은 한다(상태 표시줄에 "저장하지 않음").
   어셈블이 성공하면 [실행] 국면으로 넘어간다. 실패하면 편집기 아래에 오류 목록이 나오고 그 줄이 표시된다.
@@ -435,4 +455,113 @@ Qt판은 코어가 `read_input()` 을 부르면 그 안에서 입력 대화를 �
   코드가 바뀌어 다시 어셈블하면 브레이크포인트는 지운다(주소가 달라질 수 있다).
 - **브레이크포인트 도달 모달 없음.** 상태 표시줄과 PC 줄로만 알린다.
 - **커널 코드는 접혀 있다.** Text 끝의 "커널 코드(예외 처리기) N개 명령 숨김 · 보기". CP0 레지스터도 접힌 묶음이다.
-- 이번에 하지 않은 것: 튜토리얼 20단계, 고급 설정 대화상자, About, 패키징, FP 레지스터 표시.
+- 아직 하지 않은 것: 튜토리얼 20단계, FP 레지스터 표시.
+
+---
+
+## 12. 설정 — 저장하는 것과 이번 실행에만 쓰는 것
+
+| 무엇 | 저장 | 어디 |
+|---|---|---|
+| 글자 크기 | **저장** | `userData/settings.json` 의 `fontSize` |
+| Data 진법(Data 탭이 여는 진법) | **저장** | `dataBase` |
+| Ctrl + / Ctrl − / Ctrl 0 | 이번 실행만 | 창 안 |
+| 고급: 머신 옵션, Run Parameters, 예외 처리기 | 이번 실행만 | 창 안. 다음 어셈블(Ctrl+S, 처음으로)부터 쓰인다 |
+| 창 크기·위치, 패널, 최근 파일, 마지막 연 파일, 브레이크포인트 | **저장하지 않음** | — |
+
+실습실 PC 는 여럿이 쓴다. 매 실행이 고정 기본값(QtSpim 의 기본값)에서 시작한다.
+`settings.json` 에는 `fontSize` 와 `dataBase` 두 키만 들어간다(`tests/e2e/settings.e2e.ts` 가 파일을 읽어 확인한다).
+
+**고급 항목** (Qt판 Simulator › Settings, Run Parameters):
+
+- **bare machine** — 늘 꺼져 있고 바꿀 수 없다. Qt판도 체크 상자를 숨기고 끈다(`QtSpim/menu.cpp` `sim_Settings`, "EDU").
+  켜면 교재의 `li`·`la`·`move` 가 문법 오류가 된다. 목록에는 두되 회색으로, 이유를 적어 둔다.
+- **의사 명령 허용, delayed branches, delayed loads, mapped I/O, quiet** — 애드온 `assemble()` 의 여섯째 인자로
+  코어 전역에 들어간다. 기본값은 QtSpim 의 것이다(`native/index.ts` `DEFAULT_MACHINE`).
+  delayed branches 를 켜고 어셈블하면 Inspector 가 분기 목적지를 PC+4 기준으로 계산한다(`MipsDelaySlot`).
+- **mapped I/O** 를 켜면 프로그램은 `input` 으로 멈추지 않고 수신 레지스터를 폴링한다. 그래서 실행 중에도
+  콘솔 입력 칸을 열고, 워커는 실행 중에도 `provideInput` 을 받는다.
+- **Run Parameters** — 인자 한 줄. `argv[0]` 은 늘 `program.s` 다(4절). 시작 주소 칸은 옮기지 않았다(`__start` 고정).
+- **예외 처리기** — 기본(`CPU/exceptions.s`) / 불러오지 않음 / 파일. "불러오지 않음"은 프로그램이 `__start` 를 직접 둔다.
+  애드온은 빈 처리기를 **읽지 않는다**. flex 는 0 바이트 버퍼를 스캔하지 못하고
+  `fatal_error("flex scanner push-back overflow")` 로 프로세스를 끝낸다(측정으로 확인). Qt판도 상자를 끄면 파일을 읽지 않는다.
+
+---
+
+## 13. 패키징 — 번들 하나, node_modules 없음
+
+`tools/package.ts` 가 `build/package/app/` 을 만들고 electron-builder 에 넘긴다.
+
+- 메인 프로세스와 시뮬레이터 프로세스를 esbuild 로 각각 한 파일(`main.js`, `worker.js`)로 묶는다.
+  이때 `process.env.SPIM_BUNDLE` 을 `"1"` 로 정의한다. `src/main/paths.ts`, `src/sim/transport.ts`, `native/index.ts` 는
+  이 값을 보고 파일을 번들 옆에서 찾는다. 소스 트리에서 돌릴 때(개발, 테스트)는 지금까지와 같다.
+- 애드온(`spim.node`)은 asar 밖(`app.asar.unpacked`)에 둔다. 네이티브 모듈은 asar 안에서 열 수 없다.
+- 패키지 안에 node_modules 는 없다. 쓰는 라이브러리는 모두 번들에 들어 있다.
+  electron-builder 는 기본으로 저장소의 `dependencies` 를 넣으려 해서 `files` 로 막았다.
+- 애드온은 Electron 헤더로 빌드한 것을 쓴다(`npm run build:electron`).
+- 같은 e2e 테스트가 패키지된 앱에서도 돈다(`SPIM_E2E_EXE`). 리눅스 `--dir` 빌드로 로컬에서, Windows 에서는 설치본으로 돌린다.
+
+**Qt판 1.x 와 나란히** (`tools/windows/check-side-by-side.ps1` 이 실제 1.2.4 MSI 옆에서 확인한다):
+
+| | Qt판 1.2.4 | 이 앱 |
+|---|---|---|
+| 설치 | MSI, 기기 단위(관리자), `Program Files\Hallym MIPS Simulator` | NSIS, **사용자 단위**(관리자 없이), `%LOCALAPPDATA%\Programs\…` |
+| 시작 메뉴 | 폴더 `Hallym MIPS Simulator` 안의 `Hallym MIPS Simulator` | **`Hallym MIPS Simulator 2`** |
+| 설정 | 레지스트리 `HKCU\Software\HallymMIPS\HallymMIPS` | 폴더 `%APPDATA%\HallymMIPS2` |
+| 제거 항목 | HKLM, 제품 코드 | HKCU, `Hallym MIPS Simulator 2.0.0-alpha.1` |
+| 실행 파일 | `HallymMIPS.exe` | `HallymMIPS.exe` (폴더가 달라 겹치지 않는다) |
+| `.s` 연결 | 없음 | 없음 |
+
+- 시작 메뉴 이름에 `2` 를 붙였다. 파일 경로는 원래 겹치지 않지만, 둘 다 "Hallym MIPS Simulator" 면 검색 결과에서
+  학생이 둘을 구별할 수 없다.
+- 버전은 `2.0.0-alpha.1`. 1.2.4 를 쓰던 학생이 1.0.0 을 보면 내려간 것으로 읽는다.
+- 서명하지 않았다. Windows SmartScreen 이 처음 실행 때 경고할 수 있다.
+
+**고지**: BSD 는 바이너리 배포에도 고지가 따라가야 한다. 설치 폴더에 `LICENSE.txt`(SPIM BSD 전문)와
+`NOTICE.txt` 가 실행 파일 옆에 있고, Electron 의 `LICENSE.electron.txt`·`LICENSES.chromium.html` 도 있다.
+설정 → 이 프로그램에 대하여 → 라이선스는 패키지 안 `licenses/` 의 같은 파일을 읽는다
+(`src/main/paths.ts` `LICENSES`). 번들된 npm 패키지의 라이선스는 esbuild 의 metafile 로 목록을 만든다
+(`tools/licenses.ts`). 손으로 적은 목록이 아니라서 빠질 수 없다.
+
+
+---
+
+## 14. 코어 타이머 — 쓰임새, 그리고 Windows 의 핸들 누수
+
+**무엇에 쓰이나.** `CPU/run.cpp` 의 `start_CP0_timer()`/`bump_CP0_timer()` 는 CP0 `Count` 레지스터를 10 ms 마다
+1 올리고, `Count == Compare` 가 되면 하드웨어 인터럽트 7 을 올린다. **그것뿐이다.** 실행 제한, 무한 루프 감지,
+syscall, 콘솔과는 관계없다(코어 전체에서 `bump_CP0_timer` 를 부르는 곳은 이 둘뿐).
+이 저장소들의 교과 자료(`slides/course`, 예제)에는 `mfc0`/`mtc0`, `Count`/`Compare`, 인터럽트가 나오지 않는다.
+그러니 교과목에는 **"안 쓰는 기능"** 이다. 인터럽트를 가르치게 되면 다시 볼 것.
+
+| | 리눅스 | Windows |
+|---|---|---|
+| 방식 | `signal(SIGALRM, SIG_IGN)` + `setitimer`, 명령마다 `getitimer` 로 만료를 확인 | 이름 붙은 대기 타이머 `"SPIMTimer"` + 호출 스레드에 오는 APC, 명령마다 `SleepEx(0, TRUE)` |
+| 시뮬레이터 프로세스 | 워커의 주 스레드가 코어를 부르므로 APC 도 그 스레드로 온다 | 같음 |
+
+**Windows 에서 잰 것** (`tools/probe-platform.ts`, CI 의 설치본, 끝없는 루프):
+
+| | 리눅스 (파일 디스크립터) | Windows (핸들) |
+|---|---|---|
+| 실행 중 | +0 | **1만 명령마다 +1** (CI 두 번: 초당 +364, +850 — 러너 속도 차) |
+| F10 한 번에 | +0 | **+1** |
+| 실행 속도 | 약 380만 명령/초 | 약 370만~860만 명령/초 (러너마다 다름. `SleepEx` 로 눈에 띄게 느려지지 않음) |
+
+원인: `start_CP0_timer()` 가 `run_spim()` 을 부를 때마다 `CreateWaitableTimer(NULL, TRUE, "SPIMTimer")` 를 부르고
+핸들을 닫지 않는다. 이름이 같으므로 커널 객체는 하나지만 **핸들은 부를 때마다 하나씩 는다.**
+이 앱은 정지가 늘 듣도록 1만 명령마다 `run_spim()` 을 다시 부르므로(ARCHITECTURE 3절) 초당 수백 개가 된다.
+Qt판도 같은 코어라 샌다. Qt판은 10만 명령마다 `run_spim()` 을 다시 부르므로(`QtSpim/menu.cpp` `sim_Run`)
+실행 속도가 같다면 이 앱의 10분의 1이다. 이 앱은 구간이 10배 짧아 10배 샌다.
+
+- 초당 400개로 1시간이면 약 140만 개. 프로세스 한도(약 1600만)에는 멀지만 핸들 표가 계속 커진다.
+  시뮬레이터 프로세스는 어셈블할 때마다 새로 뜨지 않으므로 한 세션 동안 쌓인다.
+- 이름이 **세션 전체에서 공유**된다. 이 앱 둘, 또는 이 앱과 Qt판이 동시에 프로그램을 실행하면 서로의
+  `SetWaitableTimer` 가 상대의 설정을 덮어, 한쪽의 `Count` 가 멈출 수 있다. 인터럽트를 쓰지 않으면 보이지 않는다.
+
+코어는 고치지 않았다. 고칠 방법(결정은 사용자에게):
+
+1. **빌드 단계의 대체**: MSVC 로 `CPU/run.cpp` 를 컴파일할 때만 강제 포함 헤더(`/FI`)로 `CreateWaitableTimer` 를
+   애드온의 함수로 바꾼다. 그 함수는 이름 없는 타이머를 한 번 만들어 계속 돌려준다. 코어 소스는 그대로이고
+   (`-iquote`, `-pyy` 와 같은 빌드 수준), 누수와 프로세스 간 공유가 함께 없어진다.
+2. **구간을 늘린다**: 1만 → 10만 명령이면 Qt판과 같은 비율이 된다. 대신 정지가 최대 약 26 ms 늦어진다.
+3. 그대로 둔다: 교과목이 인터럽트를 쓰지 않고, 한 실습 시간(몇 분의 실행)에는 수만 개 수준이다.

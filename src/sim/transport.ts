@@ -29,7 +29,10 @@ export interface Transport {
 
 export type TransportFactory = () => Transport;
 
-const WORKER = path.join(import.meta.dirname, 'worker.ts');
+// In the packaged app the worker is bundled next to the main process's
+// bundle (tools/package.ts, which defines SPIM_BUNDLE).
+const WORKER = process.env.SPIM_BUNDLE === '1'
+  ? path.join(import.meta.dirname, 'worker.js') : path.join(import.meta.dirname, 'worker.ts');
 const STDERR_KEPT = 8192;
 
 export function forkTransport(env: NodeJS.ProcessEnv = process.env): Transport {

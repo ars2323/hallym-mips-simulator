@@ -10,7 +10,7 @@
    visible (docs/screens/README.md).  Before anything is chosen it shows the
    sign character and says where to choose. */
 
-import { decode, formatName } from '../../../core/decoder.ts';
+import { decode, formatName, type BranchConvention } from '../../../core/decoder.ts';
 import { explain } from '../../../core/explain.ts';
 import { hex32 } from '../../../core/format.ts';
 import { instructionNoteLines, meaningOf } from '../../../core/instruction-text.ts';
@@ -45,8 +45,9 @@ export class Inspector {
           h('p', {}, '고른 명령의 비트 필드와 하는 일이 여기에 나옵니다.'))));
   }
 
-  show(row: TextRow, general: readonly number[]): void {
-    const d = decode(row.word, row.addr, 'SpimNoDelaySlot');
+  // `convention`: how the machine was assembled (Settings > delayed branches).
+  show(row: TextRow, general: readonly number[], convention: BranchConvention = 'SpimNoDelaySlot'): void {
+    const d = decode(row.word, row.addr, convention);
     const fields = d.fields.map((f) => {
       const width = f.high - f.low + 1;
       return {
@@ -68,7 +69,7 @@ export class Inspector {
         h('td', { class: 'mono' }, `${f.high}–${f.low}`), h('td', { class: 'mono' }, f.bits),
         h('td', { class: 'mono' }, f.value), h('td', { class: 'mono' }, f.meaning))));
     const e = explain(d, general, row.addr);
-    const note = instructionNoteLines(d, 'SpimNoDelaySlot')[0];
+    const note = instructionNoteLines(d, convention)[0];
     const format = formatName(d.format);
     this.body.replaceChildren(
       h('div', { class: 'ihead' },

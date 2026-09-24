@@ -17,11 +17,18 @@ export interface Running {
   close(): Promise<void>;
 }
 
-export async function launch(size: { width: number; height: number } = { width: 1280, height: 800 }): Promise<Running> {
+// SPIM_E2E_EXE: run the tests against a packaged app (its executable)
+// instead of the source tree -- the Windows CI job does, with the installed
+// HallymMIPS.exe.
+export async function launch(size: { width: number; height: number } = { width: 1280, height: 800 },
+                             options: { userData?: string } = {}): Promise<Running> {
   const dir = mkdtempSync(path.join(tmpdir(), 'spim-e2e-'));
-  const env = { ...process.env, SPIM_USER_DATA: path.join(dir, 'user-data') } as Record<string, string>;
+  const env = { ...process.env, SPIM_USER_DATA: options.userData ?? path.join(dir, 'user-data') } as Record<string, string>;
   delete env.ELECTRON_RUN_AS_NODE; // set by VS Code; Electron would run as plain Node
-  const app = await _electron.launch({ args: [path.join(root, 'src/main/main.ts')], env, cwd: root });
+  const exe = process.env.SPIM_E2E_EXE;
+  const app = exe
+    ? await _electron.launch({ executablePath: exe, args: [], env })
+    : await _electron.launch({ args: [path.join(root, 'src/main/main.ts')], env, cwd: root });
   const page = await app.firstWindow();
   const pageErrors: string[] = [];
   page.on('pageerror', (e) => pageErrors.push(e.message));

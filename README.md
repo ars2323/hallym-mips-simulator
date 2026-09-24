@@ -39,6 +39,10 @@ tests/
   spike/            첫 스파이크의 검사 스크립트
 tools/
   mutants.ts        테스트가 틀린 것을 잡는지 보이는 돌연변이 검사
+  package.ts        electron-builder 패키징 (docs/PORTING.md 13절)
+  licenses.ts       번들된 npm 패키지의 라이선스 모음
+  probe-platform.ts 시뮬레이터 핸들·네이티브 파일 대화상자 (플랫폼 확인)
+  windows/check-side-by-side.ps1  Qt판 1.2.4 옆에 설치해 보는 검사
   scanner-input-experiment.ts   소스 줄 표시 차이의 측정 (docs/PORTING.md 1절)
   gen-op-table.ts   CPU/op.h -> src/core/op-table.ts
   capture-default-goldens.ts    기본값 골든을 뜬다
@@ -49,6 +53,7 @@ src/main/            Electron 메인 프로세스(호스트: 시뮬레이터·�
 src/renderer/app/    창 (docs/ARCHITECTURE.md 6절)
 src/renderer/assets/ 한림대 자산·폰트·아이콘 (NOTICE 참고)
 src/examples/        첫 화면의 튜토리얼 예제
+packaging/icons/     앱 아이콘 (한림대학교 자산, Qt판에서 그대로)
 design/mockups/      레이아웃 시안 원본 (docs/mockups/README.md)
 docs/screens/        실제 앱 캡처와 시안 대조, 측정값 (docs/screens/README.md)
 docs/ARCHITECTURE.md  무엇이 어느 프로세스에 있고 왜인가
@@ -92,9 +97,13 @@ npm run e2e            # 실제 앱 e2e (Playwright)
 npm run screens        # 네 장면 × 세 크기 캡처와 대조표 → docs/screens/
 npm run measure:ui     # 창의 측정 → build/measure-ui.json
 npm run mockups        # 레이아웃 시안 → docs/mockups/
+npm run package        # 설치본(NSIS, 사용자 단위)과 zip → dist/ (Windows 에서; build:electron 먼저)
+npm run package:dir    # 이 플랫폼용 압축 풀린 패키지만 → dist/*-unpacked (확인용)
 ```
 
 창을 띄우는 것(electron, e2e, screens, measure:ui, 창 돌연변이)은 화면이 필요하다. 리눅스에서 화면이 없으면
 `xvfb-run -a -s '-screen 0 2400x1400x24' npm run e2e` 처럼 xvfb 로 돌린다.
 
-Windows 는 GitHub Actions(`windows.yml`)가 빌드하고 tt.core.s 워드를 골든과 대조한다. macOS 는 아직 시도하지 않았다.
+Windows 는 GitHub Actions(`windows.yml`)가 한다: 빌드, Node 테스트, 패키지, 설치본을 Qt판 1.2.4 옆에 깔아 겹치지 않는지,
+설치된 앱으로 e2e, 핸들·파일 대화상자·화면 캡처. 설치본과 zip 은 아티팩트로만 올린다(태그·릴리스 없음).
+결과와 손으로 확인할 것은 `docs/WINDOWS.md`. macOS 는 아직 시도하지 않았다.

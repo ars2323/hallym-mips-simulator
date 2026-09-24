@@ -8,20 +8,25 @@
    start from fixed defaults every time -- lab PCs are shared.  The settings
    file holds the font size and the number base, nothing else.
 
-   SPIM_USER_DATA (a directory) puts the settings file elsewhere: the tests
-   start every run from a fresh one. */
+   The settings live in their own folder, %APPDATA%\HallymMIPS2 on Windows
+   (userData), apart from the Qt build's (registry, HKCU\Software\HallymMIPS)
+   so that the two can be installed side by side.  SPIM_USER_DATA (a
+   directory) puts them elsewhere: the tests start every run from a fresh one. */
 
-import { app, BrowserWindow, dialog, ipcMain, Menu } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { decodeTextFile, encodeTextFile, NEW_FILE_FORMAT, type TextFileFormat } from '../node/text-file.ts';
+import { LICENSES, paths, version } from './paths.ts';
 import { Simulator } from '../sim/host.ts';
 import type { CallName } from '../sim/protocol.ts';
 import { utilityTransport } from '../sim/transport.ts';
 
-const root = path.join(import.meta.dirname, '..', '..');
-if (process.env.SPIM_USER_DATA) app.setPath('userData', process.env.SPIM_USER_DATA);
+app.setName('Hallym MIPS Simulator');
+// The Start menu shortcut carries this id (tools/package.ts appId): the window groups with it.
+if (process.platform === 'win32') app.setAppUserModelId('kr.ac.hallym.mips-simulator.electron');
+app.setPath('userData', process.env.SPIM_USER_DATA ?? path.join(app.getPath('appData'), 'HallymMIPS2'));
 
 // ---- settings: font size and number base, and nothing else --------------
 
@@ -84,7 +89,7 @@ async function main(): Promise<void> {
     title: '한림 MIPS 시뮬레이터',
     backgroundColor: '#f5f7fa',
     webPreferences: {
-      preload: path.join(import.meta.dirname, 'preload.cjs'),
+      preload: paths.preload,
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,
@@ -122,7 +127,25 @@ async function main(): Promise<void> {
     }));
   ipcMain.handle('example:open', (_e, name: string) => answer(() => {
     if (!/^[a-z0-9-]+\.s$/.test(name)) throw new Error(`no example ${name}`);
-    return openBytes(readFileSync(path.join(root, 'src/examples', name)), name, null);
+    return openBytes(readFileSync(path.join(paths.examples, name)), name, null);
+  }));
+  // An exception handler for Settings > 고급: its name and text (decoded like a program).
+  ipcMain.handle('file:openHandler', () => answer(async () => {
+    const r = await dialog.showOpenDialog(win, { title: '예외 처리기 파일', filters: [{ name: 'MIPS 어셈블리', extensions: ['s', 'asm', 'a'] }, { name: '모든 파일', extensions: ['*'] }] });
+    if (r.canceled || r.filePaths.length === 0) return null;
+    return { name: path.basename(r.filePaths[0]), text: decodeTextFile(readFileSync(r.filePaths[0])).text };
+  }));
+  ipcMain.handle('about:info', () => ({
+    version, electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node,
+    licenses: LICENSES.map((l) => l.title),
+  }));
+  ipcMain.handle('about:license', (_e, i: number) => answer(() => {
+    if (i === LICENSES.length) return readFileSync(paths.electronLicense(), 'utf8');
+    return readFileSync(paths.license(LICENSES[i].name), 'utf8');
+  }));
+  ipcMain.handle('about:openCredits', () => answer(async () => {
+    const error = await shell.openPath(paths.chromiumCredits());
+    if (error) throw new Error(error);
   }));
   ipcMain.handle('settings:get', () => readSettings());
   ipcMain.handle('settings:set', (_e, s: Settings) => {
@@ -130,7 +153,7 @@ async function main(): Promise<void> {
     return readSettings();
   });
 
-  await win.loadFile(path.join(root, 'src/renderer/app/index.html'));
+  await win.loadFile(paths.page);
 }
 
 app.on('window-all-closed', () => app.quit());

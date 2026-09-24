@@ -242,4 +242,19 @@ describe('console input through the simulator process', { timeout: 60000 }, () =
       sim.close();
     }
   });
+
+  test('with mapped I/O the program polls while it runs, and input given meanwhile reaches it', async () => {
+    const sim = await Simulator.start();
+    try {
+      await sim.assemble('main: lui $t0, 0xffff\nw: lw $t1, 0($t0)\n andi $t1, $t1, 1\n beq $t1, $0, w\n lw $t4, 4($t0)\n li $v0, 10\n syscall\n',
+                         { machine: { mappedIo: true } });
+      const running = sim.run();
+      await new Promise((r) => setTimeout(r, 200));
+      await sim.call('provideInput', 'q\n');
+      assert.equal((await running).reason, 'exit');
+      assert.equal((await sim.registers()).general[12], 'q'.charCodeAt(0));
+    } finally {
+      sim.close();
+    }
+  });
 });

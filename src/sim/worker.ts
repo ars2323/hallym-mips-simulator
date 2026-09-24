@@ -102,8 +102,10 @@ const handlers: { [M in CallName]: Handler } = {
 
 // While a run is going on, only reads and stop are served; anything that
 // would change the machine under it is refused.
+// provideInput too: with mapped I/O the program polls the console's
+// registers while it runs instead of stopping with 'input'.
 const WHILE_RUNNING = new Set<CallName>(['stop', 'breakpoints', 'registers', 'registerNames', 'segments',
-                                         'textSegment', 'readWords', 'readBytes', 'disassemble']);
+                                         'textSegment', 'readWords', 'readBytes', 'disassemble', 'provideInput']);
 
 async function serve(request: Request): Promise<void> {
   const { id, method, args } = request;

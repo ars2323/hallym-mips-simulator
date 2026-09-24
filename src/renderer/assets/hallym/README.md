@@ -71,3 +71,9 @@
   같은 원본에서 만든 것을 그대로 가져왔다(Qt판 커밋 `0d7eb5c`: .ai → PDF(Ghostscript, `-dEPSCrop`)
   → SVG(pdftocairo). 마크마다 색이 있는 픽셀로 잘라내고 치수 안내선만 걷어냈다. 색·비율·요소는 그대로다).
 - 받은 날: 2026-09-24. zip 은 풀고 지웠다.
+
+## 앱 아이콘 — `packaging/icons/`
+
+설치본의 실행 파일·바로가기·창 아이콘. 한림대학교 심벌로 만든 것으로, 위와 같은 고지가 적용된다.
+Qt판 `QtSpim/edu/theme/brand/` 의 `app-16.png` ~ `app-256.png`, `HallymMIPS.ico` 를 바이트 그대로 복사했다.
+다시 만들거나 크기·색을 바꾸지 않는다.

@@ -7,6 +7,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
+import { pathToFileURL } from 'node:url';
 
 import * as spim from '../../native/index.ts';
 import { root } from '../helpers/machine.ts';
@@ -41,7 +42,7 @@ test('the file name does not move the stack', () => {
 
 test('the process environment does not move the stack', () => {
   const script = `
-    import * as spim from ${JSON.stringify(path.join(root, 'native/index.ts'))};
+    import * as spim from ${JSON.stringify(pathToFileURL(path.join(root, 'native/index.ts')).href)};
     import { readFileSync } from 'node:fs';
     spim.assemble(readFileSync(${JSON.stringify(path.join(root, 'tests/programs/helloworld.s'))}));
     while (spim.step(100000));

@@ -17,7 +17,13 @@ test('tt.core.s: name, format and fields of every instruction', () => {
   assert.equal(r.instructions, 4758);
   assert.equal(r.fieldChecks, 4749);
   assert.deepEqual(Object.fromEntries(r.quirks), { 'movt->movf': 2, 'movt.d->movf.d': 2, 'movt.s->movf.s': 2 });
-  assert.deepEqual(Object.fromEntries(r.release2), { 'trunc.w.s->suxc1': 3 });
+  // Two pairs of names share one encoding in CPU/op.h (trunc.w.s/suxc1,
+  // floor.w.s/prefx).  The core sorts its opcode table with qsort, which
+  // leaves equal keys in an order of the C library's choosing, so which name
+  // the core's disassembly shows depends on the platform: glibc and MSVC
+  // choose differently (docs/PORTING.md 7, "같은 워드의 두 이름").
+  assert.deepEqual(Object.fromEntries(r.release2),
+                   process.platform === 'win32' ? { 'floor.w.s->prefx': 3 } : { 'trunc.w.s->suxc1': 3 });
 });
 
 for (const name of ['tt.alu.bare.s', 'tt.fpu.bare.s', 'tt.le.s', 'tt.dir.s', 'helloworld.s']) {

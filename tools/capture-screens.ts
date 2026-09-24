@@ -8,12 +8,15 @@
    The content is the mockups': lab04.s with its error (B), lab04-ok.s
    stepped 16 times (C), then sra $s1, $t6, 1 chosen (D). */
 
+import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { launch, openAndAssemble, root, sample, settled } from '../tests/e2e/harness.ts';
 
-const out = path.join(root, 'docs/screens');
+// SCREENS_OUT: somewhere else, without the sheet (the Windows CI job's own captures).
+const out = process.env.SCREENS_OUT ? path.resolve(process.env.SCREENS_OUT) : path.join(root, 'docs/screens');
+mkdirSync(out, { recursive: true });
 const SIZES: [number, number][] = [[1920, 1080], [1280, 800], [960, 1080]];
 
 for (const [width, height] of SIZES) {
@@ -41,7 +44,7 @@ for (const [width, height] of SIZES) {
   await page.waitForSelector('.insp:not([hidden]) .bits');
   await page.mouse.move(0, 0);
   await shot('D');
-  if (width === SIZES[SIZES.length - 1][0]) {
+  if (width === SIZES[SIZES.length - 1][0] && !process.env.SCREENS_OUT) {
     await page.goto(pathToFileURL(path.join(out, 'sheet.html')).href);
     await page.evaluate(() => Promise.all([...document.images].map((i) => i.decode())));
     await page.screenshot({ path: path.join(out, 'sheet.png'), fullPage: true });
