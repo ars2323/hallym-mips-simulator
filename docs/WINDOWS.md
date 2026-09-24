@@ -83,7 +83,7 @@ Windows 에서 돌려 본 것은 GitHub Actions 의 `windows-latest`(Windows Ser
   버튼 글자는 OS 언어를 따른다(영문 Windows 에서 OK/Cancel).
 
 캡처: CI 아티팩트 `windows-report` 의 `report/probe/dialog-save.png`, `dialog-open.png`,
-네 장면 × 세 크기는 `report/screens/`.
+고정 세트(`docs/screens/README.md`)는 `report/screens/`, 그중 `windows-frame.png` 는 `docs/screens/` 로 가져온다.
 
 ## 손으로 확인할 것
 

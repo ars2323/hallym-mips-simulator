@@ -5,7 +5,7 @@ Hallym MIPS — MIPS 시뮬레이터의 Electron판. 지금 있는 것은 넷이
 - SPIM 코어를 감싼 Node 애드온
 - 코어를 자기 프로세스에서 돌리는 실행 제어(실행·정지·브레이크포인트·콘솔 입출력)
 - Qt판(`hallym-mips-simulator`)의 `QtSpim/edu/core` 를 옮긴 순수 TS 모듈
-- 창: 방향 1 "무대 전환"의 네 장면 — 첫 화면, 코드 작성, 한 줄씩 실행, Inspector (`docs/screens/`)
+- 창: Editor | Run 좌우 분할 — 첫 화면, 코드 작성, 한 줄씩 실행, Inspector, Data (화면: `docs/screens/`)
 
 Qt판과 같은 결과를 내는지는 골든과 코어 대조 테스트가 확인한다. 구조는 `docs/ARCHITECTURE.md`,
 Qt판과 다르게 한 것은 `docs/PORTING.md` 에 있다.
@@ -47,7 +47,7 @@ tools/
   gen-op-table.ts   CPU/op.h -> src/core/op-table.ts
   capture-default-goldens.ts    기본값 골든을 뜬다
   build-ui.ts       창 스크립트 번들 (esbuild) -> build/renderer/app.js
-  capture-screens.ts   실제 앱의 네 장면 × 세 크기 -> docs/screens/
+  capture-screens.ts   실제 앱 화면의 고정 세트 -> docs/screens/
   measure-ui.ts     레지스터 갱신·실행 중 프레임·tt.core.s Text 측정
 src/main/            Electron 메인 프로세스(호스트: 시뮬레이터·파일·설정)와 preload
 src/renderer/app/    창 (docs/ARCHITECTURE.md 6절)
@@ -55,7 +55,8 @@ src/renderer/assets/ Hallym University 자산·폰트·아이콘 (NOTICE 참고)
 src/examples/        첫 화면의 튜토리얼 예제
 packaging/icons/     앱 아이콘 (Hallym University 자산, Qt판에서 그대로)
 design/mockups/      레이아웃 시안 원본 (docs/mockups/README.md)
-docs/screens/        실제 앱 캡처와 시안 대조, 측정값 (docs/screens/README.md)
+docs/screens/        실제 앱 화면의 고정 세트, 라운드마다 다시 찍음 (docs/screens/README.md)
+docs/UI-ROUND1.md    창 1차: 시안과 다른 곳, 캐릭터 자리, 잰 값
 docs/ARCHITECTURE.md  무엇이 어느 프로세스에 있고 왜인가
 docs/PORTING.md       Qt판과 다르게 한 것, 고치면 안 되는 것
 .github/workflows/windows.yml   Windows 빌드 + tt.core.s 워드 검사 (이것 하나)
@@ -94,7 +95,7 @@ npm run build:electron # 애드온을 Electron 헤더로 (N-API 라 Node 빌드�
 npm run build:ui       # 창 스크립트 번들 (electron·e2e·screens 가 먼저 부른다)
 npm run electron       # 앱을 띄운다
 npm run e2e            # 실제 앱 e2e (Playwright)
-npm run screens        # 네 장면 × 세 크기 캡처와 대조표 → docs/screens/
+npm run screens        # 화면 고정 세트 → docs/screens/ (docs/screens/README.md)
 npm run measure:ui     # 창의 측정 → build/measure-ui.json
 npm run mockups        # 레이아웃 시안 → docs/mockups/
 npm run package        # 설치본(NSIS, 사용자 단위)과 zip → dist/ (Windows 에서; build:electron 먼저)

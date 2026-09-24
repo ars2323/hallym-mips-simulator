@@ -105,7 +105,7 @@ jobs:
           $env:SPIM_E2E_EXE = (Get-Content report/installed.txt).Trim()
           node tools/probe-platform.ts report/probe --expect-no-leak
 
-      - name: The four scenes, captured on Windows
+      - name: The fixed set of screens (docs/screens/README.md), captured on Windows
         if: always() && hashFiles('report/installed.txt') != ''
         timeout-minutes: 10
         shell: pwsh

@@ -77,8 +77,8 @@ export function sample(dir: string, from: string, name = path.basename(from)): s
   return target;
 }
 
-// Opens `file` through the open dialog (Ctrl+O) and assembles it (Ctrl+S saves in place).
-export async function openAndAssemble(r: Running, file: string): Promise<void> {
+// Opens `file` through the open dialog (Ctrl+O), without assembling it.
+export async function openOnly(r: Running, file: string): Promise<void> {
   await answerOpen(r.app, file);
   await r.page.keyboard.press('Control+o');
   // Unsaved text first: the window asks (its own dialog); go on without it.
@@ -86,6 +86,11 @@ export async function openAndAssemble(r: Running, file: string): Promise<void> {
   await ask.waitFor({ timeout: 300 }).then(() => ask.getByRole('button', { name: '버리고 계속' }).click(), () => {});
   await r.page.waitForSelector('.editor-panel .cm-content');
   await r.page.waitForFunction(() => document.querySelector('.cm-content')?.textContent !== '');
+}
+
+// Opens `file` through the open dialog (Ctrl+O) and assembles it (Ctrl+S saves in place).
+export async function openAndAssemble(r: Running, file: string): Promise<void> {
+  await openOnly(r, file);
   await r.page.locator('.cm-content').click();
   await r.page.keyboard.press('Control+s');
   await r.page.waitForSelector('.run-grid:not([hidden]), .errors:not([hidden]), .status .err');

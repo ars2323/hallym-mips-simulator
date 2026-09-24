@@ -185,7 +185,7 @@ src/renderer/app/
   시작한다(실습실 PC 는 여럿이 쓴다). 설정 파일(`userData/settings.json`)에는 글자 크기와 Data 진법만 있다.
   Ctrl + / Ctrl − 는 이번 실행에만 적용된다.
 - 레지스터 패널은 레지스터마다 DOM 행을 한 번 만들고, 멈출 때마다 글자가 바뀐 칸과 강조가 바뀐 행만 고친다.
-  Text 는 보이는 행과 앞뒤 10행만 DOM 에 둔다. 둘 다 잰 값은 `docs/screens/README.md` 에 있다.
+  Text 는 보이는 행과 앞뒤 10행만 DOM 에 둔다. 둘 다 잰 값은 `docs/UI-ROUND1.md` 에 있다.
 
 ## 7. 패키지된 앱
 
