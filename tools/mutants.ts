@@ -301,6 +301,8 @@ const MUTANTS: Mutant[] = [
   { module: 'window', file: 'src/renderer/app/app.css', what: 'the buttons lose their names before their icons',
     find: '.titlebar.c3 .toolbar .btn img { display: none; }', replace: '.titlebar.c3 .toolbar .btn .label { display: none; }',
     tests: ['tests/e2e/fit.e2e.ts'] },
+  { module: 'window', file: 'src/renderer/app/app.ts', what: 'the title bar never gives way',
+    find: '    if (tools.getBoundingClientRect().right <= end() + 0.5) return;', replace: '    return;', tests: ['tests/e2e/fit.e2e.ts'] },
   { module: 'window', file: 'src/renderer/app/app.ts', what: 'a toolbar on the first screen',
     find: '  toolbar.hidden = !open;', replace: '  toolbar.hidden = false;', tests: ['tests/e2e/fit.e2e.ts'] },
   { module: 'window', file: 'src/renderer/app/app.css', what: 'Korean words broken anywhere',

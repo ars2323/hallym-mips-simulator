@@ -51,7 +51,17 @@ for (const size of SIZES) {
         await expect(page.locator('.toolbar .btn .label', { hasText: new RegExp(`^${name}$`) })).toBeVisible();
       }
       expect(await shown(page, '.speedlabel, .speedone .label')).toEqual([expect.stringMatching(/^(Run speed|Speed: Instant)$/)]);
-      expect(await page.locator('.titlebar').evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+      // Nothing of ours under the system's caption buttons.
+      expect(await page.evaluate(() => {
+        const o = (navigator as unknown as { windowControlsOverlay: { getTitlebarAreaRect(): DOMRect } }).windowControlsOverlay.getTitlebarAreaRect();
+        return document.querySelector('.titlebar .tools')!.getBoundingClientRect().right <= o.x + o.width + 0.5;
+      })).toBe(true);
+      // The line of PC in Text's view.
+      expect(await page.evaluate(() => {
+        const v = document.querySelector('.text')!.getBoundingClientRect();
+        const pc = document.querySelector('.trow.pc')!.getBoundingClientRect();
+        return pc.top >= v.top - 0.5 && pc.bottom <= v.bottom + 0.5;
+      })).toBe(true);
       // Panel heads hold their names and switches ("+ Source" and all).
       for (const head of ['.regs .phead', '.textpanel .phead', '.insp .phead', '.console .phead']) {
         expect(await page.locator(head).evaluate((e) => e.scrollWidth <= e.clientWidth), head).toBe(true);

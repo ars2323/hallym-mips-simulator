@@ -407,11 +407,15 @@ function renderChrome(): void {
 // The title bar gives way one step at a time, as far as it has to: the key
 // hints, the program's name (the logo stays), the buttons' icons (their
 // names stay), then the speed as one button.
+// It fits when its last item ends before the padding kept for the system's
+// caption buttons (scrollWidth does not count what spills into padding).
 const TITLE_STEPS = 4;
+const tools = titlebar.querySelector('.tools') as HTMLElement;
 function fitTitlebar(): void {
+  const end = () => titlebar.getBoundingClientRect().right - parseFloat(getComputedStyle(titlebar).paddingRight);
   for (let level = 0; level <= TITLE_STEPS; level += 1) {
     for (let k = 1; k <= TITLE_STEPS; k += 1) titlebar.classList.toggle(`c${k}`, level >= k);
-    if (titlebar.scrollWidth <= titlebar.clientWidth) return;
+    if (tools.getBoundingClientRect().right <= end() + 0.5) return;
   }
 }
 

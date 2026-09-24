@@ -77,7 +77,12 @@ export class TextPanel {
     this.data.onToggles = (buttons) => { if (this.tab === 'data') this.setAside(buttons); };
     this.dataView.hidden = true;
     this.root = h('section', { class: 'panel textpanel', 'aria-label': 'Text' }, this.head.root, this.textView, this.dataView);
-    new ResizeObserver(() => { this.fit(); this.renderWindow(); }).observe(this.viewport);
+    // Resized (a window maximised, a fold line wrapping): PC stays in view.
+    new ResizeObserver(() => {
+      this.fit();
+      const i = this.shown.findIndex((x) => x.addr === this.pc);
+      if (i >= 0) this.reveal(i); else this.renderWindow();
+    }).observe(this.viewport);
   }
 
   // The least width Address, Encoding, Format and Instruction take, with
