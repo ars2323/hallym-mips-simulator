@@ -47,7 +47,13 @@ export async function launch(size: { width: number; height: number } = { width: 
 }
 
 export async function resize(r: { app: ElectronApplication; page: Page }, size: { width: number; height: number }): Promise<void> {
-  await r.app.evaluate(({ BrowserWindow }, s) => BrowserWindow.getAllWindows()[0].setContentSize(s.width, s.height), size);
+  // A small screen (the Windows CI runner's is 1024x768) opens the window
+  // maximised, and a maximised window keeps its size: restore it first.
+  await r.app.evaluate(({ BrowserWindow }, s) => {
+    const win = BrowserWindow.getAllWindows()[0];
+    if (win.isMaximized()) win.unmaximize();
+    win.setContentSize(s.width, s.height);
+  }, size);
   // (At a fractional device scale the window can land a pixel off.)
   await r.page.waitForFunction((s) => Math.abs(window.innerWidth - s.width) <= 1 && Math.abs(window.innerHeight - s.height) <= 1, size);
 }
