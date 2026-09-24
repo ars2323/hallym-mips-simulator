@@ -96,7 +96,7 @@ if ($Phase -eq 'before') {
     Check (Test-Path (Join-Path $dir $f)) "notice next to the program: $f"
   }
   Check (Test-Path $ourMenu) 'Start menu: Hallym MIPS'
-  Check (-not (Test-Path (Join-Path $env:LOCALAPPDATA 'hallym mips-updater'))) 'no copy of the installer kept (no updater folder)'
+  Check (-not (Test-Path (Join-Path $env:LOCALAPPDATA 'hallym-mips-updater'))) 'no copy of the installer kept (no updater folder)'
   $size = (Get-ChildItem $dir -Recurse -File | Measure-Object Length -Sum).Sum
   Note ('installed size: {0:N1} MB' -f ($size / 1MB))
   Get-ChildItem $dir -Recurse -File | Sort-Object Length -Descending | Select-Object -First 15 |

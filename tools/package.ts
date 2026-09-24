@@ -65,8 +65,9 @@ async function stageApp(): Promise<void> {
   for (const [name, source] of Object.entries(LICENSE_SOURCES)) cpSync(path.join(root, source), at('licenses', name));
 
   writeFileSync(at('package.json'), JSON.stringify({
-    // The name is what the per-user install folder is called: Hallym MIPS.
-    name: 'Hallym MIPS', productName: 'Hallym MIPS', version: pkg.version,
+    // An npm name (no blanks, lower case); the install folder is still
+    // called "Hallym MIPS": packaging/installer.nsh sets it.
+    name: 'hallym-mips', productName: 'Hallym MIPS', version: pkg.version,
     description: 'MIPS simulator for Hallym University (based on SPIM 9.1.24)',
     author: 'AIAC Lab, Hallym University', license: 'BSD-3-Clause', type: 'module', main: 'main.js',
   }, null, 1));
