@@ -52,18 +52,20 @@ Node 테스트에서는 같은 호스트가 `child_process.fork()` 로 띄운다
 | `run()` | 프로그램이 멈출 때: `{reason, pc, errors}` |
 | `step(n)` | n 개를 실행한 뒤(또는 그 전에 멈추면 그때) |
 | `stop()` | 즉시(`{wasRunning}`). 실제로 멈춘 결과는 진행 중이던 `run()` 의 응답으로 온다 |
+| `provideInput(text)` | 즉시. 콘솔 입력 한 줄 이상(UTF-8 로 바꿔 코어의 입력 대기열에 넣는다). 아래 "콘솔 입력" |
 | `setBreakpoint` · `clearBreakpoint` · `breakpoints` | 즉시 |
 | `registers` · `readWords` · `readBytes` · `textSegment` · `segments` · `registerNames` · `disassemble` | 즉시. 실행 중이면 구간과 구간 사이에 |
 
 - 실행 중에는 읽기와 `stop` 만 받는다. 머신을 바꾸는 요청(`assemble`, 브레이크포인트 설정, 두 번째 `run`)은
   `busy` 로 거절한다. 구간 사이에 읽으므로 레지스터와 메모리는 늘 한 시점의 것이다.
-- 멈춘 이유(`reason`)는 다섯 가지다. UI 는 각각 다르게 반응한다.
+- 멈춘 이유(`reason`)는 여섯 가지다. UI 는 각각 다르게 반응한다.
 
 | reason | 뜻 |
 |---|---|
 | `exit` | 프로그램이 끝났다(syscall exit). 다음 `run` 은 처음부터 다시 시작한다(QtSpim 과 같음) |
 | `error` | 코어가 실행 오류를 냈고 더 갈 수 없다. `errors` 에 코어의 문장이 있다 |
 | `breakpoint` | PC 가 브레이크포인트에 있다. 그 명령은 아직 실행되지 않았다. 다음 `run`/`step` 이 그 명령부터 실행한다 |
+| `input` | PC 가 읽기 syscall(5·6·7·8·12)에 있고 읽을 입력이 없다. syscall 은 아직 실행되지 않았다. `provideInput` 뒤 다음 `run`/`step` 이 그 syscall 부터 실행한다 |
 | `stopped` | 사용자가 `stop()` 했다. 머신은 멈춘 그대로다 |
 | `limit` | `step(n)` 이 n 개를 다 실행했다 |
 
@@ -78,6 +80,15 @@ Node 테스트에서는 같은 호스트가 `child_process.fork()` 로 띄운다
 **콘솔 바이트 → 텍스트**: 코어는 바이트를 찍는다. 애드온은 바이트를 그대로 넘기고, 워커가
 스트리밍 `TextDecoder` 로 디코딩한다. 한글 한 글자가 `print_char` 로 한 바이트씩, 서로 다른 구간에서
 찍혀도 글자가 깨지지 않는다(`tests/sim/process.test.ts` 4).
+
+**콘솔 입력**: 코어는 읽기 syscall 한가운데서 `read_input()` 을 **동기로** 부른다. 거기서 기다리면
+워커가 멈추고, 그러면 `stop` 도 읽기도 받을 수 없다. 그래서 기다리지 않고 **되감는다**.
+대기열이 비어 있으면 애드온이 그 syscall 직전의 PC·`$v0`·`$f0` 를 적어 두고 `force_break` 를 켠다.
+코어가 멈추면 `run` 이 셋을 되돌리고 `input` 을 돌려준다. 머신은 syscall 을 실행하기 전과 똑같다.
+`provideInput` 은 바이트를 대기열에 넣기만 한다. 다음 `run`/`step` 이 syscall 을 처음부터 실행하고,
+그때 `read_input()` 이 대기열에서 한 줄을 가져간다(SPIM 콘솔과 같은 줄 단위).
+호스트는 막히지 않고, 입력을 기다리는 동안 머신은 멈춰 있는 것과 같아 무엇이든 읽을 수 있다.
+새 프로그램을 어셈블하면 남은 입력은 버린다. (`docs/PORTING.md` 10절)
 
 **죽음**: 프로세스가 끝나면(아래 3절) 호스트는 기다리던 모든 요청을 `SimulatorCrashed` 로 끝낸다.
 그리고 `crashed` 이벤트(`message: '시뮬레이터가 중단되었습니다'`)를 내고 새 프로세스를 띄운다.
@@ -131,9 +142,8 @@ Node 테스트에서는 같은 호스트가 `child_process.fork()` 로 띄운다
 Windows 의 코어 타이머(이름 있는 대기 타이머 + APC)는 호출한 스레드에 붙으므로, 워커가 코어를 늘
 메인 스레드에서 부르는 지금 구조를 유지한다. (Windows 에서 Electron 으로 도는 것은 아직 확인하지 않았다.)
 
-배선 확인: `npm run smoke:electron`. 창을 띄워 예제를 어셈블·실행하고 레지스터를 찍는다.
-`.err` 로 utility process 를 죽인 뒤 다시 띄워 한 번 더 실행하고, 창을 캡처한 다음 결과에 따라 0/1 로 끝난다.
-캡처: `docs/images/wiring-check.png`.
+이 확인은 이제 창의 e2e 테스트가 한다: `.err` 로 utility process 를 죽이고, 창이 그 사실을 알린 뒤
+새 프로세스로 어셈블·실행을 이어 가는지(`tests/e2e/flows.e2e.ts` 마지막 테스트).
 
 ## 5. 테스트가 지키는 것
 
@@ -144,4 +154,31 @@ Windows 의 코어 타이머(이름 있는 대기 타이머 + APC)는 호출한 
 | `fatal_error` 로 자식이 죽어도 호스트가 알아차리고 새로 띄운다 | 같은 파일 3a, 3b(최후 수단 kill) |
 | 콘솔 출력이 실행 중에 나뉘어 도착한다(한글 바이트 포함) | 같은 파일 4 |
 | 다섯 가지 멈춤 이유가 구분된다, 실행 중 쓰기는 거절된다 | 같은 파일 |
-| 위 테스트가 틀린 구현을 실제로 잡는다 | `tools/mutants.ts` (경계·실행 제어 돌연변이 14개 포함, 그중 4개는 애드온을 다시 빌드한다) |
+| 입력이 없으면 syscall 앞에서 멈추고(PC·`$v0`·`$f0` 그대로), 입력을 주면 이어서 읽는다 | `tests/node/console-input.test.ts`, `tests/sim/process.test.ts` 마지막 묶음 |
+| 창: 첫 화면 → 새 파일 → 붙여넣기 → Ctrl+S → 오류 → 고치기 → Text, F10, Inspector, 브레이크포인트, 무한 루프 정지, 콘솔 입력, 프로세스 사망 | `tests/e2e/flows.e2e.ts` (Playwright `_electron.launch()`, 실제 앱) |
+| 창: 한글 조합이 깨지지 않고, 조합 중 Ctrl+S 는 조합이 끝난 뒤 저장한다 | `tests/e2e/ime.e2e.ts` (CDP `Input.imeSetComposition`) |
+| 창: 16진수가 나올 수 있는 모든 자리가 D2Coding 이다 | `tests/e2e/hex-mono.e2e.ts` (그려진 DOM 의 텍스트 노드 전부) |
+| 위 테스트가 틀린 구현을 실제로 잡는다 | `tools/mutants.ts` (경계·실행 제어·콘솔 입력 돌연변이 포함, 그중 7개는 애드온을 다시 빌드하고 8개는 창을 띄운다) |
+
+## 6. 창
+
+```text
+src/main/main.ts        호스트. 시뮬레이터, 파일 열기·저장(인코딩 판별·변환), 예제, 설정 파일
+src/main/preload.cjs    창이 밖으로 나가는 유일한 길: window.app (call, stop, 파일, 설정, 이벤트)
+src/renderer/app/
+  app.ts                장면 A·B·C·D 와 상태(국면, 실행 상태, 선택, 브레이크포인트), 키
+  editor.ts             CodeMirror 6 + src/core/mips-syntax.ts 색, 오류 줄, 조합 중 Ctrl+S
+  panels/               registers · text(가상 목록 + Data) · inspector · console · welcome
+  logic/                순수: 레지스터 행·바뀐 것, Text 행, 멈춤 → 상태, 보이는 행 범위
+  perf.ts               패널 갱신 비용 기록(window.__perf, tools/measure-ui.ts 가 읽는다)
+```
+
+- 창은 코어도 Node 도 모른다. `src/core/` 의 순수 모듈을 번들해 쓰고(`tools/build-ui.ts`, esbuild),
+  시뮬레이터에는 `window.app.call(method, …args)` 로만 말을 건다. 메인은 그것을 `Simulator` 에 그대로 넘긴다
+  (`run` 만은 `sim.run()` 으로, `stop()` 이 진행 중인 실행을 알도록).
+- **상태를 되살리지 않는다.** 창 크기, 패널, 최근 파일, 열린 파일, 브레이크포인트 모두 매번 고정 기본값에서
+  시작한다(실습실 PC 는 여럿이 쓴다). 설정 파일(`userData/settings.json`)에는 글자 크기와 Data 진법만 있다.
+  Ctrl + / Ctrl − 는 이번 실행에만 적용된다.
+- 레지스터 패널은 레지스터마다 DOM 행을 한 번 만들고, 멈출 때마다 글자가 바뀐 칸과 강조가 바뀐 행만 고친다.
+  Text 는 보이는 행과 앞뒤 10행만 DOM 에 둔다. 둘 다 잰 값은 `docs/screens/README.md` 에 있다.
+

@@ -8,3 +8,5 @@ dist/
 *.zip
 *.ttf
 *.otf
+test-results/
+playwright-report/

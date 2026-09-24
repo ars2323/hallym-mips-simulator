@@ -22,8 +22,9 @@ export interface TextWord {
   breakpoint: boolean;
 }
 
-/* Why a run() stopped.  "limit" means there is more to run. */
-export type RunStop = 'exit' | 'error' | 'breakpoint' | 'limit';
+/* Why a run() stopped.  "limit" means there is more to run; "input" that
+   PC is at a read syscall waiting for provideInput(). */
+export type RunStop = 'exit' | 'error' | 'breakpoint' | 'input' | 'limit';
 
 export interface Registers {
   pc: number;
@@ -34,6 +35,7 @@ export interface Registers {
   badVAddr: number;
   status: number;
   general: number[]; // $0..$31, unsigned
+  fp: number[];      // $f0..$f31 as raw 32-bit words (a double is $f2n, $f2n+1)
 }
 
 export interface Segments {
@@ -49,6 +51,7 @@ interface NativeCore {
            env: Uint8Array[], fileName: Uint8Array): { ok: boolean; errors: string[]; symbols: string };
   run(steps: number): RunStop;
   consoleOutput(): Uint8Array;
+  provideInput(bytes: Uint8Array): void;
   setBreakpoint(addr: number): boolean;
   clearBreakpoint(addr: number): boolean;
   breakpoints(): string;
@@ -138,7 +141,7 @@ export function assemble(source: Uint8Array | string, options: AssembleOptions =
 export const run = (steps: number): RunStop => core.run(steps);
 
 /** QtSpim's Single Step, n times (Run is a large n).  Returns whether the
-    program can go on -- at a breakpoint too. */
+    program can go on -- at a breakpoint or waiting for input too. */
 export function step(n = 1): boolean {
   const stop = core.run(n);
   return stop !== 'exit' && stop !== 'error';
@@ -147,6 +150,10 @@ export function step(n = 1): boolean {
 /** What the program printed since the last call, as bytes (UTF-8 when the
     program prints what its UTF-8 source put in memory). */
 export const consoleOutput = (): Uint8Array => core.consoleOutput();
+
+/** Queues console input for the program's read syscalls, as UTF-8.  A line
+    typed at the console is its text and '\n'. */
+export const provideInput = (text: string): void => core.provideInput(utf8(text));
 
 const checkAddress = (addr: number): void => {
   if (!Number.isInteger(addr) || addr < 0 || addr > 0xffffffff) throw new TypeError(`not an address: ${addr}`);

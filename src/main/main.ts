@@ -1,34 +1,88 @@
 /* Electron's main process: the host.  It owns the Simulator (src/sim/host.ts),
-   whose core runs in a utility process, and relays calls from the window and
-   events back to it.  The window only ever sees window.sim (preload.cjs).
+   whose core runs in a utility process, and everything that touches the
+   disk: source files (decoded and encoded here, src/node/text-file.ts), the
+   example programs, and the one settings file.  The window sees only
+   window.app (preload.cjs).
 
-   For now the window is the wiring check (src/renderer/wiring/), not the
-   UI: assemble an example, run it, show a few registers.
+   Nothing of a session is restored: window size, panels and recent files
+   start from fixed defaults every time -- lab PCs are shared.  The settings
+   file holds the font size and the number base, nothing else.
 
-     node tools/electron.ts                    open it
-     node tools/electron.ts --smoke OUT.png    run the check, save a capture, exit 0/1
-*/
+   SPIM_USER_DATA (a directory) puts the settings file elsewhere: the tests
+   start every run from a fresh one. */
 
-import { app, BrowserWindow, ipcMain } from 'electron';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { app, BrowserWindow, dialog, ipcMain, Menu } from 'electron';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { decodeTextFile, encodeTextFile, NEW_FILE_FORMAT, type TextFileFormat } from '../node/text-file.ts';
 import { Simulator } from '../sim/host.ts';
 import type { CallName } from '../sim/protocol.ts';
 import { utilityTransport } from '../sim/transport.ts';
 
 const root = path.join(import.meta.dirname, '..', '..');
-const smokeAt = process.argv.indexOf('--smoke');
-const smokeOut = smokeAt >= 0 ? process.argv[smokeAt + 1] : null;
+if (process.env.SPIM_USER_DATA) app.setPath('userData', process.env.SPIM_USER_DATA);
+
+// ---- settings: font size and number base, and nothing else --------------
+
+export interface Settings {
+  fontSize: number;          // px of the code font; the UI font follows
+  dataBase: 2 | 10 | 16;     // Data panel values
+}
+const DEFAULT_SETTINGS: Settings = { fontSize: 13, dataBase: 16 };
+const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
+
+function readSettings(): Settings {
+  try {
+    const s = JSON.parse(readFileSync(settingsFile(), 'utf8')) as Partial<Settings>;
+    return {
+      fontSize: Number.isInteger(s.fontSize) && s.fontSize! >= 10 && s.fontSize! <= 24 ? s.fontSize! : DEFAULT_SETTINGS.fontSize,
+      dataBase: s.dataBase === 2 || s.dataBase === 10 ? s.dataBase : 16,
+    };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+
+function writeSettings(s: Settings): void {
+  mkdirSync(app.getPath('userData'), { recursive: true });
+  writeFileSync(settingsFile(), JSON.stringify({ fontSize: s.fontSize, dataBase: s.dataBase }, null, 1));
+}
+
+// ---- files ------------------------------------------------------------------
+
+export interface OpenedFile {
+  name: string;
+  path: string | null;
+  text: string;
+  format: TextFileFormat;
+}
+
+function openBytes(bytes: Uint8Array, name: string, filePath: string | null): OpenedFile {
+  const decoded = decodeTextFile(bytes);
+  return { name, path: filePath, text: decoded.text, format: decoded.format };
+}
+
+type Result<T> = { ok: true; value: T } | { ok: false; error: { name: string; message: string } };
+async function answer<T>(f: () => T | Promise<T>): Promise<Result<T>> {
+  try {
+    return { ok: true, value: await f() };
+  } catch (e) {
+    const err = e instanceof Error ? e : new Error(String(e));
+    return { ok: false, error: { name: err.name, message: err.message } };
+  }
+}
 
 async function main(): Promise<void> {
+  Menu.setApplicationMenu(null); // no default zoom/reload accelerators; the window has its own keys
   await app.whenReady();
   const sim = await Simulator.start({ transport: () => utilityTransport() });
 
   const win = new BrowserWindow({
-    width: 900,
-    height: 640,
-    show: smokeOut === null,
+    width: 1280,
+    height: 800,
+    title: '한림 MIPS 시뮬레이터',
+    backgroundColor: '#f5f7fa',
     webPreferences: {
       preload: path.join(import.meta.dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -37,25 +91,46 @@ async function main(): Promise<void> {
     },
   });
 
+  // Calls into the simulator come back as results, never as thrown errors:
+  // a thrown error in a handler is also logged by Electron as a failure.
+  // run goes through sim.run(), which stop() needs to know about.
   ipcMain.handle('sim:call', (_e, method: CallName, args: unknown[]) =>
-    (sim.call as (m: CallName, ...a: unknown[]) => Promise<unknown>)(method, ...args));
-  ipcMain.handle('sim:stop', () => sim.stop());
-  ipcMain.handle('app:example', () => new Uint8Array(readFileSync(path.join(root, 'tests/programs/helloworld.s'))));
+    answer(() => (method === 'run' ? sim.run() : (sim.call as (m: CallName, ...a: unknown[]) => Promise<unknown>)(method, ...args))));
+  ipcMain.handle('sim:stop', () => answer(() => sim.stop()));
   sim.on('console', (text) => win.webContents.send('sim:console', text));
+  sim.on('progress', (p) => win.webContents.send('sim:progress', p));
   sim.on('crashed', (report) => win.webContents.send('sim:crashed', report.message, report.error.message));
 
-  ipcMain.once('wiring:done', async (_e, report: { ok: boolean; lines: string[] }) => {
-    console.log(report.lines.join('\n'));
-    if (smokeOut === null) return;
-    await new Promise((resolve) => setTimeout(resolve, 300)); // let the last lines paint
-    const image = await win.webContents.capturePage();
-    writeFileSync(smokeOut, image.toPNG());
-    console.log(`captured ${smokeOut}`);
-    sim.close();
-    app.exit(report.ok ? 0 : 1);
+  ipcMain.handle('file:open', () => answer(async () => {
+    const r = await dialog.showOpenDialog(win, { filters: [{ name: 'MIPS 어셈블리', extensions: ['s', 'asm'] }, { name: '모든 파일', extensions: ['*'] }] });
+    if (r.canceled || r.filePaths.length === 0) return null;
+    const p = r.filePaths[0];
+    return openBytes(readFileSync(p), path.basename(p), p);
+  }));
+  ipcMain.handle('file:save', (_e, file: { path: string | null; name: string; text: string; format: TextFileFormat | null }) =>
+    answer(async () => {
+      let target = file.path;
+      if (target === null) {
+        const r = await dialog.showSaveDialog(win, { defaultPath: file.name, filters: [{ name: 'MIPS 어셈블리', extensions: ['s'] }] });
+        if (r.canceled || !r.filePath) return null;
+        target = r.filePath;
+      }
+      const encoded = encodeTextFile(file.text, file.format ?? NEW_FILE_FORMAT);
+      if (!encoded.ok) throw new Error(`${encoded.firstBadLine}행의 글자는 이 파일의 인코딩(${file.format?.encoding})으로 저장할 수 없습니다`);
+      writeFileSync(target, encoded.bytes);
+      return { path: target, name: path.basename(target) };
+    }));
+  ipcMain.handle('example:open', (_e, name: string) => answer(() => {
+    if (!/^[a-z0-9-]+\.s$/.test(name)) throw new Error(`no example ${name}`);
+    return openBytes(readFileSync(path.join(root, 'src/examples', name)), name, null);
+  }));
+  ipcMain.handle('settings:get', () => readSettings());
+  ipcMain.handle('settings:set', (_e, s: Settings) => {
+    writeSettings(s);
+    return readSettings();
   });
 
-  await win.loadFile(path.join(root, 'src/renderer/wiring/index.html'));
+  await win.loadFile(path.join(root, 'src/renderer/app/index.html'));
 }
 
 app.on('window-all-closed', () => app.quit());

@@ -124,12 +124,47 @@ void write_output(port fp, char *fmt, ...) {
   }
   va_end(args);
 }
-// No console input yet: reads get an empty line.
-int console_input_available() { return 0; }
-char get_console_char() { return 0; }
+// Console input.  The read syscalls (5, 6, 7, 8, 12) call read_input() in
+// the middle of executing the syscall instruction, from inside run(): there
+// is no waiting there.  With input queued (provideInput()), read_input()
+// takes one line of it, as QtSpim's does.  With none, it writes nothing,
+// notes where the syscall was and what it is about to overwrite ($v0, $f0),
+// and asks the core to stop after this instruction; run() then puts those
+// back and answers "input" -- the machine as it was just before the
+// syscall, which runs again once input has been provided.
+// (docs/PORTING.md 10, "콘솔 입력".)
+static std::string inputBytes;
+static bool inputWanted = false;
+static mem_addr inputPC;
+static reg_word inputV0;
+static double inputF0;
+
+int console_input_available() { return inputBytes.empty() ? 0 : 1; }
+char get_console_char() {
+  if (inputBytes.empty()) return 0;
+  char c = inputBytes[0];
+  inputBytes.erase(0, 1);
+  return c;
+}
 void put_console_char(char c) { consoleWrite(std::string(1, c)); }
 void read_input(char *str, int n) {
-  if (n > 0) str[0] = '\0';
+  if (inputBytes.empty()) {
+    if (!inputWanted) {
+      inputWanted = true;
+      inputPC = PC;
+      inputV0 = R[REG_V0];
+      inputF0 = FPR[0];
+    }
+    force_break = true;  // run_spim() stops before the next instruction
+    return;
+  }
+  int i = 0;
+  while (i < n - 1 && !inputBytes.empty()) {
+    char c = get_console_char();
+    str[i++] = c;
+    if (c == '\n') break;
+  }
+  if (n > 0) str[i] = '\0';
 }
 
 // ------------------------------------------------------------ loading
@@ -282,6 +317,8 @@ static Napi::Value Assemble(const Napi::CallbackInfo &info) {
 
   errors.clear();
   consoleBytes.clear();
+  inputBytes.clear();
+  inputWanted = false;
   finished = false;
   stoppedAt = 0;
   initializeWorld(bytesOf(info[1]));  // also deletes every breakpoint
@@ -303,6 +340,8 @@ static Napi::Value Assemble(const Napi::CallbackInfo &info) {
 //   "exit"        the program ended (syscall exit)
 //   "error"       the core reported a run-time error and cannot go on
 //   "breakpoint"  PC is at a breakpoint, not yet executed
+//   "input"       PC is at a read syscall that found no input; provideInput()
+//                 and run again
 //   "limit"       `steps` instructions ran; more to run
 // A user's stop is not here: it happens between runs (src/sim/worker.ts).
 //
@@ -325,7 +364,15 @@ static Napi::Value Run(const Napi::CallbackInfo &info) {
   bool atBreakpoint = run_program(PC, steps, false, stepOver, &continuable);
 
   const char *reason;
-  if (!continuable) {
+  if (inputWanted) {
+    // Undo the syscall that found no input: it runs again later.
+    PC = inputPC;
+    R[REG_V0] = inputV0;
+    FPR[0] = inputF0;
+    inputWanted = false;
+    force_break = false;
+    reason = "input";
+  } else if (!continuable) {
     reason = errors.empty() ? "exit" : "error";
     finished = true;
   } else if (atBreakpoint) {
@@ -335,6 +382,13 @@ static Napi::Value Run(const Napi::CallbackInfo &info) {
     reason = "limit";
   }
   return Napi::String::New(env, reason);
+}
+
+// provideInput(bytes): queue console input (a line typed ends with '\n').
+static Napi::Value ProvideInput(const Napi::CallbackInfo &info) {
+  if (info.Length() < 1 || !isBytes(info[0])) return throwType(info.Env(), "provideInput(bytes)");
+  inputBytes += bytesOf(info[0]);
+  return info.Env().Undefined();
 }
 
 // consoleOutput() -> Uint8Array: what the program printed since the last
@@ -438,7 +492,8 @@ static Napi::Value TextSegment(const Napi::CallbackInfo &info) {
   return out;
 }
 
-// registers() -> { pc, hi, lo, epc, cause, badVAddr, status, general[32] }
+// registers() -> { pc, hi, lo, epc, cause, badVAddr, status, general[32],
+//                  fp[32] }  -- fp: the FP registers' raw 32-bit words ($f0..)
 static Napi::Value Registers(const Napi::CallbackInfo &info) {
   Napi::Env env = info.Env();
   Napi::Array general = Napi::Array::New(env, R_LENGTH);
@@ -454,6 +509,9 @@ static Napi::Value Registers(const Napi::CallbackInfo &info) {
   result["badVAddr"] = Napi::Number::New(env, (uint32)CP0_BadVAddr);
   result["status"] = Napi::Number::New(env, (uint32)CP0_Status);
   result["general"] = general;
+  Napi::Array fp = Napi::Array::New(env, 32);
+  for (uint32_t i = 0; i < 32; i++) fp[i] = Napi::Number::New(env, (uint32)FWR[i]);
+  result["fp"] = fp;
   return result;
 }
 
@@ -559,6 +617,7 @@ static Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports["assemble"] = Napi::Function::New(env, Assemble);
   exports["run"] = Napi::Function::New(env, Run);
   exports["consoleOutput"] = Napi::Function::New(env, ConsoleOutput);
+  exports["provideInput"] = Napi::Function::New(env, ProvideInput);
   exports["setBreakpoint"] = Napi::Function::New(env, SetBreakpoint);
   exports["clearBreakpoint"] = Napi::Function::New(env, ClearBreakpoint);
   exports["breakpoints"] = Napi::Function::New(env, Breakpoints);

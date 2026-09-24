@@ -11,9 +11,11 @@ import type { AssembleOptions } from '../../native/index.ts';
      exit        the program ended
      error       the core reported a run-time error and cannot go on
      breakpoint  PC is at a breakpoint, not yet executed
+     input       PC is at a read syscall that found no input: provideInput(),
+                 then run or step again (the syscall runs then)
      stopped     the user stopped it (stop())
      limit       a step(n) ran its n instructions */
-export type StopReason = 'exit' | 'error' | 'breakpoint' | 'stopped' | 'limit';
+export type StopReason = 'exit' | 'error' | 'breakpoint' | 'input' | 'stopped' | 'limit';
 
 export interface RunResult {
   reason: StopReason;
@@ -31,6 +33,7 @@ export interface Calls {
   run: [[], RunResult];
   step: [[count?: number], RunResult];
   stop: [[], { wasRunning: boolean }];
+  provideInput: [[text: string], void];
   setBreakpoint: [[addr: number], boolean];
   clearBreakpoint: [[addr: number], boolean];
   breakpoints: [[], number[]];

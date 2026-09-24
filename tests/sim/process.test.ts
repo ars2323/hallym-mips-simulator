@@ -221,3 +221,25 @@ describe('the last resort', { timeout: 60000 }, () => {
     }
   });
 });
+
+describe('console input through the simulator process', { timeout: 60000 }, () => {
+  test('waiting for input: the host answers, stop is idle, input resumes it', async () => {
+    const sim = await Simulator.start();
+    try {
+      const r = await sim.assemble('\t.text\n\t.globl main\nmain:\tli $v0, 5\nread:\tsyscall\n\tmove $a0, $v0\n\tli $v0, 1\n\tsyscall\n\tli $v0, 10\n\tsyscall\n');
+      const read = labels(r.symbols).read;
+      const pieces: string[] = [];
+      sim.on('console', (t) => pieces.push(t));
+      const first = await sim.run();
+      assert.deepEqual([first.reason, first.pc], ['input', read]);
+      assert.equal((await sim.registers()).pc, read, 'the machine can be read while it waits');
+      assert.equal(await sim.stop(), 'idle', 'waiting is not running: stop has nothing to stop');
+      await sim.call('provideInput', '1234\n');
+      const second = await sim.run();
+      assert.equal(second.reason, 'exit');
+      assert.equal(pieces.join(''), '1234');
+    } finally {
+      sim.close();
+    }
+  });
+});

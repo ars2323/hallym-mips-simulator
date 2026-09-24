@@ -53,7 +53,7 @@ async function run(): Promise<RunResult> {
       const stop = spim.run(SLICE);
       errors.push(...spim.errors());
       flushConsole();
-      if (stop === 'exit' || stop === 'error' || stop === 'breakpoint') return result(stop, errors);
+      if (stop !== 'limit') return result(stop, errors);
       instructions += SLICE;
       if (Date.now() - lastProgress >= PROGRESS_EVERY_MS) {
         lastProgress = Date.now();
@@ -83,6 +83,7 @@ const handlers: { [M in CallName]: Handler } = {
     if (running) stopRequested = true;
     return { wasRunning };
   },
+  provideInput: (text: string) => spim.provideInput(text),
   setBreakpoint: (addr: number) => spim.setBreakpoint(addr),
   clearBreakpoint: (addr: number) => spim.clearBreakpoint(addr),
   breakpoints: () => spim.breakpoints(),

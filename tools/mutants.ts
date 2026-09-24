@@ -11,6 +11,10 @@
    runs the tests named for it there.  A mutant is KILLED when those tests
    fail; one that survives, or does not apply, fails this script.  Nothing in
    the working tree is touched.
+
+   Tests named *.e2e.ts run the real window through Playwright (the copy's
+   window script is bundled first); they need a display -- on Linux without
+   one, xvfb-run -a npm run test:mutants.
 */
 
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -153,7 +157,7 @@ const MUTANTS: Mutant[] = [
     find: "      if (stopRequested) return result('stopped', errors);\n", replace: '',
     tests: ['tests/sim/process.test.ts'] },
   { module: 'sim worker', file: 'src/sim/worker.ts', what: 'output sent only at the end',
-    find: '      flushConsole();\n      if (stop ===', replace: "      if (stop !== 'limit') flushConsole();\n      if (stop ===",
+    find: "      flushConsole();\n      if (stop !== 'limit')", replace: "      if (stop !== 'limit') flushConsole();\n      if (stop !== 'limit')",
     tests: ['tests/sim/process.test.ts'] },
   { module: 'sim worker', file: 'src/sim/worker.ts', what: 'console decoded without streaming',
     find: 'decoder.decode(spim.consoleOutput(), { stream: true })', replace: 'decoder.decode(spim.consoleOutput())',
@@ -179,11 +183,56 @@ const MUTANTS: Mutant[] = [
     find: "qt: '; 3577: _str)'", replace: "qt: '; 3577: _str'", tests: ['tests/golden/qt.test.ts'] },
   { module: 'qt goldens', file: 'tests/golden/qt.test.ts', what: "a pinned source line's own text changed",
     find: "ours: '; 1155: mtlo $0'", replace: "ours: '; 1155: mtlo $1'", tests: ['tests/golden/qt.test.ts'] },
+  // ---- console input: the read syscall is rewound when there is nothing to read
+  { module: 'addon input', file: 'native/src/addon.cc', what: 'PC not rewound to the syscall', rebuild: true,
+    find: '    PC = inputPC;\n', replace: '', tests: ['tests/node/console-input.test.ts'] },
+  { module: 'addon input', file: 'native/src/addon.cc', what: '$v0 not restored', rebuild: true,
+    find: '    R[REG_V0] = inputV0;\n', replace: '', tests: ['tests/node/console-input.test.ts'] },
+  { module: 'addon input', file: 'native/src/addon.cc', what: '$f0 not restored', rebuild: true,
+    find: '    FPR[0] = inputF0;\n', replace: '', tests: ['tests/node/console-input.test.ts'] },
+  { module: 'sim worker', file: 'src/sim/worker.ts', what: 'input not handed to the core',
+    find: 'provideInput: (text: string) => spim.provideInput(text),', replace: 'provideInput: (_text: string) => undefined,',
+    tests: ['tests/sim/process.test.ts'] },
+  // ---- the window's logic
+  { module: 'renderer logic', file: 'src/renderer/app/logic/virtual.ts', what: 'no rows kept around the view',
+    find: 'overscan = 10', replace: 'overscan = 0', tests: ['tests/renderer/logic.test.ts'] },
+  { module: 'renderer logic', file: 'src/renderer/app/logic/virtual.ts', what: 'scrolls without a margin',
+    find: 'margin = 2', replace: 'margin = 0', tests: ['tests/renderer/logic.test.ts'] },
+  { module: 'renderer logic', file: 'src/renderer/app/logic/machine.ts', what: 'PC counted as changed',
+    find: "if (row.key !== 'PC' && row.value !== a[i].value)", replace: 'if (row.value !== a[i].value)',
+    tests: ['tests/renderer/logic.test.ts'] },
+  { module: 'renderer logic', file: 'src/renderer/app/logic/machine.ts', what: 'waiting for input taken as paused',
+    find: "    case 'input': return 'input';\n", replace: '', tests: ['tests/renderer/logic.test.ts'] },
+  { module: 'explain', file: 'src/core/explain.ts', what: 'sra says it fills with zeros',
+    find: "name === 'sra' ? '부호 비트로' : '0으로'", replace: "'0으로'", tests: ['tests/core/explain.test.ts'] },
+  { module: 'explain', file: 'src/core/explain.ts', what: 'jal return address is PC',
+    find: '`돌아올 주소(${code(hex32(pc + 4))})를 ${reg(31)}', replace: '`돌아올 주소(${code(hex32(pc))})를 ${reg(31)}',
+    tests: ['tests/core/explain.test.ts'] },
+  // ---- the window, end to end
+  { module: 'window', file: 'src/renderer/app/editor.ts', what: 'Ctrl+S saves in the middle of a syllable',
+    find: '    if (composing || view.composing || view.compositionStarted) saveAfterComposition = true;\n    else onSave();',
+    replace: '    onSave();', tests: ['tests/e2e/ime.e2e.ts'] },
+  { module: 'window', file: 'src/renderer/app/app.css', what: 'mono spans in the UI font',
+    find: '.mono { font-family: var(--code); }', replace: '.mono { font-family: var(--ui); }', tests: ['tests/e2e/hex-mono.e2e.ts'] },
+  { module: 'window', file: 'src/renderer/app/panels/inspector.ts', what: 'Inspector heading in the UI font',
+    find: "code(row.disassembly, 'dis')", replace: "h('span', { class: 'dis' }, row.disassembly)", tests: ['tests/e2e/hex-mono.e2e.ts'] },
+  { module: 'window', file: 'src/renderer/app/panels/registers.ts', what: 'every row marked changed',
+    find: "row.el.classList.toggle('chg', changed.has(r.key));", replace: "row.el.classList.toggle('chg', true);",
+    tests: ['tests/e2e/flows.e2e.ts'] },
+  { module: 'window', file: 'src/renderer/app/panels/text.ts', what: 'no room under the list for the sheet',
+    find: 'const pad = Math.max(0, px - this.fold.offsetHeight);', replace: 'const pad = 0;', tests: ['tests/e2e/flows.e2e.ts'] },
+  { module: 'window', file: 'src/renderer/app/panels/console.ts', what: 'Enter does not hand the line on',
+    find: '        this.onInput(line);\n', replace: '', tests: ['tests/e2e/flows.e2e.ts'] },
+  { module: 'window', file: 'src/renderer/app/app.ts', what: 'breakpoints lost on 처음으로',
+    find: '    if (!same) breakpoints.clear();', replace: '    breakpoints.clear();', tests: ['tests/e2e/flows.e2e.ts'] },
+  { module: 'window', file: 'src/renderer/app/app.ts', what: 'a run after input resumes as a step',
+    find: "  if (resumeWith === 'run') await run();\n  else await step();", replace: '  await step();',
+    tests: ['tests/e2e/flows.e2e.ts'] },
 ];
 
 function copyTree(dir: string, linkBuild: boolean): void {
   for (const d of ['src', 'tests', 'tools']) cpSync(path.join(root, d), path.join(dir, d), { recursive: true });
-  for (const f of ['package.json', 'tsconfig.json']) cpSync(path.join(root, f), path.join(dir, f));
+  for (const f of ['package.json', 'tsconfig.json', 'playwright.config.ts']) cpSync(path.join(root, f), path.join(dir, f));
   cpSync(path.join(root, 'native'), path.join(dir, 'native'), {
     recursive: true, filter: (from) => !from.startsWith(path.join(root, 'native', 'build')),
   });
@@ -212,9 +261,15 @@ for (const m of selected) {
       execFileSync(path.join(root, 'node_modules/.bin/node-gyp'), ['rebuild', '--directory', path.join(dir, 'native')],
                    { stdio: 'ignore' });
     }
-    const run = spawnSync(process.execPath, ['--test', '--test-reporter=tap', ...m.tests],
-                          { cwd: dir, encoding: 'utf8', timeout: 300000 });
-    const firstFailure = /^\s*not ok \d+ - (.*)$/m.exec(run.stdout)?.[1] ?? '(no test reported a failure)';
+    const e2e = m.tests.every((t) => t.endsWith('.e2e.ts'));
+    if (e2e) execFileSync(process.execPath, ['tools/build-ui.ts'], { cwd: dir, stdio: 'ignore' });
+    const run = e2e
+      ? spawnSync(process.execPath, [path.join(root, 'node_modules/@playwright/test/cli.js'), 'test', ...m.tests],
+                  { cwd: dir, encoding: 'utf8', timeout: 300000 })
+      : spawnSync(process.execPath, ['--test', '--test-reporter=tap', ...m.tests],
+                  { cwd: dir, encoding: 'utf8', timeout: 300000 });
+    const firstFailure = (e2e ? /^\s*\d+\) (.*)$/m.exec(run.stdout)?.[1]?.replace(/─+$/, '').trim()
+                              : /^\s*not ok \d+ - (.*)$/m.exec(run.stdout)?.[1]) ?? '(no test reported a failure)';
     if (run.status === 0) {
       rows.push(`SURVIVED     ${m.module}: ${m.what}`);
       bad += 1;

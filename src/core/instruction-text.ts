@@ -70,7 +70,9 @@ function fpFormatName(fmt: number): string {
 }
 
 // What a field's value stands for, given the whole instruction.
-function meaningOf(field: InstructionField, d: DecodedInstruction): string {
+// What one field says (the last row of the table), for a view that sets
+// the table itself.
+export function meaningOf(field: InstructionField, d: DecodedInstruction): string {
   const named = d.known;
   const v = field.value;
   if (field.name === 'opcode') {

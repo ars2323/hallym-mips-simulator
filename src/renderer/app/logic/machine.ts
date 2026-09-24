@@ -1,0 +1,130 @@
+/* The machine as the window shows it: register rows, text rows, and what a
+   stop means for the controls.  Pure; the panels (../panels) put these on
+   screen. */
+
+import { decode, formatName } from '../../../core/decoder.ts';
+import { bin32Grouped, hex32, signedDec32 } from '../../../core/format.ts';
+import { registerGroups, registerName } from '../../../core/registers.ts';
+import { sourceLineNumber, sourceLineStatement } from '../../../core/source-text.ts';
+
+export interface RegisterValues {
+  pc: number; hi: number; lo: number; epc: number; cause: number; badVAddr: number; status: number;
+  general: number[]; fp: number[];
+}
+
+export interface RegisterRow {
+  key: string;     // "PC", "$t0" -- stable, for keeping one DOM row per register
+  group: string;   // Korean group title
+  value: number;
+}
+
+const GROUP_TITLES: Record<string, string> = {
+  Special: '특수', 'Return values': '반환값', Arguments: '인자', Temporaries: '임시',
+  Saved: '보존', Pointers: '포인터', Reserved: '예약', CP0: 'CP0',
+};
+
+function valueOf(r: RegisterValues, key: string): number {
+  switch (key) {
+    case 'PC': return r.pc;
+    case 'HI': return r.hi;
+    case 'LO': return r.lo;
+    case 'Status': return r.status;
+    case 'Cause': return r.cause;
+    case 'EPC': return r.epc;
+    case 'BadVAddr': return r.badVAddr;
+  }
+  return r.general[GENERAL_INDEX[key]];
+}
+const GENERAL_INDEX: Record<string, number> = Object.fromEntries(
+  Array.from({ length: 32 }, (_, n) => [registerName({ kind: 'General', number: n }), n]));
+
+// The rows in display order: the register panel's groups (src/core/
+// registers.ts), CP0 last.
+export function registerRows(r: RegisterValues, withCp0 = false): RegisterRow[] {
+  return registerGroups()
+    .filter((g) => withCp0 || g.title !== 'CP0')
+    .flatMap((g) => g.registers.map((ref) => {
+      const key = registerName(ref);
+      return { key, group: GROUP_TITLES[g.title] ?? g.title, value: valueOf(r, key) >>> 0 };
+    }));
+}
+
+// Registers whose value differs from the last stop.  PC is left out: it
+// moves on every step and has its own marker (the PC row in Text).
+export function changedKeys(before: RegisterValues | null, now: RegisterValues): Set<string> {
+  const changed = new Set<string>();
+  if (before === null) return changed;
+  const a = registerRows(before, true);
+  const b = registerRows(now, true);
+  b.forEach((row, i) => { if (row.key !== 'PC' && row.value !== a[i].value) changed.add(row.key); });
+  return changed;
+}
+
+export const cells = (value: number) => ({ hex: hex32(value), dec: signedDec32(value), bin: bin32Grouped(value) });
+
+// ---- Text rows ------------------------------------------------------------
+
+export interface TextRow {
+  addr: number;
+  word: number;
+  format: string;          // "R", "I", ...
+  disassembly: string;     // "lw $4, 0($29)"
+  line: number;            // source line, 0 if none
+  source: string;          // "lw $a0 0($sp) # argc"
+  kernel: boolean;
+  breakpoint: boolean;
+  band: boolean;           // one of several words of one source line (a pseudo instruction)
+}
+
+// "[0x00400000]\t0x8fa40000  lw $4, 0($29)   ; 183: lw $a0 0($sp) # argc"
+export function parseCoreLine(line: string): { disassembly: string; source: string } {
+  const m = /^\[0x[0-9a-f]{8}\]\t0x[0-9a-f]{8}  (.*)$/s.exec(line);
+  const rest = m ? m[1] : line;
+  const i = rest.indexOf(';');
+  return i < 0 ? { disassembly: rest.trim(), source: '' } : { disassembly: rest.slice(0, i).trim(), source: rest.slice(i + 1).trim() };
+}
+
+export function textRows(words: { addr: number; word: number; line: string; breakpoint: boolean }[]): TextRow[] {
+  const rows = words.map((w) => {
+    const { disassembly, source } = parseCoreLine(w.line);
+    return {
+      addr: w.addr, word: w.word, format: formatName(decode(w.word).format), disassembly,
+      line: sourceLineNumber(source), source: source ? sourceLineStatement(source) : '',
+      kernel: w.addr >= 0x80000000, breakpoint: w.breakpoint, band: false,
+    };
+  });
+  // A source line that became several words: the core keeps its text with
+  // the first one only.
+  rows.forEach((r, i) => {
+    const next = rows[i + 1];
+    if (r.source === '' && i > 0 && !r.kernel) r.band = true;
+    if (r.source !== '' && next && next.source === '' && next.kernel === r.kernel) r.band = true;
+  });
+  return rows;
+}
+
+// ---- what a stop means for the window ---------------------------------------
+
+export type StopReason = 'exit' | 'error' | 'breakpoint' | 'input' | 'stopped' | 'limit';
+export type RunState = 'ready' | 'running' | 'paused' | 'input' | 'finished';
+
+export function stateAfter(reason: StopReason): RunState {
+  switch (reason) {
+    case 'exit':
+    case 'error': return 'finished';
+    case 'input': return 'input';
+    default: return 'paused';
+  }
+}
+
+// The status bar's words for a stop.  `hex` marks code (set in the mono font).
+export function stopMessage(reason: StopReason, pc: string): string {
+  switch (reason) {
+    case 'exit': return '프로그램이 끝났습니다';
+    case 'error': return '실행 오류로 멈췄습니다';
+    case 'breakpoint': return `브레이크포인트 \`${pc}\`에서 멈췄습니다 — F5 로 이어서`;
+    case 'input': return '입력을 기다립니다 — 콘솔에 입력하고 Enter';
+    case 'stopped': return `멈췄습니다 (\`${pc}\`) — 레지스터와 메모리를 볼 수 있습니다`;
+    case 'limit': return `한 줄 실행했습니다 (PC \`${pc}\`)`;
+  }
+}
