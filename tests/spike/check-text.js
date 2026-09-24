@@ -9,7 +9,7 @@
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import * as spim from '../../native/index.js';
+import * as spim from '../../native/index.ts';
 import { readTextGolden } from './golden.js';
 
 const root = path.join(import.meta.dirname, '..', '..');

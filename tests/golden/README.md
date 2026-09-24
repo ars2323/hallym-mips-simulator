@@ -1,60 +1,42 @@
-# Golden files
+# 골든 파일
 
-The cases (name, program, arguments, stream) are listed in `cases.txt`, which
-both `tools/capture-goldens.sh` and `tools/regress.sh` read.
+두 벌이 있다. 둘 다 `npm test` 가 매번 비교한다.
 
-`intregs-*.txt` are what **File > Save Log File** writes for the integer
-registers, captured from the *upstream* register rendering (commit before the
-register panel was replaced in stage 3) with helloworld.s:
+| 벌 | 위치 | 출처 | 비교하는 테스트 | 증명하는 것 |
+|---|---|---|---|---|
+| Qt 환경 골든 | `tests/golden/*.txt` (29개) + `cases.txt` | **Qt판에서 복사** | `tests/golden/qt.test.ts` | 이 앱의 코어가 Qt판 코어와 같다 |
+| 기본값 골든 | `tests/golden/default/*.json` (17개) | **이 저장소에서 새로 뜸** | `tests/golden/default.test.ts` | 배포되는 기본 설정이 매번 같은 상태를 만든다 |
 
-| file | state |
-|---|---|
-| `intregs-load.txt` | loaded, nothing run |
-| `intregs-step1.txt` | one single step |
-| `intregs-run.txt` | run to completion (hex, the default) |
-| `intregs-run-base2.txt`, `intregs-run-base10.txt` | same, Registers > Binary / Decimal |
+## Qt 환경 골든 — Qt판에서 온 것
 
-`tools/regress.sh` regenerates them from the current build and requires a
-byte-for-byte match: the log must not change when the panel does.
+- 원본: `hallym-mips-simulator` 커밋 `c20d0c3` 의 `tests/golden/` 를 바이트 그대로 복사했다
+  (2026-09-24). `cases.txt` 도 같다. Qt판의 원래 README 는 `README.qt.md` 에 그대로 있다.
+  어떤 빌드에서, 어떤 환경으로 떴는지는 그 문서에 적혀 있다.
+- 프로그램 입력: 케이스가 가리키는 프로그램은 Qt판에서 함께 복사했다.
+  `helloworld.s` → `tests/programs/`, `Tests/*.s` → `tests/programs/`, `tests/samples/*.s` → `tests/samples/`.
+- 비교 방법: 문자열이 아니라 **필드로** 비교한다. 골든을 파싱해 주소·워드·역어셈블·소스 주석,
+  메모리 행과 값·문자, 레지스터 값, 어셈블러 메시지를 꺼내 애드온의 상태와 대조한다.
+  공백 배치는 Qt `QTextEdit` 의 것이라 비교하지 않는다. 근거는 `docs/PORTING.md` 의 "골든" 절.
+- 실행 매개변수: 캡처 당시 환경(argv 없음, 환경변수 3개)을 `qt.test.ts` 안에서만 넣는다.
+  이 값은 애드온·앱·상수 파일 어디에도 두지 않는다.
+- 결과: 29개 중 28개 통과, 1개 건너뜀.
+  - `text-breakpoint` — 건너뜀. 브레이크포인트를 거는 것은 쓰기 기능인데 애드온에 아직 없다.
+- 비교기에 고정된 차이(양쪽 문자열을 모두 적어 둠. 한쪽이라도 바뀌면 실패):
+  - `text-ttcore`: tt.core.s 소스 주석 5줄. Qt 쪽이 코어의 버퍼 포인터 버그로 깨져 있다
+    (`docs/PORTING.md` "소스 줄 표시").
+- 비교기가 재현하는 Qt 프런트엔드 동작(코어와 무관):
+  - Text 창은 역어셈블이 57칸 이상이라 `;` 앞에 공백이 없으면 주석을 지운다(tt.core.s 에서 381줄).
+  - Data 창의 10진 표시는 10자리 음수의 부호를 잘라낸다(`-1879048156` → `1879048156`).
+  - 메시지 창은 `spim: ` 을 떼고, 탭을 공백 하나로 바꾸고, 배너와 `Memory and registers cleared` 를 붙인다.
 
-They were captured by `tools/capture-goldens.sh` from a build of commit
-2626cc0 -- the last one whose register window is upstream's -- under a pinned
-environment (`env -i`, three fixed variables).  The environment matters: SPIM
-copies the process environment onto the simulated stack, so `$sp`, `$a1` and
-`$a2` move with it.  The regression check replays the same environment.
+## 기본값 골든 — 여기서 새로 뜬 것
 
-`text-*.txt` are the same for the Text window, captured from the last commit
-whose text window is upstream's (the "[5] log text seam for the Text window"
-commit).  Two upstream bugs are preserved in them on purpose, because they are
-what upstream writes to a log:
-
-- `text-breakpoint.txt`: the line with a breakpoint reads
-  `N [x0040002] x3402000   ori ...` -- upstream slices the core's line at fixed
-  offsets, and the core prefixes `*` to a line with a breakpoint
-  (docs/ARCHITECTURE.md §3.5).
-- the `text-no*` cases pass `--redisplay`: upstream's Text Segment toggles do
-  not redraw the window themselves (their "changed" test is inverted), so
-  without a forced redraw the toggled state would not be in the log.
-
-`data-*.txt` are the same for the Data window, captured from the last commit
-whose data window is upstream's (the "[6] log text seam for the Data window"
-commit).  They include the whole stack, environment strings and all (the
-pinned three variables): the Data panel folds that area on screen, but a saved
-log has always contained it and still does.  `data-sample-*` use
-`tests/samples/data-stack.s`, which writes to `.data` and keeps a stack frame.
-
-`syntaxerror-*.txt` hold the state after a file that stops assembling at a
-syntax error half way (`tests/samples/syntax-error-midfile.s`): text, data,
-the message log, and registers/log after Run.  They were captured from the
-`stage-6` build, the last one that loads files with the core's own
-`read_assembly_file()`; since then the GUI uses its line-for-line mirror
-(`QtSpim/edu/edu_loader.cpp`), which has to reproduce them byte for byte.
-All cases are run from the repository root with a relative program path, so
-that the path inside an assembler message does not depend on the checkout.
-
-## 버전을 올리면 다시 떠야 하는 골든
-
-`syntaxerror-log.txt`와 `syntaxerror-run-log.txt`는 **메시지 창**(`--dump log`)이라
-시작 배너가 들어 있고, 배너에는 `EDU_VERSION`이 찍힌다. `edu/edu_version.h`의
-버전을 올리면 이 둘만 `tools/capture-goldens.sh`로 다시 뜬다. Save Log File이
-쓰는 `*-log` 골든에는 버전이 없다.
+- 이 앱의 기본 실행 매개변수(`argv=["program.s"]`, 환경변수 없음)로 뜬 17개.
+  실행 매개변수에 따라 결과가 달라지는 케이스만 뽑았다.
+  레지스터 로그 6개(`intregs-*` 5개 + `syntaxerror-run-intregs`)와,
+  스택이 보이는 데이터 로그 11개(`data-*` 중 `data-nostack` 을 뺀 10개 + `syntaxerror-data`)다.
+- 형식: Electron 패널이 보여 줄 값 그대로의 JSON. 값은 `src/core/format.ts`·`memory-text.ts` 로,
+  행은 `memory-rows.ts` 로 만든다.
+- 뜬 곳: 이 저장소, `tools/capture-default-goldens.ts` (`npm run goldens:default`).
+  첫 버전은 2026-09-24 에 떴다. 다시 뜨는 것은 기본값이나 표시를 **의도적으로** 바꿀 때뿐이고,
+  그때는 커밋 메시지에 그렇다고 적는다.

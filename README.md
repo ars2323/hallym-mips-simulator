@@ -1,64 +1,63 @@
 # hallym-mips-simulator-electron
 
-Electron판 한림 MIPS 시뮬레이터를 위한 저장소. **지금은 Electron 이 없다.**
-이번 단계가 답하는 질문은 하나다:
-
-> SPIM 코어를 Node 애드온으로 감싸서 Qt판(`hallym-mips-simulator`)과 똑같은 결과를 낼 수 있는가.
+Electron판 한림 MIPS 시뮬레이터를 위한 저장소. **아직 UI 는 없다.** 지금 있는 것은 SPIM 코어를
+감싼 Node 애드온과, Qt판(`hallym-mips-simulator`)의 `QtSpim/edu/core` 를 옮긴 순수 TS 모듈이다.
+Qt판과 같은 결과를 내는지는 골든과 코어 대조 테스트가 확인한다.
 
 ## 구조
 
-```
-CPU/              SPIM 코어. Qt판에서 복사, 무수정 (CPU/ORIGIN.md)
+```text
+CPU/                SPIM 코어. Qt판에서 복사, 무수정 (CPU/ORIGIN.md)
 native/
-  binding.gyp     코어 9개 소스 + bison/flex 액션 + 애드온 (Qt판 tests/spim_core.pri 를 따름)
-  src/addon.cc    N-API 프런트엔드: 코어가 요구하는 전역·콜백과 5개 함수
-  index.js        JS 쪽. 경로를 다루는 일은 전부 여기서 (C++ 은 텍스트만 받는다)
-  index.d.ts      애드온 타입
-src/core/
-  decoder.ts      Qt판 QtSpim/edu/core/edu_decoder 의 TS 이식
+  binding.gyp       코어 9개 소스 + bison/flex 액션 + 애드온
+  src/addon.cc      N-API 프런트엔드: 코어가 요구하는 전역·콜백, 그리고 바인딩
+  index.ts          Node 경계. 경로·인코딩·실행 매개변수는 여기서만 다룬다
+src/core/           순수·동기 TS 모듈 (Qt판 QtSpim/edu/core 의 이식)
+  decoder  registers  format  instruction-text  source-text  symbols
+  memory-rows  memory-text  mips-syntax (+ op-table, CPU/op.h 에서 생성)  asm-errors
+src/node/
+  text-file.ts      소스 파일 바이트 <-> 텍스트 (UTF-8 / CP949 / Latin-1)
 tests/
-  golden/         Qt판 tests/golden/ 복사 (참조용)
-  programs/       Qt판 Tests/*.s 복사
-  spike/          이번 검사 스크립트
+  core/  node/      모듈별 테스트 (node:test)
+  golden/           Qt판 골든 + 이 앱의 기본값 골든 (tests/golden/README.md)
+  helpers/          골든 파서, 케이스 재생기, 코어 대조 도구
+  programs/ samples/  입력 프로그램 (Qt판에서 복사 + 한글 인코딩 샘플)
+  spike/            첫 스파이크의 검사 스크립트
+tools/
+  mutants.ts        테스트가 틀린 것을 잡는지 보이는 돌연변이 검사
+  scanner-input-experiment.ts   소스 줄 표시 차이의 측정 (docs/PORTING.md 1절)
+  gen-op-table.ts   CPU/op.h -> src/core/op-table.ts
+  capture-default-goldens.ts    기본값 골든을 뜬다
+docs/PORTING.md     Qt판과 다르게 한 것, 고치면 안 되는 것
 ```
 
-## 애드온 표면
+## 애드온 (`native/index.ts`)
 
 ```ts
-assemble(source: string)      -> { ok: boolean, errors: string[] }
-textSegment()                 -> [{ addr: number, word: number }]   // 사용자 text, 커널 text 순
-registers()                   -> { pc, hi, lo, general: number[32] }
-disassemble(word, addr)       -> string                              // 코어의 inst_decode + format_an_inst
-step(n?: number)              -> void                                // QtSpim 의 Single Step n번
+assemble(source: Uint8Array | string, { run?, fileName? })
+                        -> { ok, errors, symbols, format }   // format: 판별한 인코딩·BOM·줄바꿈
+step(n?)                -> boolean                           // 계속할 수 있는가
+errors()  textSegment()  registers()  registerNames()  segments()
+readWords(addr, n)  readBytes(addr, n)  disassemble(word, addr)
+DEFAULT_RUN_PARAMETERS  = { argv: ["program.s"], env: [] }
 ```
 
-`assemble` 은 매번 기계를 초기화하고 기본 예외 핸들러(`CPU/exceptions.s`)를 올린 뒤
-소스를 어셈블한다. 설정은 QtSpim 기본값(bare 아님, pseudo 허용, delayed branch/load 끔,
-mapped I/O 끔)이다.
-
-**경로는 C++ 로 넘어가지 않는다.** 소스도 예외 핸들러도 텍스트로 넘어가고, 애드온이
-`fmemopen()` 으로 메모리 위에 연 `FILE*` 을 코어의 스캐너에 준다
-(`readAssemblyText` — `read_assembly_file()` 를 한 줄씩 따라 쓴 것). 코어 안에서 파일을
-여는 곳은 `read_assembly_file()` 의 `fopen` 한 곳뿐이고(`.include` 같은 것은 없다),
-애드온은 그 함수를 부르지 않는다. 그래서 Qt판의 `edu_path_encoding`·`edu_path_check` 류가
-막던 한글 경로 문제는 이 경로에서 생기지 않는다.
+- C++ 에는 **바이트만** 들어간다. 경로도 인코딩 로직도 C++ 에 없다.
+  소스는 flex 메모리 버퍼(`yy_scan_bytes`)로 읽힌다.
+- `assemble`·`step` 말고는 모두 읽기 전용이다.
 
 ## 빌드와 검사 (Linux)
 
-필요한 것: Node ≥ 22.18 (TypeScript 를 타입만 지우고 바로 실행), g++, make, python3,
-bison, flex. node-gyp 는 devDependency 로 프로젝트 안에 있다.
+필요한 것: Node ≥ 22.18(TS 를 타입만 지우고 바로 실행), g++, make, python3, bison, flex.
+node-gyp 는 devDependency 로 프로젝트 안에 있다.
 
 ```sh
 npm install --ignore-scripts
-npm run build        # native/build/Release/spim.node
-npm run typecheck    # tsc --noEmit
-npm run spike        # 검사 1 + 검사 2 (tt.core.s)
+npm run build          # native/build/Release/spim.node
+npm run typecheck      # tsc --noEmit
+npm test               # 모든 테스트 (Qt 골든·기본값 골든 포함)
+npm run test:mutants   # 돌연변이마다 해당 테스트가 실패하는지
+npm run spike          # 첫 스파이크의 검사 1·2
 ```
-
-- **검사 1** `tests/spike/check-text.js [PROGRAM GOLDEN]` — 애드온으로 어셈블한 모든
-  명령어의 주소·32비트 워드를 Qt판 골든(`tests/golden/text-ttcore.txt`)과 대조한다.
-  하나라도 다르면 처음 갈린 주소, 두 워드, 골든 줄, 원본 소스 줄을 찍고 실패한다.
-- **검사 2** `tests/spike/check-decoder.ts [PROGRAM...]` — TS 디코더의 이름·포맷·필드를
-  애드온 `disassemble()` 의 출력(코어 자신의 디코더)과 대조한다.
 
 Windows·macOS 빌드는 아직 시도하지 않았다.

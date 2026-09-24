@@ -8,9 +8,14 @@
   "scripts": {
     "build": "node-gyp rebuild --directory native",
     "typecheck": "tsc --noEmit",
-    "spike": "node tests/spike/check-text.js && node tests/spike/check-decoder.ts"
+    "test": "node --test \"tests/**/*.test.ts\"",
+    "test:mutants": "node tools/mutants.ts",
+    "spike": "node tests/spike/check-text.js && node tests/spike/check-decoder.ts",
+    "gen:op-table": "node tools/gen-op-table.ts",
+    "goldens:default": "node tools/capture-default-goldens.ts"
   },
   "dependencies": {
+    "iconv-lite": "^0.7.3",
     "node-addon-api": "^8.0.0"
   },
   "devDependencies": {

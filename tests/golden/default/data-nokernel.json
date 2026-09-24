@@ -1,0 +1,25 @@
+{
+ "case": "data-nokernel",
+ "base": 16,
+ "sections": [
+  {
+   "name": "User data segment",
+   "from": "0x10000000",
+   "to": "0x10040000",
+   "rows": [
+    "0x10000000..0x1000ffff zero",
+    "0x10010000 6c6c6548 6f57206f 00646c72 00000000 |Hello World.....|",
+    "0x10010010..0x1003ffff zero"
+   ]
+  },
+  {
+   "name": "User Stack",
+   "from": "0x7fffffe4",
+   "to": "0x80000000",
+   "rows": [
+    "0x7fffffe4 00000001 7ffffff6 00000000 |............|",
+    "0x7ffffff0 00000000 72700000 6172676f 00732e6d |......program.s.|"
+   ]
+  }
+ ]
+}

@@ -32,6 +32,12 @@
       # <atomic> (pulled in by napi.h) includes.  The core's own sources find
       # their headers next to themselves; this is for addon.cc and the
       # generated parser and scanner.
+      #
+      # -iquote is a Linux-only measure (gcc/clang; cflags_cc does not reach
+      # MSVC).  <syscall.h> is a Linux header that MSVC's library never
+      # includes, so there is nothing for CPU/syscall.h to shadow there and
+      # the msvc block below needs no counterpart.  macOS has a <syscall.h>
+      # but libc++ does not include it; untried.
       "include_dirs": [
         "<(gen_dir)",
         "<!(node -p \"require('node-addon-api').include_dir\")"
