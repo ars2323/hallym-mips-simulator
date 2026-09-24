@@ -76,14 +76,14 @@ export interface Replayed {
   display: Display;
   assembled: spim.AssembleResult;
   runErrors: string[];     // what the core reported while stepping or running
-  unsupported?: string;    // an action this front end does not offer yet
+  breakpoints: number[];   // set with --breakpoint
 }
 
 export function replay(c: GoldenCase, run: spim.RunParameters): Replayed {
   const display: Display = { ...DEFAULT_DISPLAY };
   const assembled = spim.assemble(readFileSync(programPath(c.program)), { run, fileName: c.program });
   const runErrors: string[] = [];
-  let unsupported: string | undefined;
+  const breakpoints: number[] = [];
   for (let i = 0; i < c.args.length; i += 1) {
     const a = c.args[i];
     if (a === '--steps') {
@@ -104,12 +104,14 @@ export function replay(c: GoldenCase, run: spim.RunParameters): Replayed {
     } else if (a === '--redisplay') {
       // Qt only: its toggles do not redraw by themselves.
     } else if (a === '--breakpoint') {
-      unsupported = `--breakpoint ${c.args[++i]} (setting a breakpoint is a write the addon does not offer yet)`;
+      const addr = parseInt(c.args[++i], 16);
+      if (!spim.setBreakpoint(addr)) throw new Error(`no breakpoint at ${c.args[i]}: ${spim.errors().join('')}`);
+      breakpoints.push(addr);
     } else {
       throw new Error(`unknown argument ${a}`);
     }
   }
-  return { display, assembled, runErrors, unsupported };
+  return { display, assembled, runErrors, breakpoints };
 }
 
 // ---- the machine as data -------------------------------------------------

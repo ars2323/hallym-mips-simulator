@@ -79,14 +79,22 @@ function compareText(c: GoldenCase, r: Replayed): string {
   const pinned = SOURCE_LINE_DIFFERENCES[c.program] ?? {};
   let lines = 0;
   let pinnedSeen = 0;
+  let breakpoints = 0;
   expected.forEach((section, si) => {
     assert.equal(section.lines.length, ours[si].lines.length, `${section.name}: instruction count`);
     section.lines.forEach((g, li) => {
       const o = ours[si].lines[li];
-      const where = `${c.name}:${g.lineNo} [${hex(g.addr)}]`;
-      assert.equal(g.addr, o.addr, `${where} address`);
-      if (r.display.textValue) assert.equal(g.word, o.word, `${where} word`);
-      else assert.equal(g.word, null, `${where} word shown although hidden`);
+      const where = `${c.name}:${g.lineNo} [${hex(o.addr)}]`;
+      assert.equal(o.breakpoint, g.breakpoint !== null, `${where} breakpoint`);
+      if (g.breakpoint) {
+        assert.equal(hex(o.addr).slice(2, 9), g.breakpoint.addrDigits, `${where} address digits`);
+        assert.equal(hex(o.word).slice(2, 9), g.breakpoint.wordDigits, `${where} word digits`);
+        breakpoints += 1;
+      } else {
+        assert.equal(g.addr, o.addr, `${where} address`);
+        if (r.display.textValue) assert.equal(g.word, o.word, `${where} word`);
+        else assert.equal(g.word, null, `${where} word shown although hidden`);
+      }
       const text = coreText(o.line);
       assert.equal(g.disassembly, splitComment(text).disassembly, `${where} disassembly`);
       if (!r.display.textComments) {
@@ -104,7 +112,9 @@ function compareText(c: GoldenCase, r: Replayed): string {
   if (r.display.textComments && r.display.textUser) {
     assert.equal(pinnedSeen, Object.keys(pinned).length, 'every pinned difference was met');
   }
-  return `${lines} instructions` + (pinnedSeen ? `, ${pinnedSeen} pinned source-line differences` : '');
+  assert.equal(breakpoints, r.breakpoints.length, 'every breakpoint shown');
+  return `${lines} instructions` + (pinnedSeen ? `, ${pinnedSeen} pinned source-line differences` : '')
+    + (breakpoints ? `, ${breakpoints} breakpoint` : '');
 }
 
 function compareData(c: GoldenCase, r: Replayed): string {
@@ -175,10 +185,6 @@ describe('Qt goldens under the Qt capture environment', () => {
   for (const c of readCases()) {
     test(`${c.name} (${c.stream})`, (t) => {
       const r = replay(c, QT_CAPTURE_RUN);
-      if (r.unsupported) {
-        t.skip(r.unsupported);
-        return;
-      }
       const summary = c.stream === 'text-log' ? compareText(c, r)
         : c.stream === 'data-log' ? compareData(c, r)
         : c.stream === 'intregs-log' ? compareRegisters(c, r)

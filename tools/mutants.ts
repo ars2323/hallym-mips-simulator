@@ -6,13 +6,14 @@
    Each mutant below changes one thing in one file -- the text `find` must
    occur exactly once -- in a copy of src/, tests/, tools/ and native/'s
    sources in a temporary directory (the built addon, CPU/ and node_modules/
-   are linked, not copied), and
+   are linked, not copied; a mutant marked `rebuild` in native/src gets its
+   own build of the addon there), and
    runs the tests named for it there.  A mutant is KILLED when those tests
    fail; one that survives, or does not apply, fails this script.  Nothing in
    the working tree is touched.
 */
 
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -26,6 +27,7 @@ interface Mutant {
   replace: string;
   tests: string[];
   what: string;
+  rebuild?: boolean; // the mutant is in native/src: build the addon again
 }
 
 const MUTANTS: Mutant[] = [
@@ -127,6 +129,48 @@ const MUTANTS: Mutant[] = [
   { module: 'native/index.ts', file: 'native/index.ts', what: 'process environment leaks in by default',
     find: 'env: Object.freeze([]) });', replace: "env: Object.freeze(['HOME=' + (process.env.HOME ?? '')]) });",
     tests: ['tests/node/run-parameters.test.ts'] },
+  // ---- execution control in the addon (rebuilt for each)
+  { module: 'addon run', file: 'native/src/addon.cc', what: 'no stepping over the breakpoint stopped at', rebuild: true,
+    find: 'bool stepOver = stoppedAt != 0 && stoppedAt == PC && inst_is_breakpoint(PC);', replace: 'bool stepOver = false;',
+    tests: ['tests/node/run-control.test.ts'] },
+  { module: 'addon run', file: 'native/src/addon.cc', what: 'a run-time error reported as an exit', rebuild: true,
+    find: 'reason = errors.empty() ? "exit" : "error";', replace: 'reason = "exit";',
+    tests: ['tests/node/run-control.test.ts'] },
+  { module: 'addon breakpoints', file: 'native/src/addon.cc', what: 'addresses outside text reach the core', rebuild: true,
+    find: '  if (!inText(addr)) {', replace: '  if (false) {', tests: ['tests/node/run-control.test.ts'] },
+  { module: 'addon breakpoints', file: 'native/src/addon.cc', what: 'text segment shows the break, not the instruction',
+    rebuild: true, find: '    if (breakpoint) delete_breakpoint(addr);\n', replace: '',
+    tests: ['tests/node/run-control.test.ts'] },
+  // ---- the Node side of execution control
+  { module: 'native/index.ts', file: 'native/index.ts', what: 'breakpoint list misread',
+    find: '/^Breakpoint at 0x([0-9a-f]{8})$/gm', replace: '/^Breakpoint at 0x([0-9a-f]{8})$/g',
+    tests: ['tests/node/run-control.test.ts'] },
+  { module: 'native/index.ts', file: 'native/index.ts', what: 'step() stops going at a breakpoint',
+    find: "return stop !== 'exit' && stop !== 'error';", replace: "return stop === 'limit';",
+    tests: ['tests/node/run-control.test.ts'] },
+  // ---- the simulator process
+  { module: 'sim worker', file: 'src/sim/worker.ts', what: 'stop requests ignored',
+    find: "      if (stopRequested) return result('stopped', errors);\n", replace: '',
+    tests: ['tests/sim/process.test.ts'] },
+  { module: 'sim worker', file: 'src/sim/worker.ts', what: 'output sent only at the end',
+    find: '      flushConsole();\n      if (stop ===', replace: "      if (stop !== 'limit') flushConsole();\n      if (stop ===",
+    tests: ['tests/sim/process.test.ts'] },
+  { module: 'sim worker', file: 'src/sim/worker.ts', what: 'console decoded without streaming',
+    find: 'decoder.decode(spim.consoleOutput(), { stream: true })', replace: 'decoder.decode(spim.consoleOutput())',
+    tests: ['tests/sim/process.test.ts'] },
+  { module: 'sim worker', file: 'src/sim/worker.ts', what: 'slices too long to stop between',
+    find: 'export const SLICE = 10000;', replace: 'export const SLICE = 20000000;', tests: ['tests/sim/process.test.ts'] },
+  { module: 'sim worker', file: 'src/sim/worker.ts', what: 'changes allowed while running',
+    find: "    if (running && !WHILE_RUNNING.has(method))", replace: "    if (false && running && !WHILE_RUNNING.has(method))",
+    tests: ['tests/sim/process.test.ts'] },
+  { module: 'sim host', file: 'src/sim/host.ts', what: 'no restart after a crash by default',
+    find: 'this.restartOnCrash = options.restartOnCrash ?? true;', replace: 'this.restartOnCrash = options.restartOnCrash ?? false;',
+    tests: ['tests/sim/process.test.ts'] },
+  { module: 'sim host', file: 'src/sim/host.ts', what: 'stop() kills at once',
+    find: '      const stopCall = this.call(\'stop\');', replace: "      kill(); return 'killed';\n      const stopCall = this.call('stop');",
+    tests: ['tests/sim/process.test.ts'] },
+  { module: 'sim host', file: 'src/sim/host.ts', what: "the core's fatal message lost",
+    find: '/SPIM core fatal error: (.*)/', replace: '/SPIM core fatal eror: (.*)/', tests: ['tests/sim/process.test.ts'] },
   // ---- the golden harness itself
   { module: 'qt goldens', file: 'tests/golden/qt.test.ts', what: 'capture environment in another order',
     find: "env: ['QT_QPA_PLATFORM=offscreen', 'HOME=/nonexistent',", replace: "env: ['HOME=/nonexistent', 'QT_QPA_PLATFORM=offscreen',",
@@ -137,13 +181,13 @@ const MUTANTS: Mutant[] = [
     find: "ours: '; 1155: mtlo $0'", replace: "ours: '; 1155: mtlo $1'", tests: ['tests/golden/qt.test.ts'] },
 ];
 
-function copyTree(dir: string): void {
+function copyTree(dir: string, linkBuild: boolean): void {
   for (const d of ['src', 'tests', 'tools']) cpSync(path.join(root, d), path.join(dir, d), { recursive: true });
   for (const f of ['package.json', 'tsconfig.json']) cpSync(path.join(root, f), path.join(dir, f));
   cpSync(path.join(root, 'native'), path.join(dir, 'native'), {
     recursive: true, filter: (from) => !from.startsWith(path.join(root, 'native', 'build')),
   });
-  symlinkSync(path.join(root, 'native', 'build'), path.join(dir, 'native', 'build'));
+  if (linkBuild) symlinkSync(path.join(root, 'native', 'build'), path.join(dir, 'native', 'build'));
   for (const l of ['CPU', 'node_modules']) symlinkSync(path.join(root, l), path.join(dir, l));
 }
 
@@ -154,7 +198,7 @@ const rows: string[] = [];
 for (const m of selected) {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'mutant-'));
   try {
-    copyTree(dir);
+    copyTree(dir, !m.rebuild);
     const file = path.join(dir, m.file);
     const text = readFileSync(file, 'utf8');
     const count = text.split(m.find).length - 1;
@@ -164,6 +208,10 @@ for (const m of selected) {
       continue;
     }
     writeFileSync(file, text.replace(m.find, m.replace));
+    if (m.rebuild) {
+      execFileSync(path.join(root, 'node_modules/.bin/node-gyp'), ['rebuild', '--directory', path.join(dir, 'native')],
+                   { stdio: 'ignore' });
+    }
     const run = spawnSync(process.execPath, ['--test', '--test-reporter=tap', ...m.tests],
                           { cwd: dir, encoding: 'utf8', timeout: 300000 });
     const firstFailure = /^\s*not ok \d+ - (.*)$/m.exec(run.stdout)?.[1] ?? '(no test reported a failure)';

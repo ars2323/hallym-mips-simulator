@@ -19,7 +19,11 @@ export interface TextWord {
   addr: number;
   word: number;  // unsigned
   line: string;  // the core's format_an_inst() for the stored instruction
+  breakpoint: boolean;
 }
+
+/* Why a run() stopped.  "limit" means there is more to run. */
+export type RunStop = 'exit' | 'error' | 'breakpoint' | 'limit';
 
 export interface Registers {
   pc: number;
@@ -43,7 +47,11 @@ export interface Segments {
 interface NativeCore {
   assemble(source: Uint8Array, handler: Uint8Array, argv: Uint8Array[],
            env: Uint8Array[], fileName: Uint8Array): { ok: boolean; errors: string[]; symbols: string };
-  step(n?: number): boolean;
+  run(steps: number): RunStop;
+  consoleOutput(): Uint8Array;
+  setBreakpoint(addr: number): boolean;
+  clearBreakpoint(addr: number): boolean;
+  breakpoints(): string;
   errors(): string[];
   textSegment(): TextWord[];
   registers(): Registers;
@@ -123,11 +131,43 @@ export function assemble(source: Uint8Array | string, options: AssembleOptions =
   return { ...result, format };
 }
 
-/** QtSpim's Single Step, n times (Run is a large n).  The first call after
-    assemble() starts the program: PC to the start address, stack rebuilt.
-    Returns whether the program can continue. */
-export const step = (n = 1): boolean => core.step(n);
-/** What the core reported during the last assemble() or step(). */
+/** Runs at most `steps` instructions and says why it stopped.  The first
+    run after assemble() (or after the program ended) starts the program: PC
+    to the start address, stack rebuilt.  Right after stopping at a
+    breakpoint, the next run first executes the instruction under it. */
+export const run = (steps: number): RunStop => core.run(steps);
+
+/** QtSpim's Single Step, n times (Run is a large n).  Returns whether the
+    program can go on -- at a breakpoint too. */
+export function step(n = 1): boolean {
+  const stop = core.run(n);
+  return stop !== 'exit' && stop !== 'error';
+}
+
+/** What the program printed since the last call, as bytes (UTF-8 when the
+    program prints what its UTF-8 source put in memory). */
+export const consoleOutput = (): Uint8Array => core.consoleOutput();
+
+const checkAddress = (addr: number): void => {
+  if (!Number.isInteger(addr) || addr < 0 || addr > 0xffffffff) throw new TypeError(`not an address: ${addr}`);
+};
+/** Whether there is a breakpoint at addr now (false: no instruction there;
+    errors() says why). */
+export function setBreakpoint(addr: number): boolean {
+  checkAddress(addr);
+  return core.setBreakpoint(addr);
+}
+/** Whether one was there to remove. */
+export function clearBreakpoint(addr: number): boolean {
+  checkAddress(addr);
+  return core.clearBreakpoint(addr);
+}
+/** The addresses with a breakpoint, ascending, from the core's own list. */
+export function breakpoints(): number[] {
+  return [...core.breakpoints().matchAll(/^Breakpoint at 0x([0-9a-f]{8})$/gm)]
+    .map((m) => parseInt(m[1], 16)).sort((a, b) => a - b);
+}
+/** What the core reported during the last assemble(), run()/step() or setBreakpoint(). */
 export const errors = (): string[] => core.errors();
 /** User text, then kernel text, in address order. */
 export const textSegment = (): TextWord[] => core.textSegment();

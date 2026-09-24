@@ -7,7 +7,8 @@
 // paths are opened and encodings decided (docs/PORTING.md).  No path and no
 // encoding logic lives here.
 //
-// Everything but assemble() and step() only reads the machine.
+// assemble(), run() and the breakpoint setters change the machine; the rest
+// only read it.
 
 #include <napi.h>
 
@@ -15,6 +16,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _MSC_VER
+#include <unistd.h>  // _exit
+#endif
 
 #include <string>
 #include <vector>
@@ -64,9 +68,15 @@ port console_in;
 
 static std::vector<std::string> errors;  // error() and run_error(), in order
 
-// While set, message_out is collected here (print_symbols() writes nowhere
-// else).  Console output is still dropped: nothing reads it yet.
+// While set, message_out is collected here (print_symbols() and
+// list_breakpoints() write nowhere else).
 static std::string *messageCapture = NULL;
+
+// What the program printed and nobody has taken yet (consoleOutput()), as
+// bytes.  The worker takes it after every slice of a run.
+static std::string consoleBytes;
+
+static void consoleWrite(const std::string &bytes) { consoleBytes += bytes; }
 
 static std::string formatted(const char *fmt, va_list args) {
   char buf[10000];  // QtSpim's BIG_BUF_SIZE
@@ -89,25 +99,35 @@ void run_error(char *fmt, ...) {
   va_end(args);
 }
 
-// The core assumes this does not return (terminal spim exits).
+// The core assumes this does not return (terminal spim exits).  It ends
+// the simulator process, which is its own (src/sim/worker.ts): the host sees
+// the exit code and reads the message from stderr.  _exit, not abort():
+// abort() leaves a core dump (apport on Ubuntu, Windows Error Reporting)
+// every time a student's program reaches, say, an .err directive.
+const int FATAL_EXIT_CODE = 70;  // EX_SOFTWARE; src/sim/host.ts knows it
 void fatal_error(char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
   fprintf(stderr, "SPIM core fatal error: %s", formatted(fmt, args).c_str());
   va_end(args);
-  abort();
+  fflush(stderr);
+  _exit(FATAL_EXIT_CODE);
 }
 
 void write_output(port fp, char *fmt, ...) {
-  if (messageCapture == NULL || fp.i != message_out.i) return;
   va_list args;
   va_start(args, fmt);
-  messageCapture->append(formatted(fmt, args));
+  if (fp.i == console_out.i) {
+    consoleWrite(formatted(fmt, args));
+  } else if (messageCapture != NULL && fp.i == message_out.i) {
+    messageCapture->append(formatted(fmt, args));
+  }
   va_end(args);
 }
+// No console input yet: reads get an empty line.
 int console_input_available() { return 0; }
 char get_console_char() { return 0; }
-void put_console_char(char) {}
+void put_console_char(char c) { consoleWrite(std::string(1, c)); }
 void read_input(char *str, int n) {
   if (n > 0) str[0] = '\0';
 }
@@ -194,6 +214,12 @@ static void initializeStack() {
   environ = saved;
 }
 
+// Where the run stands: finished (ended or failed; the next run starts
+// over, as QtSpim's does) and the breakpoint it last stopped at, which the
+// next run steps over first (QtSpim's Continue).
+static bool finished = false;
+static mem_addr stoppedAt = 0;
+
 // ------------------------------------------------------------ helpers
 
 static std::string bytesOf(const Napi::Value &value) {
@@ -255,7 +281,10 @@ static Napi::Value Assemble(const Napi::CallbackInfo &info) {
   quiet = false;
 
   errors.clear();
-  initializeWorld(bytesOf(info[1]));
+  consoleBytes.clear();
+  finished = false;
+  stoppedAt = 0;
+  initializeWorld(bytesOf(info[1]));  // also deletes every breakpoint
   size_t handler_errors = errors.size();
   initializeStack();
   std::string symbols;
@@ -270,28 +299,97 @@ static Napi::Value Assemble(const Napi::CallbackInfo &info) {
   return result;
 }
 
-// step(n = 1) -> whether the program can continue.  QtSpim's Single Step
-// (n = 1) and Run (large n): the first one after a load sets PC to the start
-// address and rebuilds the stack (SpimView::initializePCAndStack()).
-// Run-time errors are collected; errors() returns them.
-static Napi::Value Step(const Napi::CallbackInfo &info) {
+// run(steps) -> why it stopped:
+//   "exit"        the program ended (syscall exit)
+//   "error"       the core reported a run-time error and cannot go on
+//   "breakpoint"  PC is at a breakpoint, not yet executed
+//   "limit"       `steps` instructions ran; more to run
+// A user's stop is not here: it happens between runs (src/sim/worker.ts).
+//
+// The first run after a load, or after the program ended, sets PC to the
+// start address and rebuilds the stack (SpimView::initializePCAndStack()).
+static Napi::Value Run(const Napi::CallbackInfo &info) {
   Napi::Env env = info.Env();
-  int steps = 1;
-  if (info.Length() > 0 && info[0].IsNumber()) {
-    steps = info[0].As<Napi::Number>().Int32Value();
-  }
-  if (PC == 0) {
+  if (info.Length() < 1 || !info[0].IsNumber()) return throwType(env, "run(steps)");
+  int steps = info[0].As<Napi::Number>().Int32Value();
+  if (PC == 0 || finished) {
     PC = starting_address();
     initializeStack();
+    finished = false;
   }
+  bool stepOver = stoppedAt != 0 && stoppedAt == PC && inst_is_breakpoint(PC);
+  stoppedAt = 0;
   errors.clear();
   force_break = false;
   bool continuable = false;
-  run_program(PC, steps, false, false, &continuable);
-  return Napi::Boolean::New(env, continuable);
+  bool atBreakpoint = run_program(PC, steps, false, stepOver, &continuable);
+
+  const char *reason;
+  if (!continuable) {
+    reason = errors.empty() ? "exit" : "error";
+    finished = true;
+  } else if (atBreakpoint) {
+    reason = "breakpoint";
+    stoppedAt = PC;
+  } else {
+    reason = "limit";
+  }
+  return Napi::String::New(env, reason);
 }
 
-// errors() -> what the core reported during the last assemble() or step().
+// consoleOutput() -> Uint8Array: what the program printed since the last
+// call.  Bytes: Node decodes them, across calls.
+static Napi::Value ConsoleOutput(const Napi::CallbackInfo &info) {
+  Napi::Uint8Array out = Napi::Uint8Array::New(info.Env(), consoleBytes.size());
+  memcpy(out.Data(), consoleBytes.data(), consoleBytes.size());
+  consoleBytes.clear();
+  return out;
+}
+
+// Whether ADDR is a word in a text segment.  Outside them the core's
+// instruction reads and writes raise an exception, which writes CP0 (Cause,
+// BadVAddr): a breakpoint that could not be set must not change what the
+// student sees, so such addresses never reach the core.
+static bool inText(mem_addr addr) {
+  return (addr & 3) == 0 && ((addr >= TEXT_BOT && addr < text_top) ||
+                             (addr >= K_TEXT_BOT && addr < k_text_top));
+}
+
+// setBreakpoint(addr) / clearBreakpoint(addr) -> whether there is one there
+// now / whether one was removed.  The core's add_breakpoint() puts a break
+// instruction in the instruction's place and keeps the instruction; asked
+// twice it would complain, so a second set is simply true.
+static Napi::Value SetBreakpoint(const Napi::CallbackInfo &info) {
+  mem_addr addr = info[0].As<Napi::Number>().Uint32Value();
+  errors.clear();
+  if (!inText(addr)) {
+    char format[] = "No instruction to breakpoint at address 0x%08x\n";
+    error(format, addr);  // the core's words for an empty text word
+    return Napi::Boolean::New(info.Env(), false);
+  }
+  if (!inst_is_breakpoint(addr)) add_breakpoint(addr);
+  return Napi::Boolean::New(info.Env(), inst_is_breakpoint(addr));
+}
+
+static Napi::Value ClearBreakpoint(const Napi::CallbackInfo &info) {
+  mem_addr addr = info[0].As<Napi::Number>().Uint32Value();
+  bool there = inText(addr) && inst_is_breakpoint(addr);
+  if (there) delete_breakpoint(addr);
+  if (stoppedAt == addr) stoppedAt = 0;
+  return Napi::Boolean::New(info.Env(), there);
+}
+
+// breakpoints() -> the core's list_breakpoints() text, as it writes it.
+static Napi::Value Breakpoints(const Napi::CallbackInfo &info) {
+  std::string listing;
+  messageCapture = &listing;
+  list_breakpoints();
+  messageCapture = NULL;
+  return stringOf(info.Env(), listing);
+}
+
+// errors() -> what the core reported during the last assemble(), run() or
+// setBreakpoint().
 static Napi::Value Errors(const Napi::CallbackInfo &info) {
   Napi::Env env = info.Env();
   Napi::Array list = Napi::Array::New(env, errors.size());
@@ -304,22 +402,32 @@ static void pushSegment(Napi::Env env, Napi::Array &out, mem_addr from,
   str_stream ss;
   ss_init(&ss);
   for (mem_addr addr = from; addr < to; addr += BYTES_PER_WORD) {
+    // Under a breakpoint the stored instruction is the core's break; the
+    // student's instruction is lifted out for the look, as format_an_inst()
+    // itself does.
+    bool breakpoint = inst_is_breakpoint(addr);
+    if (breakpoint) delete_breakpoint(addr);
     instruction *inst = read_mem_inst(addr);
+    if (inst != NULL) {
+      ss_clear(&ss);
+      format_an_inst(&ss, inst, addr);
+    }
+    if (breakpoint) add_breakpoint(addr);
     if (inst == NULL) continue;
-    ss_clear(&ss);
-    format_an_inst(&ss, inst, addr);
     std::string line = ss_to_string(&ss);
     if (!line.empty() && line.back() == '\n') line.pop_back();
     Napi::Object entry = Napi::Object::New(env);
     entry["addr"] = Napi::Number::New(env, addr);
     entry["word"] = Napi::Number::New(env, (uint32)ENCODING(inst));
     entry["line"] = stringOf(env, line);
+    entry["breakpoint"] = Napi::Boolean::New(env, breakpoint);
     out[out.Length()] = entry;
   }
   free(ss.buf);
 }
 
-// textSegment() -> [{ addr, word, line }], user text then kernel text.
+// textSegment() -> [{ addr, word, line, breakpoint }], user text then kernel
+// text.
 // `line` is the core's format_an_inst() for the stored instruction:
 // "[0x00400014]\t0x0c100009  jal 0x00400024 [main]   ; 188: jal main".
 static Napi::Value TextSegment(const Napi::CallbackInfo &info) {
@@ -449,7 +557,11 @@ static Napi::Object Init(Napi::Env env, Napi::Object exports) {
   message_out.i = 1;  // as QtSpim/main.cpp; write_output tells them apart
   console_out.i = 2;
   exports["assemble"] = Napi::Function::New(env, Assemble);
-  exports["step"] = Napi::Function::New(env, Step);
+  exports["run"] = Napi::Function::New(env, Run);
+  exports["consoleOutput"] = Napi::Function::New(env, ConsoleOutput);
+  exports["setBreakpoint"] = Napi::Function::New(env, SetBreakpoint);
+  exports["clearBreakpoint"] = Napi::Function::New(env, ClearBreakpoint);
+  exports["breakpoints"] = Napi::Function::New(env, Breakpoints);
   exports["errors"] = Napi::Function::New(env, Errors);
   exports["textSegment"] = Napi::Function::New(env, TextSegment);
   exports["registers"] = Napi::Function::New(env, Registers);

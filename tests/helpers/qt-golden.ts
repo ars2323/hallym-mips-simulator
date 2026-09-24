@@ -22,8 +22,13 @@ export const collapse = (s: string): string => s.replace(/[ \t\r\n]+/g, ' ').tri
 // ---- Text window ----------------------------------------------------------
 
 export interface GoldenTextLine {
-  addr: number;
-  word: number | null;     // null when the window hid the encoding
+  addr: number;            // NaN on a breakpoint line (see below)
+  word: number | null;     // null when the window hid the encoding; NaN on a breakpoint line
+  // A line with a breakpoint.  Upstream cuts the core's line at fixed
+  // offsets, and the core puts '*' in front of it, so the window shows
+  // "N [x0040002] x3402000   ori ...": both numbers lose their last digit
+  // (README.qt.md).  Those seven digits are all there is to compare.
+  breakpoint: { addrDigits: string; wordDigits: string } | null;
   disassembly: string;     // white space collapsed
   comment: string | null;  // "; 183: lw $a0 0($sp) # argc", collapsed; null if none shown
   lineNo: number;          // in the golden file
@@ -49,6 +54,7 @@ export function parseTextLog(text: string, file = 'text log'): GoldenTextSection
   const header = new RegExp(`^(User Text Segment|Kernel Text Segment) \\[(${HEX8})\\]\\.\\.\\[(${HEX8})\\]$`);
   // "[addr] word  disassembly<pad>comment"; the word is absent when hidden.
   const line = new RegExp(`^\\[(${HEX8})\\] (${HEX8})?  (.*)$`);
+  const breakpointLine = /^N \[x([0-9a-f]{7})\] x([0-9a-f]{7}) (.*)$/;
   text.split('\n').forEach((raw, i) => {
     if (raw === '') return;
     let m = header.exec(raw);
@@ -56,11 +62,19 @@ export function parseTextLog(text: string, file = 'text log'): GoldenTextSection
       sections.push({ name: m[1], from: parseInt(m[2], 16), to: parseInt(m[3], 16), lines: [] });
       return;
     }
+    const b = breakpointLine.exec(raw);
+    if (b && sections.length > 0) {
+      sections[sections.length - 1].lines.push({
+        addr: NaN, word: NaN, breakpoint: { addrDigits: b[1], wordDigits: b[2] }, ...splitComment(b[3]), lineNo: i + 1,
+      });
+      return;
+    }
     m = line.exec(raw);
     if (!m || sections.length === 0) throw new Error(`${file}:${i + 1}: not a text-log line: ${JSON.stringify(raw)}`);
     sections[sections.length - 1].lines.push({
       addr: parseInt(m[1], 16),
       word: m[2] === undefined ? null : parseInt(m[2], 16),
+      breakpoint: null,
       ...splitComment(m[3]),
       lineNo: i + 1,
     });
