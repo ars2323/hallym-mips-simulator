@@ -92,14 +92,14 @@ test('splitter: drag to share the width, fold either side away and back', async 
   await page.mouse.up();
   expect((await editorBox()).width).toBeGreaterThan(before + 100);
 
-  await page.getByRole('button', { name: 'Editor 접기' }).click();
+  await page.getByRole('button', { name: 'Collapse Editor' }).click();
   await expect(page.locator('.editor-panel')).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Editor 펼치기' })).toBeVisible();
-  await page.getByRole('button', { name: 'Editor 펼치기' }).click();
+  await expect(page.getByRole('button', { name: 'Expand Editor' })).toBeVisible();
+  await page.getByRole('button', { name: 'Expand Editor' }).click();
   await expect(page.locator('.editor-panel')).toBeVisible();
-  await page.getByRole('button', { name: 'Run 접기' }).click();
+  await page.getByRole('button', { name: 'Collapse Run' }).click();
   await expect(page.locator('.run-grid')).toBeHidden();
-  await page.getByRole('button', { name: 'Run 펼치기' }).click();
+  await page.getByRole('button', { name: 'Expand Run' }).click();
   await expect(page.locator('.run-grid')).toBeVisible();
 });
 

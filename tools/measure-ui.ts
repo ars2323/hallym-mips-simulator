@@ -87,7 +87,7 @@ async function registers(r: Running) {
 
 async function running(r: Running) {
   const { page } = r;
-  await page.getByRole('button', { name: /처음으로/ }).click();
+  await page.getByRole('button', { name: /Reset/ }).click();
   await settled(page);
   await startFrames(page);
   await page.keyboard.press('F5');
@@ -115,7 +115,7 @@ async function ttcore(r: Running, mode: 'virtual' | 'full') {
     await page.evaluate(() => { window.__perf.text.length = 0; });
     const t0 = Date.now();
     if (rate === 1) await openAndAssemble(r, sample(r.dir, 'tests/programs/tt.core.s', `tt.core-${mode}.s`));
-    else await page.getByRole('button', { name: /처음으로/ }).click(); // assembles the same program again
+    else await page.getByRole('button', { name: /Reset/ }).click(); // assembles the same program again
     await page.waitForFunction(() => window.__perf.text.length > 0);
     const assembleToPainted = Date.now() - t0;
     const text = await page.evaluate(() => window.__perf.text.at(-1)!);

@@ -40,7 +40,14 @@ test('changedKeys: registers that differ from the last stop, PC left out', () =>
 
 test('registerRows: panel order, CP0 only when asked', () => {
   const rows = registerRows(regs({}, { 2: 10 }));
-  assert.deepEqual(rows.slice(0, 5).map((r) => r.key), ['PC', 'HI', 'LO', '$v0', '$v1']);
+  assert.deepEqual(rows.slice(0, 6).map((r) => r.key), ['PC', 'HI', 'LO', '$zero', '$v0', '$v1']);
+  // Every general register once; $zero a constant and $ra the return address,
+  // not "Reserved" and "Pointers" as in the Qt build's grouping.
+  const general = rows.filter((r) => r.key.startsWith('$')).map((r) => r.key);
+  assert.equal(new Set(general).size, 32);
+  const groupOf = (k: string) => rows.find((r) => r.key === k)!.group;
+  assert.deepEqual(['$zero', '$at', '$k0', '$gp', '$sp', '$fp', '$ra', '$t9'].map(groupOf),
+                   ['Constant', 'Reserved', 'Reserved', 'Pointers', 'Pointers', 'Pointers', 'Return address', 'Temporaries']);
   assert.equal(rows.find((r) => r.key === '$v0')!.value, 10);
   assert.equal(rows.some((r) => r.group === 'CP0'), false);
   assert.equal(registerRows(regs(), true).filter((r) => r.group === 'CP0').length, 4);

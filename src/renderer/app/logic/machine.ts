@@ -4,7 +4,7 @@
 
 import { decode, formatName } from '../../../core/decoder.ts';
 import { bin32Grouped, hex32, signedDec32 } from '../../../core/format.ts';
-import { registerGroups, registerName } from '../../../core/registers.ts';
+import { reg, registerGroups, registerName, type RegisterRef } from '../../../core/registers.ts';
 import { sourceLineNumber, sourceLineStatement } from '../../../core/source-text.ts';
 
 export interface RegisterValues {
@@ -14,14 +14,31 @@ export interface RegisterValues {
 
 export interface RegisterRow {
   key: string;     // "PC", "$t0" -- stable, for keeping one DOM row per register
-  group: string;   // Korean group title
+  group: string;   // the group's title (WINDOW_GROUPS)
   value: number;
 }
 
-const GROUP_TITLES: Record<string, string> = {
-  Special: '특수', 'Return values': '반환값', Arguments: '인자', Temporaries: '임시',
-  Saved: '보존', Pointers: '포인터', Reserved: '예약', CP0: 'CP0',
-};
+/* The window's groups.  They follow the register-use table of the course
+   textbook (Patterson & Hennessy, "MIPS green card"), not the Qt build's
+   panel (src/core/registers.ts registerGroups(), which this file leaves as
+   the port it is): there $zero sat under Reserved and $ra under Pointers,
+   and named in English the groups said what those two are not.  $zero is a
+   constant, $ra the return address; each gets its own group, and every
+   group's name is true of every register in it. */
+const general = (...numbers: number[]): RegisterRef[] => numbers.map((n) => reg('General', n));
+const range = (first: number, last: number) => general(...Array.from({ length: last - first + 1 }, (_, i) => first + i));
+export const WINDOW_GROUPS: { title: string; registers: RegisterRef[] }[] = [
+  { title: 'Special', registers: [reg('Pc'), reg('Hi'), reg('Lo')] },
+  { title: 'Constant', registers: general(0) },                              // $zero
+  { title: 'Return values', registers: range(2, 3) },                        // $v0-$v1
+  { title: 'Arguments', registers: range(4, 7) },                            // $a0-$a3
+  { title: 'Temporaries', registers: [...range(8, 15), ...range(24, 25)] },  // $t0-$t9
+  { title: 'Saved', registers: range(16, 23) },                              // $s0-$s7
+  { title: 'Pointers', registers: range(28, 30) },                           // $gp $sp $fp
+  { title: 'Return address', registers: general(31) },                       // $ra
+  { title: 'Reserved', registers: general(1, 26, 27) },                      // $at $k0 $k1
+  { title: 'CP0', registers: registerGroups().find((g) => g.title === 'CP0')!.registers },
+];
 
 function valueOf(r: RegisterValues, key: string): number {
   switch (key) {
@@ -38,14 +55,13 @@ function valueOf(r: RegisterValues, key: string): number {
 const GENERAL_INDEX: Record<string, number> = Object.fromEntries(
   Array.from({ length: 32 }, (_, n) => [registerName({ kind: 'General', number: n }), n]));
 
-// The rows in display order: the register panel's groups (src/core/
-// registers.ts), CP0 last.
+// The rows in display order: WINDOW_GROUPS, CP0 last.
 export function registerRows(r: RegisterValues, withCp0 = false): RegisterRow[] {
-  return registerGroups()
+  return WINDOW_GROUPS
     .filter((g) => withCp0 || g.title !== 'CP0')
     .flatMap((g) => g.registers.map((ref) => {
       const key = registerName(ref);
-      return { key, group: GROUP_TITLES[g.title] ?? g.title, value: valueOf(r, key) >>> 0 };
+      return { key, group: g.title, value: valueOf(r, key) >>> 0 };
     }));
 }
 

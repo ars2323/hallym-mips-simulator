@@ -36,13 +36,13 @@ export const version: string = bundled
    with the binary). */
 export const LICENSES: { name: string; title: string }[] = [
   { name: 'LICENSE', title: 'SPIM — BSD License (James R. Larus)' },
-  { name: 'NOTICE', title: 'NOTICE — 이 프로그램에 든 것과 그 라이선스' },
-  { name: 'hallym-assets.md', title: 'Hallym University 자산 (교표·캐릭터·앱 아이콘)' },
+  { name: 'NOTICE', title: 'NOTICE — what this program contains, and their licenses' },
+  { name: 'hallym-assets.md', title: 'Hallym University assets (marks, characters, app icon)' },
   { name: 'OFL-Pretendard.txt', title: 'Pretendard — SIL Open Font License 1.1' },
   { name: 'OFL-D2Coding.txt', title: 'D2Coding — SIL Open Font License 1.1' },
   { name: 'lucide-LICENSE.txt', title: 'Lucide icons — ISC License' },
-  { name: 'flex-LICENSE.txt', title: 'flex — 코어의 스캐너를 만든 도구 (고지 의무 없음, 감사 표시)' },
-  { name: 'third-party.txt', title: '함께 묶인 라이브러리 (CodeMirror, iconv-lite, node-addon-api …)' },
+  { name: 'flex-LICENSE.txt', title: 'flex — made the core\'s scanner (an acknowledgement; no notice required)' },
+  { name: 'third-party.txt', title: 'Bundled libraries (CodeMirror, iconv-lite, node-addon-api …)' },
 ];
 
 export const LICENSE_SOURCES: Record<string, string> = {

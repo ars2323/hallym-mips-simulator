@@ -30,14 +30,14 @@ export class ConsolePanel {
 
   constructor() {
     this.head = panelHead('Console');
-    this.bar = headButton('접기', '콘솔 접기/펼치기', () => this.setExpanded(!this.expanded));
+    this.bar = headButton('Collapse', 'Collapse / expand', () => this.setExpanded(!this.expanded));
     this.head.aside.append(this.bar);
     this.head.root.addEventListener('dblclick', () => this.setExpanded(!this.expanded));
     this.log = h('pre', { class: 'clog mono' });
     this.emptyNote = h('div', { class: 'empty' }, character('talk', 96),
       h('div', { class: 'say' }, h('h3', {}, '아직 출력이 없습니다'),
         h('p', {}, '프로그램이 출력하거나 입력을 받으면 여기에 나옵니다.')));
-    this.input = h('input', { class: 'cinput mono', type: 'text', 'aria-label': '콘솔 입력', spellcheck: 'false', autocomplete: 'off' });
+    this.input = h('input', { class: 'cinput mono', type: 'text', 'aria-label': 'Console input', spellcheck: 'false', autocomplete: 'off' });
     this.input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.isComposing) {
         e.preventDefault();
@@ -47,7 +47,7 @@ export class ConsolePanel {
         this.onInput(line);
       }
     });
-    this.inputRow = h('label', { class: 'cinrow', hidden: true }, h('span', { class: 'prompt' }, '입력'), this.input,
+    this.inputRow = h('label', { class: 'cinrow', hidden: true }, h('span', { class: 'prompt' }, 'Input'), this.input,
       h('span', { class: 'hint' }, 'Enter'));
     this.body = h('div', { class: 'cbody' }, this.emptyNote, this.log, this.inputRow);
     this.root = h('section', { class: 'panel console', 'aria-label': 'Console' }, this.head.root, this.body);
@@ -99,8 +99,8 @@ export class ConsolePanel {
   private render(): void {
     this.root.classList.toggle('open', this.expanded);
     this.bar.setAttribute('aria-expanded', String(this.expanded));
-    this.bar.textContent = this.expanded ? '접기' : '펼치기';
-    this.head.setMeta(this.waiting ? '입력을 기다립니다' : '');
+    this.bar.textContent = this.expanded ? 'Collapse' : 'Expand';
+    this.head.setMeta(this.waiting ? 'Waiting for input' : '');
     this.body.hidden = !this.expanded;
     const empty = this.text === '' && !this.waiting;
     this.emptyNote.hidden = !empty;

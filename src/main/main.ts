@@ -124,7 +124,7 @@ async function main(): Promise<void> {
   sim.on('crashed', (report) => win.webContents.send('sim:crashed', report.message, report.error.message));
 
   ipcMain.handle('file:open', () => answer(async () => {
-    const r = await dialog.showOpenDialog(win, { filters: [{ name: 'MIPS 어셈블리', extensions: ['s', 'asm'] }, { name: '모든 파일', extensions: ['*'] }] });
+    const r = await dialog.showOpenDialog(win, { filters: [{ name: 'MIPS assembly', extensions: ['s', 'asm'] }, { name: 'All files', extensions: ['*'] }] });
     if (r.canceled || r.filePaths.length === 0) return null;
     const p = r.filePaths[0];
     return openBytes(readFileSync(p), path.basename(p), p);
@@ -133,7 +133,7 @@ async function main(): Promise<void> {
     answer(async () => {
       let target = file.path;
       if (target === null) {
-        const r = await dialog.showSaveDialog(win, { defaultPath: file.name, filters: [{ name: 'MIPS 어셈블리', extensions: ['s'] }] });
+        const r = await dialog.showSaveDialog(win, { defaultPath: file.name, filters: [{ name: 'MIPS assembly', extensions: ['s'] }] });
         if (r.canceled || !r.filePath) return null;
         target = r.filePath;
       }
@@ -148,7 +148,7 @@ async function main(): Promise<void> {
   }));
   // An exception handler for Settings > 고급: its name and text (decoded like a program).
   ipcMain.handle('file:openHandler', () => answer(async () => {
-    const r = await dialog.showOpenDialog(win, { title: '예외 처리기 파일', filters: [{ name: 'MIPS 어셈블리', extensions: ['s', 'asm', 'a'] }, { name: '모든 파일', extensions: ['*'] }] });
+    const r = await dialog.showOpenDialog(win, { title: 'Exception handler', filters: [{ name: 'MIPS assembly', extensions: ['s', 'asm', 'a'] }, { name: 'All files', extensions: ['*'] }] });
     if (r.canceled || r.filePaths.length === 0) return null;
     return { name: path.basename(r.filePaths[0]), text: decodeTextFile(readFileSync(r.filePaths[0])).text };
   }));

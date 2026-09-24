@@ -513,7 +513,9 @@ Qt판은 코어가 `read_input()` 을 부르면 그 안에서 입력 대화를 �
 | `.s` 연결 | 없음 | 없음 |
 
 - 이름은 어디서나 **Hallym MIPS** 다(창, 정보, 작업 표시줄, 설치 프로그램, 시작 메뉴, 설치 폴더, 제거 항목).
-  Qt판의 "Hallym MIPS Simulator" 와 다르므로 시작 메뉴에서도 둘이 구별된다. 프로그램 어디에도 "한림" 은 쓰지 않는다.
+  Qt판의 "Hallym MIPS Simulator" 와 다르므로 시작 메뉴에서도 둘이 구별된다. 프로그램의 화면에는 "한림" 을 쓰지 않는다.
+  예외는 라이선스 고지다: `NOTICE` 와 `src/renderer/assets/hallym/README.md` 는 권리자를 **한림대학교** 로 적는다
+  (정보 창의 Licenses 에 그대로 보인다).
   설치 폴더 이름은 원클릭 설치 관리자에서는 패키지 이름을 따르므로, 패키지 이름을 `Hallym MIPS` 로 했다.
 - 버전은 `2.0.0-alpha.1`. 1.2.4 를 쓰던 학생이 1.0.0 을 보면 내려간 것으로 읽는다.
 - 서명하지 않았다. Windows SmartScreen 이 처음 실행 때 경고할 수 있다.
@@ -591,7 +593,9 @@ Qt판도 같은 코어라 샌다. Qt판은 10만 명령마다 `run_spim()` 을 �
 
 ---
 
-## 15. 창 2차 — Windows 실사용 점검 뒤 (docs/screens/ui2/)
+## 15. 창 2차 — Windows 실사용 점검 뒤
+
+(이 절의 화면 이름은 그때의 한국어다. 16절에서 영어로 바꿨다.)
 
 **창 틀(A-1).** `titleBarStyle: 'hidden'` 에 `titleBarOverlay` 를 쓴다. 창 버튼(최소화·최대화·닫기)은 시스템이 그린다.
 그래서 Windows 11 의 스냅 레이아웃(최대화 버튼에 올리면 나오는 분할 배치), 막대 두 번 눌러 최대화, 위로 끌어 최대화,
@@ -647,3 +651,44 @@ Qt판도 같은 코어라 샌다. Qt판은 10만 명령마다 `run_spim()` 을 �
 **입력(C-4).** Tab: 커서에서 다음 4의 배수 열까지 공백. 여러 줄을 고르면 4칸 들여쓰기, Shift+Tab 4칸 내어쓰기. Enter 는 0열.
 탭 문자의 표시 폭도 4.
 
+---
+
+## 16. 화면 용어 — 이름은 영어, 학생에게 하는 말은 한국어
+
+**규칙.** 화면에 있는 **것의 이름**은 영어다: 패널·탭 이름, 표의 열 머리, 레지스터 그룹, 메모리 구역, 명령 필드, 상태 칩,
+툴바 버튼. 교재(Patterson & Hennessy)와 SPIM 이 쓰는 말이고, 학생이 강의 자료와 화면을 오갈 때 같은 낱말을 보게 하려는 것이다.
+**학생에게 하는 문장**은 한국어다: 안내 카드, 오류 설명과 할 일, Inspector 의 해설, 대화상자 본문, 상태 표시줄의 문장, 빈 상태, 도움말.
+영어 이름 뒤에 조사를 붙이지 않는다(`Data 의 값을`처럼 띄우거나 문장을 바꾼다). 프로그램 이름은 **Hallym MIPS** 다.
+
+| 자리 | 전 | 후 |
+|---|---|---|
+| 툴바 | 어셈블 / 실행 / 한 줄 / 처음부터 | Assemble / Run(실행 중에는 Stop) / Step / Reset |
+| 실행 속도 | 즉시 / 1줄/1초 | Instant / 1 line/s |
+| 아이콘 버튼 | 튜토리얼 / 새 파일 / 파일 열기 / 설정 | Tutorial / New file / Open file (Ctrl+O) / Settings |
+| 상태 힌트 | F10 한 줄 · F5 실행 | `F10` Step · `F5` Run |
+| Registers 열 | 이름 / 16진 / 10진 / 2진 | Name / Hex / Dec / Bin |
+| Registers 그룹 | 특수 / 반환값 / 인자 / 임시 / 보존 / 포인터 / 예약 | Special / Constant / Return values / Arguments / Temporaries / Saved / Pointers / Return address / Reserved / CP0 |
+| Registers 표 | 바뀜 | Changed |
+| Text 열 | 주소 / 인코딩 / 형식 / 명령 / 줄 / 소스 | Address / Encoding / Format / Instruction / Line / Source |
+| Text 머리 | 명령 N개 | N instructions |
+| Text 접힘 | 커널 명령 N개 숨김 | Kernel code(예외 처리기) 명령 N개는 숨겨 두었습니다 · Show |
+| Data 구역 | 사용자 데이터 / 스택 / 커널 데이터 | User data / Stack / Kernel data |
+| Data 0 구간 | … 까지 모두 0 · N 워드 | … 까지 모두 0 · 16,384 words |
+| Inspector 표 | 필드 / 비트 / 2진 / 값 / 뜻 | Field / Bits / Binary / Value / Meaning |
+| Inspector 칩 | PC 따라가기 / 고정: 0x… | Following PC / Pinned 0x… · Follow PC |
+| Console | 접기 / 펼치기 / 입력 | Collapse / Expand / Input · Waiting for input |
+| 설정 | 의사 명령, 지연 분기, … | Pseudo instructions / Delayed branches / Delayed loads / Mapped I/O / Quiet / Bare machine, Font size, Data radix(Hex / Dec / Bin), Program arguments, Exception handler(Default / None / File…), Advanced |
+| 정보 | 정보 / 라이선스 / 닫기 | About / Licenses / Close |
+| 파일 대화상자 형식 | MIPS 어셈블리 / 모든 파일 | MIPS assembly / All files |
+| 새 파일 이름 | 제목 없음.s | untitled.s |
+
+**Registers 그룹.** 교재의 레지스터 표(P&H 초록 카드)대로 나눴다. `$zero` 는 **Constant**(늘 0 인 상수), `$ra` 는 **Return address**
+(`jal` 이 쓰는 자리) 로 각각 한 줄짜리 그룹이다. 전에는 `$zero` 가 특수, `$ra` 가 포인터에 섞여 있었다. 포인터는 `$gp`·`$sp`·`$fp`,
+예약은 `$at`·`$k0`·`$k1`, 임시는 `$t0–$t7`·`$t8–$t9` 다. 그룹은 창의 것이다(`src/renderer/app/logic/machine.ts` 의 `WINDOW_GROUPS`).
+`src/core/registers.ts` 는 Qt판을 옮긴 그대로 둔다.
+
+**그대로 둔 한국어.** 첫 화면의 선택지(튜토리얼 보기 / 바로 시작 / 새 파일 / 파일 열기 / ← 처음으로), 대화상자의 버튼(버리고 계속 /
+돌아가기 / 취소), 오류 패널의 "15행으로 가기", 상태 표시줄의 준비·N단계·방금 바뀜·고른 명령, Registers 머리의 "노란 줄은 방금 바뀐 레지스터",
+Data 의 "눌러서 펼치기". 모두 학생에게 하는 말(무엇을 할지, 지금 어떤지)이라 한국어 쪽이다.
+
+**화면 캡처.** `docs/screens/` 의 고정 세트를 라운드마다 `tools/capture-screens.ts` 로 다시 찍는다(`docs/screens/README.md`).

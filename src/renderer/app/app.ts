@@ -42,7 +42,7 @@ import type { DataSection } from './panels/data.ts';
 import { panelHead } from './ui.ts';
 
 const api = window.app;
-const UNTITLED = '제목 없음.s';
+const UNTITLED = 'untitled.s';
 const APP_NAME = 'Hallym MIPS';
 // Below this width (CSS px) the Editor and Run sides take turns.  A lab PC
 // (1366x768 at 125%) gives 1093: still side by side.  1366 at 150% gives
@@ -97,17 +97,17 @@ function iconButton(title: string, ic: string, onClick: () => void): HTMLButtonE
 }
 
 const fileLabel = h('span', { class: 'file' });
-const bAssemble = button('어셈블', 'hammer', 'Ctrl+S', () => void saveAndAssemble());
-const bRun = button('실행', 'play', 'F5', () => void runOrStop());
-const bStep = button('한 줄', 'step-forward', 'F10', () => void step());
-const bRestart = button('처음으로', 'rotate-ccw', '', () => void restart());
-// The speed of 실행: 즉시 (the core runs on its own) or one line a second.
-const speedFast = h('button', { type: 'button', role: 'radio', title: '즉시 실행' }, '즉시');
-const speedSlow = h('button', { type: 'button', role: 'radio', title: '한 줄에 1초씩 실행' }, '1줄/1초');
+const bAssemble = button('Assemble', 'hammer', 'Ctrl+S', () => void saveAndAssemble());
+const bRun = button('Run', 'play', 'F5', () => void runOrStop());
+const bStep = button('Step', 'step-forward', 'F10', () => void step());
+const bRestart = button('Reset', 'rotate-ccw', '', () => void restart());
+// The speed of Run: Instant (the core runs on its own) or one line a second.
+const speedFast = h('button', { type: 'button', role: 'radio', title: 'Run at full speed' }, 'Instant');
+const speedSlow = h('button', { type: 'button', role: 'radio', title: 'Run one line a second' }, '1 line/s');
 speedFast.addEventListener('click', () => void setSpeed('fast'));
 speedSlow.addEventListener('click', () => void setSpeed('slow'));
-const speedSwitch = h('span', { class: 'seg speed', role: 'radiogroup', 'aria-label': '실행 속도' }, speedFast, speedSlow);
-const bSettings = iconButton('설정', 'settings', () => settingsBox.open());
+const speedSwitch = h('span', { class: 'seg speed', role: 'radiogroup', 'aria-label': 'Run speed' }, speedFast, speedSlow);
+const bSettings = iconButton('Settings', 'settings', () => settingsBox.open());
 const viewEditor = h('button', { type: 'button', role: 'tab' }, 'Editor');
 const viewRun = h('button', { type: 'button', role: 'tab' }, 'Run');
 viewEditor.addEventListener('click', () => showView('editor'));
@@ -122,9 +122,9 @@ const titlebar = h('header', { class: 'titlebar' },
   viewSwitch,
   h('span', { class: 'drag' }),
   h('span', { class: 'tools' },
-    iconButton('튜토리얼 예제 열기', 'circle-question-mark', () => void openTutorial()),
-    iconButton('새 파일', 'file-plus', () => void newFile()),
-    iconButton('파일 열기 (Ctrl+O)', 'folder-open', () => void openFile()),
+    iconButton('Tutorial', 'circle-question-mark', () => void openTutorial()),
+    iconButton('New file', 'file-plus', () => void newFile()),
+    iconButton('Open file (Ctrl+O)', 'folder-open', () => void openFile()),
     bSettings));
 const status = h('footer', { class: 'status' });
 
@@ -168,14 +168,14 @@ const runPanel = h('div', { class: 'run-side' }, placeholder, runGrid);
 
 // ---- the split -------------------------------------------------------------------------
 
-const railEditor = h('button', { class: 'rail', type: 'button', title: 'Editor 펼치기', 'aria-label': 'Editor 펼치기' }, h('span', {}, 'Editor ›'));
-const railRun = h('button', { class: 'rail', type: 'button', title: 'Run 펼치기', 'aria-label': 'Run 펼치기' }, h('span', {}, '‹ Run'));
+const railEditor = h('button', { class: 'rail', type: 'button', title: 'Expand Editor', 'aria-label': 'Expand Editor' }, h('span', {}, 'Editor ›'));
+const railRun = h('button', { class: 'rail', type: 'button', title: 'Expand Run', 'aria-label': 'Expand Run' }, h('span', {}, '‹ Run'));
 railEditor.addEventListener('click', () => unfold());
 railRun.addEventListener('click', () => unfold());
 // The splitter: drag to share the width, double-click for the default
 // share; its two small buttons fold one side away (a rail brings it back).
-const foldEditor = h('button', { class: 'foldbtn', type: 'button', title: 'Editor 접기', 'aria-label': 'Editor 접기' }, '‹');
-const foldRun = h('button', { class: 'foldbtn', type: 'button', title: 'Run 접기', 'aria-label': 'Run 접기' }, '›');
+const foldEditor = h('button', { class: 'foldbtn', type: 'button', title: 'Collapse Editor', 'aria-label': 'Collapse Editor' }, '‹');
+const foldRun = h('button', { class: 'foldbtn', type: 'button', title: 'Collapse Run', 'aria-label': 'Collapse Run' }, '›');
 foldEditor.addEventListener('click', () => fold('editor'));
 foldRun.addEventListener('click', () => fold('run'));
 const splitter = h('div', { class: 'splitter', role: 'separator', 'aria-orientation': 'vertical', title: '끌어서 폭 조절 · 두 번 눌러 되돌리기' },
@@ -256,9 +256,9 @@ function renderPlaceholder(): void {
   const [title, body] = changed
     ? ['코드가 바뀌었습니다', '지금 기계에 있는 것은 바뀌기 전의 코드입니다. 저장하고 다시 어셈블하면 새 코드로 여기가 채워집니다.']
     : errors.length
-      ? ['어셈블하지 못했습니다', '왼쪽 Editor 아래의 오류를 고친 뒤 다시 어셈블하면 여기에 나타납니다.']
-      : ['아직 어셈블하지 않았습니다', '어셈블하면 여기에 레지스터 · 명령 · 콘솔이 나타납니다.'];
-  const go = h('button', { class: 'btn primary', type: 'button' }, icon('hammer'), h('span', {}, '어셈블'), h('kbd', {}, 'Ctrl+S'));
+      ? ['어셈블하지 못했습니다', '왼쪽 아래의 오류를 고친 뒤 다시 어셈블하면 여기에 나타납니다.']
+      : ['아직 어셈블하지 않았습니다', '어셈블하면 레지스터와 명령, 콘솔 출력을 여기서 볼 수 있습니다.'];
+  const go = h('button', { class: 'btn primary', type: 'button' }, icon('hammer'), h('span', {}, 'Assemble'), h('kbd', {}, 'Ctrl+S'));
   go.addEventListener('click', () => void saveAndAssemble());
   // The text first, then Haram pointing left past it, at the Editor.
   placeholder.replaceChildren(h('div', { class: 'card' },
@@ -346,16 +346,16 @@ const assembleOptions = (a: Advanced) => ({
 function renderChrome(): void {
   document.title = open ? `${file.name}${dirty ? ' •' : ''} — ${APP_NAME}` : APP_NAME;
   fileLabel.replaceChildren(open ? h('b', { class: 'mono' }, file.name) : '',
-    open && dirty ? h('span', { class: 'dirty', title: '저장하지 않은 변경' }, ' •') : '');
+    open && dirty ? h('span', { class: 'dirty', title: 'Unsaved changes' }, ' •') : '');
   const running = runState === 'running';
   const setBtn = (b: HTMLButtonElement, on: boolean, primary: boolean) => {
     b.disabled = !on;
     b.classList.toggle('primary', primary && on);
   };
   setBtn(bAssemble, open && !running, !machineShown());
-  bRun.replaceChildren(icon(running ? 'square' : 'play'), h('span', { class: 'label' }, running ? '멈춤' : '실행'),
+  bRun.replaceChildren(icon(running ? 'square' : 'play'), h('span', { class: 'label' }, running ? 'Stop' : 'Run'),
     h('kbd', {}, running ? 'Esc' : 'F5'));
-  bRun.title = running ? '멈춤 (Esc)' : '실행 (F5)';
+  bRun.title = running ? 'Stop (Esc)' : 'Run (F5)';
   setBtn(bRun, open && (running || (runState !== 'finished' && runState !== 'input')), running);
   setBtn(bStep, open && !running && runState !== 'finished', machineShown() && !running);
   setBtn(bRestart, lastProgram !== null && !busy, false);
@@ -383,18 +383,18 @@ function renderStatus(): void {
   } else {
     const pc = lastRegs ? hex32(lastRegs.pc) : '';
     if (runState === 'running' && slow) {
-      parts.push(span('run', '천천히 실행 중 (1줄/1초)'));
+      parts.push(span('run', '천천히 실행 중 (1 line/s)'));
       if (steps > 0) parts.push(span('', `${steps}단계`));
       if (pc) parts.push(span('', 'PC ', code(pc)));
       if (changedNow) parts.push(span('', '방금 바뀜: ', code(changedNow)));
-      parts.push(span('', 'Esc 로 멈춤 · 속도를 즉시로 바꿔도 됩니다'));
+      parts.push(span('', '멈추려면 Esc · 빨리 가려면 Instant'));
     } else if (runState === 'running') {
       parts.push(span('run', '실행 중'));
       if (progress) parts.push(span('', 'PC ', code(hex32(progress.pc))), span('', `${progress.instructions.toLocaleString()}개 명령`));
       parts.push(span('', 'Esc 로 멈춤'));
     } else {
       const reason = lastReason;
-      if (runState === 'ready') parts.push(span('', 'F10 한 줄 · F5 실행'));
+      if (runState === 'ready') parts.push(span('', code('F10'), ' Step · ', code('F5'), ' Run'));
       else if (runState === 'finished') parts.push(span(reason === 'error' ? 'err' : 'ok', stopMessageFor(reason, pc)));
       else parts.push(span('run', codeText(stopMessage(reason, pc))));
       if (steps > 0 && runState !== 'finished') parts.push(span('', `${steps}단계`));
@@ -403,13 +403,13 @@ function renderStatus(): void {
       if (selected >= 0) parts.push(span('', '고른 명령 ', code(hex32(selected))));
     }
     if (dirty) parts.push(span('warn', '코드가 바뀌었습니다 — Ctrl+S 로 다시 어셈블'));
-    else if (!sameAdvanced(advanced, applied)) parts.push(span('warn', '고급 설정이 바뀌었습니다 — 처음으로 또는 Ctrl+S 로 다시 어셈블'));
+    else if (!sameAdvanced(advanced, applied)) parts.push(span('warn', '설정이 바뀌었습니다 — 다시 어셈블하면(Ctrl+S) 적용됩니다'));
   }
   if (note) parts.push(span('warn', note));
   status.replaceChildren(...parts);
 }
 const stopMessageFor = (reason: RunResult['reason'], pc: string) =>
-  reason === 'exit' ? '프로그램이 끝났습니다 — 처음으로 눌러 다시' : reason === 'error' ? '실행 오류로 멈췄습니다 — 콘솔을 보세요' : stopMessage(reason, pc);
+  reason === 'exit' ? '프로그램이 끝났습니다 — 다시 하려면 Reset' : reason === 'error' ? '실행 오류로 멈췄습니다 — 콘솔을 보세요' : stopMessage(reason, pc);
 
 // ---- files -------------------------------------------------------------------------
 
@@ -713,7 +713,7 @@ async function runSlow(): Promise<void> {
       renderChrome();
       await new Promise<void>((done) => { wake = done; setTimeout(done, 1000); });
     }
-    runState = 'paused';        // stopped, or switched to 즉시
+    runState = 'paused';        // stopped, or switched to Instant
     lastReason = 'stopped';
   } finally {
     slow = null;
@@ -845,7 +845,7 @@ async function refreshData(): Promise<void> {
 
 function showCongrats(): void {
   congratsShown = true;
-  const close = h('button', { class: 'btn small', type: 'button' }, '닫기');
+  const close = h('button', { class: 'btn small', type: 'button' }, 'Close');
   close.addEventListener('click', () => { congrats.hidden = true; });
   congrats.replaceChildren(character('congrats', 120),
     h('div', { class: 'say' }, h('h3', {}, '첫 실행 성공!'), h('p', {}, '프로그램이 끝까지 실행되었습니다.'), close));

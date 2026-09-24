@@ -103,15 +103,14 @@ test('breakpoint -> F5 stops there -> F5 goes on to the end', async () => {
   expect(await regHex(page, '$t2')).toBe('0x00000003');
   // The first run that ends well, once a session.
   await expect(page.locator('.congrats')).toBeVisible();
-  await page.locator('.congrats').getByRole('button', { name: '닫기' }).click();
-  await page.getByRole('button', { name: /처음으로/ }).click();
+  await page.locator('.congrats').getByRole('button', { name: 'Close' }).click();
+  await page.getByRole('button', { name: /Reset/ }).click();
   await expect(page.locator('.trow', { has: page.locator('.src', { hasText: 'add $t2' }) })).toHaveClass(/bp-on/);
+  // (Reset answers before the new machine is up: wait on the status itself.)
   await page.keyboard.press('F5');
-  await settled(page);
-  expect(await statusText(page)).toContain('브레이크포인트'); // the new machine has it too
+  await expect(page.locator('.status')).toContainText('브레이크포인트'); // the new machine has it too
   await page.keyboard.press('F5');
-  await settled(page);
-  expect(await statusText(page)).toContain('프로그램이 끝났습니다');
+  await expect(page.locator('.status')).toContainText('프로그램이 끝났습니다');
   await expect(page.locator('.congrats')).toBeHidden();
 });
 
@@ -145,7 +144,7 @@ test('console input: the run waits, Enter goes on', async () => {
   await expect(input).toBeFocused();
   expect(await statusText(page)).toContain('입력을 기다립니다');
   // The run is not going on: F5 again just points at the field.
-  await expect(page.getByTitle('실행 (F5)')).toBeDisabled();
+  await expect(page.getByTitle('Run (F5)')).toBeDisabled();
   await input.fill('41');
   await input.press('Enter');
   await expect(page.locator('.clog')).toHaveText('41\n42');

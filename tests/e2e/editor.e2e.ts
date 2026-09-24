@@ -54,7 +54,7 @@ test('breakpoints from the Editor\'s gutter: set before assembling, kept, stoppe
   await expect(page.locator('.status')).toContainText('4행에는 명령이 없습니다');
 
   // Set in Text: the Editor shows it on the source line.
-  await page.getByRole('button', { name: /처음으로/ }).click();
+  await page.getByRole('button', { name: /Reset/ }).click();
   await settled(page);
   await (await textRow(page, await page.locator('.trow', { has: page.locator('.lno', { hasText: /^2$/ }) }).getAttribute('data-addr') ?? '')).locator('.bp').click();
   await expect(page.locator('.cm-bp-dot')).toHaveCount(2);
@@ -78,7 +78,7 @@ test('a breakpoint set while the code is unassembled moves with the text and app
 test('the window\'s own dialogs: a new file is asked about even when saved; unsaved text before opening another', async () => {
   const { page } = r;
   await openAndAssemble(r, program(r.dir, 'p.s', PROGRAM));
-  await page.getByTitle('새 파일').click();
+  await page.getByTitle('New file').click();
   const dialog = page.locator('dialog.ask');
   await expect(dialog).toBeVisible();
   await expect(dialog.locator('img.char')).toHaveCount(1);
@@ -88,13 +88,13 @@ test('the window\'s own dialogs: a new file is asked about even when saved; unsa
 
   await page.locator('.cm-content').click();
   await page.keyboard.insertText('# 바꿈\n');
-  await page.getByTitle('파일 열기 (Ctrl+O)').click();
+  await page.getByTitle('Open file (Ctrl+O)').click();
   await expect(dialog).toContainText('저장하지 않은 변경이 있습니다');
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
-  await page.getByTitle('새 파일').click();
+  await page.getByTitle('New file').click();
   await dialog.getByRole('button', { name: '버리고 계속' }).click();
-  await expect(page.locator('.titlebar .file')).toContainText('제목 없음.s');
+  await expect(page.locator('.titlebar .file')).toContainText('untitled.s');
   expect(await page.locator('.cm-content').textContent()).toBe('');
 });
 

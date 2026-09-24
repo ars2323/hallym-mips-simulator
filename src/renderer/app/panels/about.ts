@@ -6,7 +6,7 @@ import type { AboutInfo } from '../api.ts';
 import { code, h } from '../dom.ts';
 
 export function aboutDialog(): { root: HTMLDialogElement; open(): Promise<void> } {
-  const dialog = h('dialog', { class: 'modal about', 'aria-label': '정보' });
+  const dialog = h('dialog', { class: 'modal about', 'aria-label': 'About' });
 
   const open = async () => {
     const info: AboutInfo = await window.app.about();
@@ -31,21 +31,21 @@ export function aboutDialog(): { root: HTMLDialogElement; open(): Promise<void> 
           }, { once: false });
           list.append(d);
         });
-        const credits = h('button', { class: 'btn small', type: 'button' }, 'Chromium · Node.js 고지 열기 (LICENSES.chromium.html)');
+        const credits = h('button', { class: 'btn small', type: 'button' }, 'Open the Chromium · Node.js notices (LICENSES.chromium.html)');
         credits.addEventListener('click', () => void window.app.openCredits());
         list.append(h('p', { class: 'hint' }, 'Chromium 과 Node.js, 그리고 그 안의 라이브러리 고지는 설치 폴더의 ',
           code('LICENSES.chromium.html'), ' 에 있습니다(약 20 MB).'), credits);
         body.replaceChildren(list);
       }
     };
-    ['정보', '라이선스'].forEach((t, i) => {
+    ['About', 'Licenses'].forEach((t, i) => {
       const b = h('button', { class: 'tab', type: 'button' }, t);
       b.addEventListener('click', () => pick(i));
       tabs.append(b);
     });
-    const close = h('button', { class: 'btn primary', type: 'button' }, '닫기');
+    const close = h('button', { class: 'btn primary', type: 'button' }, 'Close');
     close.addEventListener('click', () => dialog.close());
-    dialog.replaceChildren(h('h2', {}, '정보'), tabs, body, h('div', { class: 'row end' }, close));
+    dialog.replaceChildren(h('h2', {}, 'About'), tabs, body, h('div', { class: 'row end' }, close));
     pick(0);
     dialog.showModal();
   };

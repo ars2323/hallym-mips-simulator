@@ -58,7 +58,7 @@ const highlighter = ViewPlugin.fromClass(class {
 export const setErrorLines = StateEffect.define<number[]>();
 const errorLine = Decoration.line({ class: 'cm-error-line' });
 class ErrorMarker extends GutterMarker {
-  toDOM() { const s = document.createElement('span'); s.className = 'cm-error-mark'; s.textContent = '!'; s.title = '어셈블 오류'; return s; }
+  toDOM() { const s = document.createElement('span'); s.className = 'cm-error-mark'; s.textContent = '!'; s.title = 'Assembly error'; return s; }
 }
 const errorMarker = new ErrorMarker();
 

@@ -9,8 +9,9 @@
        flashed once when it changes; it lifts at the next step;
      - its value in hexadecimal (the strongest column); decimal quieter,
        binary quietest -- and only where the panel is wide enough;
-     - groups as bands (특수, 반환값, 인자, 임시, 보존, 포인터, 예약), each with the
-       registers it holds;
+     - groups as bands (Special, Constant, Return values, Arguments,
+       Temporaries, Saved, Pointers, Return address, Reserved: logic/
+       machine.ts WINDOW_GROUPS), each with the registers it holds;
      - zero registers dimmed. */
 
 import { cells, changedKeys, registerRows, type RegisterValues } from '../logic/machine.ts';
@@ -25,8 +26,8 @@ export class RegisterPanel {
   private readonly rows = new Map<string, Row>();
 
   constructor(initial: RegisterValues) {
-    const head = h('div', { class: 'rhead' }, h('span', {}, '이름'), h('span', { class: 'strong' }, '16진'),
-      h('span', { class: 'right' }, '10진'), h('span', { class: 'binh' }, '2진'));
+    const head = h('div', { class: 'rhead' }, h('span', {}, 'Name'), h('span', { class: 'strong' }, 'Hex'),
+      h('span', { class: 'right' }, 'Dec'), h('span', { class: 'binh' }, 'Bin'));
     const list = h('div', { class: 'pbody regs-list' });
     const all = registerRows(initial, true); // CP0 folded below
     const groups = new Map<string, string[]>();
@@ -44,20 +45,20 @@ export class RegisterPanel {
       const dec = code('', 'dec');
       const bin = code('', 'bin');
       const el = h('div', { class: `rrow${r.group === 'CP0' ? ' cp0' : ''}`, 'data-reg': r.key },
-        h('span', { class: 'rn mono' }, r.key), hex, dec, bin, h('span', { class: 'tag' }, '바뀜'));
+        h('span', { class: 'rn mono' }, r.key), hex, dec, bin, h('span', { class: 'tag' }, 'Changed'));
       list.append(el);
       this.rows.set(r.key, { el, hex, dec, bin, last: '', flags: '' });
     }
     const fold = h('div', { class: 'fold' });
     const setFold = (show: boolean) => {
       list.classList.toggle('show-cp0', show);
-      const b = h('button', { class: 'linkbtn', type: 'button' }, show ? '숨기기' : '보기');
+      const b = h('button', { class: 'linkbtn', type: 'button' }, show ? 'Hide' : 'Show');
       b.addEventListener('click', () => setFold(!show));
-      fold.replaceChildren(code('CP0'), show ? ' 레지스터' : ' 레지스터는 기본으로 숨김', b);
+      fold.replaceChildren(code('CP0'), show ? ' 레지스터를 보이는 중 ' : ' 레지스터는 숨겨 두었습니다 ', b);
     };
     setFold(false);
     const title = panelHead('Registers');
-    title.setMeta('노란 줄: 방금 바뀐 것');
+    title.setMeta('노란 줄은 방금 바뀐 레지스터');
     this.root = h('section', { class: 'panel regs', 'aria-label': 'Registers' }, title.root, head, list, fold);
     this.update(initial, null);
   }

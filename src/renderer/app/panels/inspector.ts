@@ -6,7 +6,7 @@
 
    It follows the program: after every step it shows the instruction at PC
    (the next to run).  Choosing a row in Text pins it to that instruction
-   until "현재 명령 따라가기" (or Esc).  Before the first step, with nothing
+   until "Follow PC" (or Esc).  Before the first step, with nothing
    chosen, it says how to fill it. */
 
 import { decode, formatName, type BranchConvention } from '../../../core/decoder.ts';
@@ -26,7 +26,7 @@ export class Inspector {
 
   constructor() {
     this.head = panelHead('Inspector');
-    this.follow = headButton('현재 명령 따라가기', '다시 PC 의 명령을 따라갑니다 (Esc)', () => this.onFollow());
+    this.follow = headButton('Follow PC', '다시 PC 의 명령을 따라갑니다 (Esc)', () => this.onFollow());
     this.head.aside.append(this.follow);
     this.body = h('div', { class: 'pbody ibody' });
     this.root = h('section', { class: 'panel insp', 'aria-label': 'Inspector' }, this.head.root, this.body);
@@ -66,7 +66,7 @@ export class Inspector {
         h('div', { class: 'fname' }, f.name),
         h('div', { class: 'fmean mono' }, f.meaning || f.value))));
     const table = h('table', { class: 'ftable' },
-      h('tr', {}, ...['필드', '비트', '값(2진)', '값', '뜻'].map((t) => h('th', {}, t))),
+      h('tr', {}, ...['Field', 'Bits', 'Binary', 'Value', 'Meaning'].map((t) => h('th', {}, t))),
       ...fields.map((f) => h('tr', {},
         h('td', {}, h('span', { class: `sw ${cls(f.name)}` }), f.name),
         h('td', { class: 'mono' }, `${f.high}–${f.low}`), h('td', { class: 'mono' }, f.bits),
@@ -79,7 +79,7 @@ export class Inspector {
     this.body.replaceChildren(
       h('div', { class: 'ihead' },
         code(row.disassembly, 'dis'), h('span', { class: `badge b-${format}` }, format),
-        row.source ? h('span', { class: 'isrc' }, '소스 ', code(row.source)) : null,
+        row.source ? h('span', { class: 'isrc' }, 'Source ', code(row.source)) : null,
         h('span', { class: 'grow' }),
         h('span', { class: 'where' }, code(hex32(row.word)), ' · ', code(hex32(row.addr)))),
       grid,
@@ -93,7 +93,7 @@ export class Inspector {
     this.follow.hidden = typeof mode !== 'number';
     this.root.classList.toggle('pinned', typeof mode === 'number');
     this.head.setMeta(mode === null ? '' : mode === 'pc'
-      ? h('span', { class: 'mode' }, '다음에 실행할 명령 (PC)')
-      : h('span', { class: 'mode pin' }, '고정: ', code(hex32(mode)), ' — Text 에서 고름'));
+      ? h('span', { class: 'mode' }, 'Following PC')
+      : h('span', { class: 'mode pin' }, 'Pinned ', code(hex32(mode))));
   }
 }

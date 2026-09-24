@@ -22,7 +22,7 @@ test('Inspector: follows PC at every step, pins to a chosen row, follows again o
   await settled(page);
   let pc = await regHex(page, 'PC');
   await expect(insp.locator('.ihead .where')).toContainText(pc);
-  await expect(insp.locator('.phead')).toContainText('다음에 실행할 명령');
+  await expect(insp.locator('.phead')).toContainText('Following PC');
   await page.keyboard.press('F10');
   await settled(page);
   pc = await regHex(page, 'PC');
@@ -30,15 +30,15 @@ test('Inspector: follows PC at every step, pins to a chosen row, follows again o
 
   const chosen = await page.locator('.trow').nth(2).getAttribute('data-addr');
   await page.locator('.trow').nth(2).locator('.dis').click();
-  await expect(insp.locator('.phead')).toContainText('고정');
+  await expect(insp.locator('.phead')).toContainText('Pinned');
   await expect(insp.locator('.ihead .where')).toContainText(chosen!);
   await page.keyboard.press('F10');
   await settled(page);
   await expect(insp.locator('.ihead .where')).toContainText(chosen!); // still the chosen one
-  await insp.getByRole('button', { name: '현재 명령 따라가기' }).click();
+  await insp.getByRole('button', { name: 'Follow PC' }).click();
   pc = await regHex(page, 'PC');
   await expect(insp.locator('.ihead .where')).toContainText(pc);
-  await expect(insp.locator('.phead')).toContainText('다음에 실행할 명령');
+  await expect(insp.locator('.phead')).toContainText('Following PC');
 });
 
 test('Registers: the register a step changed is marked, with a tag, until the next step', async () => {
@@ -56,7 +56,7 @@ test('Registers: the register a step changed is marked, with a tag, until the ne
   await settled(page);
   await expect(t0).not.toHaveClass(/chg/);
   await expect(page.locator('.rrow[data-reg="$t1"]')).toHaveClass(/chg/);
-  await expect(page.locator('.rgroup')).toContainText(['특수', '반환값', '인자', '임시']);
+  await expect(page.locator('.rgroup')).toContainText(['Special', 'Constant', 'Return values', 'Arguments', 'Temporaries', 'Saved', 'Pointers', 'Return address', 'Reserved']);
 });
 
 test('Data: one address form, sections apart, zero runs spelled out, labels over their line, word and ASCII together', async () => {
@@ -64,24 +64,24 @@ test('Data: one address form, sections apart, zero runs spelled out, labels over
   await openAndAssemble(r, program(r.dir, 'd.s',
     '  .data\nmsg: .asciiz "Hello"\nnum: .word 0x12345678\n  .text\nmain:\n  li $v0, 10\n  syscall\n'));
   await page.locator('.ptab', { hasText: 'Data' }).click();
-  await expect(page.locator('.dsec')).toHaveText([/사용자 데이터/, /스택/, /커널 데이터.*눌러서 펼치기/]);
+  await expect(page.locator('.dsec')).toHaveText([/User data/, /Stack/, /Kernel data.*눌러서 펼치기/]);
   const addresses = await page.locator('.daddr').allTextContents();
   expect(addresses.length).toBeGreaterThan(2);
   for (const a of addresses) expect(a).toMatch(/^0x[0-9a-f]{8}$/);
-  await expect(page.locator('.dzero .dzerotext').first()).toContainText(/까지 모두 0 · [\d,]+ 워드/);
+  await expect(page.locator('.dzero .dzerotext').first()).toContainText(/까지 모두 0 · [\d,]+ words/);
   await expect(page.locator('.dtags').filter({ hasText: 'msg' })).toContainText('num');
   const line = page.locator('.drow', { has: page.locator('.dch', { hasText: 'Hell' }) });
   await expect(line.locator('.dval').first()).toHaveText('6c6c6548'); // "Hell", little-endian
   await line.locator('.dval').first().hover();
   await expect(line.locator('.dch.lit')).toHaveText('Hell');
-  await page.locator('.dsec', { hasText: '커널 데이터' }).click();
-  await expect(page.locator('.dsec', { hasText: '커널 데이터' })).not.toContainText('눌러서 펼치기');
+  await page.locator('.dsec', { hasText: 'Kernel data' }).click();
+  await expect(page.locator('.dsec', { hasText: 'Kernel data' })).not.toContainText('눌러서 펼치기');
 });
 
 test('slow run: one line a second, the Editor and the Inspector follow; Esc stops at once', async () => {
   const { page } = r;
   await openAndAssemble(r, program(r.dir, 'loop.s', LOOP));
-  await page.getByRole('radio', { name: '1줄/1초' }).click();
+  await page.getByRole('radio', { name: '1 line/s' }).click();
   await page.keyboard.press('F5');
   await expect(page.locator('.status')).toContainText('천천히 실행 중');
   await page.waitForTimeout(2600);
@@ -101,16 +101,16 @@ test('slow run: one line a second, the Editor and the Inspector follow; Esc stop
   expect(await regHex(page, '$t0')).toBe(after); // and it stays stopped
 });
 
-test('slow run switched to 즉시 goes on at full speed; 즉시 switched to slow slows down', async () => {
+test('slow run switched to Instant goes on at full speed; Instant switched to slow slows down', async () => {
   const { page } = r;
   await openAndAssemble(r, program(r.dir, 'loop.s', LOOP));
-  await page.getByRole('radio', { name: '1줄/1초' }).click();
+  await page.getByRole('radio', { name: '1 line/s' }).click();
   await page.keyboard.press('F5');
   await expect(page.locator('.status')).toContainText('천천히 실행 중');
-  await page.getByRole('radio', { name: '즉시' }).click();
+  await page.getByRole('radio', { name: 'Instant' }).click();
   await expect(page.locator('.status')).toContainText('개 명령'); // the core's own run, with progress
   await page.waitForTimeout(500);
-  await page.getByRole('radio', { name: '1줄/1초' }).click();
+  await page.getByRole('radio', { name: '1 line/s' }).click();
   await expect(page.locator('.status')).toContainText('천천히 실행 중');
   const fast = parseInt(await regHex(page, '$t0'), 16);
   expect(fast).toBeGreaterThan(10000);

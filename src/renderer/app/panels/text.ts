@@ -53,8 +53,8 @@ export class TextPanel {
     this.viewport.addEventListener('scroll', () => this.renderWindow());
     this.viewport.addEventListener('click', (e) => this.click(e));
     this.head = tabsHead(['Text', 'Data'], (i) => this.setTab(i === 0 ? 'text' : 'data'));
-    const header = h('div', { class: 'theader' }, h('span'), h('span', { class: 'addr' }, '주소'), h('span', { class: 'word' }, '기계어'),
-      h('span', {}, '형식'), h('span', { class: 'dis' }, '명령'), h('span', { class: 'lno right' }, '줄'), h('span', { class: 'src' }, '소스'));
+    const header = h('div', { class: 'theader' }, h('span'), h('span', { class: 'addr' }, 'Address'), h('span', { class: 'word' }, 'Encoding'),
+      h('span', {}, 'Format'), h('span', { class: 'dis' }, 'Instruction'), h('span', { class: 'lno right' }, 'Line'), h('span', { class: 'src' }, 'Source'));
     this.textView = h('div', { class: 'tview' }, header, this.viewport, this.fold);
     this.dataView = this.data.root;
     this.dataView.hidden = true;
@@ -87,11 +87,11 @@ export class TextPanel {
   private refilter(): void {
     this.shown = this.showKernel ? this.all : this.all.filter((r) => !r.kernel);
     const kernel = this.all.filter((r) => r.kernel).length;
-    this.fold.replaceChildren(`커널 코드(예외 처리기) ${kernel}개 명령 ${this.showKernel ? '보이는 중' : '숨김'} `,
-      Object.assign(h('button', { class: 'linkbtn', type: 'button' }, this.showKernel ? '숨기기' : '보기'),
+    this.fold.replaceChildren(this.showKernel ? `Kernel code(예외 처리기) 명령 ${kernel}개도 보이는 중 ` : `Kernel code(예외 처리기) 명령 ${kernel}개는 숨겨 두었습니다 `,
+      Object.assign(h('button', { class: 'linkbtn', type: 'button' }, this.showKernel ? 'Hide' : 'Show'),
         { onclick: () => { this.showKernel = !this.showKernel; this.refilter(); } }));
     this.fold.hidden = kernel === 0;
-    this.head.setMeta(this.all.length ? `명령 ${this.all.length - kernel}개` : '');
+    this.head.setMeta(this.all.length ? `${this.all.length - kernel} instructions` : '');
     this.rowHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--row')) || 22;
     this.sizeSpacer();
     for (const el of this.rendered.values()) el.remove();
@@ -159,7 +159,7 @@ export class TextPanel {
     const cls = ['trow', r.addr === this.pc ? 'pc' : '', r.addr === this.selected ? 'sel' : '', r.band ? 'band' : '',
       r.breakpoint ? 'bp-on' : ''].filter(Boolean).join(' ');
     return h('div', { class: cls, 'data-addr': hex32(r.addr) },
-      h('span', { class: 'bp', title: '브레이크포인트' }),
+      h('span', { class: 'bp', title: 'Breakpoint' }),
       code(hex32(r.addr).slice(2), 'addr'), code(hex32(r.word).slice(2), 'word'),
       h('span', {}, h('span', { class: `badge b-${r.format}` }, r.format)),
       code(r.disassembly, 'dis'), code(r.line ? String(r.line) : '', 'lno'), code(r.source, 'src'));

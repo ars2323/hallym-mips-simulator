@@ -54,7 +54,7 @@ test('hexadecimal is monospaced in every scene', async () => {
   await page.locator('.ptab', { hasText: 'Data' }).click();
   await page.waitForSelector('.drow');
   await check('Data');
-  await page.getByTitle('설정').click();
+  await page.getByTitle('Settings').click();
   await check('settings');
   await page.keyboard.press('Escape');
 

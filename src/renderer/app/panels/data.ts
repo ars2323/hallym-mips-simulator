@@ -34,7 +34,7 @@ export interface DataSection {
 
 export interface Pointer { name: string; value: number } // $sp, $fp, $gp
 
-const TITLES: Record<DataSection['kind'], string> = { data: '사용자 데이터', stack: '스택', kernel: '커널 데이터' };
+const TITLES: Record<DataSection['kind'], string> = { data: 'User data', stack: 'Stack', kernel: 'Kernel data' };
 const printable = (c: number) => (c >= 0x20 && c <= 0x7e ? String.fromCharCode(c) : '·');
 const offsetName = (n: number) => `+${n.toString(16).toUpperCase()}`;
 const size = (bytes: number) => (bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toLocaleString(undefined, { maximumFractionDigits: 1 })} KB`);
@@ -87,7 +87,7 @@ export class DataView {
       if (r.kind === 'ZeroRun') {
         out.push(h('div', { class: `drow dzero dsec-${s.kind}` },
           code(hex32(r.address), 'daddr'),
-          h('span', { class: 'dzerotext' }, '~ ', code(hex32(end - 1)), ` 까지 모두 0 · ${r.words.toLocaleString()} 워드`)));
+          h('span', { class: 'dzerotext' }, '~ ', code(hex32(end - 1)), ` 까지 모두 0 · ${r.words.toLocaleString('en-US')} words`)));
         continue;
       }
       const base16 = r.address & ~15;
