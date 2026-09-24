@@ -125,13 +125,14 @@ await phase('handles', 240_000, async () => {
 for (const [which, key] of [['save', 'Control+s'], ['open', 'Control+o']] as const) {
   await phase(`dialog-${which}`, 90_000, async () => {
     const r = await launch();
-    r.page.on('dialog', (d) => void d.accept()); // "버리고 계속할까요?" before opening
     try {
       await r.page.getByRole('button', { name: /바로 시작/ }).click();
       await r.page.getByRole('button', { name: /새 파일/ }).first().click();
       await r.page.locator('.cm-content').click();
       await r.page.keyboard.insertText('main:\n  li $v0, 10\n  syscall  # 한글 주석\n');
       void r.page.keyboard.press(key).catch(() => {}); // the dialog is modal: do not wait on it
+      // Ctrl+O on unsaved text first asks in the window's own dialog.
+      await r.page.getByRole('button', { name: '버리고 계속' }).click({ timeout: 2000 }).catch(() => {});
       await sleep(4000);
       report[`dialog-${which}`] = screenshot(path.join(out, `dialog-${which}.png`));
       pressEscape();

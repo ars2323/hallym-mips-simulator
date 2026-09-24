@@ -9,10 +9,20 @@
    assembled.  Ctrl+S is not in CodeMirror's keymap: during a composition
    Chromium hands the key over with isComposing set and CodeMirror does not
    run its keymap then (tests/e2e/ime.e2e.ts), so the window's key handler
-   calls requestSave(). */
+   calls requestSave().
 
-import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
-import { EditorState, RangeSetBuilder, StateEffect, StateField } from '@codemirror/state';
+   Typing: Tab inserts spaces to the next multiple of four columns (with
+   lines selected, Tab / Shift+Tab indent / outdent them by four); Enter
+   starts the new line at column 0, never copying the line above.
+
+   Gutters, left to right: breakpoints (click to set or clear; a red dot),
+   line numbers, errors (a "!" badge -- not a dot, so never mistaken for a
+   breakpoint).  Breakpoints are kept by line and move with the text as it
+   is edited; the app maps them to addresses at every assemble. */
+
+import { defaultKeymap, history, historyKeymap, indentLess, indentMore, insertNewline } from '@codemirror/commands';
+import { indentUnit } from '@codemirror/language';
+import { EditorSelection, EditorState, RangeSet, RangeSetBuilder, StateEffect, StateField, type Extension } from '@codemirror/state';
 import {
   Decoration, type DecorationSet, EditorView, gutter, GutterMarker, highlightActiveLine, keymap, lineNumbers,
   ViewPlugin, type ViewUpdate,
@@ -47,7 +57,9 @@ const highlighter = ViewPlugin.fromClass(class {
 
 export const setErrorLines = StateEffect.define<number[]>();
 const errorLine = Decoration.line({ class: 'cm-error-line' });
-class ErrorMarker extends GutterMarker { toDOM() { const s = document.createElement('span'); s.className = 'cm-error-dot'; return s; } }
+class ErrorMarker extends GutterMarker {
+  toDOM() { const s = document.createElement('span'); s.className = 'cm-error-mark'; s.textContent = '!'; s.title = '어셈블 오류'; return s; }
+}
 const errorMarker = new ErrorMarker();
 
 const errorField = StateField.define<number[]>({
@@ -74,6 +86,75 @@ const errorGutter = gutter({
   },
   lineMarkerChange: (u) => u.transactions.some((t) => t.effects.some((e) => e.is(setErrorLines)) || t.docChanged),
 });
+
+// ---- breakpoints -----------------------------------------------------------------------
+
+class BreakpointMarker extends GutterMarker {
+  toDOM() { const s = document.createElement('span'); s.className = 'cm-bp-dot'; return s; }
+}
+const breakpointMarker = new BreakpointMarker();
+// The gutter's width keeper (CodeMirror renders it hidden): not a dot.
+class GutterSpace extends GutterMarker {
+  toDOM() { const s = document.createElement('span'); s.className = 'cm-bp-space'; return s; }
+}
+const toggleBreakpointAt = StateEffect.define<{ pos: number; on: boolean }>();
+const setBreakpointLines = StateEffect.define<number[]>();
+const breakpointField = StateField.define<RangeSet<GutterMarker>>({
+  create: () => RangeSet.empty,
+  update(set, tr) {
+    set = set.map(tr.changes); // they move with the text
+    for (const e of tr.effects) {
+      if (e.is(toggleBreakpointAt)) {
+        set = set.update({ filter: (from) => from !== e.value.pos });
+        if (e.value.on) set = set.update({ add: [breakpointMarker.range(e.value.pos)] });
+      } else if (e.is(setBreakpointLines)) {
+        const lines = [...new Set(e.value)].filter((n) => n >= 1 && n <= tr.state.doc.lines).sort((a, b) => a - b);
+        set = RangeSet.of(lines.map((n) => breakpointMarker.range(tr.state.doc.line(n).from)));
+      }
+    }
+    return set;
+  },
+});
+function breakpointLinesOf(state: EditorState): number[] {
+  const lines: number[] = [];
+  const it = state.field(breakpointField).iter();
+  for (; it.value; it.next()) lines.push(state.doc.lineAt(it.from).number);
+  return [...new Set(lines)];
+}
+function breakpointGutter(onToggle: (line: number, on: boolean) => void): Extension {
+  return gutter({
+    class: 'cm-bp-gutter',
+    markers: (v) => v.state.field(breakpointField),
+    initialSpacer: () => new GutterSpace(),
+    renderEmptyElements: true, // every line can be clicked
+    domEventHandlers: {
+      mousedown(view, block) {
+        const line = view.state.doc.lineAt(block.from);
+        const on = !breakpointLinesOf(view.state).includes(line.number);
+        view.dispatch({ effects: toggleBreakpointAt.of({ pos: line.from, on }) });
+        onToggle(line.number, on);
+        return true;
+      },
+    },
+  });
+}
+
+// ---- typing ---------------------------------------------------------------------------
+
+// Tab: spaces to the next multiple of four at each cursor; with a selection
+// that spans lines, indent them by four.
+function tab(view: EditorView): boolean {
+  const { state } = view;
+  if (state.selection.ranges.some((r) => !r.empty && state.doc.lineAt(r.from).number !== state.doc.lineAt(r.to).number)) {
+    return indentMore(view);
+  }
+  view.dispatch(state.changeByRange((r) => {
+    const column = r.head - state.doc.lineAt(r.head).from;
+    const spaces = ' '.repeat(4 - (column % 4));
+    return { changes: { from: r.from, to: r.to, insert: spaces }, range: EditorSelection.cursor(r.from + spaces.length) };
+  }), { scrollIntoView: true, userEvent: 'input' });
+  return true;
+}
 
 // ---- the line being executed ---------------------------------------------------------
 
@@ -107,9 +188,12 @@ export interface Editor {
   // Marks the line being executed (null: none) and brings it into view --
   // unless the student has scrolled in the last two seconds.
   showPcLine(line: number | null): void;
+  breakpointLines(): number[];
+  setBreakpointLines(lines: number[]): void;
 }
 
-export function createEditor(parent: HTMLElement, onSave: () => void, onChange: () => void): Editor {
+export function createEditor(parent: HTMLElement, onSave: () => void, onChange: () => void,
+                             onBreakpoint: (line: number, on: boolean) => void = () => {}): Editor {
   // Ctrl+S: save now, or right after the composition in progress ends.
   let saveAfterComposition = false;
   const requestSave = (composing: boolean): void => {
@@ -121,9 +205,11 @@ export function createEditor(parent: HTMLElement, onSave: () => void, onChange: 
     state: EditorState.create({
       doc: '',
       extensions: [
+        breakpointField, breakpointGutter(onBreakpoint),
         lineNumbers(), errorGutter, history(), highlightActiveLine(), highlighter, errorField, errorDecorations,
-        pcField, pcDecorations,
-        keymap.of([indentWithTab, ...historyKeymap, ...defaultKeymap]),
+        pcField, pcDecorations, indentUnit.of('    '),
+        keymap.of([{ key: 'Tab', run: tab, shift: indentLess }, { key: 'Enter', run: insertNewline },
+          ...historyKeymap, ...defaultKeymap]),
         EditorView.updateListener.of((u) => { if (u.docChanged) onChange(); }),
         EditorView.domEventHandlers({
           compositionend: () => {
@@ -135,7 +221,7 @@ export function createEditor(parent: HTMLElement, onSave: () => void, onChange: 
             return false;
           },
         }),
-        EditorState.tabSize.of(8),
+        EditorState.tabSize.of(4),
       ],
     }),
   });
@@ -162,6 +248,8 @@ export function createEditor(parent: HTMLElement, onSave: () => void, onChange: 
   return {
     view,
     showPcLine,
+    breakpointLines: () => breakpointLinesOf(view.state),
+    setBreakpointLines: (lines) => view.dispatch({ effects: setBreakpointLines.of(lines) }),
     text: () => view.state.doc.toString(),
     setText: (text) => view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text }, effects: setErrorLines.of([]) }),
     showErrors: (lines) => view.dispatch({ effects: setErrorLines.of(lines) }),

@@ -37,6 +37,7 @@ import { RegisterPanel } from './panels/registers.ts';
 import { defaultAdvanced, sameAdvanced, settingsDialog, type Advanced } from './panels/settings.ts';
 import { TextPanel } from './panels/text.ts';
 import { welcome } from './panels/welcome.ts';
+import { ask } from './panels/ask.ts';
 import type { DataSection } from './panels/data.ts';
 import { panelHead } from './ui.ts';
 
@@ -69,6 +70,7 @@ let resumeWith: 'run' | 'step' = 'run';
 let congratsShown = false;             // once a session
 let errors: { message: AssemblerMessage; line: number }[] = [];
 let saveNote = '';
+let note = '';                          // a one-off word in the status bar (breakpoints)
 let crashNote = '';
 let progress: { pc: number; instructions: number } | null = null;
 let lastReason: RunResult['reason'] = 'limit';
@@ -121,7 +123,7 @@ const titlebar = h('header', { class: 'titlebar' },
   h('span', { class: 'drag' }),
   h('span', { class: 'tools' },
     iconButton('튜토리얼 예제 열기', 'circle-question-mark', () => void openTutorial()),
-    iconButton('새 파일', 'file-plus', () => newFile()),
+    iconButton('새 파일', 'file-plus', () => void newFile()),
     iconButton('파일 열기 (Ctrl+O)', 'folder-open', () => void openFile()),
     bSettings));
 const status = h('footer', { class: 'status' });
@@ -129,7 +131,7 @@ const status = h('footer', { class: 'status' });
 // ---- the first screen ------------------------------------------------------------
 
 const stageWelcome = h('div', { class: 'stage-welcome' }, welcome({
-  tutorial: () => void openTutorial(), newFile: () => newFile(), openFile: () => void openFile(),
+  tutorial: () => void openTutorial(), newFile: () => void newFile(), openFile: () => void openFile(),
 }));
 
 // ---- the Editor side -------------------------------------------------------------------
@@ -138,7 +140,7 @@ const editorHost = h('div', { class: 'pbody edhost' });
 const errorList = h('section', { class: 'errors', hidden: true });
 const editor = createEditor(editorHost, () => void saveAndAssemble(), () => {
   if (!dirty) { dirty = true; renderChrome(); }
-});
+}, (line, on) => void editorBreakpoint(line, on));
 const editorHead = panelHead('Editor');
 const editorPanel = h('section', { class: 'panel editor-panel', 'aria-label': 'Editor' }, editorHead.root, editorHost, errorList);
 
@@ -267,15 +269,24 @@ function renderPlaceholder(): void {
 // the start-up code comes from the exception handler, whose line numbers
 // are not the Editor's (the row's source text must be on that line).
 function pcSourceLine(): number | null {
-  if (!lastRegs) return null;
-  let i = rows.findIndex((r) => r.addr === lastRegs!.pc);
+  return lastRegs ? lineOf(lastRegs.pc) : null;
+}
+
+function lineOf(addr: number): number | null {
+  let i = rows.findIndex((r) => r.addr === addr);
   if (i < 0 || rows[i].kernel) return null;
   while (i > 0 && rows[i].line === 0) i -= 1;
-  const row = rows[i];
-  if (row.line === 0 || row.line > editor.view.state.doc.lines) return null;
-  const onLine = simplified(editor.view.state.doc.line(row.line).text);
-  return row.source && onLine.includes(simplified(row.source)) ? row.line : null;
+  return userLine(rows[i]) ? rows[i].line : null;
 }
+
+// The row's source line is one of the Editor's (not the start-up code's).
+function userLine(row: TextRow): boolean {
+  if (row.kernel || row.line === 0 || row.line > editor.view.state.doc.lines || !row.source) return false;
+  return simplified(editor.view.state.doc.line(row.line).text).includes(simplified(row.source));
+}
+
+// The first word of an Editor line, if the line made any.
+const addressOfLine = (line: number): number | null => rows.find((r) => r.line === line && userLine(r))?.addr ?? null;
 
 const ZERO_REGS: RegisterValues = {
   pc: 0, hi: 0, lo: 0, epc: 0, cause: 0, badVAddr: 0, status: 0, general: new Array(32).fill(0), fp: new Array(32).fill(0),
@@ -391,6 +402,7 @@ function renderStatus(): void {
     if (dirty) parts.push(span('warn', '코드가 바뀌었습니다 — Ctrl+S 로 다시 어셈블'));
     else if (!sameAdvanced(advanced, applied)) parts.push(span('warn', '고급 설정이 바뀌었습니다 — 처음으로 또는 Ctrl+S 로 다시 어셈블'));
   }
+  if (note) parts.push(span('warn', note));
   status.replaceChildren(...parts);
 }
 const stopMessageFor = (reason: RunResult['reason'], pc: string) =>
@@ -398,8 +410,26 @@ const stopMessageFor = (reason: RunResult['reason'], pc: string) =>
 
 // ---- files -------------------------------------------------------------------------
 
-function confirmDiscard(): boolean {
-  return !dirty || window.confirm('저장하지 않은 변경이 있습니다. 버리고 계속할까요?');
+// Before another file takes the Editor's place.  Unsaved changes are always
+// asked about; a new file is asked about even when everything is saved --
+// it empties the Editor, which a student does not expect from one click.
+async function mayReplace(what: 'new' | 'open'): Promise<boolean> {
+  if (!open) return true;
+  if (dirty) {
+    return ask({
+      title: '저장하지 않은 변경이 있습니다',
+      body: `${file.name} 의 바뀐 내용을 저장하지 않았습니다. ${what === 'new' ? '새 파일을 열면' : '다른 파일을 열면'} 바뀐 내용은 사라집니다.`,
+      ok: '버리고 계속', cancel: '돌아가기', danger: true,
+    });
+  }
+  if (what === 'new') {
+    return ask({
+      title: '새 파일을 열까요?',
+      body: `${file.name} 은 저장되어 있습니다. 편집기를 비우고 새 파일을 시작합니다.`,
+      ok: '새 파일', cancel: '돌아가기',
+    });
+  }
+  return true;
 }
 
 async function load(opened: { name: string; path: string | null; text: string; format: TextFileFormat } | null): Promise<void> {
@@ -418,17 +448,18 @@ async function load(opened: { name: string; path: string | null; text: string; f
   requestAnimationFrame(() => editor.view.focus());
 }
 
-function newFile(): void {
-  if (!confirmDiscard()) return;
-  void load({ name: UNTITLED, path: null, text: '', format: { encoding: 'UTF-8', byteOrderMark: false, lineEnd: 'LF' } })
-    .then(() => { file.format = null; renderChrome(); });
+async function newFile(): Promise<void> {
+  if (!(await mayReplace('new'))) return;
+  await load({ name: UNTITLED, path: null, text: '', format: { encoding: 'UTF-8', byteOrderMark: false, lineEnd: 'LF' } });
+  file.format = null;
+  renderChrome();
 }
 async function openFile(): Promise<void> {
-  if (!confirmDiscard()) return;
+  if (!(await mayReplace('open'))) return;
   await load(await api.openFile().catch((e: Error) => { saveNote = e.message; renderChrome(); return null; }));
 }
 async function openTutorial(): Promise<void> {
-  if (!confirmDiscard()) return;
+  if (!(await mayReplace('open'))) return;
   await load(await api.openExample('tutorial.s'));
 }
 
@@ -470,6 +501,7 @@ async function saveAndAssemble(): Promise<boolean> {
 // before (처음으로), so its breakpoints stay.
 async function assemble(source: string, again: boolean): Promise<boolean> {
   busy = true;
+  note = '';
   congrats.hidden = true;
   try {
     if (runState === 'running') await api.stop();
@@ -498,15 +530,27 @@ async function assemble(source: string, again: boolean): Promise<boolean> {
       view = 'editor';
       return false;
     }
-    if (!same) breakpoints.clear();
+    rows = textRows(await api.call('textSegment'));
+    // Breakpoints: the Editor's lines, mapped to this program's words, and
+    // (for the same program) those set in Text on words with no line of the
+    // Editor's, such as the start-up code.
+    const kept = same ? [...breakpoints].filter((a) => lineOf(a) === null && rows.some((r) => r.addr === a)) : [];
+    const mapped = editor.breakpointLines().map((n) => [n, addressOfLine(n)] as const);
+    const dropped = mapped.filter(([, a]) => a === null).map(([n]) => n);
+    if (dropped.length) {
+      editor.setBreakpointLines(mapped.filter(([, a]) => a !== null).map(([n]) => n));
+      note = `${dropped.join(', ')}행에는 명령이 없어 브레이크포인트를 뺐습니다`;
+    }
+    breakpoints.clear();
+    for (const a of [...kept, ...mapped.map(([, a]) => a).filter((a): a is number => a !== null)]) breakpoints.add(a);
     for (const a of breakpoints) await api.call('setBreakpoint', a);
+    for (const r of rows) r.breakpoint = breakpoints.has(r.addr);
     assembledText = source;
     lastProgram = source;
     labels.clear();
     for (const sym of parseSymbolListing(r.symbols)) labels.add(sym.name, sym.address);
     applied = structuredClone(advanced);
     runState = 'ready';
-    rows = textRows(await api.call('textSegment'));
     text.setRows(rows);
     const regs = await api.call('registers');
     registers?.update(regs, null);
@@ -524,22 +568,43 @@ async function assemble(source: string, again: boolean): Promise<boolean> {
   }
 }
 
+// What to do about an assembler message, before what went wrong.
+function hintFor(message: string): string {
+  if (/syntax error/i.test(message)) return '명령 이름, `$t0` 처럼 쓴 레지스터 이름, 쉼표를 확인해 보세요.';
+  if (/defined for the second time|already defined/i.test(message)) return '같은 이름의 라벨이 두 번 있습니다. 한쪽 이름을 바꾸세요.';
+  if (/too large|out of range|immediate/i.test(message)) return '값이 이 명령이 담을 수 있는 크기를 넘었습니다. `li` 로 먼저 레지스터에 넣어 보세요.';
+  if (/undefined|unknown/i.test(message)) return '쓰기 전에 정의하지 않은 이름입니다. 철자와 `.globl` 을 확인해 보세요.';
+  return '이 줄을 고친 뒤 다시 어셈블하세요.';
+}
+
 function renderErrors(): void {
   editor.showErrors(errors.map((e) => e.line).filter((n) => n > 0));
   errorList.hidden = errors.length === 0;
   if (!errors.length) { errorList.replaceChildren(); return; }
-  errorList.replaceChildren(
-    h('div', { class: 'phead' }, h('span', { class: 'ptitle' }, '오류'),
-      h('span', { class: 'pmeta' }, `${errors.length}개 · 어셈블은 여기서 멈췄습니다. 고친 뒤 다시 Ctrl+S`)),
-    h('div', { class: 'items' }, ...errors.map((e) => {
-      const go = h('button', { class: 'linkbtn go', type: 'button' }, '이 줄로 가기');
-      const item = h('div', { class: 'item' }, h('span', { class: 'dot' }),
-        h('span', { class: 'line' }, e.line ? `${e.line}행` : ''),
-        h('span', { class: 'msg' }, withHex(e.message.message), e.message.source ? code(e.message.source, 'src') : null),
-        e.line ? go : h('span'));
-      go.addEventListener('click', () => editor.goToLine(e.line));
-      return item;
-    })));
+  const first = errors.find((e) => e.line > 0) ?? errors[0];
+  const go = h('button', { class: 'btn primary', type: 'button' }, first.line ? `${first.line}행으로 가기` : 'Editor 로');
+  go.addEventListener('click', () => (first.line ? editor.goToLine(first.line) : editor.view.focus()));
+  const lead = first.line
+    ? `${first.line}행을 고친 뒤 다시 Ctrl+S 하면 됩니다`
+    : '고친 뒤 다시 Ctrl+S 하면 됩니다';
+  const items = errors.map((e) => {
+    const where = h('button', { class: 'linkbtn line', type: 'button', disabled: !e.line }, e.line ? `${e.line}행` : '');
+    where.addEventListener('click', () => { if (e.line) editor.goToLine(e.line); });
+    return h('div', { class: 'item' }, h('span', { class: 'mark', 'aria-hidden': 'true' }, '!'), where,
+      h('span', { class: 'msg' },
+        h('span', { class: 'what' }, withHex(e.message.message)),
+        e.message.source ? code(e.message.source, 'src') : null,
+        h('span', { class: 'hint' }, codeText(hintFor(e.message.message)))));
+  });
+  // What to do first, then what went wrong; Haram at the far end, not
+  // between the words and the Editor they are about.
+  errorList.replaceChildren(h('div', { class: 'errbody' },
+    h('div', { class: 'errtext' },
+      h('h3', {}, lead),
+      h('p', { class: 'sub' }, errors.length > 1 ? `오류가 ${errors.length}개 있습니다. 위에서부터 하나씩 고치면 됩니다.` : '어셈블은 여기서 멈췄습니다.'),
+      h('div', { class: 'items' }, ...items),
+      h('div', { class: 'row' }, go)),
+    character('curious', 110)));
 }
 
 // ---- running ----------------------------------------------------------------------------
@@ -583,6 +648,7 @@ async function step(): Promise<void> {
 
 async function go(call: () => Promise<RunResult>): Promise<RunResult | null> {
   busy = true;
+  note = '';
   congrats.hidden = true;
   const before = lastRegs;
   let result: RunResult;
@@ -692,11 +758,37 @@ async function giveInput(line: string): Promise<void> {
   else await step();
 }
 
+// A breakpoint set or cleared in Text: the machine, and the Editor's gutter.
 async function toggleBreakpoint(addr: number): Promise<void> {
   const on = !breakpoints.has(addr);
+  await setBreakpoint(addr, on);
+  const line = lineOf(addr);
+  if (line !== null) {
+    const lines = new Set(editor.breakpointLines());
+    if (on) lines.add(line); else if (![...breakpoints].some((a) => lineOf(a) === line)) lines.delete(line);
+    editor.setBreakpointLines([...lines]);
+  }
+}
+
+async function setBreakpoint(addr: number, on: boolean): Promise<void> {
   if (on) breakpoints.add(addr); else breakpoints.delete(addr);
   await api.call(on ? 'setBreakpoint' : 'clearBreakpoint', addr);
   text.setBreakpoint(addr, on);
+}
+
+// A breakpoint set or cleared in the Editor's gutter.  Before an assemble
+// (or with changed code) it is only kept by line, for the next assemble.
+async function editorBreakpoint(line: number, on: boolean): Promise<void> {
+  if (!machineShown()) return;
+  const addr = addressOfLine(line);
+  if (addr === null) {
+    editor.setBreakpointLines(editor.breakpointLines().filter((n) => n !== line));
+    note = `${line}행에는 명령이 없습니다 — 브레이크포인트는 명령이 있는 줄에만`;
+    renderStatus();
+    return;
+  }
+  if (on) await setBreakpoint(addr, true);
+  else for (const a of [...breakpoints].filter((a) => lineOf(a) === line)) await setBreakpoint(a, false);
 }
 
 // ---- the Inspector ----------------------------------------------------------------------

@@ -31,7 +31,7 @@ test('first screen -> new file -> paste -> Ctrl+S -> errors -> fix -> Ctrl+S -> 
   await expect(page.locator('.cm-error-line')).toHaveCount(1);
   await expect(page.locator('.titlebar .file')).toContainText('week1.s');
 
-  await item.getByRole('button', { name: '이 줄로 가기' }).click();
+  await page.locator('.errors').getByRole('button', { name: '3행으로 가기' }).click();
   await page.keyboard.press('Shift+End');
   await page.keyboard.insertText('  srl  $t1, $t0, 1');
   await page.keyboard.press('Control+s');
@@ -108,6 +108,7 @@ test('breakpoint -> F5 stops there -> F5 goes on to the end', async () => {
   await expect(page.locator('.trow', { has: page.locator('.src', { hasText: 'add $t2' }) })).toHaveClass(/bp-on/);
   await page.keyboard.press('F5');
   await settled(page);
+  expect(await statusText(page)).toContain('브레이크포인트'); // the new machine has it too
   await page.keyboard.press('F5');
   await settled(page);
   expect(await statusText(page)).toContain('프로그램이 끝났습니다');
