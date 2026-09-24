@@ -15,6 +15,7 @@ Windows 설치본 실사용 점검(2.0.0-alpha.1)에서 나온 항목을 고친 
 | `lab-1366x768-125.png` | 실습실 PC: 1366×768 배율 125% 최대화(CSS 1093×582, 1.25배로 그림) |
 | `1366x768-150.png` | 1366×768 배율 150%(CSS 910×505): 좁은 창 — Editor / Run 탭 |
 | `1024x768.png` | 1024×768 배율 100% |
+| `windows-frame-maximised.png` | **실제 Windows 11**(CI 러너, 1024×768)에서 최대화한 설치본: 앱의 막대 + 시스템의 창 버튼 |
 
-캡처는 xvfb(리눅스)에서 했다. 창 버튼(최소화·최대화·닫기)은 시스템이 그리는 것이라 페이지 캡처에는 없고,
-그 자리가 비어 있다. Windows 에서의 모습은 CI 아티팩트 `windows-report/report/screens/` 와 손 확인 목록(`docs/WINDOWS.md`)으로 본다.
+`windows-frame-maximised.png` 말고는 xvfb(리눅스)에서 찍었다. 창 버튼(최소화·최대화·닫기)은 시스템이 그리는 것이라
+페이지 캡처에는 없고 그 자리가 비어 있다. Windows 의 그림은 CI 가 화면 전체를 찍은 것이다(`tools/probe-platform.ts`). Windows 에서의 모습은 CI 아티팩트 `windows-report/report/screens/` 와 손 확인 목록(`docs/WINDOWS.md`)으로 본다.
