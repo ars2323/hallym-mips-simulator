@@ -82,6 +82,7 @@ The program is not code-signed; on the SmartScreen prompt choose *More info → 
 
 | | |
 |---|---|
+| [Introduction](https://youtu.be/wgRYCoxG9qE) | 7분 · 개발 배경과 주요 기능 |
 | [Tutorial](https://youtu.be/6EakLfmDeug) | 4분 · 설치 후 첫 실습까지 |
 
 ## Building
