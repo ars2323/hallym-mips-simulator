@@ -1,11 +1,10 @@
 # ARCHITECTURE — 무엇이 어느 프로세스에 있고 왜인가
 
-아직 Electron 은 없다. 지금의 "호스트"는 Node 프로세스이고, 시뮬레이터 프로세스는
-`child_process.fork()` 로 띄운다. 모양은 Electron 앱의 것과 같게 잡았다.
-나중에 메인 프로세스가 호스트가 되고, 전송 수단만 `utilityProcess` 로 바뀐다(4절).
+호스트는 Electron 의 메인 프로세스(`src/main/main.ts`)이고, 시뮬레이터 프로세스는 `utilityProcess` 로 띄운다.
+Node 테스트에서는 같은 호스트가 `child_process.fork()` 로 띄운다. 둘의 차이는 `transport.ts` 안에만 있다(4절).
 
 ```text
-┌─ 호스트 프로세스 (나중에: Electron main) ──────────────────────────┐
+┌─ 호스트 프로세스 (Electron main / Node 테스트) ─────────────────────┐
 │  src/sim/host.ts        Simulator: 요청·응답 짝 맞춤, 이벤트,        │
 │                         사망 감지·재기동, stop 의 최후 수단(kill)    │
 │  src/sim/transport.ts   Transport — 프로세스를 띄우고 말을 거는 곳  │
@@ -13,7 +12,7 @@
 └───────────────▲──────────────────────────────┬────────────────────┘
                 │ 응답·이벤트                   │ 요청 {id, method, args}
                 │ (structured clone)            ▼
-┌─ 시뮬레이터 프로세스 (나중에: utilityProcess) ─────────────────────┐
+┌─ 시뮬레이터 프로세스 (utilityProcess / fork) ──────────────────────┐
 │  src/sim/worker.ts      구간 실행 루프, 요청 처리, 콘솔 디코딩       │
 │  native/index.ts        Node 경계: 인코딩·실행 매개변수·바이트 변환  │
 │  native/src/addon.cc    N-API: 코어의 전역·콜백, 바인딩              │
@@ -101,26 +100,40 @@
   `abort()` 가 아닌 이유는 `docs/PORTING.md` 8절에 있다. 학생 프로그램이 닿을 수 있는 예는
   `.err` 지시어다(`parser.y`).
 
-## 4. utilityProcess 로 바뀔 때
+## 4. utilityProcess — 예상과 실제
 
-바뀌는 곳은 `src/sim/transport.ts` 하나다. 호스트와 워커는 그 안의 `Transport`(호스트 쪽)와
-`WorkerPort`(워커 쪽) 인터페이스만 본다. 예상되는 차이:
+바뀐 곳은 예상대로 `src/sim/transport.ts` 하나다. `utilityTransport()` 를 더했고, 워커 쪽은
+`process.parentPort` 가 있으면 그쪽을 쓴다. 호스트(`host.ts`)와 워커(`worker.ts`)는 고치지 않았다.
+아래는 첫 판에 적은 예상과 Electron 44.4.5(Node 24.21.0) 리눅스에서 잰 실제다.
 
-| | 지금(`child_process.fork`) | Electron(`utilityProcess.fork`) |
+| | 예상(첫 판) | 실제 |
 |---|---|---|
-| 띄우기 | `fork(worker.ts, { serialization: 'advanced', stdio })` | `utilityProcess.fork(worker.js, [], { stdio: 'pipe', serviceName })`. 모듈 경로는 패키징 뒤 `app.asar` 밖이어야 할 수 있다(네이티브 애드온) |
-| 호스트 → 워커 | `child.send(m)` | `child.postMessage(m)` |
-| 워커 → 호스트 | `process.send(m)` / `process.on('message')` | `process.parentPort.postMessage(m)` / `parentPort.on('message', e => e.data)`. `WorkerPort` 구현 하나만 추가 |
-| 준비 | 워커가 `ready` 를 보낸다 | 같다. `spawn` 이벤트도 있지만 `ready` 로 충분 |
-| 죽음 | `close` 이벤트 `(code, signal)` 뒤 stderr 까지 다 읽힘 | `exit` 이벤트 `(code)` 뿐이다. signal 은 없다. stderr 는 `child.stderr` 스트림에서 읽는다. 둘의 순서는 확인이 필요하다 |
-| 강제 종료 | `child.kill('SIGKILL')` | `child.kill()` |
-| TS 실행 | Node 가 타입을 지우고 바로 실행 | 빌드된 JS 가 필요하다(Electron 의 Node 가 `.ts` 를 받는지 확인 필요) |
-| 애드온 ABI | Node 22 | Electron 의 Node ABI 로 다시 빌드한다(`electron-rebuild`/`@electron/rebuild`). N-API 라 대개는 그대로 로드되지만 확인한다 |
+| 띄우기 | `utilityProcess.fork(worker.js, …)`. 빌드된 JS 가 필요할 것 | `utilityProcess.fork(worker.ts, [], { stdio: 'pipe', serviceName, env })` 로 **`.ts` 가 그대로 돈다.** Electron 의 Node 24 가 타입을 지운다. 메인 프로세스도 `electron src/main/main.ts` 로 그대로 뜬다. 패키징 뒤(asar) 경로는 아직 모른다 |
+| 호스트 → 워커 | `child.postMessage(m)` | 맞다. structured clone 이라 `Uint8Array` 가 그대로 넘어간다 |
+| 워커 → 호스트 | `process.parentPort` | 맞다. `parentPort.on('message', e => e.data)` |
+| 준비 | 워커의 `ready` 로 충분 | 맞다 |
+| 죽음 — 종료 코드 | `exit(code)` 만 있고 signal 은 없음 | signal 이 없는 것은 맞다. 그런데 코드가 경우마다 다르다. JS `process.exit(n)` 은 **n**, 애드온의 C `_exit(n)`(코어의 `fatal_error`)은 **원시 wait 상태값 `n << 8`**(70 → 17920), `kill()` 로 죽인 것은 **0** 이다. 그래서 transport 가 `>255` 이고 하위 바이트가 0 이면 `>> 8` 로 풀고, "죽였다"는 사실은 호스트가 따로 기억한다 |
+| 죽음 — stderr | 순서 확인 필요 | stderr 의 `end` 는 **오지 않는다**(네 경우 모두 2초 안에 없음). 죽기 전에 쓴 내용은 `exit` 때 이미 와 있으므로, `exit` 뒤 100ms 를 기다렸다가 보고한다 |
+| 강제 종료 | `child.kill()` | 맞다(보고 코드는 0) |
+| 애드온 ABI | Electron ABI 로 다시 빌드해야 할 것 | **다시 빌드하지 않아도 열린다.** 애드온이 N-API 만 쓰므로 Node 22(ABI 127)로 빌드한 `.node` 가 Electron(ABI 149)의 메인과 utility process 에서 그대로 로드된다. 배포용으로는 Electron 헤더로 빌드한다(`npm run build:electron`, node-gyp `--target --dist-url`). 그 결과 하나로 Node 테스트 145개와 Electron 이 둘 다 돈다. `@electron/rebuild` 는 `node_modules` 안의 모듈을 다시 빌드하는 도구라, 저장소 안의 `native/` 에는 맞지 않았다 |
 
-- 한 머신 = 한 프로세스라는 구조는 그대로다. 창을 여러 개 띄우면 프로세스도 여러 개가 된다.
-- `SIGALRM` 은 utilityProcess 안에서만 걸린다. main 과 렌더러는 영향이 없다.
-- Windows 에서는 코어의 타이머가 이름 있는 대기 타이머(`"SPIMTimer"`)와 APC 를 쓴다(`run.cpp`).
-  호출한 스레드에 붙으므로, 워커가 코어를 늘 같은 스레드(메인 스레드)에서 부르는 지금 구조를 유지한다.
+예상하지 못한 것:
+
+- **`ELECTRON_RUN_AS_NODE`**: VS Code 처럼 그 자체가 Electron 인 도구는 이 환경변수를 내보낸다.
+  그 안에서 `electron` 을 실행하면 앱이 아니라 Node 로 돈다("bad option"). 그래서 `tools/electron.ts` 가
+  이 값을 지우고 띄운다.
+- **샌드박스**: 이 기계(Ubuntu 22.04, 비특권 user namespace 허용)에서는 `--no-sandbox` 없이 뜬다.
+  `chrome-sandbox` 에 setuid 가 없어도 된다. 다른 배포판에서는 다를 수 있다.
+- **Pretendard 의 `calt`**: 숫자 사이의 `x` 를 `×` 로 바꾼다(`0x00400020` → `0×00400020`).
+  16진수가 들어가는 UI 문자열에서는 `font-feature-settings: 'calt' 0` 을 쓰거나 D2Coding 으로 쓴다.
+
+바뀌지 않는 것: 한 머신 = 한 프로세스다. `SIGALRM` 은 utility process 안에서만 걸린다.
+Windows 의 코어 타이머(이름 있는 대기 타이머 + APC)는 호출한 스레드에 붙으므로, 워커가 코어를 늘
+메인 스레드에서 부르는 지금 구조를 유지한다. (Windows 에서 Electron 으로 도는 것은 아직 확인하지 않았다.)
+
+배선 확인: `npm run smoke:electron`. 창을 띄워 예제를 어셈블·실행하고 레지스터를 찍는다.
+`.err` 로 utility process 를 죽인 뒤 다시 띄워 한 번 더 실행하고, 창을 캡처한 다음 결과에 따라 0/1 로 끝난다.
+캡처: `docs/images/wiring-check.png`.
 
 ## 5. 테스트가 지키는 것
 
