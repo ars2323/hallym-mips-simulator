@@ -1,6 +1,6 @@
 # hallym-mips-simulator-electron
 
-Electron판 한림 MIPS 시뮬레이터. 지금 있는 것은 넷이다.
+Hallym MIPS — MIPS 시뮬레이터의 Electron판. 지금 있는 것은 넷이다.
 
 - SPIM 코어를 감싼 Node 애드온
 - 코어를 자기 프로세스에서 돌리는 실행 제어(실행·정지·브레이크포인트·콘솔 입출력)
@@ -51,9 +51,9 @@ tools/
   measure-ui.ts     레지스터 갱신·실행 중 프레임·tt.core.s Text 측정
 src/main/            Electron 메인 프로세스(호스트: 시뮬레이터·파일·설정)와 preload
 src/renderer/app/    창 (docs/ARCHITECTURE.md 6절)
-src/renderer/assets/ 한림대 자산·폰트·아이콘 (NOTICE 참고)
+src/renderer/assets/ Hallym University 자산·폰트·아이콘 (NOTICE 참고)
 src/examples/        첫 화면의 튜토리얼 예제
-packaging/icons/     앱 아이콘 (한림대학교 자산, Qt판에서 그대로)
+packaging/icons/     앱 아이콘 (Hallym University 자산, Qt판에서 그대로)
 design/mockups/      레이아웃 시안 원본 (docs/mockups/README.md)
 docs/screens/        실제 앱 캡처와 시안 대조, 측정값 (docs/screens/README.md)
 docs/ARCHITECTURE.md  무엇이 어느 프로세스에 있고 왜인가

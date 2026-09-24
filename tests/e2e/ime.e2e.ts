@@ -49,7 +49,7 @@ test('Ctrl+S in the middle of a syllable waits for it, then saves it whole', asy
   expect(existsSync(file)).toBe(false); // nothing saved with half a syllable
   await compose(cdp, '끝');              // the syllable goes on after Ctrl+S
   await commit(cdp, '끝');
-  await expect(page.locator('.stage-run')).toBeVisible();
+  await expect(page.locator('.run-grid')).toBeVisible();
   const saved = readFileSync(file, 'utf8');
   expect(saved).toBe('main:\n  li $v0, 10\n  syscall # 끝');
   expect(await doc()).toBe('main:\n  li $v0, 10\n  syscall # 끝');

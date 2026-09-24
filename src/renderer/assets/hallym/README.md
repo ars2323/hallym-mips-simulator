@@ -1,6 +1,6 @@
-# 한림대학교 자산
+# Hallym University 자산
 
-한림대학교 자산. 이 저장소의 BSD 라이선스 대상이 아닙니다.
+Hallym University 의 자산. 이 저장소의 BSD 라이선스 대상이 아닙니다.
 
 ## 사용 규정 (디자인 가이드라인)
 
@@ -10,7 +10,7 @@
 - 캐릭터와 유사한 색상 또는 복잡한 배경 위에 두지 않는다
 - 저해상도·열화된 원고를 쓰지 않는다
 
-문의: 한림대학교 대외협력팀 de1330@hallym.ac.kr
+문의: Hallym University 대외협력팀 de1330@hallym.ac.kr
 
 ## 이 저장소에서 지키는 것
 
@@ -60,11 +60,12 @@
 | emblem-a-navy.svg | 엠블럼 A (남색) |
 | logotype-ko-en.svg | 국영문 로고타입 |
 | signature-h-ko-en.svg | 국영문 좌우조합 시그니처 |
+| symbol-basic.svg | 심벌(기본형). 창 위쪽 막대의 로고. Qt판 `QtSpim/edu/theme/brand/symbol-basic.svg` 를 바이트 그대로 |
 
 ## 출처
 
 - `character.zip` (sha256 `13b1e7dd…a304ba3a`)에서 풀었다. 안에는 기본형·응용동작 zip 이 하나씩 있고,
-  「한림대학교 캐릭터 관리 및 활용 메뉴얼(외부공유용).pdf」도 함께 있다. 위 규정은 그 매뉴얼에서 가져왔다.
+  Hallym University 의 캐릭터 관리·활용 매뉴얼(외부 공유용) PDF 도 함께 있다. 위 규정은 그 매뉴얼에서 가져왔다.
   PDF 는 앱 자산이 아니라서 저장소에 넣지 않았다.
 - `logo.zip` (sha256 `67e499e5…67985f07`)에는 원본 `.ai` 10개(A1~A4)와 미리보기 `.jpg` 가 있다.
   이 `.ai` 는 Qt판 저장소 `assets/ci/A1`~`A4` 의 것과 **바이트 단위로 같다.** `marks/` 의 SVG 는 Qt판이
@@ -74,6 +75,6 @@
 
 ## 앱 아이콘 — `packaging/icons/`
 
-설치본의 실행 파일·바로가기·창 아이콘. 한림대학교 심벌로 만든 것으로, 위와 같은 고지가 적용된다.
+설치본의 실행 파일·바로가기·창 아이콘. Hallym University 심벌로 만든 것으로, 위와 같은 고지가 적용된다.
 Qt판 `QtSpim/edu/theme/brand/` 의 `app-16.png` ~ `app-256.png`, `HallymMIPS.ico` 를 바이트 그대로 복사했다.
 다시 만들거나 크기·색을 바꾸지 않는다.

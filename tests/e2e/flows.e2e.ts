@@ -14,7 +14,7 @@ test('first screen -> new file -> paste -> Ctrl+S -> errors -> fix -> Ctrl+S -> 
   await expect(page.locator('.wcard h1')).toHaveText('안녕하세요!');
   await page.getByRole('button', { name: /바로 시작/ }).click();
   await page.getByRole('button', { name: /새 파일/ }).first().click();
-  await expect(page.locator('.stage-code')).toBeVisible();
+  await expect(page.locator('.editor-panel')).toBeVisible();
 
   const source = 'main:\n  li   $t0, 5\n  srll $t1, $t0, 1\n  li   $v0, 10\n  syscall\n';
   await app.evaluate(({ clipboard }, t) => clipboard.writeText(t), source);
@@ -29,15 +29,15 @@ test('first screen -> new file -> paste -> Ctrl+S -> errors -> fix -> Ctrl+S -> 
   await expect(item).toHaveCount(1);
   await expect(item.locator('.line')).toHaveText('3행');
   await expect(page.locator('.cm-error-line')).toHaveCount(1);
-  await expect(page.locator('.top .file')).toContainText('week1.s');
+  await expect(page.locator('.titlebar .file')).toContainText('week1.s');
 
   await item.getByRole('button', { name: '이 줄로 가기' }).click();
   await page.keyboard.press('Shift+End');
   await page.keyboard.insertText('  srl  $t1, $t0, 1');
   await page.keyboard.press('Control+s');
 
-  await expect(page.locator('.stage-run')).toBeVisible();
-  await expect(page.locator('.tab.on')).toHaveText('Text');
+  await expect(page.locator('.run-grid')).toBeVisible();
+  await expect(page.locator('.ptab.on')).toHaveText('Text');
   await expect(page.locator('.errors')).toBeHidden();
   await expect(page.locator('.trow .src', { hasText: 'srl  $t1, $t0, 1' })).toHaveCount(1);
 });
@@ -45,7 +45,7 @@ test('first screen -> new file -> paste -> Ctrl+S -> errors -> fix -> Ctrl+S -> 
 test('F10 changes registers and highlights only what changed', async () => {
   const { page } = r;
   await openAndAssemble(r, program(r.dir, 'f10.s', 'main:\n  li $t0, 5\n  srl $t1, $t0, 1\n  li $v0, 10\n  syscall\n'));
-  await expect(page.locator('.stage-run')).toBeVisible();
+  await expect(page.locator('.run-grid')).toBeVisible();
   for (let i = 0; i < 20 && (await regHex(page, '$t0')) === '0x00000000'; i += 1) {
     await page.keyboard.press('F10');
     await settled(page);
@@ -69,23 +69,17 @@ test('F10 changes registers and highlights only what changed', async () => {
 test('choosing an instruction opens the Inspector with its fields', async () => {
   const { page } = r;
   await openAndAssemble(r, sample(r.dir, 'tests/samples/lab04-ok.s', 'lab04.s'));
-  await expect(page.locator('.insp')).toBeHidden();
+  const panel = page.locator('.insp');
+  await expect(panel.locator('.ihead')).toHaveCount(0); // nothing chosen: the guide
   await page.locator('.trow[data-addr="0x00400054"] .dis').click();
-  const sheet = page.locator('.insp');
-  await expect(sheet).toBeVisible();
-  await expect(sheet.locator('.ihead .dis')).toHaveText('sra $17, $14, 1');
-  await expect(sheet.locator('.bits .fn')).toHaveText(['opcode', 'rs', 'rt', 'rd', 'shamt', 'funct']);
-  await expect(sheet.locator('.bits .b')).toHaveText(['000000', '00000', '01110', '10001', '00001', '000011']);
-  await expect(sheet.locator('.ftable tr').nth(3).locator('td').last()).toHaveText('$t6');
-  await expect(sheet.locator('.explain')).toContainText('sra — Shift Right Arithmetic');
-  await expect(sheet.locator('.explain')).toContainText('$s1');
-  // The chosen row stays in view above the sheet.
-  await expect.poll(async () => {
-    const row = (await page.locator('.trow.sel').boundingBox())!;
-    return row.y + row.height <= (await sheet.boundingBox())!.y;
-  }).toBe(true);
+  await expect(panel.locator('.ihead .dis')).toHaveText('sra $17, $14, 1');
+  await expect(panel.locator('.bits .fn')).toHaveText(['opcode', 'rs', 'rt', 'rd', 'shamt', 'funct']);
+  await expect(panel.locator('.bits .b')).toHaveText(['000000', '00000', '01110', '10001', '00001', '000011']);
+  await expect(panel.locator('.ftable tr').nth(3).locator('td').last()).toHaveText('$t6');
+  await expect(panel.locator('.explain')).toContainText('sra — Shift Right Arithmetic');
+  await expect(panel.locator('.explain')).toContainText('$s1');
   await page.keyboard.press('Escape');
-  await expect(sheet).toBeHidden();
+  await expect(panel.locator('.ihead')).toHaveCount(0);
 });
 
 test('breakpoint -> F5 stops there -> F5 goes on to the end', async () => {

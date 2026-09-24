@@ -65,7 +65,6 @@ test('고급: options apply from the next assemble, for this session', async () 
     await page.getByTitle('설정').click();
     await dialog.getByText('의사 명령 허용').click();
     await dialog.getByRole('button', { name: '닫기' }).click();
-    await page.locator('.seg button', { hasText: '코드' }).click();
     await page.locator('.cm-content').click();
     await page.keyboard.press('Control+s');
     await expect(page.locator('.errors .item').first()).toContainText('syntax error');

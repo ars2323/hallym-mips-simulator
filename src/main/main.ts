@@ -13,7 +13,7 @@
    so that the two can be installed side by side.  SPIM_USER_DATA (a
    directory) puts them elsewhere: the tests start every run from a fresh one. */
 
-import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, screen, shell } from 'electron';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -23,7 +23,9 @@ import { Simulator } from '../sim/host.ts';
 import type { CallName } from '../sim/protocol.ts';
 import { utilityTransport } from '../sim/transport.ts';
 
-app.setName('Hallym MIPS Simulator');
+app.setName('Hallym MIPS');
+// The top bar's height in the window (src/renderer/app/app.css --titlebar).
+const TITLE_BAR_HEIGHT = 40;
 // The Start menu shortcut carries this id (tools/package.ts appId): the window groups with it.
 if (process.platform === 'win32') app.setAppUserModelId('kr.ac.hallym.mips-simulator.electron');
 app.setPath('userData', process.env.SPIM_USER_DATA ?? path.join(app.getPath('appData'), 'HallymMIPS2'));
@@ -83,11 +85,26 @@ async function main(): Promise<void> {
   await app.whenReady();
   const sim = await Simulator.start({ transport: () => utilityTransport() });
 
+  // The window starts at a fixed size -- or fills the screen when the screen
+  // is smaller (a lab PC: 1366x768 at 125% leaves about 1093x582) -- and
+  // nothing of its size or place is kept for the next start.
+  const area = screen.getPrimaryDisplay().workAreaSize;
+  const small = area.width < 1280 || area.height < 800;
   const win = new BrowserWindow({
-    width: 1280,
-    height: 800,
-    title: '한림 MIPS 시뮬레이터',
+    width: Math.min(1280, area.width),
+    height: Math.min(800, area.height),
+    minWidth: 760,
+    minHeight: 480,
+    show: false,
+    title: 'Hallym MIPS',
     backgroundColor: '#f5f7fa',
+    // No system title bar: the window's own top bar carries the logo, the
+    // file and the toolbar.  The caption buttons stay the system's own
+    // (titleBarOverlay), so Windows 11's snap layouts -- the flyout on the
+    // maximise button -- keep working, as do double-click to maximise and
+    // dragging to the top edge on the bar's drag region.
+    titleBarStyle: 'hidden',
+    titleBarOverlay: { color: '#ffffff', symbolColor: '#00205b', height: TITLE_BAR_HEIGHT },
     webPreferences: {
       preload: paths.preload,
       contextIsolation: true,
@@ -153,6 +170,7 @@ async function main(): Promise<void> {
     return readSettings();
   });
 
+  win.once('ready-to-show', () => { if (small) win.maximize(); win.show(); });
   await win.loadFile(paths.page);
 }
 

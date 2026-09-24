@@ -13,6 +13,7 @@ import { layoutMemoryRows, rowEnd } from '../../../core/memory-rows.ts';
 import { asciiText, memoryValueText } from '../../../core/memory-text.ts';
 import { hex32 } from '../../../core/format.ts';
 import { code, h } from '../dom.ts';
+import { tabsHead, type TabsHead } from '../ui.ts';
 import type { TextRow } from '../logic/machine.ts';
 import { scrollToShow, visibleRange } from '../logic/virtual.ts';
 import { perf } from '../perf.ts';
@@ -20,7 +21,6 @@ import { perf } from '../perf.ts';
 export interface TextEvents {
   select(addr: number): void;
   toggleBreakpoint(addr: number): void;
-  openInspector(): void;
 }
 
 const FULL = new URLSearchParams(location.search).get('text') === 'full';
@@ -31,8 +31,7 @@ export class TextPanel {
   private readonly layer: HTMLElement;
   private readonly spacer: HTMLElement;
   private readonly fold: HTMLElement;
-  private readonly tabText: HTMLElement;
-  private readonly tabData: HTMLElement;
+  readonly head: TabsHead;
   private readonly textView: HTMLElement;
   readonly dataView: HTMLElement;
   private all: TextRow[] = [];
@@ -42,7 +41,6 @@ export class TextPanel {
   private selected = -1;
   private rendered = new Map<number, HTMLElement>(); // row index -> element
   private rowHeight = 22;
-  private bottomPad = 0; // room under the last row, so that any row can come above the sheet
   private readonly events: TextEvents;
   tab: 'text' | 'data' = 'text';
   onTab: (tab: 'text' | 'data') => void = () => {};
@@ -55,27 +53,18 @@ export class TextPanel {
     this.viewport = h('div', { class: 'pbody text', tabindex: '0' }, this.spacer, this.layer);
     this.viewport.addEventListener('scroll', () => this.renderWindow());
     this.viewport.addEventListener('click', (e) => this.click(e));
-    this.tabText = h('button', { class: 'tab on', type: 'button' }, 'Text');
-    this.tabData = h('button', { class: 'tab', type: 'button' }, 'Data');
-    this.tabText.addEventListener('click', () => this.setTab('text'));
-    this.tabData.addEventListener('click', () => this.setTab('data'));
-    const header = h('div', { class: 'theader' }, h('span'), h('span', {}, '주소'), h('span', { class: 'word' }, '기계어'),
-      h('span', {}, '형식'), h('span', {}, '명령'), h('span', { class: 'right' }, '줄'), h('span', {}, '소스'));
+    this.head = tabsHead(['Text', 'Data'], (i) => this.setTab(i === 0 ? 'text' : 'data'));
+    const header = h('div', { class: 'theader' }, h('span'), h('span', { class: 'addr' }, '주소'), h('span', { class: 'word' }, '기계어'),
+      h('span', {}, '형식'), h('span', { class: 'dis' }, '명령'), h('span', { class: 'lno right' }, '줄'), h('span', { class: 'src' }, '소스'));
     this.textView = h('div', { class: 'tview' }, header, this.viewport, this.fold);
     this.dataView = h('div', { class: 'pbody data', hidden: true });
-    const inspect = h('button', { class: 'linkbtn', type: 'button', title: 'Inspector (I)' }, '명령 보기');
-    inspect.addEventListener('click', () => this.events.openInspector());
-    this.root = h('section', { class: 'panel textpanel', 'aria-label': 'Text' },
-      h('div', { class: 'phead' }, h('span', { class: 'tabs' }, this.tabText, this.tabData), h('span', { class: 'grow' }),
-        h('span', { class: 'meta count' }), inspect),
-      this.textView, this.dataView);
+    this.root = h('section', { class: 'panel textpanel', 'aria-label': 'Text' }, this.head.root, this.textView, this.dataView);
     new ResizeObserver(() => this.renderWindow()).observe(this.viewport);
   }
 
   setTab(tab: 'text' | 'data'): void {
     this.tab = tab;
-    this.tabText.classList.toggle('on', tab === 'text');
-    this.tabData.classList.toggle('on', tab === 'data');
+    this.head.select(tab === 'text' ? 0 : 1);
     this.textView.hidden = tab !== 'text';
     this.dataView.hidden = tab !== 'data';
     this.onTab(tab);
@@ -102,7 +91,7 @@ export class TextPanel {
       Object.assign(h('button', { class: 'linkbtn', type: 'button' }, this.showKernel ? '숨기기' : '보기'),
         { onclick: () => { this.showKernel = !this.showKernel; this.refilter(); } }));
     this.fold.hidden = kernel === 0;
-    (this.root.querySelector('.count') as HTMLElement).textContent = `명령 ${this.all.length - kernel}개`;
+    this.head.setMeta(this.all.length ? `명령 ${this.all.length - kernel}개` : '');
     this.rowHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--row')) || 22;
     this.sizeSpacer();
     for (const el of this.rendered.values()) el.remove();
@@ -111,15 +100,7 @@ export class TextPanel {
   }
 
   private sizeSpacer(): void {
-    this.spacer.style.height = `${this.shown.length * this.rowHeight + this.bottomPad}px`;
-  }
-
-  // The sheet covers `px` of the list's bottom (0: closed).
-  setCovered(px: number): void {
-    const pad = Math.max(0, px - this.fold.offsetHeight);
-    if (pad === this.bottomPad) return;
-    this.bottomPad = pad;
-    this.sizeSpacer();
+    this.spacer.style.height = `${this.shown.length * this.rowHeight}px`;
   }
 
   setBreakpoint(addr: number, on: boolean): void {
@@ -135,7 +116,7 @@ export class TextPanel {
     const i = this.shown.findIndex((x) => x.addr === addr);
     this.rendered.get(before)?.classList.remove('pc');
     this.rendered.get(i)?.classList.add('pc');
-    if (scroll && i >= 0) this.reveal(i, this.bottomPad);
+    if (scroll && i >= 0) this.reveal(i);
   }
 
   setSelected(addr: number): void {
@@ -147,17 +128,12 @@ export class TextPanel {
     if (i >= 0) this.reveal(i);
   }
 
-  // Keep `index` in view -- above `covered` px at the bottom (the sheet).
-  reveal(index: number, covered = 0): void {
-    const view = this.viewport.clientHeight - covered;
+  // Keep `index` in view.
+  reveal(index: number): void {
+    const view = this.viewport.clientHeight;
     const top = scrollToShow(index, this.viewport.scrollTop, view, this.rowHeight);
     if (top !== this.viewport.scrollTop) this.viewport.scrollTop = top;
     this.renderWindow();
-  }
-
-  revealSelected(): void {
-    const i = this.shown.findIndex((x) => x.addr === this.selected);
-    if (i >= 0) this.reveal(i, this.bottomPad);
   }
 
   rowFor(addr: number): TextRow | undefined {

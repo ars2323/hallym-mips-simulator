@@ -10,12 +10,14 @@
    marked as input. */
 
 import { character, h } from '../dom.ts';
+import { headButton, panelHead, type Head } from '../ui.ts';
 
 const KEEP = 200_000; // characters of output kept on screen
 
 export class ConsolePanel {
   readonly root: HTMLElement;
-  private readonly bar: HTMLElement;
+  private readonly bar: HTMLButtonElement;
+  readonly head: Head;
   private readonly last: HTMLElement;
   private readonly log: HTMLElement;
   private readonly body: HTMLElement;
@@ -29,9 +31,11 @@ export class ConsolePanel {
 
   constructor() {
     this.last = h('span', { class: 'last' });
-    this.bar = h('button', { class: 'console-bar', type: 'button', 'aria-expanded': 'false' },
-      h('b', {}, '콘솔'), this.last);
-    this.bar.addEventListener('click', () => this.setExpanded(!this.expanded));
+    this.head = panelHead('Console');
+    this.head.setMeta(this.last);
+    this.bar = headButton('접기', '콘솔 접기/펼치기', () => this.setExpanded(!this.expanded));
+    this.head.aside.append(this.bar);
+    this.head.root.addEventListener('dblclick', () => this.setExpanded(!this.expanded));
     this.log = h('pre', { class: 'clog mono' });
     this.emptyNote = h('div', { class: 'empty' }, character('talk', 96),
       h('div', { class: 'say' }, h('h3', {}, '아직 출력이 없습니다'),
@@ -49,7 +53,7 @@ export class ConsolePanel {
     this.inputRow = h('label', { class: 'cinrow', hidden: true }, h('span', { class: 'prompt' }, '입력'), this.input,
       h('span', { class: 'hint' }, 'Enter'));
     this.body = h('div', { class: 'cbody' }, this.emptyNote, this.log, this.inputRow);
-    this.root = h('section', { class: 'console', 'aria-label': '콘솔' }, this.bar, this.body);
+    this.root = h('section', { class: 'panel console', 'aria-label': 'Console' }, this.head.root, this.body);
     this.render();
   }
 
@@ -99,6 +103,7 @@ export class ConsolePanel {
   private render(): void {
     this.root.classList.toggle('open', this.expanded);
     this.bar.setAttribute('aria-expanded', String(this.expanded));
+    this.bar.textContent = this.expanded ? '접기' : '펼치기';
     const lines = this.text.split('\n').filter((l) => l !== '');
     this.last.textContent = this.waiting ? '입력을 기다립니다'
       : lines.length ? lines[lines.length - 1]

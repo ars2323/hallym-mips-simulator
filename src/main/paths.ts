@@ -37,7 +37,7 @@ export const version: string = bundled
 export const LICENSES: { name: string; title: string }[] = [
   { name: 'LICENSE', title: 'SPIM — BSD License (James R. Larus)' },
   { name: 'NOTICE', title: 'NOTICE — 이 프로그램에 든 것과 그 라이선스' },
-  { name: 'hallym-assets.md', title: '한림대학교 자산 (교표·캐릭터·앱 아이콘)' },
+  { name: 'hallym-assets.md', title: 'Hallym University 자산 (교표·캐릭터·앱 아이콘)' },
   { name: 'OFL-Pretendard.txt', title: 'Pretendard — SIL Open Font License 1.1' },
   { name: 'OFL-D2Coding.txt', title: 'D2Coding — SIL Open Font License 1.1' },
   { name: 'lucide-LICENSE.txt', title: 'Lucide icons — ISC License' },

@@ -3,5 +3,5 @@
 ; differential updates.  This program has no auto-updater: remove the copy.
 !macro customInstall
   Delete "$LOCALAPPDATA\${APP_INSTALLER_STORE_FILE}"
-  RMDir "$LOCALAPPDATA\hallym-mips-simulator-updater"
+  RMDir "$LOCALAPPDATA\hallym mips-updater"
 !macroend

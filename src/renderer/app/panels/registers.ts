@@ -7,6 +7,7 @@
 import { cells, changedKeys, registerRows, type RegisterValues } from '../logic/machine.ts';
 import { code, h } from '../dom.ts';
 import { perf } from '../perf.ts';
+import { panelHead } from '../ui.ts';
 
 interface Row { el: HTMLElement; hex: HTMLElement; dec: HTMLElement; bin: HTMLElement | null; last: string; flags: string }
 
@@ -52,10 +53,10 @@ export class RegisterPanel {
     };
     if (full) setFold(false);
     else fold.replaceChildren(code('CP0'), ' 레지스터는 넓은 화면에서');
-    this.root = h('section', { class: `panel regs r-${mode}`, 'aria-label': '레지스터' },
-      h('div', { class: 'phead' }, h('span', { class: 'name' }, '레지스터'), h('span', { class: 'grow' }),
-        h('span', { class: 'meta' }, full ? '16진 · 10진 · 2진' : '16진 · 10진 — 2진은 바뀐 것만')),
-      full ? null : this.just, head, list, fold);
+    const title = panelHead('Registers');
+    title.setMeta(full ? '16진 · 10진 · 2진' : '16진 · 10진');
+    this.root = h('section', { class: `panel regs r-${mode}`, 'aria-label': 'Registers' },
+      title.root, full ? null : this.just, head, list, fold);
     this.update(initial, null);
   }
 

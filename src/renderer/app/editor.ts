@@ -75,6 +75,26 @@ const errorGutter = gutter({
   lineMarkerChange: (u) => u.transactions.some((t) => t.effects.some((e) => e.is(setErrorLines)) || t.docChanged),
 });
 
+// ---- the line being executed ---------------------------------------------------------
+
+// The source line of PC, from the Text panel's line column (the core's own
+// mapping); null when the program on screen is not the one in the machine.
+const setPcLine = StateEffect.define<number | null>();
+const pcField = StateField.define<number | null>({
+  create: () => null,
+  update(line, tr) {
+    for (const e of tr.effects) if (e.is(setPcLine)) return e.value;
+    return tr.docChanged ? null : line; // an edit makes it stale
+  },
+});
+const pcLine = Decoration.line({ class: 'cm-pc-line' });
+const pcDecorations = EditorView.decorations.compute([pcField], (state) => {
+  const n = state.field(pcField);
+  const b = new RangeSetBuilder<Decoration>();
+  if (n !== null && n >= 1 && n <= state.doc.lines) b.add(state.doc.line(n).from, state.doc.line(n).from, pcLine);
+  return b.finish();
+});
+
 // ---- the editor ------------------------------------------------------------------
 
 export interface Editor {
@@ -84,6 +104,9 @@ export interface Editor {
   showErrors(lines: number[]): void;
   goToLine(line: number): void;
   requestSave(composing: boolean): void; // Ctrl+S; `composing`: the key event's isComposing
+  // Marks the line being executed (null: none) and brings it into view --
+  // unless the student has scrolled in the last two seconds.
+  showPcLine(line: number | null): void;
 }
 
 export function createEditor(parent: HTMLElement, onSave: () => void, onChange: () => void): Editor {
@@ -99,6 +122,7 @@ export function createEditor(parent: HTMLElement, onSave: () => void, onChange: 
       doc: '',
       extensions: [
         lineNumbers(), errorGutter, history(), highlightActiveLine(), highlighter, errorField, errorDecorations,
+        pcField, pcDecorations,
         keymap.of([indentWithTab, ...historyKeymap, ...defaultKeymap]),
         EditorView.updateListener.of((u) => { if (u.docChanged) onChange(); }),
         EditorView.domEventHandlers({
@@ -115,8 +139,29 @@ export function createEditor(parent: HTMLElement, onSave: () => void, onChange: 
       ],
     }),
   });
+  // Scrolling by the student: the wheel, the scroll bar, the page keys.
+  let userScrolled = 0;
+  const mark = () => { userScrolled = Date.now(); };
+  view.scrollDOM.addEventListener('wheel', mark, { passive: true });
+  view.scrollDOM.addEventListener('pointerdown', (e) => { if (e.target === view.scrollDOM) mark(); });
+  view.scrollDOM.addEventListener('keydown', (e) => { if (/^(Page|Home|End|Arrow)/.test(e.key)) mark(); });
+
+  const showPcLine = (n: number | null): void => {
+    if (n === view.state.field(pcField)) return;
+    const effects: StateEffect<unknown>[] = [setPcLine.of(n)];
+    if (n !== null && n >= 1 && n <= view.state.doc.lines && Date.now() - userScrolled > 2000) {
+      const line = view.state.doc.line(n);
+      const box = view.scrollDOM.getBoundingClientRect();
+      const at = view.coordsAtPos(line.from); // null when the line is not rendered (far off screen)
+      const visible = at !== null && at.top >= box.top && at.bottom <= box.bottom;
+      if (!visible) effects.push(EditorView.scrollIntoView(line.from, { y: 'center' }));
+    }
+    view.dispatch({ effects });
+  };
+
   return {
     view,
+    showPcLine,
     text: () => view.state.doc.toString(),
     setText: (text) => view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text }, effects: setErrorLines.of([]) }),
     showErrors: (lines) => view.dispatch({ effects: setErrorLines.of(lines) }),

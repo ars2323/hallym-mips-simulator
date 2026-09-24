@@ -16,9 +16,9 @@ export function aboutDialog(): { root: HTMLDialogElement; open(): Promise<void> 
       [...tabs.children].forEach((t, k) => t.classList.toggle('on', k === i));
       if (i === 0) {
         body.replaceChildren(
-          h('p', {}, h('b', {}, 'Hallym MIPS Simulator'), ' ', code(info.version)),
+          h('p', {}, h('b', {}, 'Hallym MIPS'), ' ', code(info.version)),
           h('p', {}, 'Based on SPIM 9.1.24 by James R. Larus (BSD)'),
-          h('p', { class: 'hint' }, '한림대학교 컴퓨터 구조 실습을 위한 MIPS 시뮬레이터입니다.'),
+          h('p', { class: 'hint' }, 'Hallym University 컴퓨터 구조 실습을 위한 MIPS 시뮬레이터입니다.'),
           h('p', { class: 'hint' }, 'Electron ', code(info.electron), ' · Chromium ', code(info.chrome), ' · Node.js ', code(info.node)));
       } else {
         const list = h('div', { class: 'licenses' });

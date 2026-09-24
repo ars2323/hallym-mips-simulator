@@ -1,4 +1,4 @@
-# tutorial.s -- 한림 MIPS 시뮬레이터 안내 튜토리얼이 여는 예제입니다.
+# tutorial.s -- Hallym MIPS 의 튜토리얼이 여는 예제입니다.
 # tutorial.s -- the program the first-run tutorial opens.
 #
 # 배열의 합을 함수로 구합니다. 스택 프레임, 루프, 분기, 점프, 메모리

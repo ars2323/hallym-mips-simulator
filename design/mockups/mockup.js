@@ -38,7 +38,7 @@ function topbar() {
     ? `<span class="seg"><span class="${running ? '' : 'on'}">코드</span><span class="${running ? 'on' : SCENE === 'B' ? 'dim' : ''}">실행</span></span>`
     : '';
   return `<div class="top">
-    ${SIZE === 'narrow' ? '' : '<span class="title">한림 MIPS</span><span class="sep"></span>'}
+    ${SIZE === 'narrow' ? '' : '<span class="title">Hallym MIPS</span><span class="sep"></span>'}
     <span class="file">${file}</span>
     ${seg}
     <span class="grow"></span>

@@ -39,7 +39,7 @@ $qtDir = Join-Path $env:ProgramFiles 'Hallym MIPS Simulator'
 $qtExe = Join-Path $qtDir 'HallymMIPS.exe'
 $qtMenu = Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs\Hallym MIPS Simulator\Hallym MIPS Simulator.lnk'
 $qtKey = 'HKCU:\Software\HallymMIPS'
-$ourMenu = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Hallym MIPS Simulator 2.lnk'
+$ourMenu = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Hallym MIPS.lnk'
 $ourData = Join-Path $env:APPDATA 'HallymMIPS2'
 $uninstallRoot = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall'
 
@@ -52,7 +52,7 @@ function QtSettings() {
 }
 function Ours() {
   Get-ChildItem $uninstallRoot -ErrorAction SilentlyContinue | ForEach-Object { Get-ItemProperty $_.PSPath } |
-    Where-Object { $_.DisplayName -like 'Hallym MIPS Simulator 2*' }
+    Where-Object { $_.DisplayName -like 'Hallym MIPS 2*' }
 }
 function Association() { (& cmd.exe /c 'assoc .s' 2>&1) -join ' ' }
 function StartAndClose([string]$exe, [int]$seconds) {
@@ -88,20 +88,20 @@ if ($Phase -eq 'before') {
   if (-not $dir) { $dir = Split-Path -Parent ($entry.UninstallString -replace '"', '' -replace ' /currentuser', '') }
   Note "installed in: $dir"
   Note "uninstall entry: $($entry.DisplayName) $($entry.DisplayVersion), publisher $($entry.Publisher)"
-  Check ($dir -like "$env:LOCALAPPDATA\Programs\*") 'installed under %LOCALAPPDATA%\Programs (no Program Files, no administrator)'
+  Check ($dir -eq "$env:LOCALAPPDATA\Programs\Hallym MIPS") 'installed in %LOCALAPPDATA%\Programs\Hallym MIPS (no Program Files, no administrator)'
   Check ($dir -ne $qtDir) 'not in the Qt build''s folder'
   $exe = Join-Path $dir 'HallymMIPS.exe'
   Check (Test-Path $exe) 'HallymMIPS.exe'
   foreach ($f in 'LICENSE.txt', 'NOTICE.txt', 'LICENSE.electron.txt', 'LICENSES.chromium.html') {
     Check (Test-Path (Join-Path $dir $f)) "notice next to the program: $f"
   }
-  Check (Test-Path $ourMenu) 'Start menu: Hallym MIPS Simulator 2'
-  Check (-not (Test-Path (Join-Path $env:LOCALAPPDATA 'hallym-mips-simulator-updater'))) 'no copy of the installer kept (no updater folder)'
+  Check (Test-Path $ourMenu) 'Start menu: Hallym MIPS'
+  Check (-not (Test-Path (Join-Path $env:LOCALAPPDATA 'hallym mips-updater'))) 'no copy of the installer kept (no updater folder)'
   $size = (Get-ChildItem $dir -Recurse -File | Measure-Object Length -Sum).Sum
   Note ('installed size: {0:N1} MB' -f ($size / 1MB))
   Get-ChildItem $dir -Recurse -File | Sort-Object Length -Descending | Select-Object -First 15 |
     ForEach-Object { Note ('  {0,7:N1} MB  {1}' -f ($_.Length / 1MB), $_.FullName.Substring($dir.Length + 1)) }
-  Check (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Hallym MIPS Simulator 2.lnk'))) 'no desktop shortcut'
+  Check (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Hallym MIPS.lnk'))) 'no desktop shortcut'
   Check (-not (Test-Path 'HKCU:\Software\Classes\.s')) 'no .s under HKCU\Software\Classes'
   Check ((Association) -eq $assocBefore) "assoc .s unchanged ($assocBefore)"
   Check (Test-Path $qtExe) 'Qt build still installed'

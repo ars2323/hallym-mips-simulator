@@ -5,20 +5,20 @@ This product includes software developed by James R. Larus (SPIM).
 다음은 이 저장소의 BSD 라이선스 대상이 아닙니다 /
 NOT covered by this repository's BSD license:
 
-  한림대학교 교표·로고·시그니처 (Hallym University marks)
-  한림대학교 캐릭터 하람·하리 (characters Haram & Hari)
+  Hallym University 교표·로고·시그니처·심벌 (Hallym University marks)
+  Hallym University 캐릭터 하람·하리 (characters Haram & Hari)
     → src/renderer/assets/hallym/
-  한림대학교 심벌로 만든 앱 아이콘 (the application icon, from the Hallym symbol)
+  Hallym University 심벌로 만든 앱 아이콘 (the application icon, from the Hallym symbol)
     → packaging/icons/ (Qt판 QtSpim/edu/theme/brand/ 에서 그대로 복사 /
       copied unchanged from the Qt build) — 설치본의 실행 파일·바로가기 아이콘 /
       the installed program's and shortcut's icon
 
-  한림대학교가 저작권을 갖는 자산입니다. 포크하거나 재배포하는 경우
-  해당 파일을 제거하거나 한림대학교의 허락을 받아야 합니다.
+  Hallym University 가 저작권을 갖는 자산입니다. 포크하거나 재배포하는 경우
+  해당 파일을 제거하거나 Hallym University 의 허락을 받아야 합니다.
   Property of Hallym University. If you fork or redistribute, remove these
   files or obtain permission from Hallym University.
 
-  문의 / Contact: 한림대학교 대외협력팀  de1330@hallym.ac.kr
+  문의 / Contact: Hallym University 대외협력팀  de1330@hallym.ac.kr
 
 Third-party components under their own licenses:
 

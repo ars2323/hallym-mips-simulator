@@ -16,30 +16,22 @@ import { hex32 } from '../../../core/format.ts';
 import { instructionNoteLines, meaningOf } from '../../../core/instruction-text.ts';
 import { character, code, codeText, h } from '../dom.ts';
 import type { TextRow } from '../logic/machine.ts';
+import { panelHead, type Head } from '../ui.ts';
 
 export class Inspector {
   readonly root: HTMLElement;
+  readonly head: Head;
   private readonly body: HTMLElement;
-  onClose: () => void = () => {};
 
   constructor() {
-    this.body = h('div', { class: 'ibody' });
-    this.root = h('section', { class: 'insp sheet', 'aria-label': 'Inspector', hidden: true }, h('div', { class: 'grip' }), this.body);
+    this.head = panelHead('Inspector');
+    this.body = h('div', { class: 'pbody ibody' });
+    this.root = h('section', { class: 'panel insp', 'aria-label': 'Inspector' }, this.head.root, this.body);
     this.empty();
-  }
-
-  get open(): boolean { return !this.root.hidden; }
-  set open(on: boolean) { this.root.hidden = !on; }
-
-  private closeButton(): HTMLElement {
-    const b = h('button', { class: 'iconbtn close', type: 'button', title: '닫기 (Esc)', 'aria-label': '닫기' }, '✕');
-    b.addEventListener('click', () => this.onClose());
-    return b;
   }
 
   empty(): void {
     this.body.replaceChildren(
-      h('div', { class: 'ihead' }, h('span', { class: 'grow' }), this.closeButton()),
       h('div', { class: 'empty' }, character('sign', 96),
         h('div', { class: 'say' }, h('h3', {}, 'Text 에서 명령어를 고르세요'),
           h('p', {}, '고른 명령의 비트 필드와 하는 일이 여기에 나옵니다.'))));
@@ -76,15 +68,10 @@ export class Inspector {
         code(row.disassembly, 'dis'), h('span', { class: `badge b-${format}` }, format),
         row.source ? h('span', { class: 'isrc' }, '소스 ', code(row.source)) : null,
         h('span', { class: 'grow' }),
-        h('span', { class: 'where' }, code(hex32(row.word)), ' · ', code(hex32(row.addr))),
-        this.closeButton()),
+        h('span', { class: 'where' }, code(hex32(row.word)), ' · ', code(hex32(row.addr)))),
       strip, table,
       h('div', { class: 'explain' }, h('b', {}, e.title), e.sentence ? ' — ' : '', codeText(e.sentence),
         note ? h('div', { class: 'note' }, note) : null));
   }
 
-  // How much of the Text panel the sheet covers, for scrolling the chosen row above it.
-  get height(): number {
-    return this.open ? this.root.offsetHeight : 0;
-  }
 }

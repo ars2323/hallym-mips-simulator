@@ -12,10 +12,13 @@
 
    The addon must already be built for Electron (npm run build:electron).
 
+   The program is called Hallym MIPS everywhere: window, About, Start menu,
+   install folder, uninstall entry.
+
    Next to the Qt build (Hallym MIPS Simulator 1.x, an MSI installed per
    machine into Program Files) nothing may be shared:
-     - install folder   per user, under %LOCALAPPDATA%\Programs (Qt's: Program Files)
-     - Start menu       "Hallym MIPS Simulator 2" (Qt's is a folder "Hallym MIPS Simulator")
+     - install folder   per user, %LOCALAPPDATA%\Programs\Hallym MIPS (Qt's: Program Files)
+     - Start menu       "Hallym MIPS" (Qt's is a folder "Hallym MIPS Simulator")
      - settings         %APPDATA%\HallymMIPS2 (Qt's: registry HKCU\Software\HallymMIPS)
      - uninstall entry  its own appId / GUID, per user (HKCU)
      - no file association (no .s), no desktop shortcut, no elevation.
@@ -62,7 +65,8 @@ async function stageApp(): Promise<void> {
   for (const [name, source] of Object.entries(LICENSE_SOURCES)) cpSync(path.join(root, source), at('licenses', name));
 
   writeFileSync(at('package.json'), JSON.stringify({
-    name: 'hallym-mips-simulator', productName: 'Hallym MIPS Simulator', version: pkg.version,
+    // The name is what the per-user install folder is called: Hallym MIPS.
+    name: 'Hallym MIPS', productName: 'Hallym MIPS', version: pkg.version,
     description: 'MIPS simulator for Hallym University (based on SPIM 9.1.24)',
     author: 'AIAC Lab, Hallym University', license: 'BSD-3-Clause', type: 'module', main: 'main.js',
   }, null, 1));
@@ -70,7 +74,7 @@ async function stageApp(): Promise<void> {
 
 export const config: Configuration = {
   appId: APP_ID,
-  productName: 'Hallym MIPS Simulator',
+  productName: 'Hallym MIPS',
   executableName: 'HallymMIPS',
   electronVersion,
   directories: { app: stage, output: path.join(root, 'dist'), buildResources: path.join(root, 'packaging') },
@@ -95,14 +99,14 @@ export const config: Configuration = {
     oneClick: true,
     perMachine: false,
     allowElevation: false,
-    shortcutName: 'Hallym MIPS Simulator 2',
+    shortcutName: 'Hallym MIPS',
     createDesktopShortcut: false,
     createStartMenuShortcut: true,
     deleteAppDataOnUninstall: false,
     runAfterFinish: false,
     include: path.join(root, 'packaging/installer.nsh'), // no copy of the installer kept for an updater
     artifactName: 'HallymMIPS-${version}-win-x64-setup.${ext}',
-    uninstallDisplayName: 'Hallym MIPS Simulator ${version}',
+    uninstallDisplayName: 'Hallym MIPS ${version}',
   },
   linux: { target: ['dir'], icon: path.join(root, 'packaging/icons/app-256.png'), category: 'Education' },
   // No fileAssociations, no protocols: the Qt build's CI checks that .s is left alone.

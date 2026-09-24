@@ -72,11 +72,11 @@ export function sample(dir: string, from: string, name = path.basename(from)): s
 export async function openAndAssemble(r: Running, file: string): Promise<void> {
   await answerOpen(r.app, file);
   await r.page.keyboard.press('Control+o');
-  await r.page.waitForSelector('.stage-code:not([hidden]) .cm-content');
+  await r.page.waitForSelector('.editor-panel .cm-content');
   await r.page.waitForFunction(() => document.querySelector('.cm-content')?.textContent !== '');
   await r.page.locator('.cm-content').click();
   await r.page.keyboard.press('Control+s');
-  await r.page.waitForSelector('.stage-run:not([hidden]), .errors:not([hidden]), .status .err');
+  await r.page.waitForSelector('.run-grid:not([hidden]), .errors:not([hidden]), .status .err');
 }
 
 export const statusText = (page: Page) => page.locator('.status').innerText();

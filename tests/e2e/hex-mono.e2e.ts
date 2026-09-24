@@ -51,7 +51,7 @@ test('hexadecimal is monospaced in every scene', async () => {
     await page.locator(`.trow[data-addr="${addr}"] .dis`).click();
     await check(`D ${addr}`);
   }
-  await page.locator('.tab', { hasText: 'Data' }).click();
+  await page.locator('.ptab', { hasText: 'Data' }).click();
   await page.waitForSelector('.drow');
   await check('Data');
   await page.getByTitle('설정').click();
@@ -66,7 +66,7 @@ test('hexadecimal is monospaced in every scene', async () => {
   await settled(page);
   await expect(page.locator('.clog')).toContainText('0x10010000');
   await check('console + run-time error');
-  await page.locator('.console-bar').click();
+  await page.locator('.console .phead .hbtn').click();
   await check('console folded');
   expect(seen.length).toBeGreaterThan(8);
 });
