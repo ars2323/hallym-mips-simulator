@@ -57,7 +57,14 @@
           "action_name": "bison_parser",
           "inputs": ["<(cpu_dir)/parser.y"],
           "outputs": ["<(gen_dir)/parser_yacc.cpp", "<(gen_dir)/parser_yacc.h"],
-          "action": ["<(bison)", "-p", "yy",
+          # "-pyy", not "-p", "yy": gyp's msvs generator takes every action
+          # argument that starts with neither '/' nor '-' and has no '=' for a
+          # path and rewrites it relative to the .vcxproj -- "yy" became
+          # "../yy" and win_bison wrote "extern YYSTYPE ../yylval;".  flex's
+          # "-Pyy" below is written the same way.  All other arguments are
+          # safe: switches, "--x=..." forms whose values are $(OutDir) paths,
+          # and the input file, which is meant to be rewritten.
+          "action": ["<(bison)", "-pyy",
                      "--defines=<(gen_dir)/parser_yacc.h",
                      "--output=<(gen_dir)/parser_yacc.cpp",
                      "<(cpu_dir)/parser.y"],
