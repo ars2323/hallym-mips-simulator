@@ -105,8 +105,9 @@ test('breakpoint -> F5 stops there -> F5 goes on to the end', async () => {
   await expect(page.locator('.congrats')).toBeVisible();
   await page.locator('.congrats').getByRole('button', { name: 'Close' }).click();
   await page.getByRole('button', { name: /Reset/ }).click();
+  // Keys wait while Reset builds the new machine: wait for it to be ready.
+  await expect(page.locator('.status')).toContainText('Step · ');
   await expect(page.locator('.trow', { has: page.locator('.src', { hasText: 'add $t2' }) })).toHaveClass(/bp-on/);
-  // (Reset answers before the new machine is up: wait on the status itself.)
   await page.keyboard.press('F5');
   await expect(page.locator('.status')).toContainText('브레이크포인트'); // the new machine has it too
   await page.keyboard.press('F5');

@@ -33,8 +33,8 @@ export function aboutDialog(): { root: HTMLDialogElement; open(): Promise<void> 
         });
         const credits = h('button', { class: 'btn small', type: 'button' }, 'Open the Chromium · Node.js notices (LICENSES.chromium.html)');
         credits.addEventListener('click', () => void window.app.openCredits());
-        list.append(h('p', { class: 'hint' }, 'Chromium 과 Node.js, 그리고 그 안의 라이브러리 고지는 설치 폴더의 ',
-          code('LICENSES.chromium.html'), ' 에 있습니다(약 20 MB).'), credits);
+        list.append(h('p', { class: 'hint' }, 'Chromium · Node.js 고지(그 안의 라이브러리 포함)는 설치 폴더에 있습니다: ',
+          code('LICENSES.chromium.html'), ' (약 20 MB)'), credits);
         body.replaceChildren(list);
       }
     };

@@ -692,3 +692,64 @@ Qt판도 같은 코어라 샌다. Qt판은 10만 명령마다 `run_spim()` 을 �
 Data 의 "눌러서 펼치기". 모두 학생에게 하는 말(무엇을 할지, 지금 어떤지)이라 한국어 쪽이다.
 
 **화면 캡처.** `docs/screens/` 의 고정 세트를 라운드마다 `tools/capture-screens.ts` 로 다시 찍는다(`docs/screens/README.md`).
+
+---
+
+## 17. 창 3차 — 좁은 창이 지키는 것 (스크린샷 검토 뒤)
+
+**열의 우선순위.** 실습실 PC(1366×768 배율 125%, CSS 1093px)에서 Registers 의 Hex·Dec·Bin, Text 의 Address·Encoding·Instruction 이
+모두 보여야 한다. 16진·10진·2진을 함께 보는 것과 기계어가 이 과목의 주제다. 열은 CSS 컨테이너 쿼리가 아니라
+`src/renderer/app/logic/columns.ts` 가 폭을 재서 정한다. 좁아지면 다음 순서로 양보하고, 필요한 만큼만 양보한다.
+
+1. 여백(열 사이 간격, 안쪽 여백)
+2. 글자 1px
+3. 열 — Text 는 Source·Line(Editor 에 이미 보임) → Format → Address → Encoding(마지막), Registers 는 Dec → Bin(마지막),
+   Data 는 ASCII(네 워드는 끝까지 둔다)
+
+"Changed" 표는 열보다 먼저 빠진다(노란 줄과 막대가 같은 말을 한다). 폭이 가져간 열은 패널 머리의 버튼("+ Source", "+ Bin",
+"+ ASCII")으로 다시 켠다. 켠 열은 폭이 보여 주는 것에 **더해지고** 다른 열을 밀어내지 않는다. 넘치면 표가 옆으로 스크롤하고,
+Text 의 열 머리가 같이 움직인다. 켠 것은 이번 실행에만 둔다.
+
+**창의 폭 배분.** Run 쪽이 먼저 받는다: Registers 가 Hex·Dec·Bin 에 필요한 폭(여백을 줄였을 때), Text 가 Address·Encoding·
+Format·Instruction 에 필요한 폭. Editor 는 나머지의 40% 이하, 300px 이상이다. 1093px 에서 Editor 는 약 320px(38자쯤)이다.
+끌어서 정한 폭은 그대로 따른다. Bin 은 네 자리씩 띄워 쓰되 공백 대신 3px 간격이다. 공백이면 여덟 묶음이 Hex·Dec 옆에 들어가지 않는다.
+
+| 폭 | Registers | Text | Data |
+|---|---|---|---|
+| 1280×800 | Name Hex Dec Bin | Address Encoding Format Instruction | 네 워드 (ASCII 는 버튼) |
+| 1093×582 (실습실) | Name Hex Dec Bin | Address Encoding Format Instruction | 네 워드 (ASCII 는 버튼) |
+| 1024×728 | Name Hex Dec Bin | Address Encoding Instruction (글자 1px 작게) | 네 워드, 옆으로 약 25px 스크롤 |
+| 910×505 (좁은 창, Run 탭) | Name Hex Dec Bin | 전부 (Line·Source 까지) | 전부 |
+
+**툴바.** 좁아지면 `app.ts fitTitlebar()` 가 한 단계씩 양보한다: 단축키 표시 → 프로그램 이름(로고는 남음) → 버튼의 아이콘 →
+속도를 버튼 하나로("Speed: Instant"). 버튼의 이름(Assemble·Run·Step·Reset)은 끝까지 남는다. 속도에는 "Run speed" 라는 이름을
+붙여 Run 바로 옆에 둔다. 파일이 없는 첫 화면에는 툴바가 없다.
+
+**한국어 줄바꿈.** `body` 에 `word-break: keep-all` 을 전역으로 건다. 어절 안에서 줄이 바뀌지 않는다. 한 줄보다 긴 코드 조각
+(`.mono`)만 `overflow-wrap: anywhere` 로 아무 데서나 끊는다. Chromium 은 keep-all 에서도 "값(" 의 괄호 앞에서 끊으므로,
+`codeText()` 가 한글 바로 뒤의 "(" 앞에 단어 결합자(U+2060)를 넣는다. e2e(`tests/e2e/fit.e2e.ts`)가 네 폭에서 화면의
+한국어 낱말이 두 줄에 걸치는지 글자마다 확인한다.
+
+**조사.** 이름 뒤에는 조사를 붙이지 않는다. 파일·레지스터·키·패널 이름, 변수로 들어가는 모든 것이 해당한다. "lab04.s 은" 은
+이름을 어떻게 읽느냐에 따라 틀린다. 문장을 바꾸거나("File: lab04.s" 를 한 줄로 따로), 한국어 명사를 사이에 둔다(`$t7` 레지스터에,
+Data 탭의, F10 키를). `tests/renderer/particles.test.ts` 가 창의 소스와 `src/core/explain.ts` 에서 보간·인라인 코드·라틴 낱말 뒤의
+조사를 찾는다. 예외는 한국어 명사로 끝나는 보간(explain.ts 의 `val()` "값(…)", `where` "주소(…)", `unit` "워드")과 한국어 낱말 중
+하나를 고르는 보간이다.
+
+**Editor 의 띠.** 커서 줄 강조(`highlightActiveLine`)를 뺐다. 실행 중에 Editor 의 띠는 실행 줄 하나뿐이다.
+
+**오류 화면.** 어셈블 오류는 Run 쪽(큰 쪽)의 Errors 패널에 둔다. 할 일("15행을 고친 뒤 다시 Ctrl+S 하면 됩니다")과
+"15행으로 가기" 버튼, 오류 목록이 들어간다. 하람(curious)은 한 번만, 패널 오른쪽 끝에 둔다. 글과 Editor 사이가 아니고
+화살표도 없다. Editor 에는 거터의 `!` 와 줄 색만 남는다. 좁은 창에서는 어셈블에 실패하면 Run 탭으로 가고, "N행으로 가기" 가
+Editor 탭으로 돌아온다.
+
+**바뀐 레지스터로 스크롤.** 한 단계 뒤 Registers 는 방금 바뀐 레지스터가 보이도록 필요한 만큼만 스크롤한다(PC 제외, 열 머리
+아래에서 한 줄 여유). 학생이 2초 안에 목록을 직접 스크롤했으면 건드리지 않는다. Editor 의 실행 줄 따라가기와 같은 규칙이다
+(`dom.ts userScrolls`).
+
+**Inspector 가 좁을 때(480px 이하).** 머리를 두 줄로 나눈다. 첫 줄은 명령, 다음 줄은 Source 와 워드·주소다. 잘리지 않고
+줄이 바뀐다. 필드 표는 필드마다 한 덩어리가 된다. 윗줄에 이름·값·뜻, 아랫줄에 Bits·Binary 를 둔다. 옆으로 스크롤하지 않는다.
+
+**포기한 것.** 1024×728 의 Data 탭은 네 워드가 좁은 스타일에서도 약 25px 넘친다. 그래서 옆으로 스크롤한다. Editor 를 300px
+밑으로 줄이거나 Registers·Text 에서 가져오는 것보다 낫다고 봤다. 이 폭에서 Text 의 Format 과 Source 는 버튼으로 켠다.
+

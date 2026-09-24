@@ -174,7 +174,7 @@ src/renderer/app/
   editor.ts             CodeMirror 6: 색, 오류 줄과 `!`, 중단점 거터, 실행 중인 줄, Tab 4칸, 조합 중 Ctrl+S
   panels/               registers · text(가상 목록) · data(Data 표) · inspector · console · welcome ·
                         ask(앱 안의 대화상자) · settings · about
-  logic/                순수: 레지스터 행·바뀐 것, Text 행, 멈춤 → 상태, 보이는 행 범위
+  logic/                순수: 레지스터 행·바뀐 것, Text 행, 멈춤 → 상태, 보이는 행 범위, 폭에 따른 열(columns.ts)
   perf.ts               패널 갱신 비용 기록(window.__perf, tools/measure-ui.ts 가 읽는다)
 ```
 

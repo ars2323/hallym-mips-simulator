@@ -15,6 +15,13 @@
    Narrow windows (under NARROW_PX CSS pixels) show one side at a time, with
    Editor / Run tabs in the title bar.
 
+   Widths: the Run side first gets what Registers (Hex, Dec, Bin) and Text
+   (Address, Encoding, Format, Instruction) need; the Editor takes 40% of
+   the rest of the window, or less, never under 300 px (a lab PC: 1093 px in
+   all).  The title bar gives way in steps (fitTitlebar): key hints, the
+   program's name, the buttons' icons, then the speed as one button -- the
+   buttons keep their names.
+
    Nothing is restored from an earlier session.  The settings file keeps the
    font size and the Data panel's base; Ctrl+/- change the size for this
    session only; the splitter and the folds are this session's too. */
@@ -107,6 +114,11 @@ const speedSlow = h('button', { type: 'button', role: 'radio', title: 'Run one l
 speedFast.addEventListener('click', () => void setSpeed('fast'));
 speedSlow.addEventListener('click', () => void setSpeed('slow'));
 const speedSwitch = h('span', { class: 'seg speed', role: 'radiogroup', 'aria-label': 'Run speed' }, speedFast, speedSlow);
+// A narrow title bar: the same choice as one button that says what it is.
+const speedOne = h('button', { class: 'btn speedone', type: 'button', title: 'Run speed (Instant / 1 line/s): 누르면 바뀝니다' });
+speedOne.addEventListener('click', () => void setSpeed(speed === 'fast' ? 'slow' : 'fast'));
+const speedBox = h('span', { class: 'speedbox' }, h('span', { class: 'speedlabel' }, 'Run speed'), speedSwitch, speedOne);
+const toolbar = h('span', { class: 'toolbar' }, bAssemble, bRun, speedBox, bStep, bRestart);
 const bSettings = iconButton('Settings', 'settings', () => settingsBox.open());
 const viewEditor = h('button', { type: 'button', role: 'tab' }, 'Editor');
 const viewRun = h('button', { type: 'button', role: 'tab' }, 'Run');
@@ -118,7 +130,7 @@ const titlebar = h('header', { class: 'titlebar' },
     h('img', { class: 'logo', src: asset('hallym/marks/symbol-basic.svg'), alt: '' }),
     h('span', { class: 'appname' }, APP_NAME)),
   fileLabel,
-  h('span', { class: 'toolbar' }, bAssemble, bRun, speedSwitch, bStep, bRestart),
+  toolbar,
   viewSwitch,
   h('span', { class: 'drag' }),
   h('span', { class: 'tools' },
@@ -137,12 +149,15 @@ const stageWelcome = h('div', { class: 'stage-welcome' }, welcome({
 // ---- the Editor side -------------------------------------------------------------------
 
 const editorHost = h('div', { class: 'pbody edhost' });
-const errorList = h('section', { class: 'errors', hidden: true });
+// Assembly errors: on the Run side, the larger one (renderErrors).
+const errorHead = panelHead('Errors');
+const errorBody = h('div', { class: 'pbody ebody' });
+const errorList = h('section', { class: 'panel errors', 'aria-label': 'Errors', hidden: true }, errorHead.root, errorBody);
 const editor = createEditor(editorHost, () => void saveAndAssemble(), () => {
   if (!dirty) { dirty = true; renderChrome(); }
 }, (line, on) => void editorBreakpoint(line, on));
 const editorHead = panelHead('Editor');
-const editorPanel = h('section', { class: 'panel editor-panel', 'aria-label': 'Editor' }, editorHead.root, editorHost, errorList);
+const editorPanel = h('section', { class: 'panel editor-panel', 'aria-label': 'Editor' }, editorHead.root, editorHost);
 
 // ---- the Run side ----------------------------------------------------------------------
 
@@ -164,7 +179,7 @@ const centre = h('div', { class: 'centre' }, text.root, inspector.root, congrats
 const leftCol = h('div', { class: 'leftcol' }, regsHost, consolePanel.root);
 const runGrid = h('div', { class: 'run-grid' }, leftCol, centre);
 const placeholder = h('div', { class: 'run-placeholder' });
-const runPanel = h('div', { class: 'run-side' }, placeholder, runGrid);
+const runPanel = h('div', { class: 'run-side' }, placeholder, errorList, runGrid);
 
 // ---- the split -------------------------------------------------------------------------
 
@@ -221,6 +236,7 @@ function measure(): void {
   if (!registers) buildRegisters();
   void wasNarrow;
   layout();
+  fitTitlebar();
 }
 
 function buildRegisters(): void {
@@ -240,31 +256,45 @@ function layout(): void {
   split.dataset.folded = narrow ? 'none' : folded;
   viewEditor.classList.toggle('on', view === 'editor');
   viewRun.classList.toggle('on', view === 'run');
+  sizeRunSide();
+  const inner = split.clientWidth - 16 - 8; // the split's padding, the splitter
   if (editorWidth !== null) split.style.setProperty('--editor-w', `${editorWidth}px`);
-  else split.style.removeProperty('--editor-w');
+  else if (inner > 0) split.style.setProperty('--editor-w', `${Math.round(Math.max(300, Math.min(760, 0.4 * inner, inner - runLeast)))}px`);
 
   const shown = machineShown();
+  const showErrors = !shown && errors.length > 0;
   runGrid.hidden = !shown;
-  placeholder.hidden = shown;
-  if (!shown) renderPlaceholder();
+  errorList.hidden = !showErrors;
+  placeholder.hidden = shown || showErrors;
+  if (!shown && !showErrors) renderPlaceholder();
   runGrid.classList.toggle('console-open', consolePanel.expanded);
   editor.showPcLine(shown && runState !== 'ready' ? pcSourceLine() : null);
+}
+
+// The Run side's width: what Registers and Text need (their panels say).
+let runLeast = 0;
+const fontPx = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fs')) || 13;
+function sizeRunSide(): void {
+  if (!registers) return;
+  const fs = fontPx();
+  const r = registers.widths(fs);
+  runGrid.style.setProperty('--regs-least', `${r.least}px`);
+  runGrid.style.setProperty('--regs-most', `${r.most}px`);
+  runLeast = r.least + 8 + text.leastWidth(fs);
 }
 
 function renderPlaceholder(): void {
   const changed = assembledText !== null || (lastProgram !== null && dirty);
   const [title, body] = changed
     ? ['코드가 바뀌었습니다', '지금 기계에 있는 것은 바뀌기 전의 코드입니다. 저장하고 다시 어셈블하면 새 코드로 여기가 채워집니다.']
-    : errors.length
-      ? ['어셈블하지 못했습니다', '왼쪽 아래의 오류를 고친 뒤 다시 어셈블하면 여기에 나타납니다.']
-      : ['아직 어셈블하지 않았습니다', '어셈블하면 레지스터와 명령, 콘솔 출력을 여기서 볼 수 있습니다.'];
+    : ['아직 어셈블하지 않았습니다', '어셈블하면 레지스터와 명령, 콘솔 출력을 여기서 볼 수 있습니다.'];
   const go = h('button', { class: 'btn primary', type: 'button' }, icon('hammer'), h('span', {}, 'Assemble'), h('kbd', {}, 'Ctrl+S'));
   go.addEventListener('click', () => void saveAndAssemble());
   // The text first, then Haram pointing left past it, at the Editor.
   placeholder.replaceChildren(h('div', { class: 'card' },
     h('div', { class: 'say' }, h('h3', {}, title), h('p', {}, body), go),
     character('guide', 150)));
-  placeholder.dataset.kind = changed ? 'changed' : errors.length ? 'errors' : 'fresh';
+  placeholder.dataset.kind = changed ? 'changed' : 'fresh';
 }
 
 // The Editor line of PC: the Text row's line, or that of the source line a
@@ -304,6 +334,8 @@ function applyFont(): void {
   root.setProperty('--row', `${Math.round(fs * 1.7)}px`);
   root.setProperty('--rrow', `${Math.round(fs * 1.62)}px`);
   text.relayout();
+  text.fit();
+  registers?.fit();
   editor.view.requestMeasure();
 }
 
@@ -363,9 +395,24 @@ function renderChrome(): void {
   speedSlow.classList.toggle('on', speed === 'slow');
   speedFast.setAttribute('aria-checked', String(speed === 'fast'));
   speedSlow.setAttribute('aria-checked', String(speed === 'slow'));
+  speedOne.replaceChildren(h('span', { class: 'label' }, `Speed: ${speed === 'fast' ? 'Instant' : '1 line/s'}`));
+  // No file, nothing to run: the first screen has no toolbar.
+  toolbar.hidden = !open;
   editorHead.setMeta(open ? h('span', {}, code(file.name), ` · ${file.format?.encoding ?? 'UTF-8'} · ${file.format?.lineEnd ?? 'LF'}`) : '');
   layout();
   renderStatus();
+  fitTitlebar();
+}
+
+// The title bar gives way one step at a time, as far as it has to: the key
+// hints, the program's name (the logo stays), the buttons' icons (their
+// names stay), then the speed as one button.
+const TITLE_STEPS = 4;
+function fitTitlebar(): void {
+  for (let level = 0; level <= TITLE_STEPS; level += 1) {
+    for (let k = 1; k <= TITLE_STEPS; k += 1) titlebar.classList.toggle(`c${k}`, level >= k);
+    if (titlebar.scrollWidth <= titlebar.clientWidth) return;
+  }
 }
 
 function renderStatus(): void {
@@ -378,7 +425,7 @@ function renderStatus(): void {
       parts.push(span('err', `오류 ${errors.length}개`));
       const e = errors[0];
       parts.push(span('', e.line ? `${e.line}행 · ` : '', withHex(e.message.message)));
-    } else parts.push(span('', dirty ? '고친 뒤 Ctrl+S 로 저장·어셈블' : 'Ctrl+S 로 저장·어셈블'));
+    } else parts.push(span('', dirty ? '고친 뒤 저장·어셈블 (Ctrl+S)' : '저장·어셈블 (Ctrl+S)'));
     if (saveNote) parts.push(span('', saveNote));
   } else {
     const pc = lastRegs ? hex32(lastRegs.pc) : '';
@@ -391,7 +438,7 @@ function renderStatus(): void {
     } else if (runState === 'running') {
       parts.push(span('run', '실행 중'));
       if (progress) parts.push(span('', 'PC ', code(hex32(progress.pc))), span('', `${progress.instructions.toLocaleString()}개 명령`));
-      parts.push(span('', 'Esc 로 멈춤'));
+      parts.push(span('', '멈춤 (Esc)'));
     } else {
       const reason = lastReason;
       if (runState === 'ready') parts.push(span('', code('F10'), ' Step · ', code('F5'), ' Run'));
@@ -402,7 +449,7 @@ function renderStatus(): void {
       if (changedNow) parts.push(span('', '방금 바뀜: ', code(changedNow)));
       if (selected >= 0) parts.push(span('', '고른 명령 ', code(hex32(selected))));
     }
-    if (dirty) parts.push(span('warn', '코드가 바뀌었습니다 — Ctrl+S 로 다시 어셈블'));
+    if (dirty) parts.push(span('warn', '코드가 바뀌었습니다 — 다시 어셈블 (Ctrl+S)'));
     else if (!sameAdvanced(advanced, applied)) parts.push(span('warn', '설정이 바뀌었습니다 — 다시 어셈블하면(Ctrl+S) 적용됩니다'));
   }
   if (note) parts.push(span('warn', note));
@@ -421,14 +468,16 @@ async function mayReplace(what: 'new' | 'open'): Promise<boolean> {
   if (dirty) {
     return ask({
       title: '저장하지 않은 변경이 있습니다',
-      body: `${file.name} 의 바뀐 내용을 저장하지 않았습니다. ${what === 'new' ? '새 파일을 열면' : '다른 파일을 열면'} 바뀐 내용은 사라집니다.`,
+      file: file.name,
+      body: `바뀐 내용을 저장하지 않았습니다. ${what === 'new' ? '새 파일을 열면' : '다른 파일을 열면'} 바뀐 내용은 사라집니다.`,
       ok: '버리고 계속', cancel: '돌아가기', danger: true,
     });
   }
   if (what === 'new') {
     return ask({
       title: '새 파일을 열까요?',
-      body: `${file.name} 은 저장되어 있습니다. 편집기를 비우고 새 파일을 시작합니다.`,
+      file: file.name,
+      body: '이 파일은 저장되어 있습니다. 편집기를 비우고 새 파일을 시작합니다.',
       ok: '새 파일', cancel: '돌아가기',
     });
   }
@@ -530,7 +579,7 @@ async function assemble(source: string, again: boolean): Promise<boolean> {
     if (!r.ok) {
       assembledText = null;
       runState = 'ready';
-      view = 'editor';
+      view = 'run'; // a narrow window: the errors are on the Run side
       return false;
     }
     rows = textRows(await api.call('textSegment'));
@@ -573,41 +622,42 @@ async function assemble(source: string, again: boolean): Promise<boolean> {
 
 // What to do about an assembler message, before what went wrong.
 function hintFor(message: string): string {
-  if (/syntax error/i.test(message)) return '명령 이름, `$t0` 처럼 쓴 레지스터 이름, 쉼표를 확인해 보세요.';
+  if (/syntax error/i.test(message)) return '명령 이름, 레지스터 이름(예: `$t0`), 쉼표를 확인해 보세요.';
   if (/defined for the second time|already defined/i.test(message)) return '같은 이름의 라벨이 두 번 있습니다. 한쪽 이름을 바꾸세요.';
-  if (/too large|out of range|immediate/i.test(message)) return '값이 이 명령이 담을 수 있는 크기를 넘었습니다. `li` 로 먼저 레지스터에 넣어 보세요.';
-  if (/undefined|unknown/i.test(message)) return '쓰기 전에 정의하지 않은 이름입니다. 철자와 `.globl` 을 확인해 보세요.';
+  if (/too large|out of range|immediate/i.test(message)) return '값이 이 명령이 담을 수 있는 크기를 넘었습니다. 먼저 `li` 명령으로 레지스터에 넣어 보세요.';
+  if (/undefined|unknown/i.test(message)) return '쓰기 전에 정의하지 않은 이름입니다. 철자와 `.globl` 선언을 확인해 보세요.';
   return '이 줄을 고친 뒤 다시 어셈블하세요.';
 }
 
 function renderErrors(): void {
   editor.showErrors(errors.map((e) => e.line).filter((n) => n > 0));
-  errorList.hidden = errors.length === 0;
-  if (!errors.length) { errorList.replaceChildren(); return; }
+  if (!errors.length) { errorBody.replaceChildren(); return; }
+  const toLine = (n: number) => { if (narrow) showView('editor'); editor.goToLine(n); };
   const first = errors.find((e) => e.line > 0) ?? errors[0];
-  const go = h('button', { class: 'btn primary', type: 'button' }, first.line ? `${first.line}행으로 가기` : 'Editor 로');
-  go.addEventListener('click', () => (first.line ? editor.goToLine(first.line) : editor.view.focus()));
+  const go = h('button', { class: 'btn primary', type: 'button' }, first.line ? `${first.line}행으로 가기` : '고치러 가기');
+  go.addEventListener('click', () => (first.line ? toLine(first.line) : showView('editor')));
   const lead = first.line
     ? `${first.line}행을 고친 뒤 다시 Ctrl+S 하면 됩니다`
     : '고친 뒤 다시 Ctrl+S 하면 됩니다';
   const items = errors.map((e) => {
     const where = h('button', { class: 'linkbtn line', type: 'button', disabled: !e.line }, e.line ? `${e.line}행` : '');
-    where.addEventListener('click', () => { if (e.line) editor.goToLine(e.line); });
+    where.addEventListener('click', () => { if (e.line) toLine(e.line); });
     return h('div', { class: 'item' }, h('span', { class: 'mark', 'aria-hidden': 'true' }, '!'), where,
       h('span', { class: 'msg' },
         h('span', { class: 'what' }, withHex(e.message.message)),
         e.message.source ? code(e.message.source, 'src') : null,
         h('span', { class: 'hint' }, codeText(hintFor(e.message.message)))));
   });
-  // What to do first, then what went wrong; Haram at the far end, not
-  // between the words and the Editor they are about.
-  errorList.replaceChildren(h('div', { class: 'errbody' },
+  errorHead.setMeta(errors.length === 1 ? '1 error' : `${errors.length} errors`);
+  // What to do first, then what went wrong.  Haram once, at the far end:
+  // not between the words and the Editor they are about, and no arrow.
+  errorBody.replaceChildren(h('div', { class: 'errbody' },
     h('div', { class: 'errtext' },
       h('h3', {}, lead),
       h('p', { class: 'sub' }, errors.length > 1 ? `오류가 ${errors.length}개 있습니다. 위에서부터 하나씩 고치면 됩니다.` : '어셈블은 여기서 멈췄습니다.'),
       h('div', { class: 'items' }, ...items),
       h('div', { class: 'row' }, go)),
-    character('curious', 110)));
+    character('curious', 120)));
 }
 
 // ---- running ----------------------------------------------------------------------------
@@ -896,5 +946,7 @@ async function start(): Promise<void> {
   measure();
   new ResizeObserver(() => measure()).observe(document.body);
   renderChrome();
+  // The columns are measured in the mono font: again once it is in.
+  void document.fonts.ready.then(() => { text.fit(); registers?.fit(); renderChrome(); });
 }
 void start();

@@ -11,16 +11,18 @@
 
 | 파일 | 무엇 | 찍는 조건 |
 |---|---|---|
-| `start.png` | 첫 화면: 하람(인사)과 두 갈래(튜토리얼 보기 / 바로 시작) | 1280×800, 띄운 그대로 |
+| `start.png` | 첫 화면: 하람(인사)과 두 갈래(튜토리얼 보기 / 바로 시작), 툴바 없음 | 1280×800, 띄운 그대로 |
 | `start-2.png` | 첫 화면 둘째 단계: 새 파일 / 파일 열기, "← 처음으로" | 1280×800, 바로 시작을 누름 |
 | `split-before.png` | 좌우 분할, 어셈블 전: 오른쪽은 안내 카드 | 1280×800, `tests/samples/lab04-ok.s` 를 `lab04.s` 로 열기만 함 |
 | `split-running.png` | 좌우 분할, 실행 중: Editor·Text 의 현재 줄 강조, Inspector 가 PC 를 따라감 | 1280×800, 같은 파일 Ctrl+S 뒤 F10 16번(PC `0x0040004c`, 방금 바뀜 `$t6`) |
 | `inspector.png` | Inspector 가 고른 명령에 고정(Pinned) | `split-running` 상태에서 Text 의 `0x00400054`(`sra $s1, $t6, 1`)를 누름 |
 | `dialog.png` | 앱 안의 대화상자(하람): 저장된 파일에서 새 파일 | `inspector` 상태에서 New file |
-| `error.png` | 어셈블 오류: 무엇을 하면 되는지 먼저, 하람(curious), 거터의 `!` | 1280×800, `tests/samples/lab04.s`(15행 `srll`) 열고 Ctrl+S |
-| `data.png` | Data: 구역(User data / Stack), 0 구간, 라벨 줄, `$gp`·`$sp` | 1280×800, `tests/samples/data-labels.s` Ctrl+S 뒤 F10 14번, Data 탭 |
+| `error.png` | 어셈블 오류: Run 쪽 Errors 패널에 할 일 먼저, 하람(curious) 하나, Editor 거터의 `!` | 1280×800, `tests/samples/lab04.s`(15행 `srll`) 열고 Ctrl+S |
+| `data.png` | Data: 구역(User data / Stack), 0 구간, 라벨 줄, `$gp`·`$sp`, 좁아서 숨긴 ASCII 의 "+ ASCII" | 1280×800, `tests/samples/data-labels.s` Ctrl+S 뒤 F10 14번, Data 탭 |
 | `lab-1366x768-125.png` | 실습실 PC: 1366×768 배율 125% 최대화 | CSS 1093×582 를 1.25배로(`--force-device-scale-factor=1.25`), `split-running` 과 같은 실행 |
 | `narrow.png` | 좁은 창: 막대의 Editor / Run 탭, Run 쪽 | 1366×768 배율 150%, CSS 910×505 를 1.5배로, `split-running` 과 같은 실행 |
+| `lab-columns.png` | 실습실 PC 의 Registers·Text 머리를 잘라 냄: Name Hex Dec Bin / Address Encoding Format Instruction | `lab-1366x768-125` 와 같은 화면, 두 패널의 위쪽 190px(150KB 이하) |
+| `1024x768.png` | 1024×768 배율 100%: 좌우 분할 그대로, Text 는 Format·Source 를 버튼으로 | CSS 1024×728(작업 표시줄), `split-running` 과 같은 실행 |
 | `windows-frame.png` | **실제 Windows 11** 에서 최대화한 설치본: 앱의 막대 + 시스템의 창 버튼 | CI(`windows.yml`, 러너 화면 1024×768)만. 설치본으로 `split-running` 과 같은 실행 뒤 최대화, 화면 전체 |
 
 `windows-frame.png` 은 CI 아티팩트 `windows-report` 의 `report/screens/windows-frame.png` 를 그대로 가져온다. CI 는 같은 도구로

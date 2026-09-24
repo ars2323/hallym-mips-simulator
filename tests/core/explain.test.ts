@@ -42,18 +42,18 @@ test('the sentences, word for word', () => {
   const at = (word: number, pc = 0x00400054) => explain(decode(word, pc, 'SpimNoDelaySlot'), regs, pc);
   assert.deepEqual(at(0x000e8843), {
     title: 'sra — Shift Right Arithmetic',
-    sentence: '`$t6` 값(`0x80000001`)을 shamt(`1`)만큼 오른쪽으로 옮겨 `$s1`에 넣습니다. 빈 자리는 부호 비트로 채웁니다.',
+    sentence: '`$t6` 값(`0x80000001`)을 shamt 값(`1`)만큼 오른쪽으로 옮겨 `$s1` 레지스터에 넣습니다. 빈 자리는 부호 비트로 채웁니다.',
   });
   assert.equal(at(0x01095021).sentence, // addu $t2, $t0, $t1
-    '`$t0` 값(`0x00000005`)과 `$t1` 값(`0xfffffffe`)을 더해 `$t2`에 넣습니다. 넘쳐도 예외는 나지 않습니다.');
+    '`$t0` 값(`0x00000005`)과 `$t1` 값(`0xfffffffe`)을 더해 `$t2` 레지스터에 넣습니다. 넘쳐도 예외는 나지 않습니다.');
   assert.equal(at(0x8fa4fffc).sentence, // lw $a0, -4($sp)
-    '`$sp` 값(`0x7fffffe4`)에서 오프셋(`4`)을 뺀 주소(`0x7fffffe0`)의 워드를 읽어 `$a0`에 넣습니다.');
+    '`$sp` 값(`0x7fffffe4`)에서 오프셋(`4`)을 뺀 주소(`0x7fffffe0`)의 워드를 읽어 `$a0` 레지스터에 넣습니다.');
   assert.equal(at(0x2008ffff).sentence, // addi $t0, $zero, -1
-    '`$zero` 값(`0x00000000`)에 즉시값(`-1`)을 더해 `$t0`에 넣습니다.');
+    '`$zero` 값(`0x00000000`)에 즉시값(`-1`)을 더해 `$t0` 레지스터에 넣습니다.');
   assert.equal(at(0x0000000c).sentence,
     '`$v0` 값(`0x00000004`)에 따라 시스템 호출을 합니다: print_string — `$a0` 값이 가리키는 문자열을 출력.');
   assert.equal(at(0x0c100009, 0x00400014).sentence,
-    '돌아올 주소(`0x00400018`)를 `$ra`에 넣고 `0x00400024` 주소로 점프합니다(함수 호출).');
+    '돌아올 주소(`0x00400018`)를 `$ra` 레지스터에 넣고 `0x00400024` 주소로 점프합니다(함수 호출).');
   assert.equal(at(0x03e00008).sentence, '`$ra` 값(`0x00000000`)이 가리키는 곳, 곧 이 함수를 부른 곳 다음으로 돌아갑니다.');
   assert.deepEqual(at(0x00000000), { title: 'nop', sentence: '아무것도 하지 않습니다.' });
   assert.equal(at(0xfc000000).title, '이 시뮬레이터가 실행하지 않는 워드입니다');

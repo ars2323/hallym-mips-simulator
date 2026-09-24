@@ -30,7 +30,7 @@ test('an assembly error: what to do first, Haram, and a mark unlike a breakpoint
   await expect(page.locator('.cm-error-gutter .cm-error-mark')).toHaveText('!');
   await expect(page.locator('.cm-bp-dot')).toHaveCount(0);
   await panel.getByRole('button', { name: '3행으로 가기' }).click();
-  expect(await page.evaluate(() => document.querySelector('.cm-activeLine')?.textContent)).toBe('  srll $t1, $t0, 1');
+  expect(await page.evaluate(() => document.getSelection()?.anchorNode?.parentElement?.closest('.cm-line')?.textContent)).toBe('  srll $t1, $t0, 1');
 });
 
 test('breakpoints from the Editor\'s gutter: set before assembling, kept, stopped at, shown in Text', async () => {

@@ -1,5 +1,5 @@
-# For the Data tab (docs/screens/data.png):
-# a string, a word, a table, the stack.
+# The Data tab's example
+# (docs/screens/data.png)
         .data
 msg:    .asciiz "Hello, MIPS!"
 count:  .word 3

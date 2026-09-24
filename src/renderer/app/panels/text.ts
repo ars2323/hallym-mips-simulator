@@ -6,11 +6,17 @@
    puts every row in instead, for measuring the difference.  Kernel text (the
    exception handler) is folded away at the end until asked for.
 
+   Its columns give way to a narrow panel in this order (logic/columns.ts):
+   margins, a pixel of font, Source and Line (the Editor shows both),
+   Format, Address -- Encoding last: the machine code is what the course is
+   about.  A column given up comes back from the head ("+ Encoding").
+
    Data is ./data.ts. */
 
 import { hex32 } from '../../../core/format.ts';
-import { code, h } from '../dom.ts';
-import { tabsHead, type TabsHead } from '../ui.ts';
+import { code, h, monoCh } from '../dom.ts';
+import { fit, needed, styles, type Column, type Fit } from '../logic/columns.ts';
+import { columnButton, tabsHead, type TabsHead } from '../ui.ts';
 import { DataView } from './data.ts';
 import type { TextRow } from '../logic/machine.ts';
 import { scrollToShow, visibleRange } from '../logic/virtual.ts';
@@ -22,6 +28,14 @@ export interface TextEvents {
 }
 
 const FULL = new URLSearchParams(location.search).get('text') === 'full';
+
+const COLUMNS: Column[] = [{ key: 'bpc', px: 12 }, { key: 'addr', ch: 8 }, { key: 'word', ch: 8 }, { key: 'fmt', px: 38 },
+  { key: 'dis', ch: 18 }, { key: 'lno', ch: 4 }, { key: 'src', ch: 14 }];
+const DROPS = [['src', 'lno'], ['fmt'], ['addr'], ['word']];
+const NAMES: Record<string, string> = { src: 'Source', fmt: 'Format', addr: 'Address', word: 'Encoding' };
+// Padding and border (left and right together) and the gap between columns.
+const NORMAL = { pad: 19, gap: 12 };
+const TIGHT = { pad: 11, gap: 6 };
 
 export class TextPanel {
   readonly root: HTMLElement;
@@ -41,6 +55,9 @@ export class TextPanel {
   private rendered = new Map<number, HTMLElement>(); // row index -> element
   private rowHeight = 22;
   private readonly events: TextEvents;
+  private readonly header: HTMLElement;
+  private readonly forced = new Set<string>();
+  columns: Fit | null = null;
   tab: 'text' | 'data' = 'text';
   onTab: (tab: 'text' | 'data') => void = () => {};
 
@@ -50,16 +67,66 @@ export class TextPanel {
     this.layer = h('div', { class: 'layer' });
     this.fold = h('div', { class: 'fold' });
     this.viewport = h('div', { class: 'pbody text', tabindex: '0' }, this.spacer, this.layer);
-    this.viewport.addEventListener('scroll', () => this.renderWindow());
+    this.viewport.addEventListener('scroll', () => { this.renderWindow(); this.header.scrollLeft = this.viewport.scrollLeft; });
     this.viewport.addEventListener('click', (e) => this.click(e));
     this.head = tabsHead(['Text', 'Data'], (i) => this.setTab(i === 0 ? 'text' : 'data'));
-    const header = h('div', { class: 'theader' }, h('span'), h('span', { class: 'addr' }, 'Address'), h('span', { class: 'word' }, 'Encoding'),
-      h('span', {}, 'Format'), h('span', { class: 'dis' }, 'Instruction'), h('span', { class: 'lno right' }, 'Line'), h('span', { class: 'src' }, 'Source'));
-    this.textView = h('div', { class: 'tview' }, header, this.viewport, this.fold);
+    this.header = h('div', { class: 'theader' }, h('span', { class: 'bpc' }), h('span', { class: 'addr' }, 'Address'), h('span', { class: 'word' }, 'Encoding'),
+      h('span', { class: 'fmt' }, 'Format'), h('span', { class: 'dis' }, 'Instruction'), h('span', { class: 'lno right' }, 'Line'), h('span', { class: 'src' }, 'Source'));
+    this.textView = h('div', { class: 'tview' }, this.header, this.viewport, this.fold);
     this.dataView = this.data.root;
+    this.data.onToggles = (buttons) => { if (this.tab === 'data') this.setAside(buttons); };
     this.dataView.hidden = true;
     this.root = h('section', { class: 'panel textpanel', 'aria-label': 'Text' }, this.head.root, this.textView, this.dataView);
-    new ResizeObserver(() => this.renderWindow()).observe(this.viewport);
+    new ResizeObserver(() => { this.fit(); this.renderWindow(); }).observe(this.viewport);
+  }
+
+  // The least width Address, Encoding, Format and Instruction take, with
+  // tight margins; scroll bar and border in.
+  leastWidth(fontPx: number): number {
+    const [, tight] = styles(NORMAL, TIGHT, fontPx);
+    const chrome = (this.viewport.offsetWidth - this.viewport.clientWidth || 12) + 2;
+    return Math.ceil(needed(COLUMNS.filter((c) => c.key !== 'src' && c.key !== 'lno'), tight, monoCh(fontPx)) + chrome);
+  }
+
+  // Columns and style for the width the panel has now.
+  fit(): void {
+    const width = this.viewport.clientWidth;
+    if (!width) return;
+    const fontPx = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fs')) || 13;
+    const ch = monoCh(fontPx);
+    const all = styles(NORMAL, TIGHT, fontPx);
+    const f = fit(width, COLUMNS, DROPS, this.forced, ch, all);
+    const width_ = (c: Column) => (c.px !== undefined ? `${c.px}px` : `${c.ch}ch`);
+    const src = !f.hidden.has('src');
+    const template = COLUMNS.filter((c) => !f.hidden.has(c.key)).map((c) =>
+      c.key === 'dis' ? (src ? 'minmax(18ch, 36ch)' : 'minmax(18ch, 1fr)') : c.key === 'src' ? 'minmax(14ch, 1fr)' : width_(c)).join(' ');
+    this.root.style.setProperty('--tcols', template);
+    this.root.style.setProperty('--tmin', `${Math.ceil(needed(COLUMNS.filter((c) => !f.hidden.has(c.key)), f.style, ch))}px`);
+    this.root.dataset.style = f.style.name;
+    for (const key of ['src', 'lno', 'fmt', 'addr', 'word']) this.root.classList.toggle(`hide-${key}`, f.hidden.has(key));
+    this.root.classList.toggle('overflow', f.overflow);
+    this.columns = f;
+    this.renderToggles(fit(width, COLUMNS, DROPS, new Set(), ch, all).hidden);
+  }
+
+  // The columns the width takes away, to turn back on (Text tab only).
+  private renderToggles(auto: Set<string>): void {
+    const keys = [...auto].filter((k) => k in NAMES);
+    if (this.tab !== 'text') return;
+    this.setAside(keys.map((key) => {
+      const on = this.forced.has(key);
+      return columnButton(NAMES[key], on, () => {
+        if (on) this.forced.delete(key); else this.forced.add(key);
+        if (key === 'src') { if (on) this.forced.delete('lno'); else this.forced.add('lno'); }
+        this.fit();
+      });
+    }));
+  }
+
+  private setAside(buttons: HTMLElement[]): void {
+    this.head.aside.replaceChildren(...buttons);
+    this.head.aside.hidden = buttons.length === 0;
+    this.head.fitMeta();
   }
 
   setTab(tab: 'text' | 'data'): void {
@@ -67,6 +134,7 @@ export class TextPanel {
     this.head.select(tab === 'text' ? 0 : 1);
     this.textView.hidden = tab !== 'text';
     this.dataView.hidden = tab !== 'data';
+    if (tab === 'text') this.fit(); else this.data.fit();
     this.onTab(tab);
   }
 
@@ -161,7 +229,7 @@ export class TextPanel {
     return h('div', { class: cls, 'data-addr': hex32(r.addr) },
       h('span', { class: 'bp', title: 'Breakpoint' }),
       code(hex32(r.addr).slice(2), 'addr'), code(hex32(r.word).slice(2), 'word'),
-      h('span', {}, h('span', { class: `badge b-${r.format}` }, r.format)),
+      h('span', { class: 'fmt' }, h('span', { class: `badge b-${r.format}` }, r.format)),
       code(r.disassembly, 'dis'), code(r.line ? String(r.line) : '', 'lno'), code(r.source, 'src'));
   }
 

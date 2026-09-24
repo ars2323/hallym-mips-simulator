@@ -26,7 +26,7 @@ export class Inspector {
 
   constructor() {
     this.head = panelHead('Inspector');
-    this.follow = headButton('Follow PC', '다시 PC 의 명령을 따라갑니다 (Esc)', () => this.onFollow());
+    this.follow = headButton('Follow PC', '다시 PC 위치의 명령을 따라갑니다 (Esc)', () => this.onFollow());
     this.head.aside.append(this.follow);
     this.body = h('div', { class: 'pbody ibody' });
     this.root = h('section', { class: 'panel insp', 'aria-label': 'Inspector' }, this.head.root, this.body);
@@ -39,7 +39,7 @@ export class Inspector {
     this.body.replaceChildren(
       h('div', { class: 'empty' }, character('sign', 96),
         h('div', { class: 'say' }, h('h3', {}, '한 줄 실행하면 여기에 풀려 나옵니다'),
-          h('p', {}, codeText('`F10` 을 누를 때마다 다음에 실행할 명령의 비트 필드와 하는 일이 여기에 나옵니다. Text 에서 명령을 누르면 그 명령을 봅니다.')))));
+          h('p', {}, codeText('`F10` 키를 누를 때마다 다음에 실행할 명령의 비트 필드와 하는 일이 여기에 나옵니다. Text 탭에서 명령을 누르면 그 명령을 봅니다.')))));
   }
 
   // `pinned`: chosen in Text (else the instruction at PC).
@@ -69,7 +69,7 @@ export class Inspector {
       h('tr', {}, ...['Field', 'Bits', 'Binary', 'Value', 'Meaning'].map((t) => h('th', {}, t))),
       ...fields.map((f) => h('tr', {},
         h('td', {}, h('span', { class: `sw ${cls(f.name)}` }), f.name),
-        h('td', { class: 'mono' }, `${f.high}–${f.low}`), h('td', { class: 'mono' }, f.bits),
+        h('td', { class: 'mono', 'data-label': 'Bits' }, `${f.high}–${f.low}`), h('td', { class: 'mono', 'data-label': 'Binary' }, f.bits),
         h('td', { class: 'mono' }, f.value), h('td', { class: 'mono' }, f.meaning))));
     const e = explain(d, general, row.addr);
     const note = instructionNoteLines(d, convention)[0];

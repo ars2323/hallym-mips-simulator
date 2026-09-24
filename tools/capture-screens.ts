@@ -32,6 +32,7 @@ const ERROR = 'tests/samples/lab04.s';          // line 15: srll
 const DATA = 'tests/samples/data-labels.s';
 const DATA_STEPS = 14;                          // past the sw onto the stack
 const MAX_BYTES = 400 * 1024;
+const MAX_CROP_BYTES = 150 * 1024;
 
 // PNG without its ancillary chunks: the signature, then IHDR, PLTE, tRNS,
 // IDAT and IEND only.  The pixels are untouched.
@@ -49,14 +50,14 @@ function stripPng(file: string): number {
   return png.length;
 }
 
-function written(name: string): void {
+function written(name: string, max = MAX_BYTES): void {
   const file = path.join(out, `${name}.png`);
   const bytes = stripPng(file);
   console.log(`wrote ${path.relative(root, file)} (${Math.round(bytes / 1024)} KB)`);
-  if (bytes > MAX_BYTES) throw new Error(`${name}.png is ${bytes} bytes, over ${MAX_BYTES}: crop it`);
+  if (bytes > max) throw new Error(`${name}.png is ${bytes} bytes, over ${max}: crop it`);
 }
 
-async function shot(r: Running, name: string): Promise<void> {
+async function shot(r: Running, name: string, clip?: { x: number; y: number; width: number; height: number }): Promise<void> {
   const { page } = r;
   await page.mouse.move(-10, -10); // out of the window: no hover, no tooltip
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
@@ -64,8 +65,8 @@ async function shot(r: Running, name: string): Promise<void> {
   await page.waitForTimeout(1100); // past the registers' flash
   const hovered = await page.evaluate(() => document.querySelectorAll(':hover').length);
   if (hovered) throw new Error(`${name}: ${hovered} elements still hovered`);
-  await page.screenshot({ path: path.join(out, `${name}.png`) });
-  written(name);
+  await page.screenshot({ path: path.join(out, `${name}.png`), clip });
+  written(name, clip ? MAX_CROP_BYTES : MAX_BYTES);
 }
 
 // Opened and assembled, the editor's cursor back on line 1 (the click that
@@ -112,17 +113,25 @@ async function lab04(r: Running): Promise<void> {
   await r.close();
 }
 
-// The lab PC: 1366x768 at 125%, maximised -- 1093x582 CSS px drawn at 1.25.
+// The lab PC: 1366x768 at 125%, maximised -- 1093x582 CSS px drawn at 1.25;
+// and the heads of Registers and Text there, cut out (lab-columns).
 // Narrow: 1366x768 at 150% (910x505 CSS px), under the 980 px split: the
-// Editor / Run tabs in the title bar, on Run.
+// Editor / Run tabs in the title bar, on Run.  1024x768: 1024x728 (the
+// taskbar), still side by side.
 for (const [name, size, scale] of [
   ['lab-1366x768-125', { width: 1093, height: 582 }, '1.25'],
   ['narrow', { width: 910, height: 505 }, '1.5'],
+  ['1024x768', { width: 1024, height: 728 }, '1'],
 ] as const) {
   const r = await launch(size, { switches: [`--force-device-scale-factor=${scale}`] });
   await lab04(r);
   if (name === 'narrow') await r.page.getByRole('tab', { name: 'Run' }).waitFor();
   await shot(r, name);
+  if (name === 'lab-1366x768-125') {
+    const regs = (await r.page.locator('.regs').boundingBox())!;
+    const text = (await r.page.locator('.textpanel').boundingBox())!;
+    await shot(r, 'lab-columns', { x: regs.x - 4, y: regs.y - 4, width: text.x + text.width - regs.x + 8, height: 190 });
+  }
   await r.close();
 }
 

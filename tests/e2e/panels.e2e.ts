@@ -4,7 +4,7 @@
 
 import { expect, test } from '@playwright/test';
 
-import { launch, openAndAssemble, program, regHex, settled, statusText, type Running } from './harness.ts';
+import { launch, openAndAssemble, program, regHex, resize, settled, statusText, type Running } from './harness.ts';
 
 let r: Running;
 test.beforeEach(async () => { r = await launch(); });
@@ -50,6 +50,8 @@ test('Registers: the register a step changed is marked, with a tag, until the ne
   }
   const t0 = page.locator('.rrow[data-reg="$t0"]');
   await expect(t0).toHaveClass(/chg/);
+  await expect(t0.locator('.tag')).toBeHidden(); // no room for the tag beside Hex, Dec and Bin at 1280
+  await resize(r, { width: 1920, height: 1080 });
   await expect(t0.locator('.tag')).toBeVisible();
   await expect(page.locator('.rrow.chg')).toHaveCount(1);
   await page.keyboard.press('F10');
@@ -68,7 +70,7 @@ test('Data: one address form, sections apart, zero runs spelled out, labels over
   const addresses = await page.locator('.daddr').allTextContents();
   expect(addresses.length).toBeGreaterThan(2);
   for (const a of addresses) expect(a).toMatch(/^0x[0-9a-f]{8}$/);
-  await expect(page.locator('.dzero .dzerotext').first()).toContainText(/까지 모두 0 · [\d,]+ words/);
+  await expect(page.locator('.dzero .dzerotext').first()).toContainText(/^~ 0x[0-9a-f]{8} · 모두 0 · [\d,]+ words$/);
   await expect(page.locator('.dtags').filter({ hasText: 'msg' })).toContainText('num');
   const line = page.locator('.drow', { has: page.locator('.dch', { hasText: 'Hell' }) });
   await expect(line.locator('.dval').first()).toHaveText('6c6c6548'); // "Hell", little-endian

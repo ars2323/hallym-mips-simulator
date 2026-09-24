@@ -18,17 +18,21 @@
    Gutters, left to right: breakpoints (click to set or clear; a red dot),
    line numbers, errors (a "!" badge -- not a dot, so never mistaken for a
    breakpoint).  Breakpoints are kept by line and move with the text as it
-   is edited; the app maps them to addresses at every assemble. */
+   is edited; the app maps them to addresses at every assemble.
+
+   No band on the cursor's line: while a program runs, the one band in the
+   Editor is the line being executed. */
 
 import { defaultKeymap, history, historyKeymap, indentLess, indentMore, insertNewline } from '@codemirror/commands';
 import { indentUnit } from '@codemirror/language';
 import { EditorSelection, EditorState, RangeSet, RangeSetBuilder, StateEffect, StateField, type Extension } from '@codemirror/state';
 import {
-  Decoration, type DecorationSet, EditorView, gutter, GutterMarker, highlightActiveLine, keymap, lineNumbers,
+  Decoration, type DecorationSet, EditorView, gutter, GutterMarker, keymap, lineNumbers,
   ViewPlugin, type ViewUpdate,
 } from '@codemirror/view';
 
 import { tokenizeMipsLine } from '../../core/mips-syntax.ts';
+import { userScrolls } from './dom.ts';
 
 const tokenMarks = Object.fromEntries(['Comment', 'String', 'Directive', 'Instruction', 'Register',
   'LabelDefinition', 'Identifier', 'Number'].map((k) => [k, Decoration.mark({ class: `k-${k}` })]));
@@ -206,7 +210,7 @@ export function createEditor(parent: HTMLElement, onSave: () => void, onChange: 
       doc: '',
       extensions: [
         breakpointField, breakpointGutter(onBreakpoint),
-        lineNumbers(), errorGutter, history(), highlightActiveLine(), highlighter, errorField, errorDecorations,
+        lineNumbers(), errorGutter, history(), highlighter, errorField, errorDecorations,
         pcField, pcDecorations, indentUnit.of('    '),
         keymap.of([{ key: 'Tab', run: tab, shift: indentLess }, { key: 'Enter', run: insertNewline },
           ...historyKeymap, ...defaultKeymap]),
@@ -226,16 +230,12 @@ export function createEditor(parent: HTMLElement, onSave: () => void, onChange: 
     }),
   });
   // Scrolling by the student: the wheel, the scroll bar, the page keys.
-  let userScrolled = 0;
-  const mark = () => { userScrolled = Date.now(); };
-  view.scrollDOM.addEventListener('wheel', mark, { passive: true });
-  view.scrollDOM.addEventListener('pointerdown', (e) => { if (e.target === view.scrollDOM) mark(); });
-  view.scrollDOM.addEventListener('keydown', (e) => { if (/^(Page|Home|End|Arrow)/.test(e.key)) mark(); });
+  const scrolledByStudent = userScrolls(view.scrollDOM);
 
   const showPcLine = (n: number | null): void => {
     if (n === view.state.field(pcField)) return;
     const effects: StateEffect<unknown>[] = [setPcLine.of(n)];
-    if (n !== null && n >= 1 && n <= view.state.doc.lines && Date.now() - userScrolled > 2000) {
+    if (n !== null && n >= 1 && n <= view.state.doc.lines && !scrolledByStudent()) {
       const line = view.state.doc.line(n);
       const box = view.scrollDOM.getBoundingClientRect();
       const at = view.coordsAtPos(line.from); // null when the line is not rendered (far off screen)

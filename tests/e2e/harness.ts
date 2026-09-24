@@ -127,3 +127,33 @@ export async function textRow(page: Page, addr: string) {
   await page.waitForTimeout(50);
   return page.locator(`.trow[data-addr="${addr}"]`);
 }
+
+// Korean words (어절) broken across two lines anywhere on screen: the
+// characters of one word whose boxes sit on different lines.  Each is
+// returned as "…the word…" for the failure message.
+export async function brokenWords(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const broken: string[] = [];
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const text = node.textContent ?? '';
+      if (!/[가-힣]/.test(text)) continue;
+      const el = node.parentElement!;
+      if (!el.checkVisibility()) continue;
+      const range = document.createRange();
+      const top = (i: number) => { range.setStart(node!, i); range.setEnd(node!, i + 1); return range.getClientRects()[0]?.top ?? NaN; };
+      for (let i = 0; i + 1 < text.length; i += 1) {
+        if (/\s/.test(text[i]) || /\s/.test(text[i + 1])) continue;
+        if (!/[가-힣]/.test(text[i] + text[i + 1])) continue;
+        const a = top(i);
+        const b = top(i + 1);
+        if (Math.abs(a - b) > 4) {
+          const from = text.lastIndexOf(' ', i) + 1;
+          const to = text.indexOf(' ', i + 1);
+          broken.push(`…${text.slice(from, to < 0 ? undefined : to)}…`);
+        }
+      }
+    }
+    return broken;
+  });
+}

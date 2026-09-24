@@ -16,13 +16,18 @@
      at a word lights its four characters, and the other way round.
    - Labels: the source's labels on the line (by offset), and $sp / $fp /
      $gp when they point into it (their word is tinted too), on a row of
-     their own just above the line. */
+     their own just above the line.
+   - A narrow tab gives up margins, then a pixel of font, then the ASCII
+     column (logic/columns.ts); "+ ASCII" in the head brings it back.  The
+     four words stay. */
 
 import { layoutMemoryRows, rowEnd } from '../../../core/memory-rows.ts';
 import { memoryValueText } from '../../../core/memory-text.ts';
 import { hex32 } from '../../../core/format.ts';
 import type { LabelMap } from '../../../core/symbols.ts';
-import { code, h } from '../dom.ts';
+import { code, h, monoCh } from '../dom.ts';
+import { fit, styles, type Column } from '../logic/columns.ts';
+import { columnButton } from '../ui.ts';
 
 export interface DataSection {
   kind: 'data' | 'stack' | 'kernel';
@@ -35,6 +40,12 @@ export interface DataSection {
 export interface Pointer { name: string; value: number } // $sp, $fp, $gp
 
 const TITLES: Record<DataSection['kind'], string> = { data: 'User data', stack: 'Stack', kernel: 'Kernel data' };
+// A word's cell in each base, in ch; ASCII: four groups of four, 5 px apart.
+const CELL: Record<2 | 10 | 16, number> = { 16: 8, 10: 11, 2: 32 };
+const ASCII: Column = { key: 'ascii', ch: 16, px: 19 };
+// Padding (left and right together) and the gap between columns.
+const NORMAL = { pad: 27, gap: 10 };
+const TIGHT = { pad: 16, gap: 6 };
 const printable = (c: number) => (c >= 0x20 && c <= 0x7e ? String.fromCharCode(c) : '·');
 const offsetName = (n: number) => `+${n.toString(16).toUpperCase()}`;
 const size = (bytes: number) => (bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toLocaleString(undefined, { maximumFractionDigits: 1 })} KB`);
@@ -43,9 +54,13 @@ export class DataView {
   readonly root: HTMLElement;
   private folded = new Set<DataSection['kind']>(['kernel']);
   private last: { sections: DataSection[]; base: 2 | 10 | 16; labels: LabelMap; pointers: Pointer[] } | null = null;
+  private forceAscii = false;
+  private base: 2 | 10 | 16 = 16;
+  onToggles: (buttons: HTMLElement[]) => void = () => {};
 
   constructor() {
     this.root = h('div', { class: 'pbody data' });
+    new ResizeObserver(() => this.fit()).observe(this.root);
     // A word and its four characters light up together.
     this.root.addEventListener('pointerover', (e) => this.hover(e, true));
     this.root.addEventListener('pointerout', (e) => this.hover(e, false));
@@ -56,12 +71,28 @@ export class DataView {
     this.root.replaceChildren();
   }
 
+  // Margins, font and the ASCII column for the width the tab has now.
+  fit(): void {
+    const width = this.root.clientWidth;
+    if (!width) return;
+    const fontPx = (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fs')) || 13) - 0.5;
+    const ch = monoCh(fontPx);
+    const all = styles(NORMAL, TIGHT, fontPx);
+    const columns: Column[] = [{ key: 'daddr', ch: 10 }, ...[0, 1, 2, 3].map((i) => ({ key: `w${i}`, ch: CELL[this.base] })), ASCII];
+    const f = fit(width, columns, [['ascii']], new Set(this.forceAscii ? ['ascii'] : []), ch, all);
+    this.root.dataset.style = f.style.name;
+    this.root.classList.toggle('hide-ascii', f.hidden.has('ascii'));
+    const auto = fit(width, columns, [['ascii']], new Set(), ch, all).hidden.has('ascii');
+    this.onToggles(auto ? [columnButton('ASCII', this.forceAscii, () => { this.forceAscii = !this.forceAscii; this.fit(); })] : []);
+  }
+
   show(sections: DataSection[], base: 2 | 10 | 16, labels: LabelMap, pointers: Pointer[]): void {
     this.last = { sections, base, labels, pointers };
+    if (base !== this.base) { this.base = base; this.fit(); }
     const table = h('div', { class: `dtable base-${base}` },
       h('div', { class: 'dhead' }, h('span', {}, 'Address'),
         ...['+0', '+4', '+8', '+C'].map((t) => h('span', { class: 'dval' }, t)),
-        h('span', {}, 'ASCII')));
+        h('span', { class: 'ascii' }, 'ASCII')));
     for (const s of sections) table.append(...this.section(s, base, labels, pointers));
     this.root.replaceChildren(table);
   }
@@ -87,7 +118,7 @@ export class DataView {
       if (r.kind === 'ZeroRun') {
         out.push(h('div', { class: `drow dzero dsec-${s.kind}` },
           code(hex32(r.address), 'daddr'),
-          h('span', { class: 'dzerotext' }, '~ ', code(hex32(end - 1)), ` 까지 모두 0 · ${r.words.toLocaleString('en-US')} words`)));
+          h('span', { class: 'dzerotext' }, '~ ', code(hex32(end - 1)), ` · 모두 0 · ${r.words.toLocaleString('en-US')} words`)));
         continue;
       }
       const base16 = r.address & ~15;
@@ -105,7 +136,7 @@ export class DataView {
         chars.push(h('span', { class: 'dch', 'data-slot': String(slot) }, bytes));
       }
       out.push(h('div', { class: `drow dsec-${s.kind}` }, code(hex32(base16), 'daddr'), ...cells,
-        h('span', { class: 'dascii mono' }, ...chars)));
+        h('span', { class: 'dascii mono ascii' }, ...chars)));
     }
     return out;
   }

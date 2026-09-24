@@ -79,7 +79,7 @@ export function settingsDialog(events: SettingsEvents): { root: HTMLDialogElemen
     };
     const machine = h('div', { class: 'opts' },
       h('label', { class: 'opt off' }, box(false, true, () => {}),
-        h('span', {}, h('b', {}, 'Bare machine'), h('small', {}, codeText('늘 꺼져 있습니다. 이 교과목은 쓰지 않고, 켜면 교재의 `li` · `la` · `move` 가 오류가 됩니다(Qt판과 같음)')))),
+        h('span', {}, h('b', {}, 'Bare machine'), h('small', {}, codeText('늘 꺼져 있습니다. 이 교과목은 쓰지 않고, 켜면 교재의 `li` · `la` · `move` 명령이 오류가 됩니다(Qt판과 같음)')))),
       ...MACHINE.map((m) => h('label', { class: 'opt' },
         box(adv.machine[m.key], false, (v) => change((a) => { a.machine[m.key] = v; })),
         h('span', {}, h('b', {}, m.label), h('small', {}, codeText(m.note))))));
@@ -96,7 +96,7 @@ export function settingsDialog(events: SettingsEvents): { root: HTMLDialogElemen
           else render();
         } else change((a) => { a.handler = { kind }; });
       });
-      return h('label', { class: 'radio' }, radio, kind === 'none' ? h('span', {}, 'None — 프로그램이 ', code('__start'), ' 를 직접 둡니다')
+      return h('label', { class: 'radio' }, radio, kind === 'none' ? h('span', {}, 'None — ', code('__start'), ' 라벨을 프로그램이 직접 둡니다')
         : kind === 'file' && adv.handler.kind === 'file' ? h('span', {}, 'File ', code(adv.handler.name)) : label);
     }));
     const reset = h('button', { class: 'btn small', type: 'button' }, 'Reset advanced');
@@ -106,7 +106,7 @@ export function settingsDialog(events: SettingsEvents): { root: HTMLDialogElemen
       h('h4', {}, 'Machine'), machine,
       h('h4', {}, 'Run Parameters'),
       h('div', { class: 'row' }, h('span', { class: 'mono' }, 'program.s'), args),
-      h('small', { class: 'hint' }, codeText('`argv[0]` 은 늘 `program.s` 입니다(모두 같은 스택을 보도록). 시작 주소는 `__start` 입니다.')),
+      h('small', { class: 'hint' }, codeText('`argv[0]` 값은 늘 `program.s` 입니다(모두 같은 스택을 보도록). 시작 주소는 `__start` 입니다.')),
       h('h4', {}, 'Exception handler'), handlerRow,
       h('div', { class: 'row end' }, reset));
     if (!sameAdvanced(adv, defaultAdvanced())) details.open = true;
@@ -120,7 +120,7 @@ export function settingsDialog(events: SettingsEvents): { root: HTMLDialogElemen
       h('div', { class: 'prow' }, h('span', {}, 'Font size'), h('span', { class: 'grow' }), minus, size, plus),
       h('small', { class: 'hint' }, '저장됩니다. Ctrl + / Ctrl − / Ctrl 0 은 이번 실행에만 적용됩니다.'),
       h('div', { class: 'prow' }, h('span', {}, 'Data radix'), h('span', { class: 'grow' }), bases),
-      h('small', { class: 'hint' }, '저장됩니다. Data 의 값을 이 진법으로 보입니다.'),
+      h('small', { class: 'hint' }, '저장됩니다. Data 탭의 값을 이 진법으로 보입니다.'),
       details,
       h('div', { class: 'row' }, aboutButton, h('span', { class: 'grow' }), close));
   };

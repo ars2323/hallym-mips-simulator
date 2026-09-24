@@ -35,7 +35,11 @@ html, body { margin: 0; height: 100%; overflow: hidden; }
 body {
   font: var(--fs)/1.45 var(--ui); color: var(--text); background: var(--window);
   font-feature-settings: 'calt' 0;
+  /* Korean sentences break between words (어절), never inside one; only a
+     piece of code too long for a whole line breaks anywhere. */
+  word-break: keep-all;
 }
+.mono { overflow-wrap: anywhere; }
 button { font: inherit; color: inherit; cursor: pointer; }
 .mono { font-family: var(--code); }
 .app { display: grid; height: 100vh; grid-template-rows: var(--titlebar) minmax(0, 1fr) 24px; }
@@ -56,7 +60,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .titlebar .brand { display: flex; align-items: center; gap: 8px; flex: none; }
 .titlebar .logo { height: 18px; width: auto; }
 .titlebar .appname { font-weight: 700; color: var(--navy); white-space: nowrap; letter-spacing: .1px; }
-.titlebar .file { color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 28ch;
+.titlebar .file { color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: none; max-width: 28ch;
   padding-left: 10px; border-left: 1px solid var(--border); }
 .titlebar .file:empty { display: none; }
 .titlebar .file b { color: var(--text); font-weight: 400; }
@@ -81,9 +85,21 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .seg button { padding: 2px 12px; border: 0; border-radius: 6px; background: none; color: var(--text-2); font-weight: 500; white-space: nowrap; }
 .seg button.on { background: var(--white); color: var(--navy); font-weight: 600; box-shadow: 0 1px 2px rgba(0,32,91,.12); }
 .seg button:disabled { color: var(--gray); cursor: default; }
-/* Narrow windows: the toolbar keeps its icons and keys only. */
-@media (max-width: 1180px) { .titlebar .btn kbd { display: none; } }
-@media (max-width: 1060px) { .titlebar .btn .label { display: none; } .titlebar .btn { padding: 0 8px; } .titlebar .file { max-width: 18ch; } }
+/* Run speed: named, next to Run.  One button in a narrow title bar. */
+.speedbox { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.speedlabel { font-size: 12px; color: var(--text-2); white-space: nowrap; }
+.titlebar .speedone { display: none; }
+/* A narrow title bar gives way in steps (app.ts fitTitlebar): key hints,
+   the program's name, the buttons' icons, then the speed as one button.
+   The buttons keep their names throughout. */
+.titlebar.c1 .btn kbd { display: none; }
+.titlebar.c2 .appname { display: none; }
+.titlebar.c2 .file { max-width: 16ch; }
+.titlebar.c3 .toolbar .btn img { display: none; }
+.titlebar.c3 .toolbar .btn { padding: 0 9px; }
+.titlebar.c3 .toolbar { gap: 4px; }
+.titlebar.c4 .speedlabel, .titlebar.c4 .speed { display: none; }
+.titlebar.c4 .speedone { display: inline-flex; }
 
 /* ---- status bar --------------------------------------------------------- */
 .status { display: flex; align-items: center; gap: 16px; padding: 0 12px; font-size: 12px; color: var(--text-2); background: var(--white); border-top: 1px solid var(--border); white-space: nowrap; overflow: hidden; }
@@ -108,14 +124,16 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .hbtn { height: 24px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--white); color: var(--text-2); font-size: 12px; white-space: nowrap; }
 .hbtn:hover { background: var(--hover); color: var(--navy); }
 .hbtn.on { background: var(--blue-tint); border-color: var(--blue-tint2); color: var(--navy); font-weight: 600; }
+.hbtn.colbtn { height: 22px; padding: 0 6px; font-size: 11px; }
+.paside:has(.colbtn) { gap: 4px; }
 .pbody { flex: 1; min-height: 0; position: relative; }
-.fold { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 14px; color: var(--text-2); font-family: var(--ui); font-size: 12px; border-top: 1px dashed var(--border); flex: none; }
+.fold { display: flex; align-items: center; gap: 0 8px; min-height: 30px; padding: 4px 14px; flex-wrap: wrap; color: var(--text-2); font-family: var(--ui); font-size: 12px; border-top: 1px dashed var(--border); flex: none; }
 
 /* ---- the work area ------------------------------------------------------ */
 .work { min-height: 0; min-width: 0; display: grid; }
 .stage-welcome { display: flex; align-items: center; justify-content: center; padding: 24px; overflow: auto; }
 .split { display: grid; min-height: 0; min-width: 0; padding: 8px; gap: 0;
-  grid-template-columns: var(--editor-w, clamp(300px, 40%, 760px)) 8px minmax(0, 1fr); }
+  grid-template-columns: var(--editor-w, clamp(300px, 40%, 760px)) 8px minmax(0, 1fr); } /* --editor-w: app.ts layout() */
 .pane { display: grid; min-height: 0; min-width: 0; }
 .splitter { cursor: col-resize; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
 .foldbtn { width: 8px; height: 22px; padding: 0; border: 0; border-radius: 3px; background: none; color: var(--muted); font-size: 12px; line-height: 22px; cursor: pointer; }
@@ -144,7 +162,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .edhost .cm-scroller { font-family: var(--code); line-height: var(--row); }
 .edhost .cm-gutters { background: var(--white); border-right: 0; color: var(--muted); }
 .edhost .cm-lineNumbers .cm-gutterElement { min-width: 40px; padding-right: 10px; }
-.edhost .cm-activeLine { background: var(--window); }
 .edhost .cm-error-line { background: var(--error-tint); }
 /* The line being executed: blue, with a bar -- never the error's pink. */
 .edhost .cm-pc-line { background: var(--blue-tint2); box-shadow: inset 3px 0 0 var(--blue); }
@@ -164,21 +181,21 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .k-LabelDefinition { color: var(--navy); font-weight: 700; }
 .k-Number { color: var(--purple); }
 
-.errors { flex: none; max-height: 45%; overflow: auto; border-top: 1px solid var(--border); background: var(--white); }
-.errbody { display: flex; align-items: center; gap: 16px; padding: 12px 14px 12px 16px; }
-.errbody img.char { flex: none; align-self: center; }
-.errtext { flex: 1; min-width: 0; }
-.errtext h3 { margin: 0 0 2px; font-size: 15px; color: var(--navy); }
-.errtext .sub { margin: 0 0 8px; color: var(--text-2); font-size: 12px; }
-.errtext .row { margin-top: 10px; }
-.errors .item { display: grid; grid-template-columns: 18px 44px minmax(0, 1fr); align-items: baseline; gap: 8px; padding: 6px 0; border-top: 1px solid var(--border); }
+.errors .ebody { overflow: auto; }
+.errbody { display: flex; align-items: flex-start; gap: 24px; padding: 20px 24px 20px 24px; }
+.errbody img.char { flex: none; margin-left: auto; }
+.errtext { flex: 1; min-width: 0; max-width: 640px; }
+.errtext h3 { margin: 0 0 4px; font-size: 18px; color: var(--navy); }
+.errtext .sub { margin: 0 0 10px; color: var(--text-2); }
+.errtext .row { margin-top: 14px; }
+.errors .item { display: grid; grid-template-columns: 18px 44px minmax(0, 1fr); align-items: baseline; gap: 8px; padding: 8px 0; border-top: 1px solid var(--border); font-size: 14px; }
 .errors .mark, .cm-error-mark { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 3px;
   border: 1.5px solid var(--error); color: var(--error); background: var(--white); font: 800 10px/1 var(--ui); }
 .errors .line { font-weight: 700; color: var(--error-text); white-space: nowrap; text-align: left; }
 .errors .msg { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .errors .msg .what { color: var(--text); }
 .errors .msg .src { color: var(--text-2); }
-.errors .msg .hint { color: var(--teal-text); font-size: 12px; }
+.errors .msg .hint { color: var(--teal-text); font-size: 13px; }
 
 /* ---- the Run side -------------------------------------------------------- */
 .run-side { display: grid; min-height: 0; min-width: 0; container-type: inline-size; container-name: run; }
@@ -189,7 +206,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .run-placeholder p { margin: 0 0 14px; color: var(--text-2); }
 .run-placeholder[data-kind=changed] h3 { color: var(--amber-text); }
 .run-grid { display: grid; min-height: 0; gap: 8px;
-  grid-template-columns: clamp(262px, 34%, 330px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+  grid-template-columns: clamp(var(--regs-least, 417px), 46%, var(--regs-most, 505px)) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
 .run-grid .leftcol { grid-row: 1; grid-column: 1; display: grid; min-height: 0; gap: 8px; grid-template-rows: minmax(0, 1fr) auto; }
 .run-grid .regshost { display: grid; min-height: 0; }
 .run-grid .centre { grid-row: 1; grid-column: 2; display: grid; min-height: 0; gap: 8px; position: relative;
@@ -201,28 +218,27 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .run-grid .leftcol { grid-row: 2; grid-column: 1; }
 }
 
-/* Text */
-.textpanel { container-type: inline-size; }
+/* Text: the columns and how tight they sit are panels/text.ts's (--tcols,
+   data-style, hide-*): Address, Encoding and Instruction give way last. */
+.textpanel { --tpad: 8px; --tgap: 12px; }
+.textpanel[data-style=tight] { --tpad: 4px; --tgap: 6px; }
+.textpanel[data-style=small] { --tpad: 4px; --tgap: 6px; }
 .tview { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .text { overflow-y: auto; overflow-x: hidden; font-family: var(--code); font-size: var(--fs); }
+.textpanel.overflow .text { overflow-x: auto; }
+.textpanel[data-style=small] .text, .textpanel[data-style=small] .theader { font-size: calc(var(--fs) - 1px); }
 .text:focus { outline: none; }
 .text .spacer { width: 1px; }
 .text .layer { position: absolute; top: 0; left: 0; right: 0; }
-.trow, .theader { display: grid; align-items: center; padding-left: 8px; white-space: nowrap; column-gap: 12px; border-left: 3px solid transparent;
-  grid-template-columns: 12px 8ch 8ch 30px minmax(16ch, 36ch) 4ch minmax(0, 1fr); }
+.trow, .theader { display: grid; align-items: center; padding: 0 var(--tpad) 0 var(--tpad); white-space: nowrap; column-gap: var(--tgap); border-left: 3px solid transparent;
+  grid-template-columns: var(--tcols, 12px 8ch 8ch 38px minmax(18ch, 36ch) 4ch minmax(14ch, 1fr)); }
+.textpanel.overflow .trow { right: auto; width: max(100%, var(--tmin)); }
 .trow { position: absolute; left: 0; right: 0; height: var(--row); cursor: default; }
 .trow:hover { background: var(--hover); }
-.theader { height: 26px; font-family: var(--code); font-size: var(--fs); border-bottom: 1px solid var(--border); flex: none; }
+.theader { height: 26px; font-family: var(--code); font-size: var(--fs); border-bottom: 1px solid var(--border); flex: none; overflow: hidden; }
 .theader > span { font: 500 11.5px var(--ui); color: var(--muted); }
 .theader .right { text-align: right; }
-@container (max-width: 620px) {
-  .trow, .theader { grid-template-columns: 12px 8ch 30px minmax(14ch, 1fr) 4ch minmax(8ch, .8fr); }
-  .trow .word, .theader .word { display: none; }
-}
-@container (max-width: 420px) {
-  .trow, .theader { grid-template-columns: 12px 8ch 30px minmax(12ch, 1fr) 4ch; }
-  .trow .src, .theader .src { display: none; }
-}
+.textpanel.hide-src .src, .textpanel.hide-lno .lno, .textpanel.hide-fmt .fmt, .textpanel.hide-addr .addr, .textpanel.hide-word .word { display: none !important; }
 .trow .addr { color: var(--muted); }
 .trow .word { color: var(--text-2); }
 .trow .dis { color: var(--text); overflow: hidden; text-overflow: ellipsis; }
@@ -244,15 +260,21 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .textpanel .fold { border-top: 1px dashed var(--border); }
 
 /* Data: Address | +0 | +4 | +8 | +C | ASCII | Labels (panels/data.ts) */
-.data { overflow: auto; padding: 0 0 8px; font-family: var(--code); font-size: calc(var(--fs) - .5px); }
+.data { overflow: auto; padding: 0 0 8px; font-family: var(--code); font-size: calc(var(--fs) - .5px); --dpadl: 15px; --dpadr: 12px; --dgap: 10px; }
+.data[data-style=tight], .data[data-style=small] { --dpadl: 10px; --dpadr: 6px; --dgap: 6px; }
+.data[data-style=small] { font-size: calc(var(--fs) - 1.5px); }
+.data.hide-ascii .ascii { display: none; }
 .dtable { display: grid; min-width: max-content; --dcell: 8ch; }
 .dtable.base-10 { --dcell: 11ch; }
 .dtable.base-2 { --dcell: 32ch; }
-.dhead, .drow { display: grid; grid-template-columns: 10ch repeat(4, var(--dcell)) max-content; column-gap: 10px; padding: 0 12px 0 15px; align-items: center; white-space: nowrap; }
+.dhead, .drow { display: grid; grid-template-columns: 10ch repeat(4, var(--dcell)) max-content; column-gap: var(--dgap); padding: 0 var(--dpadr) 0 var(--dpadl); align-items: center; white-space: nowrap; }
+.data.hide-ascii .dhead, .data.hide-ascii .drow { grid-template-columns: 10ch repeat(4, var(--dcell)); }
 .dhead { position: sticky; top: 0; z-index: 1; height: 26px; background: var(--white); border-bottom: 1px solid var(--border); }
 .dhead > span { font: 500 11.5px var(--ui); color: var(--muted); }
 .dhead > span:nth-child(-n+5) { font-family: var(--code); }
-.dsec { display: flex; align-items: center; gap: 8px; height: 30px; margin-top: 10px; padding: 0 12px; font: 13px var(--ui); color: var(--navy); cursor: pointer;
+/* A section's head never widens the table (contain): in a narrow tab it
+   takes a second line instead. */
+.dsec { display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; min-height: 30px; margin-top: 10px; padding: 4px 12px; contain: inline-size; font: 13px var(--ui); color: var(--navy); cursor: pointer;
   background: var(--window); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); box-shadow: inset 3px 0 0 var(--blue); }
 .dsec:first-of-type { margin-top: 0; }
 .dsec b { font-weight: 700; }
@@ -269,50 +291,50 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .drow .dval.lit, .drow .dch.lit { background: var(--amber-tint); box-shadow: 0 0 0 2px var(--amber-tint); border-radius: 3px; }
 .drow .dascii { display: flex; gap: 5px; color: var(--text-2); padding-left: 4px; }
 .drow .dch { white-space: pre; }
-.drow.dzero .dzerotext { grid-column: 2 / 7; font-family: var(--ui); font-size: 12px; color: var(--muted); padding: 0 8px; border-radius: 4px; white-space: nowrap;
+.drow.dzero .dzerotext { grid-column: 2 / -1; font-family: var(--ui); font-size: 12px; color: var(--muted); padding: 0 8px; border-radius: 4px; white-space: nowrap;
   background: repeating-linear-gradient(135deg, var(--window) 0 6px, var(--white) 6px 12px); }
-.dtags { display: flex; gap: 14px; padding: 3px 12px 0 calc(15px + 10ch + 10px); font-size: 12px; line-height: 16px; white-space: nowrap; }
+.dtags { display: flex; gap: 14px; padding: 3px 12px 0 calc(var(--dpadl) + 10ch + var(--dgap)); font-size: 12px; line-height: 16px; white-space: nowrap; }
 .dtags.dsec-stack { box-shadow: inset 3px 0 0 #e4dcf1; }
 .dtags .dlabel { color: var(--blue); font-weight: 700; }
 .dtags .dlabel .off { color: var(--muted); font-weight: 400; }
 .dtags .dptr { color: var(--teal-text); font-weight: 700; }
 
-/* Registers: hex first, decimal quieter, binary quietest (and only when
-   the panel is wide); the register that just changed in yellow. */
-.regs { font-family: var(--code); font-size: var(--fs); container-type: inline-size; }
+/* Registers: hex first, decimal quieter, binary quietest; the register that
+   just changed in yellow.  The columns and how tight they sit are
+   panels/registers.ts's (--rcols, data-style, hide-*): Hex, Dec and Bin
+   give way last. */
+.regs { font-family: var(--code); font-size: var(--fs); --rpad: 9px; --rpadr: 10px; --rgap: 10px; }
+.regs[data-style=tight] { --rpad: 5px; --rpadr: 6px; --rgap: 6px; }
+.regs[data-style=small] { --rpad: 5px; --rpadr: 6px; --rgap: 6px; font-size: calc(var(--fs) - 1px); }
 .regs .phead { font-family: var(--ui); font-size: var(--fs); }
 .regs-list { overflow-y: auto; overflow-x: hidden; }
-.rhead, .rrow { display: grid; column-gap: 10px; padding: 0 10px 0 12px; align-items: center; white-space: nowrap;
-  grid-template-columns: 7ch 10.5ch minmax(0, 11ch) minmax(0, 1fr) auto; }
-.rhead { height: 24px; border-bottom: 1px solid var(--border); flex: none; }
+.regs.overflow .regs-list { overflow-x: auto; }
+.rhead, .rrow { display: grid; column-gap: var(--rgap); padding: 0 var(--rpadr) 0 calc(var(--rpad) + 3px); align-items: center; white-space: nowrap;
+  grid-template-columns: var(--rcols, 7ch 10.5ch 10.5ch 28.5ch minmax(0, 1fr)); }
+.regs.overflow .rhead, .regs.overflow .rrow { width: max-content; min-width: 100%; }
+.rhead { position: sticky; top: 0; z-index: 2; height: 24px; background: var(--white); border-bottom: 1px solid var(--border); }
 .rhead > span { font: 500 11px var(--ui); color: var(--dim); }
 .rhead > span.strong { color: var(--text-2); font-weight: 600; }
 .rhead .right { text-align: right; }
-.rrow { height: var(--rrow); border-left: 3px solid transparent; padding-left: 9px; }
+.rrow { height: var(--rrow); border-left: 3px solid transparent; padding-left: var(--rpad); }
 .rrow .rn { font-weight: 700; color: var(--navy); } /* mono: $t0 in Pretendard reads $tO */
-.rrow .hex { color: var(--text); font-size: var(--fs); }
+.rrow .hex { color: var(--text); }
 .rrow .dec { color: var(--muted); font-size: .92em; text-align: right; overflow: hidden; }
-.rrow .bin { color: var(--dim); font-size: .82em; letter-spacing: -.3px; overflow: hidden; padding-left: 6px; }
-.rrow .tag { display: none; font: 600 10.5px var(--ui); color: var(--changed-text); background: var(--changed-bar); color: var(--white); border-radius: 8px; padding: 0 6px; line-height: 16px; }
+.rrow .bin { color: var(--dim); font-size: .82em; letter-spacing: -.3px; overflow: hidden; }
+.rrow .bin span + span { margin-left: 3px; }
+.rrow .tag { display: none; font: 600 10.5px var(--ui); color: var(--changed-text); background: var(--changed-bar); color: var(--white); border-radius: 8px; padding: 0 6px; line-height: 16px; justify-self: start; }
 .rrow.zero .hex, .rrow.zero .dec, .rrow.zero .bin, .rrow.zero .rn { color: var(--dim); }
 .rrow.chg { background: var(--changed); border-left-color: var(--changed-bar); }
 .rrow.chg .hex { color: var(--changed-text); font-weight: 700; }
 .rrow.chg .dec, .rrow.chg .bin { color: var(--changed-text); }
 .rrow.chg .tag { display: inline-block; }
+.regs.hide-tag .rrow .tag, .regs.hide-dec .dec, .regs.hide-bin .bin { display: none !important; }
 .rrow.flash { animation: regflash .7s ease-out; }
 /* A flash over whatever the row's own colour is, fading to nothing. */
 @keyframes regflash { from { box-shadow: inset 0 0 0 999px rgba(255, 200, 40, .75); } to { box-shadow: inset 0 0 0 999px rgba(255, 200, 40, 0); } }
-@container (max-width: 470px) {
-  .rhead, .rrow { grid-template-columns: 7ch 10.5ch minmax(0, 1fr) auto; }
-  .rrow .bin, .rhead .binh { display: none; }
-}
-@container (max-width: 250px) {
-  .rhead, .rrow { grid-template-columns: 7ch 10.5ch minmax(0, 1fr); }
-  .rrow .tag, .rrow .dec, .rhead .right { display: none; }
-}
 .rgroup { display: flex; align-items: baseline; gap: 8px; margin-top: 6px; padding: 5px 12px 4px; background: var(--window);
   border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); font: 600 12px var(--ui); color: var(--navy); }
-.rgroup:first-child { margin-top: 0; border-top: 0; }
+.rhead + .rgroup { margin-top: 0; border-top: 0; }
 .rgroup .gspan { font-size: 11px; font-weight: 400; color: var(--muted); }
 .regs-list .cp0 { display: none; }
 .regs-list.show-cp0 .rrow.cp0 { display: grid; }
@@ -368,6 +390,27 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .ftable td, .ftable th { padding: 0 16px 0 0; height: 22px; text-align: left; white-space: nowrap; }
 .ftable th { font: 500 11.5px var(--ui); color: var(--muted); height: 20px; border-bottom: 1px solid var(--border); }
 .ftable .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+/* A narrow Inspector folds instead of scrolling sideways: its head on two
+   lines (the instruction; then its source, word and address), the field
+   table one field to a block -- name, value, meaning; under them the bits
+   and their binary. */
+@container (max-width: 480px) {
+  .ihead { flex-wrap: wrap; row-gap: 2px; padding: 8px 12px 4px; }
+  .ihead .grow { display: none; }
+  .ihead .isrc, .ihead .where { flex: 0 1 auto; max-width: 100%; white-space: normal; overflow: visible; }
+  .ftable, .ftable tbody { display: block; margin: 8px 12px 12px; }
+  .ftable tr { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; column-gap: 12px; align-items: baseline;
+    padding: 3px 0; border-bottom: 1px solid var(--border); }
+  .ftable tr:first-child { display: none; }
+  .ftable td { height: auto; padding: 0; white-space: normal; }
+  .ftable td:nth-child(1) { grid-area: 1 / 1; }
+  .ftable td:nth-child(4) { grid-area: 1 / 2; text-align: right; }
+  .ftable td:nth-child(5) { grid-area: 1 / 3; }
+  .ftable td:nth-child(2) { grid-area: 2 / 1; padding-left: 16px; }
+  .ftable td:nth-child(3) { grid-area: 2 / 2 / auto / span 2; }
+  .ftable td:nth-child(2), .ftable td:nth-child(3) { color: var(--muted); font-size: 11.5px; }
+  .ftable td[data-label]::before { content: attr(data-label) ' '; font-family: var(--ui); color: var(--dim); }
+}
 
 /* ---- Console ------------------------------------------------------------ */
 .console.open { height: clamp(120px, 26vh, 260px); }
@@ -415,6 +458,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .askbody img.char { flex: none; }
 .asktext h2 { margin: 0 0 6px; font-size: 17px; }
 .asktext p { margin: 0; color: var(--text-2); line-height: 1.55; }
+.asktext p.askfile { margin-bottom: 4px; color: var(--muted); font-size: 12px; }
+.asktext p.askfile .mono { color: var(--text); }
 .btn.danger { background: var(--error); border-color: var(--error); color: var(--white); }
 .btn.danger:hover:not(:disabled) { background: #a93226; }
 .modal h2 { margin: 0 0 12px; font-size: 18px; color: var(--navy); }
