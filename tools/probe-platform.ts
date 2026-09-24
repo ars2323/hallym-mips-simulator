@@ -121,6 +121,21 @@ await phase('handles', 240_000, async () => {
   }
 });
 
+// 1b. the window's frame as the system draws it: maximised (as it opens on a
+// small screen), the whole screen captured -- the app's own title bar with
+// the system's caption buttons over its right end (titleBarOverlay).
+await phase('frame', 90_000, async () => {
+  const r = await launch();
+  try {
+    await openAndAssemble(r, program(r.dir, 'frame.s', 'main:\n  li $t0, 5\n  li $v0, 10\n  syscall\n'));
+    await r.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].maximize());
+    await sleep(1500);
+    report.frame = screenshot(path.join(out, 'frame-maximised.png'));
+  } finally {
+    kill(r);
+  }
+});
+
 // 2. the native file dialogs
 for (const [which, key] of [['save', 'Control+s'], ['open', 'Control+o']] as const) {
   await phase(`dialog-${which}`, 90_000, async () => {
