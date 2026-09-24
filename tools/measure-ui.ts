@@ -3,9 +3,7 @@
      1. registers under repeated F10: time per update, which rows the DOM
         update touched, frame times while it goes on
      2. frame times while a program runs (progress events arrive)
-     3. the Inspector sheet at 1280x800 (lab04-ok.s, sra chosen, as in the
-        mockups): its height, and the Text rows still wholly visible above it
-     4. tt.core.s (4,758 instructions) in the Text panel, with the virtual
+     3. tt.core.s (4,758 instructions) in the Text panel, with the virtual
         list and with every row in the DOM (?text=full): time until painted,
         DOM rows, frame times while scrolling through it
 
@@ -145,32 +143,8 @@ async function ttcore(r: Running, mode: 'virtual' | 'full') {
   results[`ttcore-${mode}`] = out;
 }
 
-async function sheet(r: Running) {
-  const { page } = r;
-  await openAndAssemble(r, sample(r.dir, 'tests/samples/lab04-ok.s', 'lab04.s'));
-  const rowsVisible = () => page.evaluate(() => {
-    const list = document.querySelector('.text')!.getBoundingClientRect();
-    const sheetEl = document.querySelector('.insp') as HTMLElement;
-    const bottom = sheetEl.hidden ? list.bottom : Math.min(list.bottom, sheetEl.getBoundingClientRect().top);
-    return [...document.querySelectorAll('.trow')].filter((row) => {
-      const b = row.getBoundingClientRect();
-      return b.top >= list.top && b.bottom <= bottom;
-    }).length;
-  });
-  const without = await rowsVisible();
-  await page.locator('.trow[data-addr="0x00400054"] .dis').click();
-  await page.waitForSelector('.insp:not([hidden]) .bits');
-  await page.waitForTimeout(100);
-  results.sheet = {
-    window: '1280x800', sheetPx: await page.evaluate(() => (document.querySelector('.insp') as HTMLElement).offsetHeight),
-    textRowsWithoutSheet: without, textRowsAboveSheet: await rowsVisible(),
-  };
-  await page.keyboard.press('Escape');
-}
-
 const r = await launch({ width: 1280, height: 800 });
 try {
-  await sheet(r);
   await registers(r);
   await running(r);
   await ttcore(r, 'virtual');

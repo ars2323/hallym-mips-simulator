@@ -189,18 +189,16 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .run-placeholder p { margin: 0 0 14px; color: var(--text-2); }
 .run-placeholder[data-kind=changed] h3 { color: var(--amber-text); }
 .run-grid { display: grid; min-height: 0; gap: 8px;
-  grid-template-columns: clamp(262px, 34%, 330px) minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) auto; }
-.run-grid .regshost { grid-row: 1; grid-column: 1; display: grid; min-height: 0; }
+  grid-template-columns: clamp(262px, 34%, 330px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+.run-grid .leftcol { grid-row: 1; grid-column: 1; display: grid; min-height: 0; gap: 8px; grid-template-rows: minmax(0, 1fr) auto; }
+.run-grid .regshost { display: grid; min-height: 0; }
 .run-grid .centre { grid-row: 1; grid-column: 2; display: grid; min-height: 0; gap: 8px; position: relative;
-  grid-template-rows: minmax(0, 1fr) minmax(0, 1.1fr); }
-.run-grid .console { grid-row: 2; grid-column: 1 / 3; }
-/* A narrow Run side: registers go under Text/Inspector. */
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+/* A narrow Run side: Text/Inspector on top, Registers and Console under. */
 @container run (max-width: 560px) {
-  .run-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, .8fr) auto; }
-  .run-grid .regshost { grid-row: 2; grid-column: 1; }
+  .run-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1.2fr) minmax(0, 1fr); }
   .run-grid .centre { grid-row: 1; grid-column: 1; }
-  .run-grid .console { grid-row: 3; grid-column: 1; }
+  .run-grid .leftcol { grid-row: 2; grid-column: 1; }
 }
 
 /* Text */
@@ -321,7 +319,23 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .regs-list.show-cp0 .rgroup.cp0 { display: flex; }
 
 /* ---- Inspector ---------------------------------------------------------- */
+.insp { container-type: inline-size; }
 .insp .ibody { overflow: auto; }
+/* A narrow Inspector: smaller bits, so that 32 of them fit across. */
+@container (max-width: 520px) {
+  .insp .fbits .bit { font-size: 11px; line-height: 20px; margin: 0; }
+  .insp .franges { font-size: 9px; padding: 0 2px; }
+  .insp .fname { font-size: 11px; }
+  .insp .fmean { font-size: 10px; }
+  .insp .bitgrid { gap: 0 2px; margin: 2px 10px 0; }
+}
+@container (max-width: 400px) {
+  .insp .fbits { margin: 1px 1px; }
+  .insp .fbits .bit { font-size: 9.5px; line-height: 18px; background: none; }
+  .insp .franges { font-size: 8.5px; }
+  .insp .fname { font-size: 10px; }
+  .insp .bitgrid { gap: 0 1px; margin: 2px 6px 0; }
+}
 .insp .mode { color: var(--text-2); }
 .insp.pinned .phead { background: var(--amber-tint); }
 .insp .mode.pin { color: var(--amber-text); font-weight: 600; }
@@ -330,7 +344,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .ihead .isrc { color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .ihead .isrc .mono { color: var(--text); }
 .ihead .grow { flex: 1; }
-.ihead .where { color: var(--muted); white-space: nowrap; font-size: 12px; }
+.ihead .where { color: var(--muted); white-space: nowrap; font-size: 12px; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
 /* The word: 32 cells in 32 equal columns, a field a coloured group. */
 .bitgrid { display: grid; grid-template-columns: repeat(32, minmax(0, 1fr)); gap: 0 3px; margin: 2px 16px 0; }
 .fbox { display: flex; flex-direction: column; min-width: 0; border-radius: 6px; padding: 2px 0 4px; }
@@ -356,9 +370,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .ftable .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
 
 /* ---- Console ------------------------------------------------------------ */
-.console.open { height: clamp(110px, 24vh, 240px); }
+.console.open { height: clamp(120px, 26vh, 260px); }
 .cbody { flex: 1; min-height: 0; display: flex; flex-direction: column; container-type: size; }
-@container (max-height: 150px) { .console .empty img.char { display: none; } .console .empty { padding: 8px 16px; } }
+@container (max-height: 150px) or (max-width: 320px) { .console .empty img.char { display: none; } .console .empty { padding: 8px 16px; } }
 .clog { flex: 1; min-height: 0; margin: 0; padding: 6px 12px; overflow: auto; font-size: var(--fs); line-height: 1.5; white-space: pre-wrap; word-break: break-all; }
 .clog .typed { color: var(--blue); font-weight: 700; }
 .cinrow { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-top: 1px solid var(--border); flex: none; }

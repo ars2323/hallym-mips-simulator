@@ -159,7 +159,10 @@ const congrats = h('div', { class: 'congrats', hidden: true });
 const regsHost = h('div', { class: 'regshost' });
 let registers: RegisterPanel | null = null;
 const centre = h('div', { class: 'centre' }, text.root, inspector.root, congrats);
-const runGrid = h('div', { class: 'run-grid' }, regsHost, centre, consolePanel.root);
+// Registers over the Console on the left, Text/Data over the Inspector on
+// the right: both of those get the whole height (a lab PC has ~480 px).
+const leftCol = h('div', { class: 'leftcol' }, regsHost, consolePanel.root);
+const runGrid = h('div', { class: 'run-grid' }, leftCol, centre);
 const placeholder = h('div', { class: 'run-placeholder' });
 const runPanel = h('div', { class: 'run-side' }, placeholder, runGrid);
 

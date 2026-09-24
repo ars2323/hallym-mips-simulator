@@ -169,9 +169,11 @@ Windows 의 코어 타이머(이름 있는 대기 타이머 + APC)는 호출한 
 src/main/main.ts        호스트. 시뮬레이터, 파일 열기·저장(인코딩 판별·변환), 예제, 설정 파일
 src/main/preload.cjs    창이 밖으로 나가는 유일한 길: window.app (call, stop, 파일, 설정, 이벤트)
 src/renderer/app/
-  app.ts                장면 A·B·C·D 와 상태(국면, 실행 상태, 선택, 브레이크포인트), 키
-  editor.ts             CodeMirror 6 + src/core/mips-syntax.ts 색, 오류 줄, 조합 중 Ctrl+S
-  panels/               registers · text(가상 목록 + Data) · inspector · console · welcome
+  app.ts                창: 막대(로고·파일·도구), Editor | Run 분할, 상태(실행·속도·고정·중단점), 키
+  ui.ts                 패널 머리 하나(panelHead)와 탭 머리 하나(tabsHead): 모든 머리가 여기서
+  editor.ts             CodeMirror 6: 색, 오류 줄과 `!`, 중단점 거터, 실행 중인 줄, Tab 4칸, 조합 중 Ctrl+S
+  panels/               registers · text(가상 목록) · data(Data 표) · inspector · console · welcome ·
+                        ask(앱 안의 대화상자) · settings · about
   logic/                순수: 레지스터 행·바뀐 것, Text 행, 멈춤 → 상태, 보이는 행 범위
   perf.ts               패널 갱신 비용 기록(window.__perf, tools/measure-ui.ts 가 읽는다)
 ```

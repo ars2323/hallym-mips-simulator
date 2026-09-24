@@ -41,7 +41,7 @@ for (const [width, height] of SIZES) {
   }
   await shot('C');
   await (await textRow(page, '0x00400054')).locator('.dis').click();
-  await page.waitForSelector('.insp:not([hidden]) .bits');
+  await page.waitForSelector('.insp .bitgrid');
   await page.mouse.move(0, 0);
   await shot('D');
   if (width === SIZES[SIZES.length - 1][0] && !process.env.SCREENS_OUT) {

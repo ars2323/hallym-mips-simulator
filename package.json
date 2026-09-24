@@ -21,7 +21,8 @@
     "screens": "node tools/build-ui.ts && node tools/capture-screens.ts",
     "measure:ui": "node tools/build-ui.ts && node tools/measure-ui.ts",
     "package": "node tools/package.ts",
-    "package:dir": "node tools/package.ts --dir"
+    "package:dir": "node tools/package.ts --dir",
+    "screens:ui2": "node tools/build-ui.ts && node tools/capture-ui2.ts"
   },
   "dependencies": {
     "iconv-lite": "^0.7.3",

@@ -66,10 +66,10 @@ Windows 에서 돌려 본 것은 GitHub Actions 의 `windows-latest`(Windows Ser
 
 | | Qt판 1.2.4 | 이 앱 | 결과 |
 |---|---|---|---|
-| 설치 폴더 | `C:\Program Files\Hallym MIPS Simulator` | `%LOCALAPPDATA%\Programs\hallym-mips-simulator` | 안 겹침 |
-| 시작 메뉴 | `(모든 사용자) Hallym MIPS Simulator\Hallym MIPS Simulator` | `(이 사용자) Hallym MIPS Simulator 2` | 안 겹침 |
+| 설치 폴더 | `C:\Program Files\Hallym MIPS Simulator` | `%LOCALAPPDATA%\Programs\Hallym MIPS` | 안 겹침 |
+| 시작 메뉴 | `(모든 사용자) Hallym MIPS Simulator\Hallym MIPS Simulator` | `(이 사용자) Hallym MIPS` | 안 겹침 |
 | 설정 | 레지스트리 `HKCU\Software\HallymMIPS` | `%APPDATA%\HallymMIPS2` | 이 앱의 설치·실행·e2e·제거 뒤 Qt 설정 그대로 |
-| 제거 항목 | HKLM | HKCU `Hallym MIPS Simulator 2.0.0-alpha.1` | 제거 뒤 Qt 판은 그대로 설치돼 있음 |
+| 제거 항목 | HKLM | HKCU `Hallym MIPS 2.0.0-alpha.1` | 제거 뒤 Qt 판은 그대로 설치돼 있음 |
 | `.s` 연결 | 없음 | 없음 | `assoc .s` 그대로 |
 | 동시 실행 | | | 둘 다 10초 동안 살아 있음 |
 
@@ -91,7 +91,7 @@ Windows 에서 돌려 본 것은 GitHub Actions 의 `windows-latest`(Windows Ser
 
 1. **설치(관리자 아님)** — 설치본을 더블클릭. UAC 창이 뜨지 않고 설치돼야 한다. SmartScreen 경고
    ("Windows의 PC 보호")가 뜰 수 있다(서명 없음): "추가 정보 → 실행".
-2. **시작 메뉴** — "Hallym MIPS Simulator 2" 하나가 보이고, 1.2.4 가 깔려 있으면 "Hallym MIPS Simulator" 와 구별되는지.
+2. **시작 메뉴** — "Hallym MIPS" 하나가 보이고, 1.2.4 가 깔려 있으면 "Hallym MIPS Simulator" 와 구별되는지.
 3. **한글 IME (Microsoft 한국어 입력기)**
    - 편집기에 `# 한글 주석입니다` 를 친다. 글자가 두 번 들어가거나 빠지지 않는지.
    - 한 글자를 **조합하는 도중에** Ctrl+S. 조합 중이던 글자까지 온전히 저장되는지(다시 열어 확인).
@@ -104,4 +104,9 @@ Windows 에서 돌려 본 것은 GitHub Actions 의 `windows-latest`(Windows Ser
    Windows 의 배율 125%·150% 에서 흐리거나 잘리는 곳이 없는지.
 6. **1.2.4 와 나란히** — 둘 다 띄워 각각 프로그램을 실행. 한쪽을 닫아도 다른 쪽 설정(창 위치, 최근 파일)이 그대로인지.
 7. **zip** — 압축을 풀어 `HallymMIPS.exe` 실행. USB·네트워크 드라이브처럼 경로에 한글·공백이 있는 곳에서도.
-8. **제거** — 설정 → 앱 → "Hallym MIPS Simulator 2.0.0-alpha.1" 제거. 시작 메뉴·설치 폴더가 사라지고 1.2.4 는 남는지.
+8. **제거** — 설정 → 앱 → "Hallym MIPS 2.0.0-alpha.1" 제거. 시작 메뉴·설치 폴더가 사라지고 1.2.4 는 남는지.
+9. **창 틀** — 최대화 버튼에 마우스를 올리면 스냅 레이아웃이 나오는지, 막대를 두 번 눌러 최대화·복원, 막대를 끌어 이동,
+   화면 위로 끌어 최대화, 최대화했을 때 가장자리가 잘리지 않는지. 배율 125%·150% 에서 창 버튼의 크기, 앱 막대의 버튼·파일 이름이
+   창 버튼 밑으로 들어가지 않는지.
+10. **좌우 분할** — 1366×768 125% 최대화에서 Editor 와 Run 이 나란히 보이는지, 분할선 끌기·접기, 창을 반쪽으로 스냅했을 때
+   Editor / Run 탭으로 바뀌는지.

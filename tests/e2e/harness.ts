@@ -21,14 +21,16 @@ export interface Running {
 // instead of the source tree -- the Windows CI job does, with the installed
 // HallymMIPS.exe.
 export async function launch(size: { width: number; height: number } = { width: 1280, height: 800 },
-                             options: { userData?: string } = {}): Promise<Running> {
+                             options: { userData?: string; switches?: string[] } = {}): Promise<Running> {
   const dir = mkdtempSync(path.join(tmpdir(), 'spim-e2e-'));
   const env = { ...process.env, SPIM_USER_DATA: options.userData ?? path.join(dir, 'user-data') } as Record<string, string>;
   delete env.ELECTRON_RUN_AS_NODE; // set by VS Code; Electron would run as plain Node
   const exe = process.env.SPIM_E2E_EXE;
+  // switches: Chromium's, e.g. --force-device-scale-factor=1.25 (a 125% display).
+  const switches = options.switches ?? [];
   const app = exe
-    ? await _electron.launch({ executablePath: exe, args: [], env })
-    : await _electron.launch({ args: [path.join(root, 'src/main/main.ts')], env, cwd: root });
+    ? await _electron.launch({ executablePath: exe, args: switches, env })
+    : await _electron.launch({ args: [...switches, path.join(root, 'src/main/main.ts')], env, cwd: root });
   const page = await app.firstWindow();
   const pageErrors: string[] = [];
   page.on('pageerror', (e) => pageErrors.push(e.message));
@@ -46,7 +48,8 @@ export async function launch(size: { width: number; height: number } = { width: 
 
 export async function resize(r: { app: ElectronApplication; page: Page }, size: { width: number; height: number }): Promise<void> {
   await r.app.evaluate(({ BrowserWindow }, s) => BrowserWindow.getAllWindows()[0].setContentSize(s.width, s.height), size);
-  await r.page.waitForFunction((s) => window.innerWidth === s.width && window.innerHeight === s.height, size);
+  // (At a fractional device scale the window can land a pixel off.)
+  await r.page.waitForFunction((s) => Math.abs(window.innerWidth - s.width) <= 1 && Math.abs(window.innerHeight - s.height) <= 1, size);
 }
 
 // The next save dialog answers `file`; the next open dialog answers `file`.
@@ -72,6 +75,9 @@ export function sample(dir: string, from: string, name = path.basename(from)): s
 export async function openAndAssemble(r: Running, file: string): Promise<void> {
   await answerOpen(r.app, file);
   await r.page.keyboard.press('Control+o');
+  // Unsaved text first: the window asks (its own dialog); go on without it.
+  const ask = r.page.locator('dialog.ask');
+  await ask.waitFor({ timeout: 300 }).then(() => ask.getByRole('button', { name: '버리고 계속' }).click(), () => {});
   await r.page.waitForSelector('.editor-panel .cm-content');
   await r.page.waitForFunction(() => document.querySelector('.cm-content')?.textContent !== '');
   await r.page.locator('.cm-content').click();
