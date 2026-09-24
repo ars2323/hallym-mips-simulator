@@ -16,7 +16,7 @@
     "build:electron": "node tools/build-electron.ts",
     "electron": "node tools/electron.ts",
     "smoke:electron": "node tools/electron.ts --smoke build/wiring-check.png",
-    "mockups": "node tools/electron.ts --mockups docs/mockups"
+    "mockups": "node design/mockups/data.ts build/mockups/data.js && node tools/electron.ts design/mockups/render.ts docs/mockups"
   },
   "dependencies": {
     "iconv-lite": "^0.7.3",

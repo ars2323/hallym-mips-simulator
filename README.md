@@ -39,6 +39,9 @@ tools/
   scanner-input-experiment.ts   소스 줄 표시 차이의 측정 (docs/PORTING.md 1절)
   gen-op-table.ts   CPU/op.h -> src/core/op-table.ts
   capture-default-goldens.ts    기본값 골든을 뜬다
+src/main/            Electron 메인 프로세스(호스트)와 preload
+src/renderer/        창 쪽. assets/(한림대 자산·폰트·아이콘, NOTICE 참고), wiring/(배선 확인)
+design/mockups/      레이아웃 시안 원본 (docs/mockups/README.md)
 docs/ARCHITECTURE.md  무엇이 어느 프로세스에 있고 왜인가
 docs/PORTING.md       Qt판과 다르게 한 것, 고치면 안 되는 것
 .github/workflows/windows.yml   Windows 빌드 + tt.core.s 워드 검사 (이것 하나)
@@ -72,6 +75,10 @@ npm run typecheck      # tsc --noEmit
 npm test               # 모든 테스트 (Qt 골든·기본값 골든 포함)
 npm run test:mutants   # 돌연변이마다 해당 테스트가 실패하는지
 npm run spike          # 첫 스파이크의 검사 1·2
+npm run build:electron # 애드온을 Electron 헤더로 (N-API 라 Node 빌드도 Electron 에서 열린다)
+npm run electron       # Electron 창 — 지금은 배선 확인 페이지 (UI 아님)
+npm run smoke:electron # 배선 확인을 자동으로: 어셈블·실행·레지스터·사망 복구, 캡처 후 0/1
+npm run mockups        # 레이아웃 시안 → docs/mockups/ (화면이 없으면 xvfb-run -a 로)
 ```
 
 Windows 는 GitHub Actions(`windows.yml`)가 빌드하고 tt.core.s 워드를 골든과 대조한다. macOS 는 아직 시도하지 않았다.

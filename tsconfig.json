@@ -9,8 +9,16 @@
     "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true,
     "allowJs": false,
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "skipLibCheck": true
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "native/index.ts"]
+  "include": [
+    "src/**/*.ts",
+    "tests/**/*.ts",
+    "native/index.ts",
+    "tools/**/*.ts",
+    "design/**/*.ts"
+  ]
 }

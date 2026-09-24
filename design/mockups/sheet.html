@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'">
+<link rel="stylesheet" href="mockup.css">
+<style>
+  html, body { overflow: visible; height: auto; background: #fff; }
+  body { padding: 28px 32px; }
+  h1 { font-size: 22px; color: var(--navy); margin: 0 0 4px; }
+  p { color: var(--text-2); margin: 0 0 18px; }
+  table { border-collapse: separate; border-spacing: 10px 8px; }
+  th { font: 600 13px var(--ui); color: var(--navy); text-align: left; }
+  th.dir { font-size: 15px; padding-top: 6px; }
+  td.scene { font: 600 14px var(--ui); color: var(--navy); vertical-align: middle; white-space: nowrap; }
+  td.scene span { display: block; font-weight: 400; font-size: 12px; color: var(--text-2); }
+  img { height: 250px; border: 1px solid var(--border); border-radius: 4px; display: block; }
+  .d2 { border-left: 3px solid var(--blue-tint2); padding-left: 14px; }
+</style>
+</head>
+<body>
+<h1>레이아웃 시안 대조 — 방향 1 무대 전환 / 방향 2 흐름</h1>
+<p>내용은 모두 실제 시뮬레이터 출력(lab04.s, lab04-ok.s 16단계). 각 칸은 docs/mockups/ 의 PNG 입니다.</p>
+<div id="t"></div>
+<script src="sheet.js"></script>
+</body>
+</html>
