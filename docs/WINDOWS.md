@@ -5,9 +5,9 @@ Windows 에서 돌려 본 것은 GitHub Actions 의 `windows-latest`(Windows Ser
 
 | 파일 | 크기 |
 |---|---|
-| `HallymMIPS-2.0.0-alpha.1-win-x64-setup.exe` (NSIS, 사용자 단위) | 111.2 MB |
-| `HallymMIPS-2.0.0-alpha.1-win-x64.zip` (압축본) | 151.1 MB |
-| 설치된 크기 | 374 MB (그 뒤 Chromium 로캘을 한국어·영어만 남겨 줄였다) |
+| `HallymMIPS-2.0.0-alpha.1-win-x64-setup.exe` (NSIS, 사용자 단위) | 102.9 MB (107,914,059 바이트) |
+| `HallymMIPS-2.0.0-alpha.1-win-x64.zip` (압축본) | 139.9 MB (146,689,276 바이트) |
+| 설치된 크기 | 327 MB (Chromium 로캘은 한국어·영어만. 모두 두면 374 MB) |
 
 ## 아홉 항목
 
@@ -35,7 +35,7 @@ Windows 에서 돌려 본 것은 GitHub Actions 의 `windows-latest`(Windows Ser
 - **코어의 이름 표가 플랫폼마다 다르다.** `floor.w.s` 워드가 Windows 에서는 `prefx` 로, 리눅스에서는 `trunc.w.s` 가
   `suxc1` 로 보인다. `qsort` 의 동률 순서 차이(C 라이브러리마다 다름). 실행에는 영향 없음. `docs/PORTING.md` 7절.
 - **코어 타이머의 핸들 누수.** `run_spim()` 마다 핸들 1개. 이 앱은 1만 명령마다 부르므로 실행 중 초당 수백 개
-  (CI: 364, 850), F10 한 번에 1개. 리눅스는 0. 원인과 고칠 방법 셋은 `docs/PORTING.md` 14절.
+  (CI 세 번: 364, 850, 458), F10 한 번에 1개. 리눅스는 0. 원인과 고칠 방법 셋은 `docs/PORTING.md` 14절.
 - **설치 관리자가 자기 사본(111 MB)을 `%LOCALAPPDATA%\hallym-mips-simulator-updater` 에 남겼다**
   (electron-builder 가 자동 업데이트용으로). 업데이트 기능이 없으므로 설치 끝에 지운다(`packaging/installer.nsh`).
   CI 가 폴더가 없는지 확인한다.
