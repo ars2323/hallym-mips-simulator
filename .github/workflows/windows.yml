@@ -103,7 +103,7 @@ jobs:
         shell: pwsh
         run: |
           $env:SPIM_E2E_EXE = (Get-Content report/installed.txt).Trim()
-          node tools/probe-platform.ts report/probe
+          node tools/probe-platform.ts report/probe --expect-no-leak
 
       - name: The four scenes, captured on Windows
         if: always() && hashFiles('report/installed.txt') != ''

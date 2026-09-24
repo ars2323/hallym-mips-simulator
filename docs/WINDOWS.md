@@ -9,6 +9,25 @@ Windows 에서 돌려 본 것은 GitHub Actions 의 `windows-latest`(Windows Ser
 | `HallymMIPS-2.0.0-alpha.1-win-x64.zip` (압축본) | 139.9 MB (146,689,276 바이트) |
 | 설치된 크기 | 327 MB (Chromium 로캘은 한국어·영어만. 모두 두면 374 MB) |
 
+### 설치된 327 MB 의 내용
+
+| 크기 | 파일 | 무엇 |
+|---|---|---|
+| 234.6 MB | `HallymMIPS.exe` | Electron(Chromium + Node) 실행 파일 자체 |
+| 24.6 MB + 1.4 MB | `dxcompiler.dll`, `dxil.dll` | Chromium 의 WebGPU(D3D12) 셰이더 컴파일러 |
+| 19.5 MB | `LICENSES.chromium.html` | Chromium·Node 고지 — 배포에 필요 |
+| 11.9 MB | `resources.pak` | Chromium 리소스 |
+| 10.4 MB | `icudtl.dat` | 유니코드·한글 처리(ICU) |
+| **6.6 MB** | `resources\app.asar` | **이 앱의 전부**: 글꼴 2.5 MB, 캐릭터 2.2 MB, 번들 JS 1.8 MB |
+| 5.3 + 4.5 + 0.9 MB | `vk_swiftshader.dll`, `d3dcompiler_47.dll`, `vulkan-1.dll` | GPU 가 없을 때의 소프트웨어 렌더링, D3D |
+| 3.0 MB | `ffmpeg.dll` | 미디어(Electron 이 시작할 때 연다) |
+
+- asar 를 쓴다. 소스맵은 넣지 않는다. `node_modules` 는 없다(모두 번들). 이 셋은 이미 되어 있다.
+- 이 앱의 몫은 2% 다. 나머지는 Electron 런타임이라 Qt판(100 MB 안팎)만큼 줄일 수는 없다.
+- 쉽게 줄일 수 있는 것은 로캘뿐이었고 줄였다(−47 MB). 번들 압축(minify)은 1 MB 남짓이라 하지 않았다.
+- 더 줄이려면 `dxcompiler.dll`·`dxil.dll`(26 MB, WebGPU 전용, 이 앱은 쓰지 않음)을 빼는 방법이 있다. Electron 배포본에서
+  파일을 지우는 것은 지원되지 않는 방식이라, 여러 GPU 에서 확인하기 전에는 하지 않았다.
+
 ## 아홉 항목
 
 | # | 항목 | 어떻게 | 결과 |
@@ -17,7 +36,7 @@ Windows 에서 돌려 본 것은 GitHub Actions 의 `windows-latest`(Windows Ser
 | 2 | 무한 루프 정지 → 레지스터 읽기 → 이어서 실행 | **자동**: 설치본 e2e "an endless loop", Node `process.test.ts` 1 | 통과 |
 | 3 | 브레이크포인트 → 멈춤 → 이어서 | **자동**: 설치본 e2e "breakpoint", Node `run-control.test.ts` | 통과 |
 | 4 | 콘솔 입력 되감기 (PC·`$v0`·`$f0`) | **자동**: Node `console-input.test.ts`(6개, `$f0` 포함), 설치본 e2e "console input" | 통과 |
-| 5 | 코어 타이머 | **자동**(측정): `tools/probe-platform.ts` | 인터럽트 전용 — 교과목에는 안 쓰는 기능. 단, **핸들이 샌다**(아래) |
+| 5 | 코어 타이머 | **자동**(측정·실패 조건): `tools/probe-platform.ts --expect-no-leak`, `cp0-timer.test.ts` | 인터럽트 전용 — 교과목에는 안 쓰는 기능. 새던 핸들은 고쳤다(아래): 이제 +0 |
 | 6 | 진짜 한글 IME | **수동** | CI 는 영문 Windows, IME 없음. CDP 흉내(`ime.e2e.ts`)는 Windows 설치본에서도 통과 |
 | 7 | 파일 대화상자 | **자동 캡처** + 수동 확인 | 네이티브 Windows 11 대화상자. 아래 그림 |
 | 8 | 폰트 | **자동**: `hex-mono.e2e.ts` 둘(글꼴이 실제로 `loaded`, 16진수·0 이 든 식별자는 D2Coding) + 네 장면 캡처 | 통과 |
@@ -34,8 +53,10 @@ Windows 에서 돌려 본 것은 GitHub Actions 의 `windows-latest`(Windows Ser
 
 - **코어의 이름 표가 플랫폼마다 다르다.** `floor.w.s` 워드가 Windows 에서는 `prefx` 로, 리눅스에서는 `trunc.w.s` 가
   `suxc1` 로 보인다. `qsort` 의 동률 순서 차이(C 라이브러리마다 다름). 실행에는 영향 없음. `docs/PORTING.md` 7절.
-- **코어 타이머의 핸들 누수.** `run_spim()` 마다 핸들 1개. 이 앱은 1만 명령마다 부르므로 실행 중 초당 수백 개
-  (CI 세 번: 364, 850, 458), F10 한 번에 1개. 리눅스는 0. 원인과 고칠 방법 셋은 `docs/PORTING.md` 14절.
+- **코어 타이머의 핸들 누수 — 고쳤다.** `run_spim()` 마다 이름 붙은 타이머 핸들이 1개씩 샜다(실행 중 초당 364~850,
+  F10 한 번에 1). 이름(`"SPIMTimer"`)은 세션 전체가 공유해 Qt판과 동시에 돌리면 한쪽 `Count` 가 멈출 수 있었다.
+  Windows 에서만 `CPU/run.cpp` 를 `native/src/run-win.cpp` 로 감싸 컴파일해 **이름 없는 타이머 하나**를 재사용한다.
+  고친 뒤: 실행 10초·F10 200번 동안 핸들 +0. CI 가 늘면 실패한다. `docs/PORTING.md` 14절.
 - **설치 관리자가 자기 사본(111 MB)을 `%LOCALAPPDATA%\hallym-mips-simulator-updater` 에 남겼다**
   (electron-builder 가 자동 업데이트용으로). 업데이트 기능이 없으므로 설치 끝에 지운다(`packaging/installer.nsh`).
   CI 가 폴더가 없는지 확인한다.

@@ -8,7 +8,7 @@
      2. the native file dialogs, as they look: a screenshot of the whole
         screen while the save and the open dialog are up.
 
-     node tools/probe-platform.ts OUTDIR
+     node tools/probe-platform.ts OUTDIR [--expect-no-leak]
 
    Writes OUTDIR/probe.json and OUTDIR/dialog-*.png. */
 
@@ -144,3 +144,16 @@ for (const [which, key] of [['save', 'Control+s'], ['open', 'Control+o']] as con
 
 writeFileSync(path.join(out, 'probe.json'), JSON.stringify(report, null, 1));
 console.log(JSON.stringify(report, null, 1));
+
+// --expect-no-leak: fail unless the simulator process's handles stay put
+// while running and stepping (a little slack for Windows' own thread pool).
+if (process.argv.includes('--expect-no-leak')) {
+  const h = report.handles as { running1s: number; running11s: number; stopped: number; after200Steps: number } | undefined;
+  const grew = h ? { running: h.running11s - h.running1s, stepping: h.after200Steps - h.stopped } : null;
+  console.log(`handle growth: ${JSON.stringify(grew)}`);
+  if (!grew || grew.running > 10 || grew.stepping > 5) {
+    console.error('FAIL  the simulator process gains handles while running or stepping');
+    process.exit(1);
+  }
+  console.log('PASS  no handle growth while running (10 s) or stepping (200 F10)');
+}

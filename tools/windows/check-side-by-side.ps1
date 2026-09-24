@@ -99,6 +99,8 @@ if ($Phase -eq 'before') {
   Check (-not (Test-Path (Join-Path $env:LOCALAPPDATA 'hallym-mips-simulator-updater'))) 'no copy of the installer kept (no updater folder)'
   $size = (Get-ChildItem $dir -Recurse -File | Measure-Object Length -Sum).Sum
   Note ('installed size: {0:N1} MB' -f ($size / 1MB))
+  Get-ChildItem $dir -Recurse -File | Sort-Object Length -Descending | Select-Object -First 15 |
+    ForEach-Object { Note ('  {0,7:N1} MB  {1}' -f ($_.Length / 1MB), $_.FullName.Substring($dir.Length + 1)) }
   Check (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Hallym MIPS Simulator 2.lnk'))) 'no desktop shortcut'
   Check (-not (Test-Path 'HKCU:\Software\Classes\.s')) 'no .s under HKCU\Software\Classes'
   Check ((Association) -eq $assocBefore) "assoc .s unchanged ($assocBefore)"

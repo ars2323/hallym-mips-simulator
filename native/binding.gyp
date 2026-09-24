@@ -7,6 +7,10 @@
 #
 # Built on Linux; Windows (MSVC, win_bison/win_flex from winflexbison3) is
 # checked by .github/workflows/windows.yml.
+#
+# ONE INTERVENTION IN THE CORE'S BUILD, WINDOWS ONLY: CPU/run.cpp is compiled
+# through src/run-win.cpp, which replaces CreateWaitableTimer() (see the
+# OS=='win' block below).  CPU/ itself is not changed.
 {
   "variables": {
     "cpu_dir": "../CPU",
@@ -88,6 +92,19 @@
           "cflags_cc": ["-Wno-write-strings"]
         }],
         ["OS=='win'", {
+          # !!! WINDOWS ONLY: CPU/run.cpp IS COMPILED THROUGH src/run-win.cpp !!!
+          # That file is a forced include in front of the core's run.cpp (which
+          # it then includes, unchanged): CreateWaitableTimer() becomes one
+          # UNNAMED timer made once per process.  The core calls
+          # CreateWaitableTimer(NULL, TRUE, "SPIMTimer") at every run_spim()
+          # and never closes it -- measured: 364-850 handles leaked a second
+          # while running, 1 per step -- and the name is shared by the whole
+          # session, so two simulators running at once (this one and the Qt
+          # build) take the one timer from each other.  Someone reading only
+          # CPU/run.cpp cannot see this: see src/run-win.cpp and
+          # docs/PORTING.md 14.  gyp has no per-file /FI, hence the wrapper.
+          "sources!": ["<(cpu_dir)/run.cpp"],
+          "sources": ["src/run-win.cpp"],
           # MSVC has no -iquote: CPU/ goes on the ordinary include path.
           # Nothing in MSVC's library includes <syscall.h>, so CPU/syscall.h
           # shadows nothing there.
