@@ -37,3 +37,15 @@ jobs:
 
       - name: tt.core.s words against the Qt golden
         run: node tests/spike/check-text.js
+
+      # Diagnosis only: what the generators wrote, when the build fails.
+      - name: Generated parser header (on failure)
+        if: failure()
+        shell: pwsh
+        run: |
+          $h = Get-ChildItem -Recurse native/build -Filter parser_yacc.h | Select-Object -First 1
+          if ($h) {
+            Select-String -Path $h.FullName -Pattern '#define yy|yylval|yyparse|api.prefix|YYSTYPE' | ForEach-Object { "$($_.LineNumber): $($_.Line)" }
+            "---- lines 440-465"
+            Get-Content $h.FullName | Select-Object -Skip 439 -First 26
+          }
