@@ -12,7 +12,7 @@ import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { launch, openAndAssemble, root, sample, settled } from '../tests/e2e/harness.ts';
+import { launch, openAndAssemble, root, sample, settled, textRow } from '../tests/e2e/harness.ts';
 
 // SCREENS_OUT: somewhere else, without the sheet (the Windows CI job's own captures).
 const out = process.env.SCREENS_OUT ? path.resolve(process.env.SCREENS_OUT) : path.join(root, 'docs/screens');
@@ -40,7 +40,7 @@ for (const [width, height] of SIZES) {
     await settled(page);
   }
   await shot('C');
-  await page.locator('.trow[data-addr="0x00400054"] .dis').click();
+  await (await textRow(page, '0x00400054')).locator('.dis').click();
   await page.waitForSelector('.insp:not([hidden]) .bits');
   await page.mouse.move(0, 0);
   await shot('D');

@@ -1,44 +1,51 @@
-/* The Inspector: the chosen instruction taken apart, in a sheet that comes
-   up from the bottom of the Text panel.
+/* The Inspector: one instruction taken apart, as the Qt build draws it
+   (QtSpim/edu/edu_instruction_inspector.cpp): the word as thirty-two bits,
+   MSB on the left, grouped into its fields; under it one line per field;
+   then what the instruction does, with the values it will use; for a branch
+   or a jump, the sum that gives its destination.
 
-     head      disassembly, format, source line, word and address
-     bits      the fields as one strip, each as wide as its bits
-     table     field, bits, binary, value, meaning (instruction-text.ts)
-     explain   one sentence with the values it will use (core/explain.ts)
-
-   Kept low: at 1280x800 the sheet has to leave most of the Text rows
-   visible (docs/screens/README.md).  Before anything is chosen it shows the
-   sign character and says where to choose. */
+   It follows the program: after every step it shows the instruction at PC
+   (the next to run).  Choosing a row in Text pins it to that instruction
+   until "현재 명령 따라가기" (or Esc).  Before the first step, with nothing
+   chosen, it says how to fill it. */
 
 import { decode, formatName, type BranchConvention } from '../../../core/decoder.ts';
 import { explain } from '../../../core/explain.ts';
 import { hex32 } from '../../../core/format.ts';
-import { instructionNoteLines, meaningOf } from '../../../core/instruction-text.ts';
+import { instructionDetailLines, instructionNoteLines, meaningOf } from '../../../core/instruction-text.ts';
 import { character, code, codeText, h } from '../dom.ts';
 import type { TextRow } from '../logic/machine.ts';
-import { panelHead, type Head } from '../ui.ts';
+import { headButton, panelHead, type Head } from '../ui.ts';
 
 export class Inspector {
   readonly root: HTMLElement;
   readonly head: Head;
   private readonly body: HTMLElement;
+  private readonly follow: HTMLButtonElement;
+  onFollow: () => void = () => {};
 
   constructor() {
     this.head = panelHead('Inspector');
+    this.follow = headButton('현재 명령 따라가기', '다시 PC 의 명령을 따라갑니다 (Esc)', () => this.onFollow());
+    this.head.aside.append(this.follow);
     this.body = h('div', { class: 'pbody ibody' });
     this.root = h('section', { class: 'panel insp', 'aria-label': 'Inspector' }, this.head.root, this.body);
-    this.empty();
+    this.guide();
   }
 
-  empty(): void {
+  // Nothing to show yet: how to fill it.
+  guide(): void {
+    this.setMode(null);
     this.body.replaceChildren(
       h('div', { class: 'empty' }, character('sign', 96),
-        h('div', { class: 'say' }, h('h3', {}, 'Text 에서 명령어를 고르세요'),
-          h('p', {}, '고른 명령의 비트 필드와 하는 일이 여기에 나옵니다.'))));
+        h('div', { class: 'say' }, h('h3', {}, '한 줄 실행하면 여기에 풀려 나옵니다'),
+          h('p', {}, codeText('`F10` 을 누를 때마다 다음에 실행할 명령의 비트 필드와 하는 일이 여기에 나옵니다. Text 에서 명령을 누르면 그 명령을 봅니다.')))));
   }
 
+  // `pinned`: chosen in Text (else the instruction at PC).
   // `convention`: how the machine was assembled (Settings > delayed branches).
-  show(row: TextRow, general: readonly number[], convention: BranchConvention = 'SpimNoDelaySlot'): void {
+  show(row: TextRow, general: readonly number[], pinned: boolean, convention: BranchConvention = 'SpimNoDelaySlot'): void {
+    this.setMode(pinned ? row.addr : 'pc');
     const d = decode(row.word, row.addr, convention);
     const fields = d.fields.map((f) => {
       const width = f.high - f.low + 1;
@@ -50,10 +57,14 @@ export class Inspector {
       };
     });
     const cls = (name: string) => `f-${name}`;
-    const strip = h('div', { class: 'bits' }, ...fields.map((f) =>
-      h('div', { class: `f ${cls(f.name)}`, style: `flex:${f.width}` },
-        h('div', { class: 'range mono' }, h('span', {}, String(f.high)), h('span', {}, f.high !== f.low ? String(f.low) : '')),
-        h('div', { class: 'b mono' }, f.bits), h('div', { class: 'fn' }, f.name))));
+    // The word as 32 cells, one per bit, each field a coloured group.
+    const grid = h('div', { class: 'bitgrid' }, ...fields.map((f) =>
+      h('div', { class: `fbox ${cls(f.name)}`, style: `grid-column: span ${f.width}` },
+        h('div', { class: 'franges mono' }, h('span', {}, String(f.high)), h('span', {}, f.high !== f.low ? String(f.low) : '')),
+        h('div', { class: 'fbits mono', style: `grid-template-columns: repeat(${f.width}, 1fr)` },
+          ...[...f.bits].map((b) => h('span', { class: 'bit' }, b))),
+        h('div', { class: 'fname' }, f.name),
+        h('div', { class: 'fmean mono' }, f.meaning || f.value))));
     const table = h('table', { class: 'ftable' },
       h('tr', {}, ...['필드', '비트', '값(2진)', '값', '뜻'].map((t) => h('th', {}, t))),
       ...fields.map((f) => h('tr', {},
@@ -62,6 +73,8 @@ export class Inspector {
         h('td', { class: 'mono' }, f.value), h('td', { class: 'mono' }, f.meaning))));
     const e = explain(d, general, row.addr);
     const note = instructionNoteLines(d, convention)[0];
+    // "Dest = PC + (offset×4) = 0x..." for a branch or a jump.
+    const dest = instructionDetailLines(d, row.addr, row.disassembly, '', convention).slice(7);
     const format = formatName(d.format);
     this.body.replaceChildren(
       h('div', { class: 'ihead' },
@@ -69,9 +82,18 @@ export class Inspector {
         row.source ? h('span', { class: 'isrc' }, '소스 ', code(row.source)) : null,
         h('span', { class: 'grow' }),
         h('span', { class: 'where' }, code(hex32(row.word)), ' · ', code(hex32(row.addr)))),
-      strip, table,
+      grid,
       h('div', { class: 'explain' }, h('b', {}, e.title), e.sentence ? ' — ' : '', codeText(e.sentence),
-        note ? h('div', { class: 'note' }, note) : null));
+        note ? h('div', { class: 'note' }, note) : null),
+      ...(dest.length ? [h('pre', { class: 'dest mono' }, dest.join('\n'))] : []),
+      table);
   }
 
+  private setMode(mode: 'pc' | number | null): void {
+    this.follow.hidden = typeof mode !== 'number';
+    this.root.classList.toggle('pinned', typeof mode === 'number');
+    this.head.setMeta(mode === null ? '' : mode === 'pc'
+      ? h('span', { class: 'mode' }, '다음에 실행할 명령 (PC)')
+      : h('span', { class: 'mode pin' }, '고정: ', code(hex32(mode)), ' — Text 에서 고름'));
+  }
 }

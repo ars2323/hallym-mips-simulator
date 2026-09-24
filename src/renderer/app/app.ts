@@ -21,6 +21,7 @@
 
 import { parseAssemblerMessage, resolveMessageLine, simplified, type AssemblerMessage } from '../../core/asm-errors.ts';
 import { hex32 } from '../../core/format.ts';
+import { LabelMap, parseSymbolListing } from '../../core/symbols.ts';
 import { generalRegisterName } from '../../core/registers.ts';
 import type { Settings } from '../../main/main.ts';
 import type { TextFileFormat } from '../../node/text-file.ts';
@@ -36,6 +37,7 @@ import { RegisterPanel } from './panels/registers.ts';
 import { defaultAdvanced, sameAdvanced, settingsDialog, type Advanced } from './panels/settings.ts';
 import { TextPanel } from './panels/text.ts';
 import { welcome } from './panels/welcome.ts';
+import type { DataSection } from './panels/data.ts';
 import { panelHead } from './ui.ts';
 
 const api = window.app;
@@ -62,6 +64,7 @@ let lastRegs: RegisterValues | null = null;
 let rows: TextRow[] = [];
 let selected = -1;
 const breakpoints = new Set<number>();
+const labels = new LabelMap();          // the program's, for Data
 let resumeWith: 'run' | 'step' = 'run';
 let congratsShown = false;             // once a session
 let errors: { message: AssemblerMessage; line: number }[] = [];
@@ -73,6 +76,9 @@ let changedNow = '';
 let narrow = false;
 let view: 'editor' | 'run' = 'editor'; // narrow windows: the side on show
 let editorWidth: number | null = null; // px, from the splitter; null: the default share
+let speed: 'fast' | 'slow' = 'fast';   // this session only
+let slow: { cancel(): void } | null = null; // a slow run going on
+let switchTo: 'fast' | 'slow' | null = null; // a run being switched to the other speed
 
 // ---- the title bar --------------------------------------------------------------
 
@@ -93,6 +99,12 @@ const bAssemble = button('어셈블', 'hammer', 'Ctrl+S', () => void saveAndAsse
 const bRun = button('실행', 'play', 'F5', () => void runOrStop());
 const bStep = button('한 줄', 'step-forward', 'F10', () => void step());
 const bRestart = button('처음으로', 'rotate-ccw', '', () => void restart());
+// The speed of 실행: 즉시 (the core runs on its own) or one line a second.
+const speedFast = h('button', { type: 'button', role: 'radio', title: '즉시 실행' }, '즉시');
+const speedSlow = h('button', { type: 'button', role: 'radio', title: '한 줄에 1초씩 실행' }, '1줄/1초');
+speedFast.addEventListener('click', () => void setSpeed('fast'));
+speedSlow.addEventListener('click', () => void setSpeed('slow'));
+const speedSwitch = h('span', { class: 'seg speed', role: 'radiogroup', 'aria-label': '실행 속도' }, speedFast, speedSlow);
 const bSettings = iconButton('설정', 'settings', () => settingsBox.open());
 const viewEditor = h('button', { type: 'button', role: 'tab' }, 'Editor');
 const viewRun = h('button', { type: 'button', role: 'tab' }, 'Run');
@@ -104,7 +116,7 @@ const titlebar = h('header', { class: 'titlebar' },
     h('img', { class: 'logo', src: asset('hallym/marks/symbol-basic.svg'), alt: '' }),
     h('span', { class: 'appname' }, APP_NAME)),
   fileLabel,
-  h('span', { class: 'toolbar' }, bAssemble, bRun, bStep, bRestart),
+  h('span', { class: 'toolbar' }, bAssemble, bRun, speedSwitch, bStep, bRestart),
   viewSwitch,
   h('span', { class: 'drag' }),
   h('span', { class: 'tools' },
@@ -201,12 +213,13 @@ function measure(): void {
   const wasNarrow = narrow;
   narrow = window.innerWidth < NARROW_PX;
   document.documentElement.dataset.narrow = String(narrow);
-  if (narrow !== wasNarrow || !registers) buildRegisters();
+  if (!registers) buildRegisters();
+  void wasNarrow;
   layout();
 }
 
 function buildRegisters(): void {
-  registers = new RegisterPanel(narrow ? 'compact' : 'full', lastRegs ?? ZERO_REGS);
+  registers = new RegisterPanel(lastRegs ?? ZERO_REGS);
   regsHost.replaceChildren(registers.root);
 }
 
@@ -332,6 +345,10 @@ function renderChrome(): void {
   setBtn(bRun, open && (running || (runState !== 'finished' && runState !== 'input')), running);
   setBtn(bStep, open && !running && runState !== 'finished', machineShown() && !running);
   setBtn(bRestart, lastProgram !== null && !busy, false);
+  speedFast.classList.toggle('on', speed === 'fast');
+  speedSlow.classList.toggle('on', speed === 'slow');
+  speedFast.setAttribute('aria-checked', String(speed === 'fast'));
+  speedSlow.setAttribute('aria-checked', String(speed === 'slow'));
   editorHead.setMeta(open ? h('span', {}, code(file.name), ` · ${file.format?.encoding ?? 'UTF-8'} · ${file.format?.lineEnd ?? 'LF'}`) : '');
   layout();
   renderStatus();
@@ -351,7 +368,13 @@ function renderStatus(): void {
     if (saveNote) parts.push(span('', saveNote));
   } else {
     const pc = lastRegs ? hex32(lastRegs.pc) : '';
-    if (runState === 'running') {
+    if (runState === 'running' && slow) {
+      parts.push(span('run', '천천히 실행 중 (1줄/1초)'));
+      if (steps > 0) parts.push(span('', `${steps}단계`));
+      if (pc) parts.push(span('', 'PC ', code(pc)));
+      if (changedNow) parts.push(span('', '방금 바뀜: ', code(changedNow)));
+      parts.push(span('', 'Esc 로 멈춤 · 속도를 즉시로 바꿔도 됩니다'));
+    } else if (runState === 'running') {
       parts.push(span('run', '실행 중'));
       if (progress) parts.push(span('', 'PC ', code(hex32(progress.pc))), span('', `${progress.instructions.toLocaleString()}개 명령`));
       parts.push(span('', 'Esc 로 멈춤'));
@@ -479,6 +502,8 @@ async function assemble(source: string, again: boolean): Promise<boolean> {
     for (const a of breakpoints) await api.call('setBreakpoint', a);
     assembledText = source;
     lastProgram = source;
+    labels.clear();
+    for (const sym of parseSymbolListing(r.symbols)) labels.add(sym.name, sym.address);
     applied = structuredClone(advanced);
     runState = 'ready';
     rows = textRows(await api.call('textSegment'));
@@ -488,7 +513,7 @@ async function assemble(source: string, again: boolean): Promise<boolean> {
     lastRegs = regs;
     text.setPc(regs.pc);
     if (selected >= 0 && !rows.some((x) => x.addr === selected)) clearSelection();
-    else showSelected();
+    else showInspector();
     if (!again) text.setTab('text');
     if (text.tab === 'data') void refreshData();
     if (narrow) view = 'run';
@@ -538,6 +563,7 @@ async function run(): Promise<void> {
   if (!(await ready())) return;
   if (runState === 'finished') { renderStatus(); return; }
   if (runState === 'input') { consolePanel.waitForInput(true); return; }
+  if (speed === 'slow') return runSlow();
   resumeWith = 'run';
   runState = 'running';
   steps = 0;
@@ -545,6 +571,7 @@ async function run(): Promise<void> {
   renderChrome();
   if (applied.machine.mappedIo) consolePanel.waitForInput(true); // the program polls the receiver as it runs
   await go(() => api.call('run'));
+  if (switchTo === 'slow' && (runState as RunState) === 'paused') { switchTo = null; await runSlow(); }
 }
 
 async function step(): Promise<void> {
@@ -554,7 +581,7 @@ async function step(): Promise<void> {
   await go(() => api.call('step', 1));
 }
 
-async function go(call: () => Promise<RunResult>): Promise<void> {
+async function go(call: () => Promise<RunResult>): Promise<RunResult | null> {
   busy = true;
   congrats.hidden = true;
   const before = lastRegs;
@@ -563,26 +590,77 @@ async function go(call: () => Promise<RunResult>): Promise<void> {
     result = await call();
   } catch {
     busy = false; // the crash report (onCrashed) says what happened
-    return;
+    return null;
   }
   try {
     const now = await api.call('registers');
     if (result.reason !== 'input' && resumeWith === 'step') steps += 1;
     lastReason = result.reason;
-    runState = stateAfter(result.reason);
+    // A slow run between two of its steps is still running.
+    runState = slow && result.reason === 'limit' ? 'running' : stateAfter(result.reason);
     registers?.update(now, before);
     changedNow = changedKey(before, now);
     lastRegs = now;
     text.setPc(now.pc);
-    showSelected();
+    showInspector();
     for (const e of result.errors) consolePanel.append(e.endsWith('\n') ? e : e + '\n');
     consolePanel.waitForInput(result.reason === 'input');
     if (text.tab === 'data') void refreshData();
     if (result.reason === 'exit' && result.errors.length === 0 && !congratsShown) showCongrats();
+    return result;
   } finally {
     busy = false;
     renderChrome();
   }
+}
+
+/* 실행 at one line a second.  The window steps the core itself, one
+   instruction per call, and waits a second in between; stopping (Esc, 멈춤)
+   cancels the wait at once, so a slow run of a billion-step loop is never
+   more than a click away from ending.  Every step updates what a step
+   updates: registers, the Inspector, the Editor's line.  A breakpoint stops
+   it before its instruction; switching to 즉시 hands the rest to the core. */
+async function runSlow(): Promise<void> {
+  resumeWith = 'run';
+  runState = 'running';
+  steps = 0;
+  let cancelled = false;
+  let wake: (() => void) | null = null;
+  slow = { cancel: () => { cancelled = true; wake?.(); } };
+  renderChrome();
+  try {
+    for (let first = true; !cancelled; first = false) {
+      if (!first && lastRegs && breakpoints.has(lastRegs.pc)) { // stop before it, as the core does
+        runState = 'paused';
+        lastReason = 'breakpoint';
+        return;
+      }
+      resumeWith = 'step';
+      const result = await go(() => api.call('step', 1));
+      resumeWith = 'run';
+      if (!result || result.reason !== 'limit') return; // the end, an error, input, a crash
+      if (cancelled) break;   // stopped while that step was on its way
+      runState = 'running';
+      renderChrome();
+      await new Promise<void>((done) => { wake = done; setTimeout(done, 1000); });
+    }
+    runState = 'paused';        // stopped, or switched to 즉시
+    lastReason = 'stopped';
+  } finally {
+    slow = null;
+    renderChrome();
+  }
+  if (switchTo === 'fast') { switchTo = null; await run(); }
+}
+
+async function setSpeed(next: 'fast' | 'slow'): Promise<void> {
+  if (next === speed) return;
+  speed = next;
+  renderChrome();
+  if (runState !== 'running') return;
+  switchTo = next;
+  if (next === 'fast') slow?.cancel();   // runSlow() then goes on with run()
+  else await api.stop();                // run() then goes on with runSlow()
 }
 
 function changedKey(before: RegisterValues | null, now: RegisterValues): string {
@@ -595,6 +673,8 @@ function changedKey(before: RegisterValues | null, now: RegisterValues): string 
 
 async function stop(): Promise<void> {
   if (runState !== 'running') return;
+  switchTo = null;
+  if (slow) { slow.cancel(); return; } // the wait ends now; runSlow() says 'stopped'
   await api.stop(); // the run's own answer ('stopped') updates the window
 }
 
@@ -621,40 +701,49 @@ async function toggleBreakpoint(addr: number): Promise<void> {
 
 // ---- the Inspector ----------------------------------------------------------------------
 
+// A row chosen in Text pins the Inspector to it; otherwise it follows PC.
 function select(addr: number): void {
   selected = addr;
   text.setSelected(addr);
-  showSelected();
+  showInspector();
   renderStatus();
 }
 
 function clearSelection(): void {
   selected = -1;
   text.setSelected(-1);
-  inspector.empty();
+  showInspector();
 }
 
-function showSelected(): void {
-  const row = selected >= 0 ? text.rowFor(selected) : undefined;
-  if (row) inspector.show(row, (lastRegs ?? ZERO_REGS).general, applied.machine.delayedBranches ? 'MipsDelaySlot' : 'SpimNoDelaySlot');
-  else inspector.empty();
+function showInspector(): void {
+  const convention = applied.machine.delayedBranches ? 'MipsDelaySlot' : 'SpimNoDelaySlot';
+  const regs = (lastRegs ?? ZERO_REGS).general;
+  const pinned = selected >= 0 ? text.rowFor(selected) : undefined;
+  if (pinned) { inspector.show(pinned, regs, true, convention); return; }
+  const started = runState !== 'ready' || steps > 0;
+  const atPc = lastRegs && started ? text.rowFor(lastRegs.pc) : undefined;
+  if (atPc) inspector.show(atPc, regs, false, convention);
+  else inspector.guide();
 }
+inspector.onFollow = () => { clearSelection(); renderStatus(); };
 
 // ---- Data ------------------------------------------------------------------------------
 
 async function refreshData(): Promise<void> {
-  if (assembledText === null) { text.dataView.replaceChildren(); return; }
+  if (assembledText === null) { text.data.clear(); return; }
   const s = await api.call('segments');
   const regs = lastRegs ?? await api.call('registers');
   const sp = regs.general[29] >>> 0;
-  const part = async (name: string, from: number, to: number) => ({
-    name, from, to, words: await api.call('readWords', from, (to - from) / 4),
+  const part = async (kind: DataSection['kind'], from: number, to: number): Promise<DataSection> => ({
+    kind, from, to, words: await api.call('readWords', from, (to - from) / 4),
     bytes: await api.call('readBytes', from, to - from),
   });
   const stackTop = 0x80000000;
-  const sections = [await part('데이터', s.dataBot, s.dataTop)];
-  if (sp < stackTop && stackTop - sp <= 0x10000) sections.push(await part('스택', sp & ~15, stackTop));
-  text.showData(sections, settings.dataBase);
+  const sections = [await part('data', s.dataBot, s.dataTop)];
+  if (sp < stackTop && stackTop - sp <= 0x10000) sections.push(await part('stack', sp & ~15, stackTop));
+  sections.push(await part('kernel', s.kDataBot, s.kDataTop));
+  const pointers = [29, 30, 28].map((n) => ({ name: generalRegisterName(n), value: regs.general[n] >>> 0 }));
+  text.data.show(sections, settings.dataBase, labels, pointers);
 }
 
 // ---- first successful run -------------------------------------------------------------------

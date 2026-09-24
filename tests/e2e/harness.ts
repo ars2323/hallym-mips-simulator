@@ -94,3 +94,19 @@ export function program(dir: string, name: string, text: string): string {
   writeFileSync(target, text);
   return target;
 }
+
+// The Text row at `addr`, scrolled into the list (it is a virtual list:
+// rows far from view are not in the DOM).
+export async function textRow(page: Page, addr: string) {
+  const row = page.locator(`.trow[data-addr="${addr}"]`);
+  await page.locator('.text').evaluate((el) => { el.scrollTop = 0; });
+  for (let i = 0; i < 60 && (await row.count()) === 0; i += 1) {
+    await page.locator('.text').evaluate((el) => { el.scrollTop += el.clientHeight / 2; });
+    await page.waitForTimeout(20);
+  }
+  // Centre it (the list re-renders its rows as it scrolls), then take it afresh.
+  const top = await row.evaluate((el) => parseFloat((el as HTMLElement).style.top));
+  await page.locator('.text').evaluate((el, t) => { el.scrollTop = t - el.clientHeight / 2; }, top);
+  await page.waitForTimeout(50);
+  return page.locator(`.trow[data-addr="${addr}"]`);
+}

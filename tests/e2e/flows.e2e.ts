@@ -3,7 +3,7 @@
 import { expect, test } from '@playwright/test';
 import path from 'node:path';
 
-import { answerSave, launch, openAndAssemble, program, regHex, sample, settled, statusText, type Running } from './harness.ts';
+import { answerSave, launch, openAndAssemble, program, regHex, sample, settled, statusText, textRow, type Running } from './harness.ts';
 
 let r: Running;
 test.beforeEach(async () => { r = await launch(); });
@@ -71,10 +71,11 @@ test('choosing an instruction opens the Inspector with its fields', async () => 
   await openAndAssemble(r, sample(r.dir, 'tests/samples/lab04-ok.s', 'lab04.s'));
   const panel = page.locator('.insp');
   await expect(panel.locator('.ihead')).toHaveCount(0); // nothing chosen: the guide
-  await page.locator('.trow[data-addr="0x00400054"] .dis').click();
+  await (await textRow(page, '0x00400054')).locator('.dis').click();
   await expect(panel.locator('.ihead .dis')).toHaveText('sra $17, $14, 1');
-  await expect(panel.locator('.bits .fn')).toHaveText(['opcode', 'rs', 'rt', 'rd', 'shamt', 'funct']);
-  await expect(panel.locator('.bits .b')).toHaveText(['000000', '00000', '01110', '10001', '00001', '000011']);
+  await expect(panel.locator('.bitgrid .fname')).toHaveText(['opcode', 'rs', 'rt', 'rd', 'shamt', 'funct']);
+  await expect(panel.locator('.bitgrid .fbits')).toHaveText(['000000', '00000', '01110', '10001', '00001', '000011']);
+  await expect(panel.locator('.bitgrid .bit')).toHaveCount(32);
   await expect(panel.locator('.ftable tr').nth(3).locator('td').last()).toHaveText('$t6');
   await expect(panel.locator('.explain')).toContainText('sra — Shift Right Arithmetic');
   await expect(panel.locator('.explain')).toContainText('$s1');
@@ -129,7 +130,7 @@ test('an endless loop: F5, stop, the registers are there to read', async () => {
   await page.keyboard.press('F10');
   await settled(page);
   const pc = await regHex(page, 'PC');
-  await page.locator(`.trow[data-addr="${pc}"] .dis`).click();
+  await (await textRow(page, pc)).locator('.dis').click();
   await expect(page.locator('.insp .ihead .dis')).toBeVisible();
 });
 

@@ -6,14 +6,12 @@
    puts every row in instead, for measuring the difference.  Kernel text (the
    exception handler) is folded away at the end until asked for.
 
-   Data lists the data segment and the stack as memory rows
-   (src/core/memory-rows.ts). */
+   Data is ./data.ts. */
 
-import { layoutMemoryRows, rowEnd } from '../../../core/memory-rows.ts';
-import { asciiText, memoryValueText } from '../../../core/memory-text.ts';
 import { hex32 } from '../../../core/format.ts';
 import { code, h } from '../dom.ts';
 import { tabsHead, type TabsHead } from '../ui.ts';
+import { DataView } from './data.ts';
 import type { TextRow } from '../logic/machine.ts';
 import { scrollToShow, visibleRange } from '../logic/virtual.ts';
 import { perf } from '../perf.ts';
@@ -34,6 +32,7 @@ export class TextPanel {
   readonly head: TabsHead;
   private readonly textView: HTMLElement;
   readonly dataView: HTMLElement;
+  readonly data = new DataView();
   private all: TextRow[] = [];
   private shown: TextRow[] = [];
   private showKernel = false;
@@ -57,7 +56,8 @@ export class TextPanel {
     const header = h('div', { class: 'theader' }, h('span'), h('span', { class: 'addr' }, '주소'), h('span', { class: 'word' }, '기계어'),
       h('span', {}, '형식'), h('span', { class: 'dis' }, '명령'), h('span', { class: 'lno right' }, '줄'), h('span', { class: 'src' }, '소스'));
     this.textView = h('div', { class: 'tview' }, header, this.viewport, this.fold);
-    this.dataView = h('div', { class: 'pbody data', hidden: true });
+    this.dataView = this.data.root;
+    this.dataView.hidden = true;
     this.root = h('section', { class: 'panel textpanel', 'aria-label': 'Text' }, this.head.root, this.textView, this.dataView);
     new ResizeObserver(() => this.renderWindow()).observe(this.viewport);
   }
@@ -173,25 +173,4 @@ export class TextPanel {
     else this.events.select(addr);
   }
 
-  // ---- Data -------------------------------------------------------------------
-
-  showData(sections: { name: string; from: number; to: number; words: number[]; bytes: Uint8Array }[], base: 2 | 10 | 16): void {
-    const out: Node[] = [];
-    for (const s of sections) {
-      out.push(h('div', { class: 'dsection' }, s.name, ' ', code(`[${hex32(s.from)}..${hex32(s.to)})`)));
-      const word = (a: number) => s.words[(a - s.from) / 4];
-      for (const r of layoutMemoryRows(s.from, s.to, { word })) {
-        if (r.kind === 'ZeroRun') {
-          out.push(h('div', { class: 'drow zero' }, code(hex32(r.address).slice(2), 'addr'),
-            code(`..${hex32(rowEnd(r) - 1).slice(2)}  0 (${r.words}워드)`, 'vals')));
-        } else {
-          const values = Array.from({ length: r.words }, (_, i) => memoryValueText(word(r.address + 4 * i), 4, base));
-          const bytes = s.bytes.subarray(r.address - s.from, r.address - s.from + 4 * r.words);
-          out.push(h('div', { class: 'drow' }, code(hex32(r.address).slice(2), 'addr'), code(values.join('  '), 'vals'),
-            code(asciiText(bytes), 'chars')));
-        }
-      }
-    }
-    this.dataView.replaceChildren(...out);
-  }
 }

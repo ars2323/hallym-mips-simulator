@@ -7,7 +7,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 
-import { launch, openAndAssemble, program, sample, settled, type Running } from './harness.ts';
+import { launch, openAndAssemble, program, sample, settled, textRow, type Running } from './harness.ts';
 
 let r: Running;
 test.beforeEach(async () => { r = await launch(); });
@@ -48,7 +48,7 @@ test('hexadecimal is monospaced in every scene', async () => {
   await page.locator('.regs .fold button').click();
   await check('C with CP0');
   for (const addr of ['0x00400054', '0x00400024', '0x00400014', '0x0040005c']) {
-    await page.locator(`.trow[data-addr="${addr}"] .dis`).click();
+    await (await textRow(page, addr)).locator('.dis').click();
     await check(`D ${addr}`);
   }
   await page.locator('.ptab', { hasText: 'Data' }).click();
@@ -74,7 +74,7 @@ test('hexadecimal is monospaced in every scene', async () => {
 test('Pretendard and D2Coding are loaded, not stood in for by a system font', async () => {
   const { page } = r;
   await openAndAssemble(r, sample(r.dir, 'tests/samples/lab04-ok.s', 'lab04.s'));
-  await page.locator('.trow[data-addr="0x00400054"] .dis').click(); // headings, bold, mono: every face in use
+  await (await textRow(page, '0x00400054')).locator('.dis').click(); // headings, bold, mono: every face in use
   await page.evaluate(() => document.fonts.ready);
   const faces = await page.evaluate(() => [...document.fonts].map((f) => `${f.family} ${f.weight} ${f.status}`));
   expect(faces.sort()).toEqual([

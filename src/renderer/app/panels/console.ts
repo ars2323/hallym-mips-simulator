@@ -1,7 +1,7 @@
-/* The console: one line until there is something to show.
-
-   It opens by itself when the program prints or asks for input, and by a
-   click on its bar.  Opened while empty, it shows the talk character.
+/* The console.  Open from the start (a student with a small screen folds
+   it); it opens by itself again when the program prints or asks for input.
+   What the program printed is in the body only -- nothing in the head, so
+   nothing reads as printed twice.  Empty, it shows the talk character.
 
    Input (syscalls 5, 8, 12 and friends): the run stops with reason "input"
    before the syscall, the machine as it was (native/src/addon.cc).  The
@@ -18,21 +18,18 @@ export class ConsolePanel {
   readonly root: HTMLElement;
   private readonly bar: HTMLButtonElement;
   readonly head: Head;
-  private readonly last: HTMLElement;
   private readonly log: HTMLElement;
   private readonly body: HTMLElement;
   private readonly emptyNote: HTMLElement;
   private readonly inputRow: HTMLElement;
   private readonly input: HTMLInputElement;
   private text = '';
-  expanded = false;
+  expanded = true;
   onInput: (line: string) => void = () => {};
   onToggle: () => void = () => {};
 
   constructor() {
-    this.last = h('span', { class: 'last' });
     this.head = panelHead('Console');
-    this.head.setMeta(this.last);
     this.bar = headButton('접기', '콘솔 접기/펼치기', () => this.setExpanded(!this.expanded));
     this.head.aside.append(this.bar);
     this.head.root.addEventListener('dblclick', () => this.setExpanded(!this.expanded));
@@ -61,7 +58,6 @@ export class ConsolePanel {
     this.text = '';
     this.log.replaceChildren();
     this.waitForInput(false);
-    this.setExpanded(false);
   }
 
   append(text: string): void {
@@ -104,11 +100,7 @@ export class ConsolePanel {
     this.root.classList.toggle('open', this.expanded);
     this.bar.setAttribute('aria-expanded', String(this.expanded));
     this.bar.textContent = this.expanded ? '접기' : '펼치기';
-    const lines = this.text.split('\n').filter((l) => l !== '');
-    this.last.textContent = this.waiting ? '입력을 기다립니다'
-      : lines.length ? lines[lines.length - 1]
-        : '아직 출력이 없습니다 — 프로그램이 출력하면 여기가 커집니다';
-    this.last.classList.toggle('mono', !this.waiting && lines.length > 0);
+    this.head.setMeta(this.waiting ? '입력을 기다립니다' : '');
     this.body.hidden = !this.expanded;
     const empty = this.text === '' && !this.waiting;
     this.emptyNote.hidden = !empty;
