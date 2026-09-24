@@ -39,7 +39,13 @@ typedef struct yy_buffer_state *YY_BUFFER_STATE;
 YY_BUFFER_STATE yy_scan_bytes(const char *bytes, int len);
 void yy_delete_buffer(YY_BUFFER_STATE buffer);
 
+// The process environment, which initialize_run_stack() copies onto the
+// simulated stack.  MSVC spells it _environ, as CPU/spim-utils.cpp knows.
+#ifdef _MSC_VER
+#define environ _environ
+#else
 extern char **environ;
+#endif
 
 // ------------------------------------------------------------ front end
 

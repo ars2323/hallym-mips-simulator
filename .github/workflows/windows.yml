@@ -1,0 +1,39 @@
+# One question only: does the core build and assemble on Windows the way it
+# does on Linux?  It checks the two things never tried there -- flex's
+# memory buffer (yy_scan_bytes) under win_flex, and the MSVC flags in
+# native/binding.gyp -- with the spike's word-level golden check on
+# tt.core.s.  No packaging, no artifacts, no release, no Linux job.
+name: windows
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  core:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install winflexbison
+        run: choco install winflexbison3 --no-progress -y
+
+      - name: Tool versions
+        shell: cmd
+        run: |
+          node --version
+          win_bison --version
+          win_flex --version
+
+      - name: npm ci
+        run: npm ci --ignore-scripts
+
+      - name: Build the addon
+        run: npx node-gyp rebuild --directory native
+
+      - name: tt.core.s words against the Qt golden
+        run: node tests/spike/check-text.js

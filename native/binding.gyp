@@ -5,12 +5,18 @@
 # flags.  If the core's build changes there, this has to follow.  The parser
 # and scanner are generated into the build directory, never into CPU/.
 #
-# Linux only for now.  The msvc block carries the flags spim_core.pri found
-# necessary, but win_bison/win_flex have not been wired up or tried.
+# Built on Linux; Windows (MSVC, win_bison/win_flex from winflexbison3) is
+# checked by .github/workflows/windows.yml.
 {
   "variables": {
     "cpu_dir": "../CPU",
-    "gen_dir": "<(SHARED_INTERMEDIATE_DIR)/spim"
+    "gen_dir": "<(SHARED_INTERMEDIATE_DIR)/spim",
+    "conditions": [
+      # winflexbison installs the tools under these names (as the Qt build's
+      # QtSpim.pro notes).
+      ["OS=='win'", {"bison": "win_bison", "flex": "win_flex"},
+                    {"bison": "bison", "flex": "flex"}]
+    ]
   },
   "targets": [
     {
@@ -35,9 +41,9 @@
       #
       # -iquote is a Linux-only measure (gcc/clang; cflags_cc does not reach
       # MSVC).  <syscall.h> is a Linux header that MSVC's library never
-      # includes, so there is nothing for CPU/syscall.h to shadow there and
-      # the msvc block below needs no counterpart.  macOS has a <syscall.h>
-      # but libc++ does not include it; untried.
+      # includes, so there is nothing for CPU/syscall.h to shadow there: the
+      # msvc block below simply puts CPU/ on the ordinary include path.
+      # macOS has a <syscall.h> but libc++ does not include it; untried.
       "include_dirs": [
         "<(gen_dir)",
         "<!(node -p \"require('node-addon-api').include_dir\")"
@@ -51,7 +57,7 @@
           "action_name": "bison_parser",
           "inputs": ["<(cpu_dir)/parser.y"],
           "outputs": ["<(gen_dir)/parser_yacc.cpp", "<(gen_dir)/parser_yacc.h"],
-          "action": ["bison", "-p", "yy",
+          "action": ["<(bison)", "-p", "yy",
                      "--defines=<(gen_dir)/parser_yacc.h",
                      "--output=<(gen_dir)/parser_yacc.cpp",
                      "<(cpu_dir)/parser.y"],
@@ -62,7 +68,7 @@
           "action_name": "flex_scanner",
           "inputs": ["<(cpu_dir)/scanner.l"],
           "outputs": ["<(gen_dir)/lex.scanner.cpp"],
-          "action": ["flex", "-I", "-8", "-Pyy",
+          "action": ["<(flex)", "-I", "-8", "-Pyy",
                      "--outfile=<(gen_dir)/lex.scanner.cpp",
                      "<(cpu_dir)/scanner.l"],
           "process_outputs_as_sources": 1,
@@ -75,6 +81,10 @@
           "cflags_cc": ["-Wno-write-strings"]
         }],
         ["OS=='win'", {
+          # MSVC has no -iquote: CPU/ goes on the ordinary include path.
+          # Nothing in MSVC's library includes <syscall.h>, so CPU/syscall.h
+          # shadows nothing there.
+          "include_dirs": ["<(cpu_dir)"],
           "defines": ["_CRT_SECURE_NO_WARNINGS"],
           "msvs_settings": {
             "VCCLCompilerTool": {
