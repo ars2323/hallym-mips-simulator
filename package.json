@@ -1,0 +1,24 @@
+{
+  "name": "hallym-mips-simulator-electron",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Spike: the SPIM core as a Node addon, checked against the Qt build's output",
+  "license": "BSD-3-Clause",
+  "type": "module",
+  "scripts": {
+    "build": "node-gyp rebuild --directory native",
+    "typecheck": "tsc --noEmit",
+    "spike": "node tests/spike/check-text.js && node tests/spike/check-decoder.ts"
+  },
+  "dependencies": {
+    "node-addon-api": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "node-gyp": "^13.0.2",
+    "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=22.18"
+  }
+}

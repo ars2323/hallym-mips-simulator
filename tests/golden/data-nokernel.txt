@@ -1,0 +1,14 @@
+User data segment [10000000]..[10040000]
+[10000000]..[1000ffff]  00000000
+[10010000]    6c6c6548  6f57206f  00646c72  00000000    H e l l o   W o r l d . . . . . 
+[10010010]..[1003ffff]  00000000
+
+
+User Stack [7fffff94]..[80000000]
+[7fffff94]    00000000  00000000  7fffffe6              . . . . . . . . . . . . 
+[7fffffa0]    7fffffd4  7fffffb0  00000000  00000000    . . . . . . . . . . . . . . . . 
+[7fffffb0]    5f474458  464e4f43  485f4749  3d454d4f    X D G _ C O N F I G _ H O M E = 
+[7fffffc0]    6e6f6e2f  73697865  746e6574  6e6f632f    / n o n e x i s t e n t / c o n 
+[7fffffd0]    00676966  454d4f48  6f6e2f3d  6978656e    f i g . H O M E = / n o n e x i 
+[7fffffe0]    6e657473  54510074  4150515f  414c505f    s t e n t . Q T _ Q P A _ P L A 
+[7ffffff0]    524f4654  666f3d4d  72637366  006e6565    T F O R M = o f f s c r e e n . 

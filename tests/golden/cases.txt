@@ -1,0 +1,32 @@
+# name|program|arguments|stream    (shared by capture-goldens.sh and regress.sh)
+intregs-load|helloworld.s||intregs-log
+intregs-step1|helloworld.s|--steps 1|intregs-log
+intregs-run|helloworld.s|--run|intregs-log
+intregs-run-base2|helloworld.s|--reg-base 2 --run|intregs-log
+intregs-run-base10|helloworld.s|--reg-base 10 --run|intregs-log
+text-load|helloworld.s||text-log
+text-step3|helloworld.s|--steps 3|text-log
+text-nokernel|helloworld.s|--trigger action_Text_DisplayKernelText --redisplay|text-log
+text-nouser|helloworld.s|--trigger action_Text_DisplayUserText --redisplay|text-log
+text-nocomments|helloworld.s|--trigger action_Text_DisplayComments --redisplay|text-log
+text-novalue|helloworld.s|--trigger action_Text_DisplayInstructionValue --redisplay|text-log
+text-breakpoint|helloworld.s|--breakpoint 00400024|text-log
+text-ttcore|Tests/tt.core.s||text-log
+data-load|helloworld.s||data-log
+data-run|helloworld.s|--run|data-log
+data-run-base2|helloworld.s|--trigger action_Data_DisplayBinary --run|data-log
+data-run-base10|helloworld.s|--trigger action_Data_DisplayDecimal --run|data-log
+data-nouser|helloworld.s|--trigger action_Data_DisplayUserData|data-log
+data-nostack|helloworld.s|--trigger action_Data_DisplayUserStack|data-log
+data-nokernel|helloworld.s|--trigger action_Data_DisplayKernelData|data-log
+data-sample-steps12|tests/samples/data-stack.s|--steps 12|data-log
+data-sample-run|tests/samples/data-stack.s|--run|data-log
+data-sample-run-base10|tests/samples/data-stack.s|--trigger action_Data_DisplayDecimal --run|data-log
+data-ttcore-steps300|Tests/tt.core.s|--steps 300|data-log
+# A file that stops assembling at a syntax error half way.  Paths are
+# relative to the repository root, so the message in the log is portable.
+syntaxerror-text|tests/samples/syntax-error-midfile.s||text-log
+syntaxerror-data|tests/samples/syntax-error-midfile.s||data-log
+syntaxerror-log|tests/samples/syntax-error-midfile.s||log
+syntaxerror-run-intregs|tests/samples/syntax-error-midfile.s|--run|intregs-log
+syntaxerror-run-log|tests/samples/syntax-error-midfile.s|--run|log
