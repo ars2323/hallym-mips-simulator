@@ -1290,6 +1290,11 @@ bool EduDevtools::alignedRows(const FrozenPair& pair, const QString& state) {
   if (frozen->isHidden() || view->viewport()->height() <= 0) {
     return true;  // nothing on show: nothing to disagree about
   }
+  // The row centres below are read in the panel's own coordinates, so the
+  // strip's viewport has to be where it will finally be drawn.  A pending
+  // layout leaves it at its old place and the measurement then accuses the
+  // panel of something only the queue was guilty of.  Let it settle first.
+  settle();
   const int height = qMin(view->viewport()->height(), frozen->viewport()->height());
   for (int y = 2; y < height; y += 4) {
     const QModelIndex a = view->indexAt(QPoint(4, y));
@@ -1313,6 +1318,34 @@ bool EduDevtools::alignedRows(const FrozenPair& pair, const QString& state) {
                   .arg(rb.y()).arg(rb.height());
       }
     }
+    // What the two views agree on above is each one's *own* viewport.  A
+    // viewport begins under its own header, so a row can sit at the same y
+    // inside each viewport and still be drawn at different heights on the
+    // screen -- which is exactly what a strip header of the wrong height
+    // does.  So the same row is measured again in one shared frame: the
+    // panel widget both of them live in.  That is the frame the student
+    // looks at (JJ/II).
+    if (why.isEmpty() && a0.isValid()) {
+      const double panelCentre = rowCentreInPanel(view, view, a0);
+      const double stripCentre = rowCentreInPanel(frozen, view, b0);
+      const double drift = panelCentre - stripCentre;
+      if (qAbs(drift) > 1.0) {
+        why = QString("row %1 drawn %2 px apart: panel centre %3, strip "
+                      "centre %4 (both in the panel's own coordinates); "
+                      "viewport origins panel y=%5 strip y=%6; "
+                      "strip parent=%7")
+                  .arg(a0.row())
+                  .arg(drift, 0, 'f', 1)
+                  .arg(panelCentre, 0, 'f', 1)
+                  .arg(stripCentre, 0, 'f', 1)
+                  .arg(view->viewport()->mapTo(view, QPoint(0, 0)).y())
+                  .arg(frozen->viewport()->mapTo(view, QPoint(0, 0)).y())
+                  .arg(frozen->parentWidget() != 0
+                           ? QString(frozen->parentWidget()->metaObject()->className())
+                           : QString("-"));
+      }
+    }
+
     if (!why.isEmpty()) {
       err() << "align: FAIL " << pair.name << " " << state << " -- " << why
             << "\n    panel: " << viewFacts(view)
@@ -1322,6 +1355,17 @@ bool EduDevtools::alignedRows(const FrozenPair& pair, const QString& state) {
     }
   }
   return true;
+}
+
+// The vertical middle of one row of `view`, in the coordinates of `frame`.
+// visualRect() answers in the view's viewport, so the viewport's own place
+// inside the frame has to be added -- that offset is the header height, and
+// it is the thing that used to go unmeasured.
+double EduDevtools::rowCentreInPanel(QAbstractItemView* view, QWidget* frame,
+                                     const QModelIndex& index) const {
+  const QRect r = view->visualRect(index);
+  const QPoint origin = view->viewport()->mapTo(frame, QPoint(0, 0));
+  return origin.y() + r.y() + r.height() / 2.0;
 }
 
 // One pass over the display options of one panel, at one moment in the
@@ -1352,9 +1396,24 @@ int EduDevtools::sweepPanel(const FrozenPair& pair, const QString& moment) {
     }
     QApplication::processEvents();
 
-    const int sizes[] = {0, 3, -2, 0, 20};  // 0 = the panel's own default
-    for (unsigned z = 0; z < sizeof(sizes) / sizeof(sizes[0]); z += 1) {
-      setPanelSize(pair.name, sizes[z], z == 4);
+    // The text size is an axis in its own right, and the one that was
+    // missing: II slipped through a sweep that only tried the panel's own
+    // default and a step either side.  Every size Settings can be put to is
+    // walked, through Settings itself, and the panel's own default is put
+    // back at the end of the run.
+    QVector<int> sizes;
+    for (int pt = int(EduPanelZoom::kMinPointSize);
+         pt <= int(EduPanelZoom::kMaxPointSize); pt += 1) {
+      sizes << pt;
+    }
+    for (int z = 0; z < sizes.size(); z += 1) {
+      // Back to the default first, so each size is arrived at in one jump --
+      // which is what picking it in Settings does.  Walking up a point at a
+      // time hid II: each step drifted by less than a pixel and the check,
+      // rightly, let it through.
+      setPanelSize(pair.name, int(edu::theme::kCodePointSize), true);
+      QApplication::processEvents();
+      setPanelSize(pair.name, sizes.at(z), true);
       QApplication::processEvents();
 
       for (int folded = 0; folded < (pair.name == "intregs" ? 2 : 1);
@@ -1378,7 +1437,7 @@ int EduDevtools::sweepPanel(const FrozenPair& pair, const QString& moment) {
               QString("%1 base=%2 size=%3 folded=%4 vscroll=%5")
                   .arg(moment)
                   .arg(base->objectName().section('_', -1))
-                  .arg(sizes[z])
+                  .arg(sizes.at(z))
                   .arg(folded)
                   .arg(stops[v]);
           if (!alignedRows(pair, state)) {

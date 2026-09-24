@@ -78,6 +78,12 @@ that sits beside a standard QtSpim without touching it.
 
 The program is not code-signed; on the SmartScreen prompt choose *More info → Run anyway*.
 
+## 영상
+
+| | |
+|---|---|
+| [Tutorial](https://youtu.be/6EakLfmDeug) | 4분 · 설치 후 첫 실습까지 |
+
 ## Building
 
 Qt 5.15, bison and flex are needed (Linux: g++; Windows: MSVC 2019 with

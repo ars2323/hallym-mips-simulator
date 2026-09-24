@@ -62,8 +62,8 @@ class EduInstructionCanvas : public QWidget {
     setPalette(colours);
   }
 
-  QSize sizeHint() const { return QSize(420, contentHeight(420)); }
-  QSize minimumSizeHint() const { return QSize(240, 120); }
+  QSize sizeHint() const { return QSize(s(420), contentHeight(s(420))); }
+  QSize minimumSizeHint() const { return QSize(s(240), s(120)); }
 
  protected:
   void paintEvent(QPaintEvent* event);
@@ -80,35 +80,55 @@ class EduInstructionCanvas : public QWidget {
   // not: otherwise the bar appearing would change the fold, the fold would
   // change the height, and the height would put the bar away again.
   int cellWidth(int forWidth, bool* twoRows) const {
-    const int usable = forWidth - 2 * kMargin - 2 * kEndLabel - kScrollBar;
+    const int usable =
+        forWidth - 2 * s(kMargin) - 2 * s(kEndLabel) - s(kScrollBar);
     int cell = usable / 32;
     *twoRows = false;
-    if (cell < kCellWidthMin) {
+    if (cell < s(kCellWidthMin)) {
       cell = usable / 16;
       *twoRows = true;
     }
-    return qBound(kCellWidthMin, cell, kCellWidthMax);
+    return qBound(s(kCellWidthMin), cell, s(kCellWidthMax));
   }
 
   int contentHeight(int forWidth) const;
 
+  // Every measurement in this panel was written for the default panel size,
+  // and nothing here read the size the panel was given -- which is why the
+  // Inspector alone ignored Settings > panel text size (JJ).  They are kept
+  // as the ratios they always were: at kCodePointSize the arithmetic gives
+  // the old numbers back exactly, so the default draws pixel for pixel what
+  // it drew before, and above it the panel grows with every other one.
+  int points() const;
+  int s(int atDefault) const;
+
   EduInstructionInspector* owner_;
 };
 
+int EduInstructionCanvas::points() const {
+  const int pt = owner_->codeFont_.pointSize();
+  return pt > 0 ? pt : int(kCodePointSize);
+}
+
+int EduInstructionCanvas::s(int atDefault) const {
+  return atDefault * points() / int(kCodePointSize);
+}
+
 int EduInstructionCanvas::contentHeight(int forWidth) const {
   if (!owner_->hasInstruction()) {
-    return 90;
+    return s(90);
   }
   bool twoRows = false;
   cellWidth(forWidth, &twoRows);
-  const int header = kSpace4 + 22 + kSpace2 + 18;
+  const int header = s(kSpace4) + s(22) + s(kSpace2) + s(18);
   const int gridRows = twoRows ? 2 : 1;
-  const int grid = kSpace3 + gridRows * (12 + kCellHeight + 14) + kSpace2;
-  const int fields = owner_->fieldLines().size() * 20 + kSpace2;
-  const int destination = owner_->destinationLine().isEmpty() ? 0 : 22;
+  const int grid =
+      s(kSpace3) + gridRows * (s(12) + s(kCellHeight) + s(14)) + s(kSpace2);
+  const int fields = owner_->fieldLines().size() * s(20) + s(kSpace2);
+  const int destination = owner_->destinationLine().isEmpty() ? 0 : s(22);
   const int expansion =
-      edu::mnemonicExpansion(owner_->decoded_.name).isEmpty() ? 0 : 18;
-  return header + expansion + grid + fields + destination + kMargin;
+      edu::mnemonicExpansion(owner_->decoded_.name).isEmpty() ? 0 : s(18);
+  return header + expansion + grid + fields + destination + s(kMargin);
 }
 
 void EduInstructionCanvas::paintEvent(QPaintEvent*) {
@@ -117,25 +137,26 @@ void EduInstructionCanvas::paintEvent(QPaintEvent*) {
   painter.fillRect(rect(), QColor(kWhite));
 
   QFont ui = uiFont();
-  ui.setPixelSize(kUiPixelSize);
+  ui.setPixelSize(s(kUiPixelSize));
   QFont small = uiFont();
-  small.setPixelSize(kUiPixelSize);
+  small.setPixelSize(s(kUiPixelSize));
   small.setWeight(QFont::Medium);
   // One step smaller than the body, never half of it: the bit numbers are
   // what a student counts along, and the labels are read as often as the
   // values (P).
   QFont tiny = uiFont();
-  tiny.setPixelSize(kFontSmall);
+  tiny.setPixelSize(s(kFontSmall));
   tiny.setWeight(QFont::DemiBold);
   QFont code = owner_->codeFont_;
-  code.setPixelSize(kUiPixelSize);
+  code.setPixelSize(s(kUiPixelSize));
   QFont codeSmall = owner_->codeFont_;
-  codeSmall.setPixelSize(kUiPixelSize);
+  codeSmall.setPixelSize(s(kUiPixelSize));
 
   if (!owner_->hasInstruction()) {
     painter.setFont(ui);
     painter.setPen(QColor(kText));
-    painter.drawText(rect().adjusted(kMargin, kMargin, -kMargin, -kMargin),
+    painter.drawText(
+        rect().adjusted(s(kMargin), s(kMargin), -s(kMargin), -s(kMargin)),
                      Qt::AlignCenter | Qt::TextWordWrap,
                      QString::fromUtf8(
                          "Text 패널에서 명령어를 고르면 여기에 비트가 "
@@ -145,7 +166,7 @@ void EduInstructionCanvas::paintEvent(QPaintEvent*) {
   }
 
   const edu::DecodedInstruction& d = owner_->decoded_;
-  int y = kMargin;
+  int y = s(kMargin);
 
   // 1. What instruction this is: its text, its format, where it lives and
   //    the word itself.
@@ -154,8 +175,9 @@ void EduInstructionCanvas::paintEvent(QPaintEvent*) {
   const QString title = owner_->disassembly_.trimmed();
   const QFontMetrics codeMetrics(code);
   const int titleWidth =
-      qMin(codeMetrics.horizontalAdvance(title), width() - 2 * kMargin - 60);
-  painter.drawText(QRect(kMargin, y, titleWidth, 20),
+      qMin(codeMetrics.horizontalAdvance(title),
+           width() - 2 * s(kMargin) - s(60));
+  painter.drawText(QRect(s(kMargin), y, titleWidth, s(20)),
                    Qt::AlignLeft | Qt::AlignVCenter,
                    codeMetrics.elidedText(title, Qt::ElideRight, titleWidth));
 
@@ -170,21 +192,22 @@ void EduInstructionCanvas::paintEvent(QPaintEvent*) {
     }
   }
   const QFontMetrics smallMetrics(small);
-  const int badgeWidth = smallMetrics.horizontalAdvance(badge) + 14;
-  const QRect badgeRect(kMargin + titleWidth + kSpace2, y + 1, badgeWidth, 18);
+  const int badgeWidth = smallMetrics.horizontalAdvance(badge) + s(14);
+  const QRect badgeRect(s(kMargin) + titleWidth + s(kSpace2), y + 1,
+                        badgeWidth, s(18));
   painter.setBrush(QColor(badgeTint));
   painter.setPen(Qt::NoPen);
-  painter.drawRoundedRect(badgeRect, 4, 4);
+  painter.drawRoundedRect(badgeRect, s(4), s(4));
   painter.setPen(QColor(badgeText));
   painter.setFont(small);
   painter.drawText(badgeRect, Qt::AlignCenter, badge);
-  y += 22;
+  y += s(22);
 
   painter.setFont(codeSmall);
   painter.setPen(QColor(kText));
-  painter.drawText(kMargin, y + 12,
+  painter.drawText(s(kMargin), y + s(12),
                    edu::hex32(owner_->address_) + "   " + edu::hex32(d.word));
-  y += 18;
+  y += s(18);
 
   // What the letters of the mnemonic stand for, for the instructions whose
   // names are abbreviations.
@@ -192,11 +215,11 @@ void EduInstructionCanvas::paintEvent(QPaintEvent*) {
   if (!expansion.isEmpty()) {
     painter.setFont(small);
     painter.setPen(QColor(kNavy));
-    painter.drawText(QRect(kMargin, y, width() - 2 * kMargin, 16),
+    painter.drawText(QRect(s(kMargin), y, width() - 2 * s(kMargin), s(16)),
                      Qt::AlignLeft | Qt::AlignVCenter, expansion);
-    y += 18;
+    y += s(18);
   }
-  y += kSpace3;
+  y += s(kSpace3);
 
   // 2. The word, as boxes: one group per field, MSB on the left.
   bool twoRows = false;
@@ -204,27 +227,28 @@ void EduInstructionCanvas::paintEvent(QPaintEvent*) {
   const int rows = twoRows ? 2 : 1;
   const int perRow = twoRows ? 16 : 32;
   const int gridWidth = perRow * cell;
-  const int left = kMargin + kEndLabel;
+  const int left = s(kMargin) + s(kEndLabel);
 
   for (int row = 0; row < rows; row += 1) {
-    const int top = y + row * (12 + kCellHeight + 14) + 12;
+    const int top = y + row * (s(12) + s(kCellHeight) + s(14)) + s(12);
     const int highBit = 31 - row * perRow;
 
     // MSB / LSB, so that which end is which is never a guess.
     painter.setFont(tiny);
     painter.setPen(QColor(kText));
     if (row == 0) {
-      painter.drawText(QRect(kMargin, top, kEndLabel - 4, kCellHeight),
+      painter.drawText(QRect(s(kMargin), top, s(kEndLabel) - s(4), s(kCellHeight)),
                        Qt::AlignRight | Qt::AlignVCenter, "MSB");
     }
     if (row == rows - 1) {
-      painter.drawText(QRect(left + gridWidth + 4, top, kEndLabel, kCellHeight),
+      painter.drawText(
+          QRect(left + gridWidth + s(4), top, s(kEndLabel), s(kCellHeight)),
                        Qt::AlignLeft | Qt::AlignVCenter, "LSB");
     }
 
     for (int i = 0; i < perRow; i += 1) {
       const int bit = highBit - i;
-      const QRect box(left + i * cell, top, cell, kCellHeight);
+      const QRect box(left + i * cell, top, cell, s(kCellHeight));
 
       // Which field owns this bit decides the colour.
       int fieldIndex = -1;
@@ -247,11 +271,11 @@ void EduInstructionCanvas::paintEvent(QPaintEvent*) {
                        ((d.word >> bit) & 1) ? "1" : "0");
 
       // The bit's number above it, as often as there is room for it.
-      const bool everyFourth = cell < 20;
+      const bool everyFourth = cell < s(20);
       if (!everyFourth || bit % 4 == 0) {
         painter.setFont(tiny);
         painter.setPen(QColor(kText));
-        painter.drawText(QRect(box.x(), top - 12, cell, 11), Qt::AlignCenter,
+        painter.drawText(QRect(box.x(), top - s(12), cell, s(11)), Qt::AlignCenter,
                          QString::number(bit));
       }
     }
@@ -266,63 +290,65 @@ void EduInstructionCanvas::paintEvent(QPaintEvent*) {
       const int high = qMin(field.high, highBit);
       const int low = qMax(field.low, highBit - perRow + 1);
       const QRect group(left + (highBit - high) * cell, top,
-                        (high - low + 1) * cell, kCellHeight);
+                        (high - low + 1) * cell, s(kCellHeight));
       painter.setBrush(Qt::NoBrush);
       painter.setPen(QColor(kBorder));
       painter.drawRect(group);
       painter.setPen(QColor(kText));
       const QString name = field.name;
       if (smallMetrics.horizontalAdvance(name) < group.width()) {
-        painter.drawText(QRect(group.x(), group.bottom() + 1, group.width(), 12),
+        painter.drawText(
+            QRect(group.x(), group.bottom() + 1, group.width(), s(12)),
                          Qt::AlignCenter, name);
       }
     }
   }
-  y += rows * (12 + kCellHeight + 14) + kSpace2;
+  y += rows * (s(12) + s(kCellHeight) + s(14)) + s(kSpace2);
 
   // 3. One line per field: what it is called, which bits it is, what it
   //    holds and what that means.
   const QList<EduInstructionInspector::FieldLine> lines = owner_->fieldLines();
-  const int nameWidth = 64;
-  const int rangeWidth = 52;
-  const int bitsWidth = 124;  // sixteen binary digits, in the code font
-  const int valueWidth = 54;
+  const int nameWidth = s(64);
+  const int rangeWidth = s(52);
+  const int bitsWidth = s(124);  // sixteen binary digits, in the code font
+  const int valueWidth = s(54);
   for (int i = 0; i < lines.size(); i += 1) {
     const EduInstructionInspector::FieldLine& line = lines.at(i);
     const FieldColours colour = kFieldColours[i % kFieldColourCount];
-    const QRect swatch(kMargin, y + 5, 8, 8);
+    const QRect swatch(s(kMargin), y + s(5), s(8), s(8));
     painter.setPen(Qt::NoPen);
     painter.setBrush(QColor(colour.text));
-    painter.drawRoundedRect(swatch, 2, 2);
+    painter.drawRoundedRect(swatch, s(2), s(2));
 
-    int x = kMargin + 14;
+    int x = s(kMargin) + s(14);
     painter.setFont(small);
     painter.setPen(QColor(kText));
-    painter.drawText(QRect(x, y, nameWidth, 18), Qt::AlignLeft | Qt::AlignVCenter,
+    painter.drawText(QRect(x, y, nameWidth, s(18)),
+                     Qt::AlignLeft | Qt::AlignVCenter,
                      line.name);
     x += nameWidth;
     painter.setPen(QColor(kText));
-    painter.drawText(QRect(x, y, rangeWidth, 18),
+    painter.drawText(QRect(x, y, rangeWidth, s(18)),
                      Qt::AlignLeft | Qt::AlignVCenter, line.range);
     x += rangeWidth;
     painter.setFont(codeSmall);
     painter.setPen(QColor(colour.text));
-    painter.drawText(QRect(x, y, bitsWidth, 18),
+    painter.drawText(QRect(x, y, bitsWidth, s(18)),
                      Qt::AlignLeft | Qt::AlignVCenter, line.bits);
     x += bitsWidth;
     painter.setPen(QColor(kText));
-    painter.drawText(QRect(x, y, valueWidth, 18),
+    painter.drawText(QRect(x, y, valueWidth, s(18)),
                      Qt::AlignRight | Qt::AlignVCenter, line.value);
     x += valueWidth + kSpace2;
     painter.setFont(small);
     painter.setPen(QColor(kText));
     const QFontMetrics metrics(small);
-    const int room = width() - kMargin - x;
-    if (room > 20) {
-      painter.drawText(QRect(x, y, room, 18), Qt::AlignLeft | Qt::AlignVCenter,
+    const int room = width() - s(kMargin) - x;
+    if (room > s(20)) {
+      painter.drawText(QRect(x, y, room, s(18)), Qt::AlignLeft | Qt::AlignVCenter,
                        metrics.elidedText(line.meaning, Qt::ElideRight, room));
     }
-    y += 20;
+    y += s(20);
   }
 
   // 4. Where a branch or a jump goes, and the sum that says so.
@@ -331,7 +357,7 @@ void EduInstructionCanvas::paintEvent(QPaintEvent*) {
     y += kSpace1;
     painter.setFont(codeSmall);
     painter.setPen(QColor(kBlue));
-    painter.drawText(QRect(kMargin, y, width() - 2 * kMargin, 18),
+    painter.drawText(QRect(s(kMargin), y, width() - 2 * s(kMargin), s(18)),
                      Qt::AlignLeft | Qt::AlignVCenter, destination);
     y += 22;
   }

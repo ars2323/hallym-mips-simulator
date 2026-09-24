@@ -189,6 +189,8 @@ class EduDevtools : public QObject {
   QString frontSharedPanel() const;
   QList<FrozenPair> frozenPairs() const;
   bool alignedRows(const FrozenPair& pair, const QString& state);
+  double rowCentreInPanel(QAbstractItemView* view, QWidget* frame,
+                          const QModelIndex& index) const;
   int sweepPanel(const FrozenPair& pair, const QString& moment);
   void setPanelSize(const QString& panel, int steps, bool all);
   void runAlignSweep();

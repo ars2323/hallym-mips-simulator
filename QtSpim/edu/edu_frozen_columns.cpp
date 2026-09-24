@@ -2,6 +2,8 @@
 
 #include "edu/edu_frozen_columns.h"
 
+#include <QResizeEvent>
+
 #include <QAbstractItemModel>
 #include <QAbstractItemView>
 #include <QApplication>
@@ -121,6 +123,15 @@ void EduFrozenColumns::attach() {
     header->setHighlightSections(source->highlightSections());
     header->setDefaultAlignment(source->defaultAlignment());
     connect(source, SIGNAL(sectionResized(int, int, int)), this, SLOT(sync()));
+    // sync() pins the strip's header to the panel header's height, so it has
+    // to run when that height is what it will be -- not a moment before.  A
+    // font change resizes the columns first and the header a beat later, and
+    // a sync driven only by sectionResized read the old height and pinned the
+    // strip to it for good: the strip's rows then began higher than the
+    // panel's by the difference, which grew with the text size (II).  Watch
+    // the panel's header itself, so the two take the same value at the same
+    // time.
+    source->installEventFilter(this);
   }
 
   // The rows of the two have to stay level, so the one scroll bar that
@@ -253,6 +264,21 @@ bool EduFrozenColumns::eventFilter(QObject* watched, QEvent* event) {
     }
   }
 #endif
+  // sync() moves the strip's geometry, so it must not run for nothing: a
+  // header resizes on every column drag and every window resize, and only
+  // its *height* is what the strip has to follow.  Narrowing it to a real
+  // height change keeps the sideways-blit count at zero and the repaint
+  // share where V and BB left them.
+  if (attached_ && watched == headerOf(view_)) {
+    if (event->type() == QEvent::Resize) {
+      const QResizeEvent* resize = static_cast<QResizeEvent*>(event);
+      if (resize->oldSize().height() != resize->size().height()) {
+        sync();
+      }
+    } else if (event->type() == QEvent::FontChange) {
+      sync();
+    }
+  }
   if (attached_ && watched == frozen_->viewport() &&
       event->type() == QEvent::ContextMenu) {
     QContextMenuEvent* menu = static_cast<QContextMenuEvent*>(event);
