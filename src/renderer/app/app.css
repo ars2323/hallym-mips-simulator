@@ -102,6 +102,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .titlebar.c4 { gap: 4px; }
 .titlebar.c4 .viewswitch button { padding: 2px 8px; }
 .titlebar.c4 .iconbtn { width: 26px; }
+.titlebar.c4 .toolbar .btn { padding: 0 7px; }
+.titlebar.c4 .drag { min-width: 4px; }
 .titlebar.c5 .appname { display: none; }
 
 /* ---- status bar --------------------------------------------------------- */
