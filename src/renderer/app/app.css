@@ -52,7 +52,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
    right end (titleBarOverlay): keep clear of them. */
 .titlebar {
   display: flex; align-items: center; gap: 8px; min-width: 0;
-  padding: 0 calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 8px) 0 12px;
+  /* --caption-extra: the tests make the room Windows' wider caption buttons take. */
+  padding: 0 calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 8px + var(--caption-extra, 0px)) 0 12px;
   background: var(--white); border-bottom: 1px solid var(--border);
   -webkit-app-region: drag; user-select: none;
 }
@@ -60,7 +61,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .titlebar .brand { display: flex; align-items: center; gap: 8px; flex: none; }
 .titlebar .logo { height: 18px; width: auto; }
 .titlebar .appname { font-weight: 700; color: var(--navy); white-space: nowrap; letter-spacing: .1px; }
-.titlebar .file { color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: none; max-width: 28ch;
+.titlebar .file { color: var(--text-2); white-space: nowrap; overflow: hidden; flex: none;
   padding-left: 10px; border-left: 1px solid var(--border); }
 .titlebar .file:empty { display: none; }
 .titlebar .file b { color: var(--text); font-weight: 400; }
@@ -90,18 +91,18 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .speedlabel { font-size: 12px; color: var(--text-2); white-space: nowrap; }
 .titlebar .speedone { display: none; }
 /* A narrow title bar gives way in steps (app.ts fitTitlebar): key hints,
-   the buttons' icons, the speed as one button, tighter spacing, and only
-   then the program's name.  The buttons keep their names throughout. */
+   the buttons' icons, the speed as one button, tighter spacing, the file's
+   name (app.ts, down to ten columns), and only then the program's name.
+   The buttons keep their names throughout. */
 .titlebar.c1 .btn kbd { display: none; }
-.titlebar.c1 .file { max-width: 16ch; }
 .titlebar.c2 .toolbar .btn img { display: none; }
 .titlebar.c2 .toolbar .btn { padding: 0 9px; }
 .titlebar.c2 .toolbar { gap: 4px; }
 .titlebar.c3 .speedlabel, .titlebar.c3 .speed { display: none; }
 .titlebar.c3 .speedone { display: inline-flex; }
-.titlebar.c4 { gap: 4px; }
-.titlebar.c4 .viewswitch button { padding: 2px 8px; }
-.titlebar.c4 .iconbtn { width: 26px; }
+.titlebar.c4 { gap: 3px; }
+.titlebar.c4 .viewswitch button { padding: 2px 6px; }
+.titlebar.c4 .iconbtn { width: 24px; }
 .titlebar.c4 .toolbar .btn { padding: 0 7px; }
 .titlebar.c4 .drag { min-width: 4px; }
 .titlebar.c5 .appname { display: none; }

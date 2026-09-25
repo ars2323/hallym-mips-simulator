@@ -36,6 +36,7 @@ import type { RunResult } from '../../sim/protocol.ts';
 import './api.ts';
 import { asset, character, code, codeText, h, icon, withHex } from './dom.ts';
 import { createEditor } from './editor.ts';
+import { shortName } from './logic/names.ts';
 import { stateAfter, stopMessage, textRows, type RegisterValues, type RunState, type TextRow } from './logic/machine.ts';
 import { aboutDialog } from './panels/about.ts';
 import { ConsolePanel } from './panels/console.ts';
@@ -383,8 +384,7 @@ const assembleOptions = (a: Advanced) => ({
 
 function renderChrome(): void {
   document.title = open ? `${file.name}${dirty ? ' •' : ''} — ${APP_NAME}` : APP_NAME;
-  fileLabel.replaceChildren(open ? h('b', { class: 'mono' }, file.name) : '',
-    open && dirty ? h('span', { class: 'dirty', title: 'Unsaved changes' }, ' •') : '');
+  showFileName(FILE_MOST);
   const running = runState === 'running';
   const setBtn = (b: HTMLButtonElement, on: boolean, primary: boolean) => {
     b.disabled = !on;
@@ -410,20 +410,53 @@ function renderChrome(): void {
   fitTitlebar();
 }
 
+// The file's name in the title bar, at most `cols` columns (logic/names.ts);
+// the whole name in its tooltip.
+const FILE_MOST = 32;
+const FILE_LEAST = 10;
+function showFileName(cols: number): void {
+  fileLabel.title = open ? file.name : '';
+  fileLabel.replaceChildren(open ? h('b', { class: 'mono' }, shortName(file.name, cols)) : '',
+    open && dirty ? h('span', { class: 'dirty', title: 'Unsaved changes' }, ' •') : '');
+}
+
 // The title bar gives way one step at a time, as far as it has to: the key
 // hints, the buttons' icons (their names stay), the speed as one button,
-// tighter spacing, and last the program's name (the logo stays).
+// tighter spacing, the file's name (down to FILE_LEAST columns), and last
+// the program's name (the logo stays) -- the file's name then takes back
+// what the program's name left.
 // It fits when its last item ends before the padding kept for the system's
 // caption buttons (scrollWidth does not count what spills into padding).
-const TITLE_STEPS = 5;
+const TITLE_STEPS = 4;
 const tools = titlebar.querySelector('.tools') as HTMLElement;
 function fitTitlebar(): void {
   const end = () => titlebar.getBoundingClientRect().right - parseFloat(getComputedStyle(titlebar).paddingRight);
+  const fits = () => tools.getBoundingClientRect().right <= end() + 0.5;
+  titlebar.classList.remove('c5');
+  showFileName(FILE_MOST);
   for (let level = 0; level <= TITLE_STEPS; level += 1) {
     for (let k = 1; k <= TITLE_STEPS; k += 1) titlebar.classList.toggle(`c${k}`, level >= k);
-    if (tools.getBoundingClientRect().right <= end() + 0.5) return;
+    if (fits()) return;
   }
+  // The longest name that fits, between FILE_LEAST and FILE_MOST columns.
+  const longest = (): boolean => {
+    let lo = FILE_LEAST;
+    let hi = FILE_MOST;
+    showFileName(lo);
+    if (!fits()) return false;
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      showFileName(mid);
+      if (fits()) lo = mid; else hi = mid - 1;
+    }
+    showFileName(lo);
+    return true;
+  };
+  if (longest()) return;
+  titlebar.classList.add('c5');
+  if (!longest()) showFileName(FILE_LEAST);
 }
+window.addEventListener('resize', () => fitTitlebar());
 
 function renderStatus(): void {
   const parts: (Node | string)[] = [];

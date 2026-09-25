@@ -15,6 +15,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 
+import { columns } from '../../src/renderer/app/logic/names.ts';
 import { brokenWords, launch, openAndAssemble, resize, sample, settled, type Running } from './harness.ts';
 
 const SIZES = [
@@ -92,6 +93,46 @@ for (const size of SIZES) {
       await openAndAssemble(r, sample(r.dir, 'tests/samples/lab04.s'));
       await expect(page.locator('.run-side .errors')).toBeVisible();
       expect(await brokenWords(page)).toEqual([]);
+    } finally {
+      await r.close();
+    }
+  });
+}
+
+// Real file names are long: "hw03_2021012345.s", "lab04_김학현.s".  With a
+// twenty-column one (Hangul in it), the file's name gives way before the
+// program's: cut in the stem, extension kept, never under ten columns, the
+// whole name in the tooltip -- and "Hallym MIPS" stays, at every size.
+// Again with the caption buttons 30 px wider, as on Windows (on Windows
+// itself the real ones already are).
+const LONG = 'lab04_김학현_20210123.s';
+for (const size of SIZES) {
+  test(`${size.name}: a long file name gives way before the program's name`, async () => {
+    const r = await launch(size);
+    const { page } = r;
+    try {
+      for (const extra of process.platform === 'win32' ? [0] : [0, 30]) {
+        await page.evaluate((x) => document.documentElement.style.setProperty('--caption-extra', `${x}px`), extra);
+        for (const name of ['lab04.s', LONG]) {
+          await openAndAssemble(r, sample(r.dir, 'tests/samples/lab04-ok.s', name));
+          await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+          const where = `${name}, caption +${extra}`;
+          await expect(page.locator('.titlebar .appname'), where).toBeVisible();
+          const label = page.locator('.titlebar .file');
+          await expect(label, where).toHaveAttribute('title', name);
+          const shown = (await label.locator('b').textContent())!;
+          expect(shown.endsWith('.s'), `${where}: ${shown}`).toBe(true);
+          expect(columns(shown), `${where}: ${shown}`).toBeGreaterThanOrEqual(Math.min(10, columns(name)));
+          if (shown !== name) expect(shown, where).toContain('…');
+          expect(await page.evaluate((x) => {
+            const o = (navigator as unknown as { windowControlsOverlay: { getTitlebarAreaRect(): DOMRect } }).windowControlsOverlay.getTitlebarAreaRect();
+            return document.querySelector('.titlebar .tools')!.getBoundingClientRect().right <= o.x + o.width - x + 0.5;
+          }, extra), `${where}: under the caption buttons`).toBe(true);
+          for (const label of ['Assemble', 'Run', 'Step', 'Reset']) {
+            await expect(page.locator('.toolbar .btn .label', { hasText: new RegExp(`^${label}$`) }), where).toBeVisible();
+          }
+        }
+      }
     } finally {
       await r.close();
     }
