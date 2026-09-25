@@ -23,7 +23,7 @@ const show = (line: string) =>
   tokenizeMipsLine(line).map((t) => `${KIND[t.kind]}[${line.slice(t.start, t.start + t.length)}]`).join(' ');
 
 test('the keyword table is the core\'s', () => {
-  const opH = readFileSync(path.join(root, 'CPU/op.h'), 'latin1');
+  const opH = readFileSync(path.join(root, '../CPU/op.h'), 'latin1');
   assert.equal(readFileSync(path.join(root, 'src/core/op-table.ts'), 'utf8'), renderOpTable(opH),
                'src/core/op-table.ts is out of date: run node tools/gen-op-table.ts');
   assert.equal(OP_TABLE.length, (opH.match(/\bOP\(/g) ?? []).length);

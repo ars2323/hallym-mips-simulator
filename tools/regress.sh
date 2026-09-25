@@ -107,11 +107,14 @@ if ! git -C "$repo" rev-parse --verify --quiet "$tag" >/dev/null; then
   fail "tag $tag does not exist"
   exit 1
 fi
-if git -C "$repo" diff --quiet "$tag" -- CPU; then
-  pass "CPU/ is byte-identical to $tag"
+# CPU/ORIGIN.md is the one file of ours in CPU/: where the core comes from
+# and that both editions build from it (added when the Electron edition
+# joined this repository).  Every other file must be upstream's.
+if git -C "$repo" diff --quiet "$tag" -- CPU ':!CPU/ORIGIN.md'; then
+  pass "CPU/ is byte-identical to $tag (CPU/ORIGIN.md aside)"
 else
   fail "CPU/ differs from $tag:"
-  git -C "$repo" diff --stat "$tag" -- CPU
+  git -C "$repo" diff --stat "$tag" -- CPU ':!CPU/ORIGIN.md'
 fi
 # The test inputs are shared between both runs below, so they have to be the
 # upstream ones too.

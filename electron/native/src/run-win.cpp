@@ -39,7 +39,7 @@
 static HANDLE spimCreateWaitableTimer(LPSECURITY_ATTRIBUTES, BOOL manualReset, LPCTSTR name);
 
 // The core's own file, unchanged.  Its "quoted" includes resolve next to it.
-#include "../../CPU/run.cpp"
+#include "../../../CPU/run.cpp"
 
 #undef CreateWaitableTimer
 

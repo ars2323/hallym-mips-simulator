@@ -25,7 +25,7 @@ export function load(file: string): Loaded {
   const labels = new LabelMap();
   for (const s of parseSymbolListing(result.symbols)) labels.add(s.name, s.address);
   const program = bytes.toString('utf8').split('\n');
-  const handler = readFileSync(path.join(root, 'CPU/exceptions.s'), 'utf8').split('\n');
+  const handler = readFileSync(path.join(root, '../CPU/exceptions.s'), 'utf8').split('\n');
   const eoth = labels.find('__eoth');
   if (eoth === undefined) throw new Error('no __eoth in the symbol listing');
   return {

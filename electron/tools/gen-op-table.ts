@@ -38,7 +38,7 @@ ${rows.join('\n')}
 }
 
 if (import.meta.main) {
-  const expected = renderOpTable(readFileSync(new URL('CPU/op.h', root), 'latin1'));
+  const expected = renderOpTable(readFileSync(new URL('../CPU/op.h', root), 'latin1'));
   const target = new URL('src/core/op-table.ts', root);
   if (process.argv.includes('--check')) {
     const current = readFileSync(target, 'utf8');

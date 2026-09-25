@@ -57,7 +57,7 @@ async function stageApp(): Promise<void> {
   cpSync(path.join(root, 'src/renderer/app/app.css'), at('renderer/app/app.css'));
   cpSync(path.join(root, 'src/renderer/assets'), at('renderer/assets'), { recursive: true });
   cpSync(path.join(root, 'src/main/preload.cjs'), at('preload.cjs'));
-  cpSync(path.join(root, 'CPU/exceptions.s'), at('exceptions.s'));
+  cpSync(path.join(root, '../CPU/exceptions.s'), at('exceptions.s'));
   cpSync(path.join(root, 'src/examples'), at('examples'), { recursive: true });
   const addon = path.join(root, 'native/build/Release/spim.node');
   if (!existsSync(addon)) throw new Error('no native/build/Release/spim.node: npm run build:electron first');

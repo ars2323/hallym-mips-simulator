@@ -15,7 +15,7 @@
 */
 
 import { execFileSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -40,7 +40,7 @@ function lines(addon: string): Record<string, { addr: number; line: string }[]> 
     import { readFileSync } from 'node:fs';
     const core = createRequire(import.meta.url)(${JSON.stringify(addon)});
     const u8 = (b) => new Uint8Array(b);
-    const handler = u8(readFileSync(${JSON.stringify(path.join(root, 'CPU/exceptions.s'))}));
+    const handler = u8(readFileSync(${JSON.stringify(path.join(root, '../CPU/exceptions.s'))}));
     const out = {};
     for (const f of ${JSON.stringify(programs)}) {
       core.assemble(u8(readFileSync(f)), handler, [u8(Buffer.from('program.s'))], [], u8(Buffer.from('program.s')));
@@ -51,12 +51,14 @@ function lines(addon: string): Record<string, { addr: number; line: string }[]> 
                                  { encoding: 'utf8', maxBuffer: 1 << 28 }));
 }
 
-const dir = mkdtempSync(path.join(os.tmpdir(), 'scanner-input-'));
+const outer = mkdtempSync(path.join(os.tmpdir(), 'scanner-input-'));
+const dir = path.join(outer, 'electron');
+mkdirSync(dir);
 try {
   cpSync(path.join(root, 'native'), path.join(dir, 'native'), {
     recursive: true, filter: (from) => !from.startsWith(path.join(root, 'native', 'build')),
   });
-  symlinkSync(path.join(root, 'CPU'), path.join(dir, 'CPU'));
+  symlinkSync(path.join(root, '..', 'CPU'), path.join(outer, 'CPU')); // as beside electron/
   symlinkSync(path.join(root, 'node_modules'), path.join(dir, 'node_modules'));
 
   // The FILE* route: read_assembly_file()'s own way of feeding the scanner.
@@ -96,5 +98,5 @@ try {
     for (const r of rows) console.log(r);
   }
 } finally {
-  rmSync(dir, { recursive: true, force: true });
+  rmSync(outer, { recursive: true, force: true });
 }

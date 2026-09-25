@@ -5,8 +5,9 @@
 
    Each mutant below changes one thing in one file -- the text `find` must
    occur exactly once -- in a copy of src/, tests/, tools/ and native/'s
-   sources in a temporary directory (the built addon, CPU/ and node_modules/
-   are linked, not copied; a mutant marked `rebuild` in native/src gets its
+   sources in a temporary directory, <tmp>/electron (the built addon and
+   node_modules/ are linked, not copied, and the repository's CPU/ is linked
+   at <tmp>/CPU; a mutant marked `rebuild` in native/src gets its
    own build of the addon there), and
    runs the tests named for it there.  A mutant is KILLED when those tests
    fail; one that survives, or does not apply, fails this script.  Nothing in
@@ -18,7 +19,7 @@
 */
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -354,7 +355,9 @@ function copyTree(dir: string, linkBuild: boolean): void {
     recursive: true, filter: (from) => !from.startsWith(path.join(root, 'native', 'build')),
   });
   if (linkBuild) symlinkSync(path.join(root, 'native', 'build'), path.join(dir, 'native', 'build'));
-  for (const l of ['CPU', 'node_modules']) symlinkSync(path.join(root, l), path.join(dir, l));
+  symlinkSync(path.join(root, 'node_modules'), path.join(dir, 'node_modules'));
+  // The repository's one CPU/, beside the copy as it is beside electron/.
+  symlinkSync(path.join(root, '..', 'CPU'), path.join(dir, '..', 'CPU'));
 }
 
 const filter = process.argv[2] ?? '';
@@ -362,7 +365,9 @@ const selected = MUTANTS.filter((m) => `${m.module} ${m.what}`.includes(filter))
 let bad = 0;
 const rows: string[] = [];
 for (const m of selected) {
-  const dir = mkdtempSync(path.join(os.tmpdir(), 'mutant-'));
+  const outer = mkdtempSync(path.join(os.tmpdir(), 'mutant-'));
+  const dir = path.join(outer, 'electron');
+  mkdirSync(dir);
   try {
     copyTree(dir, !m.rebuild);
     const file = path.join(dir, m.file);
@@ -383,7 +388,7 @@ for (const m of selected) {
     const run = e2e
       ? spawnSync(process.execPath, [path.join(root, 'node_modules/@playwright/test/cli.js'), 'test', ...m.tests],
                   { cwd: dir, encoding: 'utf8', timeout: 300000 })
-      : spawnSync(process.execPath, ['--test', '--test-reporter=tap', ...m.tests],
+      : spawnSync(process.execPath, ['--test', '--import', './tests/helpers/timer-at-exit.ts', '--test-reporter=tap', ...m.tests],
                   { cwd: dir, encoding: 'utf8', timeout: 300000 });
     const firstFailure = (e2e ? /^\s*\d+\) (.*)$/m.exec(run.stdout)?.[1]?.replace(/─+$/, '').trim()
                               : /^\s*not ok \d+ - (.*)$/m.exec(run.stdout)?.[1]) ?? '(no test reported a failure)';
@@ -394,7 +399,7 @@ for (const m of selected) {
       rows.push(`killed       ${m.module}: ${m.what}  <-  ${firstFailure}`);
     }
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(outer, { recursive: true, force: true });
   }
 }
 console.log(rows.join('\n'));

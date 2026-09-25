@@ -1,4 +1,4 @@
-# The SPIM core (../CPU, untouched) plus a thin N-API front end.
+# The SPIM core (../../CPU, the repository's one copy, untouched) plus a thin N-API front end.
 #
 # Mirrors the Qt build's tests/spim_core.pri (hallym-mips-simulator): the same
 # nine sources, the same bison/flex invocations and the same per-platform
@@ -13,7 +13,7 @@
 # OS=='win' block below).  CPU/ itself is not changed.
 {
   "variables": {
-    "cpu_dir": "../CPU",
+    "cpu_dir": "../../CPU",
     "gen_dir": "<(SHARED_INTERMEDIATE_DIR)/spim",
     "conditions": [
       # winflexbison installs the tools under these names (as the Qt build's
@@ -53,7 +53,7 @@
         "<!(node -p \"require('node-addon-api').include_dir\")"
       ],
       "cflags_cc": [
-        "-iquote<!(node -p \"require('path').resolve('../CPU')\")"
+        "-iquote<!(node -p \"require('path').resolve('../../CPU')\")"
       ],
       "defines": ["NAPI_VERSION=8", "NAPI_DISABLE_CPP_EXCEPTIONS"],
       "actions": [

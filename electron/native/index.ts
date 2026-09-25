@@ -74,8 +74,8 @@ const core = createRequire(import.meta.url)(
   bundled ? path.join(here, 'spim.node') : path.join(here, 'build/Release/spim.node')) as NativeCore;
 
 // The default exception handler, as QtSpim loads it (QtSpim/exception.qrc
-// embeds ../CPU/exceptions.s).
-const defaultHandler = readFileSync(bundled ? path.join(here, 'exceptions.s') : path.join(here, '../CPU/exceptions.s'));
+// embeds ../../CPU/exceptions.s, the repository's one CPU/).
+const defaultHandler = readFileSync(bundled ? path.join(here, 'exceptions.s') : path.join(here, '../../CPU/exceptions.s'));
 
 /* QtSpim's Simulator > Settings, the machine part.  Each defaults to
    QtSpim's default.  There is no bare machine: the Qt build keeps it off

@@ -30,7 +30,7 @@ test('names match the core, except $zero and $fp', () => {
 });
 
 test('CP0 numbers match the core', () => {
-  const source = readFileSync(path.join(root, 'CPU/reg.h'), 'latin1');
+  const source = readFileSync(path.join(root, '../CPU/reg.h'), 'latin1');
   for (const name of ['BadVAddr', 'Status', 'Cause', 'EPC']) {
     const m = new RegExp(`#define CP0_${name}_Reg\\s+(\\d+)`).exec(source);
     assert.ok(m, name);

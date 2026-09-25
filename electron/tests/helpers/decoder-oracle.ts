@@ -41,7 +41,7 @@ const hex8 = (n: number): string => (n >>> 0).toString(16).padStart(8, '0');
 interface Op { name: string; type: string; release2: boolean }
 
 function readOpTable(): Map<string, Op> {
-  const text = readFileSync(path.join(root, 'CPU/op.h'), 'latin1');
+  const text = readFileSync(path.join(root, '../CPU/op.h'), 'latin1');
   const ops = new Map<string, Op>();
   // OP("name", Y_..._OP, TYPE, encoding)   optionally   /* MIPS32 Rev 2 */
   // Over the whole text, since some entries are wrapped onto two lines.
