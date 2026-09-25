@@ -50,6 +50,7 @@ for (const size of SIZES) {
       for (const name of ['Assemble', 'Run', 'Step', 'Reset']) {
         await expect(page.locator('.toolbar .btn .label', { hasText: new RegExp(`^${name}$`) })).toBeVisible();
       }
+      await expect(page.locator('.titlebar .appname'), 'the program\'s name gives way last').toBeVisible();
       expect(await shown(page, '.speedlabel, .speedone .label')).toEqual([expect.stringMatching(/^(Run speed|Speed: Instant)$/)]);
       // Nothing of ours under the system's caption buttons.
       expect(await page.evaluate(() => {

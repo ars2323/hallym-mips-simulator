@@ -299,7 +299,7 @@ const MUTANTS: Mutant[] = [
   { module: 'window', file: 'src/renderer/app/panels/registers.ts', what: 'the Registers scrolled from under the student',
     find: '    if (first && !this.scrolledByStudent()) this.reveal', replace: '    if (first) this.reveal', tests: ['tests/e2e/fit.e2e.ts'] },
   { module: 'window', file: 'src/renderer/app/app.css', what: 'the buttons lose their names before their icons',
-    find: '.titlebar.c3 .toolbar .btn img { display: none; }', replace: '.titlebar.c3 .toolbar .btn .label { display: none; }',
+    find: '.titlebar.c2 .toolbar .btn img { display: none; }', replace: '.titlebar.c2 .toolbar .btn .label { display: none; }',
     tests: ['tests/e2e/fit.e2e.ts'] },
   { module: 'window', file: 'src/renderer/app/app.ts', what: 'the title bar never gives way',
     find: '    if (tools.getBoundingClientRect().right <= end() + 0.5) return;', replace: '    return;', tests: ['tests/e2e/fit.e2e.ts'] },

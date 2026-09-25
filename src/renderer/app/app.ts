@@ -19,7 +19,7 @@
    (Address, Encoding, Format, Instruction) need; the Editor takes 40% of
    the rest of the window, or less, never under 300 px (a lab PC: 1093 px in
    all).  The title bar gives way in steps (fitTitlebar): key hints, the
-   program's name, the buttons' icons, then the speed as one button -- the
+   buttons' icons, the speed as one button, last the program's name -- the
    buttons keep their names.
 
    Nothing is restored from an earlier session.  The settings file keeps the
@@ -411,11 +411,11 @@ function renderChrome(): void {
 }
 
 // The title bar gives way one step at a time, as far as it has to: the key
-// hints, the program's name (the logo stays), the buttons' icons (their
-// names stay), then the speed as one button.
+// hints, the buttons' icons (their names stay), the speed as one button,
+// tighter spacing, and last the program's name (the logo stays).
 // It fits when its last item ends before the padding kept for the system's
 // caption buttons (scrollWidth does not count what spills into padding).
-const TITLE_STEPS = 4;
+const TITLE_STEPS = 5;
 const tools = titlebar.querySelector('.tools') as HTMLElement;
 function fitTitlebar(): void {
   const end = () => titlebar.getBoundingClientRect().right - parseFloat(getComputedStyle(titlebar).paddingRight);

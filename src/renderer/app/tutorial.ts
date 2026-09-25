@@ -370,9 +370,16 @@ export class Tutorial {
     this.lastLayout = key;
     const holes = merge(rects.list.map((r) => grow(r, 4)));
     this.dim.setAttribute('d', `M0 0H${w}V${hh}H0Z ${holes.map((r) => `M${r.left} ${r.top}H${r.right}V${r.bottom}H${r.left}Z`).join(' ')}`);
-    this.rings.replaceChildren(...rects.list.map((r) => h('div', {
-      class: 'tut-ring', style: `left:${r.left - 4}px;top:${r.top - 4}px;width:${r.right - r.left + 8}px;height:${r.bottom - r.top + 8}px`,
-    })));
+    // A ring 4 px around its target, or closer when another target is near:
+    // neighbours (the bit fields) keep a ring each, never one fused outline.
+    this.rings.replaceChildren(...rects.list.map((r, i) => {
+      const near = Math.min(Infinity, ...rects.list.filter((_, j) => j !== i).map((q) => distance(r, q)));
+      const out = Math.max(0, Math.min(4, Math.floor((near - 4) / 2)));
+      return h('div', {
+        class: `tut-ring${out < 2 ? ' tight' : ''}`,
+        style: `left:${r.left - out}px;top:${r.top - out}px;width:${r.right - r.left + 2 * out}px;height:${r.bottom - r.top + 2 * out}px`,
+      });
+    }));
     const size = { width: this.card.offsetWidth, height: this.card.offsetHeight };
     // Below the title bar: the card never hides the toolbar.
     const view = { left: 0, top: ($('.titlebar')?.getBoundingClientRect().bottom ?? 0), right: w, bottom: hh };
@@ -398,6 +405,13 @@ export class Tutorial {
       card: { left: at.left, top: at.top, right: at.left + size.width, bottom: at.top + size.height },
     };
   }
+}
+
+// The gap between two boxes (0 when they touch or overlap).
+function distance(a: Rect, b: Rect): number {
+  const dx = Math.max(0, b.left - a.right, a.left - b.right);
+  const dy = Math.max(0, b.top - a.bottom, a.top - b.bottom);
+  return Math.hypot(dx, dy);
 }
 
 function grow(r: Rect, by: number): Rect {
@@ -470,7 +484,12 @@ function lines(t: Tutorial, m: number, n = m): Target {
   const top = Math.min(...rs.map((r) => r.top));
   return { rect: new DOMRect(left, top, Math.max(...rs.map((r) => r.right)) - left, Math.max(...rs.map((r) => r.bottom)) - top), within: scroller() };
 }
-const gutter = (t: Tutorial, n: number): Target => ({ rect: t.host.gutterRect(n), within: scroller() });
+function gutterAndLine(t: Tutorial, n: number): Target {
+  const g = t.host.gutterRect(n);
+  const l = t.host.lineRect(n);
+  if (!g || !l) return { rect: null, within: scroller() };
+  return { rect: new DOMRect(g.left, Math.min(g.top, l.top), l.right - g.left, Math.max(g.bottom, l.bottom) - Math.min(g.top, l.top)), within: scroller() };
+}
 const msgTags = () => $$('.dtags').find((e) => /\bmsg\b/.test(e.textContent ?? '')) ?? null;
 
 export const STEPS: Step[] = [
@@ -496,9 +515,11 @@ export const STEPS: Step[] = [
   { kind: 'explain', file: 'tutorial.s', view: 'run', tab: 'text',
     title: () => '소스 한 줄이 명령 두 개가 되었습니다',
     body: () => '소스 한 줄 `li $t0, 0x12345678` → 기계 명령 두 개: `lui` (위 16비트), `ori` (아래 16비트). 명령 하나에는 32비트 상수가 다 들어가지 않기 때문입니다. 이렇게 소스 한 줄이 기계 명령 여러 개가 되기도 합니다.',
-    targets: (t) => [trow(t.addr(BIG)), trow(t.addr(BIG) + 4)],
+    // Both ends of it: the Editor's line and the two Text rows (a narrow
+    // window shows one side: the rows).
+    targets: (t) => [...(t.host.narrow() ? [] : [lines(t, t.line(BIG))]), trow(t.addr(BIG)), trow(t.addr(BIG) + 4)],
     prepare: async (t) => { if (!t.host.assembled()) await t.host.assemble(); },
-    reveal: (t) => t.host.revealAddr(t.addr(BIG) + 4) },
+    reveal: (t) => { t.host.revealAddr(t.addr(BIG) + 4); if (!t.host.narrow()) t.host.revealLine(t.line(BIG)); } },
   // ---- one line at a time
   { kind: 'practice', file: 'tutorial.s', view: 'editor', keys: ['F10'],
     title: () => 'Step: 한 줄 실행',
@@ -576,8 +597,8 @@ export const STEPS: Step[] = [
   { kind: 'practice', file: 'tutorial.s', view: 'editor',
     title: (t) => `브레이크포인트: ${t.line(PRINT)}행에서 멈추게`,
     body: (t) => `${t.line(PRINT)}행의 맨 왼쪽(줄 번호 왼쪽 칸)을 눌러 빨간 점을 찍어 보세요. 실행하다가 이 줄 앞에서 멈춥니다. 한 번 더 누르면 지워집니다.`,
-    // The line first: the card goes beside it, not over the code above.
-    targets: (t) => [lines(t, t.line(PRINT)), gutter(t, t.line(PRINT))],
+    // The gutter cell and its line, one ring: one thing to do.
+    targets: (t) => [gutterAndLine(t, t.line(PRINT))],
     prepare: async (t) => {
       await t.notFinished();
       if (t.host.breakpointLines().includes(t.line(PRINT))) await t.host.setBreakpointLine(t.line(PRINT), false);
@@ -636,7 +657,9 @@ export const STEPS: Step[] = [
       const n = t.host.errorLine();
       if (n) t.host.goToLine(n);
     } },
-  { kind: 'end', pose: 'congrats',
+  { kind: 'end', file: 'tutorial.s', pose: 'congrats',
+    // Ends on the example, assembled and whole (not on step 19's errors).
+    prepare: async (t) => { if (!t.host.assembled()) await t.host.assemble(); },
     title: () => '튜토리얼 끝!',
     body: () => '이제 새 파일을 열어 직접 써 보세요. 끝내기를 누르면 예제는 내려가고 튜토리얼 전의 화면으로 돌아갑니다. 튜토리얼은 오른쪽 위 물음표 버튼으로 언제든 다시 볼 수 있습니다.',
     targets: () => [] },

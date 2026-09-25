@@ -84,16 +84,35 @@ async function walk(page: Page, how: 'do' | 'skip'): Promise<void> {
   await checkStep(page, 1); await next(page);
   await practice(2, () => page.keyboard.press('Control+s'));
   await checkStep(page, 3); await next(page);
-  await checkStep(page, 4); await next(page);
+  await checkStep(page, 4);
+  // Both ends of "one line, two instructions" where both sides show.
+  expect((await shown(page)).targets.length).toBe((await page.evaluate(() => window.innerWidth)) < 980 ? 2 : 3);
+  await next(page);
   await practice(5, () => page.keyboard.press('F10'));
-  for (const n of [6, 7, 8, 9]) { await checkStep(page, n); await next(page); }
+  for (const n of [6, 7, 8, 9]) {
+    await checkStep(page, n);
+    if (n === 9) {
+      // A ring for each field, none fused with its neighbour.
+      const rings = await page.locator('.tut-ring').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));
+      expect(rings.length).toBe(5);
+      for (let i = 0; i < rings.length; i += 1) {
+        for (let j = i + 1; j < rings.length; j += 1) {
+          const [a, b] = [rings[i], rings[j]];
+          expect(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top, `rings ${i} and ${j} apart`).toBe(true);
+        }
+      }
+    }
+    await next(page);
+  }
   await practice(10, () => page.locator('.textpanel .ptab', { hasText: 'Data' }).click());
   await checkStep(page, 11); await next(page);
   await practice(12, async () => {
     for (let i = 0; i < 20 && (await shown(page)).step === 12; i += 1) { await page.keyboard.press('F10'); await page.waitForTimeout(150); }
   });
   await checkStep(page, 13); await next(page);
-  await practice(14, async () => { const [x, y] = middle((await shown(page)).targets[1]); await page.mouse.click(x, y); }); // the gutter cell
+  await checkStep(page, 14);
+  expect((await shown(page)).targets.length, 'the gutter cell and its line: one ring').toBe(1);
+  await practice(14, async () => { const t = (await shown(page)).targets[0]; await page.mouse.click(t.left + 9, middle(t)[1]); }); // its gutter end
   await practice(15, () => page.keyboard.press('F5'));
   await practice(16, async () => {
     const radio = page.getByRole('radio', { name: '1 line/s' });
@@ -110,6 +129,11 @@ async function walk(page: Page, how: 'do' | 'skip'): Promise<void> {
   await practice(19, () => page.keyboard.press('Control+s'));
   await practice(19, () => page.locator('.run-side .errors').getByRole('button', { name: /행으로 가기/ }).click(), 1);
   await checkStep(page, 20);
+  // The end on the example, whole: not on step 19's errors.
+  await expect(page.locator('.titlebar .file')).toContainText('tutorial.s');
+  await expect(page.locator('.titlebar .file')).not.toContainText('error');
+  await expect(page.locator('.run-side .errors')).toBeHidden();
+  await expect(page.locator('.cm-error-mark')).toHaveCount(0);
   await page.locator('.tut-card .tut-finish').click();
   await expect.poll(() => active(page)).toBe(false);
 }

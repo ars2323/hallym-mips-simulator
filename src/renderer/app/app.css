@@ -90,16 +90,19 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .speedlabel { font-size: 12px; color: var(--text-2); white-space: nowrap; }
 .titlebar .speedone { display: none; }
 /* A narrow title bar gives way in steps (app.ts fitTitlebar): key hints,
-   the program's name, the buttons' icons, then the speed as one button.
-   The buttons keep their names throughout. */
+   the buttons' icons, the speed as one button, tighter spacing, and only
+   then the program's name.  The buttons keep their names throughout. */
 .titlebar.c1 .btn kbd { display: none; }
-.titlebar.c2 .appname { display: none; }
-.titlebar.c2 .file { max-width: 16ch; }
-.titlebar.c3 .toolbar .btn img { display: none; }
-.titlebar.c3 .toolbar .btn { padding: 0 9px; }
-.titlebar.c3 .toolbar { gap: 4px; }
-.titlebar.c4 .speedlabel, .titlebar.c4 .speed { display: none; }
-.titlebar.c4 .speedone { display: inline-flex; }
+.titlebar.c1 .file { max-width: 16ch; }
+.titlebar.c2 .toolbar .btn img { display: none; }
+.titlebar.c2 .toolbar .btn { padding: 0 9px; }
+.titlebar.c2 .toolbar { gap: 4px; }
+.titlebar.c3 .speedlabel, .titlebar.c3 .speed { display: none; }
+.titlebar.c3 .speedone { display: inline-flex; }
+.titlebar.c4 { gap: 4px; }
+.titlebar.c4 .viewswitch button { padding: 2px 8px; }
+.titlebar.c4 .iconbtn { width: 26px; }
+.titlebar.c5 .appname { display: none; }
 
 /* ---- status bar --------------------------------------------------------- */
 .status { display: flex; align-items: center; gap: 16px; padding: 0 12px; font-size: 12px; color: var(--text-2); background: var(--white); border-top: 1px solid var(--border); white-space: nowrap; overflow: hidden; }
@@ -494,8 +497,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
    white at the far end.  One Haram on screen: the others wait. */
 .tut { position: fixed; inset: 0; z-index: 40; pointer-events: none; }
 .tut-dim { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.tut-dim path { fill: rgba(0, 32, 91, .14); pointer-events: visiblePainted; }
+.tut-dim path { fill: rgba(0, 32, 91, .26); pointer-events: visiblePainted; }
 .tut-ring { position: absolute; border: 2px solid var(--blue); border-radius: 6px; box-shadow: 0 0 0 3px rgba(0, 85, 165, .18); pointer-events: none; }
+.tut-ring.tight { border-radius: 4px; box-shadow: none; }
 .tut-card { position: absolute; left: 0; top: 0; width: min(310px, calc(100vw - 32px)); display: flex; align-items: flex-end; gap: 10px;
   padding: 12px 12px 12px 16px; background: var(--white); border: 1px solid var(--border); border-radius: 12px;
   box-shadow: 0 10px 30px rgba(0, 32, 91, .22); pointer-events: auto; -webkit-app-region: no-drag; }
