@@ -3,7 +3,7 @@
    settings directory every time, and the file dialogs answered from here
    (they are native windows Playwright cannot click). */
 
-import { _electron, type ElectronApplication, type Page } from '@playwright/test';
+import { _electron, expect, type ElectronApplication, type Page } from '@playwright/test';
 import { copyFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -20,8 +20,15 @@ export interface Running {
 // SPIM_E2E_EXE: run the tests against a packaged app (its executable)
 // instead of the source tree -- the Windows CI job does, with the installed
 // HallymMIPS.exe.
-export async function launch(size: { width: number; height: number } = { width: 1280, height: 800 },
-                             options: { userData?: string; switches?: string[] } = {}): Promise<Running> {
+// SPIM_E2E_SIZE=<width>x<height>: the window of every test that does not
+// size its own (default 1280x800) -- tools/e2e-widths.ts runs them all at
+// 1280, 1093, 1024 and 910.
+export const defaultSize = (() => {
+  const m = /^(\d+)x(\d+)$/.exec(process.env.SPIM_E2E_SIZE ?? '');
+  return m ? { width: Number(m[1]), height: Number(m[2]) } : { width: 1280, height: 800 };
+})();
+export async function launch(size: { width: number; height: number } = defaultSize,
+                             options: { userData?: string; switches?: string[]; keepSize?: boolean } = {}): Promise<Running> {
   const dir = mkdtempSync(path.join(tmpdir(), 'spim-e2e-'));
   const env = { ...process.env, SPIM_USER_DATA: options.userData ?? path.join(dir, 'user-data') } as Record<string, string>;
   delete env.ELECTRON_RUN_AS_NODE; // set by VS Code; Electron would run as plain Node
@@ -35,7 +42,7 @@ export async function launch(size: { width: number; height: number } = { width: 
   const pageErrors: string[] = [];
   page.on('pageerror', (e) => pageErrors.push(e.message));
   await page.waitForSelector('.wcard');
-  await resize({ app, page }, size);
+  if (!options.keepSize) await resize({ app, page }, size); // keepSize: the window as the app opened it
   return {
     app, page, dir,
     close: async () => {
@@ -96,6 +103,24 @@ export async function openAndAssemble(r: Running, file: string): Promise<void> {
   await r.page.waitForSelector('.run-grid:not([hidden]), .errors:not([hidden]), .status .err');
 }
 
+// A narrow window shows the Editor and the Run side one at a time (the
+// Editor | Run tabs in the title bar): brings `which` forward.  Side by
+// side there is nothing to do.
+export async function side(page: Page, which: 'Editor' | 'Run'): Promise<void> {
+  const tab = page.getByRole('tab', { name: which, exact: true });
+  if (await tab.isVisible()) { await tab.click(); await page.waitForTimeout(100); }
+}
+
+// Run speed, through the control the width shows: the two radio buttons,
+// or (a narrow title bar) the one button that switches between them.
+export async function setSpeed(page: Page, which: 'Instant' | '1 line/s'): Promise<void> {
+  const radio = page.getByRole('radio', { name: which });
+  if (await radio.isVisible()) { await radio.click(); return; }
+  const one = page.locator('.speedone');
+  if (!(await one.textContent())?.includes(which)) await one.click();
+  await expect(one).toContainText(which);
+}
+
 export const statusText = (page: Page) => page.locator('.status').innerText();
 export const regHex = (page: Page, name: string) => page.locator(`.rrow[data-reg="${name}"] .hex`).innerText();
 
@@ -116,10 +141,15 @@ export function program(dir: string, name: string, text: string): string {
 // rows far from view are not in the DOM).
 export async function textRow(page: Page, addr: string) {
   const row = page.locator(`.trow[data-addr="${addr}"]`);
+  // Each scroll waits two frames, so the list has drawn the rows it scrolled
+  // to before they are looked for (a busy machine drew them late, and the
+  // loop went past the row).
+  const drawn = () => page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
   await page.locator('.text').evaluate((el) => { el.scrollTop = 0; });
+  await drawn();
   for (let i = 0; i < 60 && (await row.count()) === 0; i += 1) {
     await page.locator('.text').evaluate((el) => { el.scrollTop += el.clientHeight / 2; });
-    await page.waitForTimeout(20);
+    await drawn();
   }
   // Centre it (the list re-renders its rows as it scrolls), then take it afresh.
   const top = await row.evaluate((el) => parseFloat((el as HTMLElement).style.top));

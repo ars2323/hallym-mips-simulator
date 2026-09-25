@@ -60,6 +60,7 @@ export interface TutorialHost {
   addressOfLine(line: number): number | null;
   labelAddress(name: string): number | null;
   pin(addr: number | null): void;
+  quietPc(on: boolean): void;               // Text without its PC band (the pinned row alone)
   setTab(t: 'text' | 'data'): void;
   tab(): 'text' | 'data';
   breakpointLines(): number[];
@@ -194,6 +195,7 @@ export class Tutorial {
       if (this.host.running()) await this.host.stop();
       await this.host.setSpeed('fast');
       this.host.pin(null);
+      this.host.quietPc(false);
       for (const [panel, key] of this.forced.splice(0)) this.host.releaseColumn(panel, key);
       this.lastStep = this.index === STEPS.length - 1 ? 0 : this.index;
       this.unmount();
@@ -220,6 +222,9 @@ export class Tutorial {
       const step = STEPS[i];
       if (step.file && this.host.example() !== step.file) await this.host.open(step.file);
       await step.prepare?.(this);
+      // Steps 8 and 9 are about the instruction just run, pinned in Text: its
+      // row is the one highlight there, not the PC's band as well.
+      this.host.quietPc(i === 7 || i === 8);
       if (step.tab && this.host.tab() !== step.tab) { this.host.setTab(step.tab); this.did.push(`tab ${step.tab}`); }
       if (step.view && this.host.narrow() && this.host.view() !== step.view) { this.host.showView(step.view); this.did.push(`side ${step.view}`); }
       this.renderCard();

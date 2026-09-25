@@ -91,6 +91,14 @@ async function walk(page: Page, how: 'do' | 'skip'): Promise<void> {
   await practice(5, () => page.keyboard.press('F10'));
   for (const n of [6, 7, 8, 9]) {
     await checkStep(page, n);
+    if (n === 8 || n === 9) {
+      // One highlight in Text: the pinned row, not the PC's band as well.
+      const bands = await page.locator('.trow').evaluateAll((els) => els.filter((e) => {
+        const bg = getComputedStyle(e).backgroundColor;
+        return bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent';
+      }).map((e) => (e as HTMLElement).dataset.addr));
+      expect(bands, `step ${n}: highlighted Text rows`).toHaveLength(1);
+    }
     if (n === 9) {
       // A ring for each field, none fused with its neighbour.
       const rings = await page.locator('.tut-ring').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));

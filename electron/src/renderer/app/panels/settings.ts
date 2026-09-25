@@ -1,12 +1,11 @@
-/* 설정.
+/* Settings.  All of it for this run only: every start is from the
+   defaults (lab PCs are shared; src/main/main.ts keeps nothing on disk).
 
-     글자 크기        saved (the settings file); Ctrl +/- is this session only
-     Data 진법        saved; the base the Data tab opens with
-     고급 (folded)    QtSpim's Settings and Run Parameters: machine options,
-                      the program's arguments, the exception handler.  For
-                      this session only -- every start is from QtSpim's
-                      defaults (lab PCs are shared) -- and taken up by the
-                      next assemble. */
+     Font size        the code font, the UI font follows (Ctrl +/- too)
+     Data radix       the base the Data tab shows its words in
+     Advanced         QtSpim's Settings and Run Parameters: machine options,
+     (folded)         the program's arguments, the exception handler --
+                      taken up by the next assemble. */
 
 import type { MachineOptions } from '../../../../native/index.ts';
 import { code, codeText, h } from '../dom.ts';
@@ -118,9 +117,9 @@ export function settingsDialog(events: SettingsEvents): { root: HTMLDialogElemen
     dialog.replaceChildren(
       h('h2', {}, 'Settings'),
       h('div', { class: 'prow' }, h('span', {}, 'Font size'), h('span', { class: 'grow' }), minus, size, plus),
-      h('small', { class: 'hint' }, '저장됩니다. Ctrl + / Ctrl − / Ctrl 0 은 이번 실행에만 적용됩니다.'),
+      h('small', { class: 'hint' }, '이번 실행에만 적용됩니다. Ctrl + / Ctrl − / Ctrl 0 키로도 바꿀 수 있습니다.'),
       h('div', { class: 'prow' }, h('span', {}, 'Data radix'), h('span', { class: 'grow' }), bases),
-      h('small', { class: 'hint' }, '저장됩니다. Data 탭의 값을 이 진법으로 보입니다.'),
+      h('small', { class: 'hint' }, 'Data 탭의 값을 이 진법으로 보입니다. 이번 실행에만 적용됩니다.'),
       details,
       h('div', { class: 'row' }, aboutButton, h('span', { class: 'grow' }), close));
   };

@@ -22,9 +22,9 @@
    buttons' icons, the speed as one button, last the program's name -- the
    buttons keep their names.
 
-   Nothing is restored from an earlier session.  The settings file keeps the
-   font size and the Data panel's base; Ctrl+/- change the size for this
-   session only; the splitter and the folds are this session's too. */
+   Nothing is restored from an earlier run: the font size, the Data radix,
+   Ctrl+/-, the splitter and the folds are this run's only (src/main/main.ts
+   keeps nothing on disk). */
 
 import { parseAssemblerMessage, resolveMessageLine, simplified, type AssemblerMessage } from '../../core/asm-errors.ts';
 import { hex32 } from '../../core/format.ts';
@@ -287,7 +287,9 @@ function sizeRunSide(): void {
   const r = registers.widths(fs);
   runGrid.style.setProperty('--regs-least', `${r.least}px`);
   runGrid.style.setProperty('--regs-most', `${r.most}px`);
-  runLeast = r.least + 8 + text.leastWidth(fs);
+  // Text needs its four columns; Data its four words and the ASCII column --
+  // where the window has the room (the Editor stays at 300 px or more).
+  runLeast = r.least + 8 + Math.max(text.leastWidth(fs), text.data.leastWidth(fs));
 }
 
 function renderPlaceholder(): void {
@@ -609,6 +611,7 @@ const tutorial = new Tutorial({
   finished: () => runState === 'finished',
   addressOfLine: (line) => addressOfLine(line),
   labelAddress: (name) => labels.find(name) ?? null,
+  quietPc: (on) => text.root.classList.toggle('quiet-pc', on),
   pin: (addr) => { if (addr === null) { if (selected >= 0) { clearSelection(); renderStatus(); } } else select(addr); },
   setTab: (t) => text.setTab(t),
   tab: () => text.tab,

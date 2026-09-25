@@ -26,7 +26,7 @@ import { memoryValueText } from '../../../core/memory-text.ts';
 import { hex32 } from '../../../core/format.ts';
 import type { LabelMap } from '../../../core/symbols.ts';
 import { code, h, monoCh } from '../dom.ts';
-import { fit, styles, type Column } from '../logic/columns.ts';
+import { fit, needed, styles, type Column } from '../logic/columns.ts';
 import { columnButton } from '../ui.ts';
 
 export interface DataSection {
@@ -40,12 +40,17 @@ export interface DataSection {
 export interface Pointer { name: string; value: number } // $sp, $fp, $gp
 
 const TITLES: Record<DataSection['kind'], string> = { data: 'User data', stack: 'Stack', kernel: 'Kernel data' };
-// A word's cell in each base, in ch; ASCII: four groups of four, 5 px apart.
+// A word's cell in each base, in ch; ASCII: the sixteen bytes of the line as
+// one run of characters (a string reads as a string), a faint line between
+// the four words, 4 px from the words.
 const CELL: Record<2 | 10 | 16, number> = { 16: 8, 10: 11, 2: 32 };
-const ASCII: Column = { key: 'ascii', ch: 16, px: 19 };
-// Padding (left and right together) and the gap between columns.
+const ASCII: Column = { key: 'ascii', ch: 16, px: 4 };
+// Padding (left and right together) and the gap between columns; the smallest
+// style is tighter still (a 1024 px window).
 const NORMAL = { pad: 27, gap: 10 };
 const TIGHT = { pad: 16, gap: 6 };
+const SMALLEST = { pad: 10, gap: 4 };
+const dataStyles = (fontPx: number) => styles(NORMAL, TIGHT, fontPx).map((s) => (s.name === 'small' ? { ...s, ...SMALLEST } : s));
 const printable = (c: number) => (c >= 0x20 && c <= 0x7e ? String.fromCharCode(c) : '·');
 const offsetName = (n: number) => `+${n.toString(16).toUpperCase()}`;
 const size = (bytes: number) => (bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toLocaleString(undefined, { maximumFractionDigits: 1 })} KB`);
@@ -77,13 +82,24 @@ export class DataView {
     if (!width) return;
     const fontPx = (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fs')) || 13) - 0.5;
     const ch = monoCh(fontPx);
-    const all = styles(NORMAL, TIGHT, fontPx);
-    const columns: Column[] = [{ key: 'daddr', ch: 10 }, ...[0, 1, 2, 3].map((i) => ({ key: `w${i}`, ch: CELL[this.base] })), ASCII];
+    const all = dataStyles(fontPx);
+    const columns = this.columns();
     const f = fit(width, columns, [['ascii']], new Set(this.forceAscii ? ['ascii'] : []), ch, all);
     this.root.dataset.style = f.style.name;
     this.root.classList.toggle('hide-ascii', f.hidden.has('ascii'));
     const auto = fit(width, columns, [['ascii']], new Set(), ch, all).hidden.has('ascii');
     this.onToggles(auto ? [columnButton('ASCII', this.forceAscii, () => { this.forceAscii = !this.forceAscii; this.fit(); })] : []);
+  }
+
+  private columns(): Column[] {
+    return [{ key: 'daddr', ch: 10 }, ...[0, 1, 2, 3].map((i) => ({ key: `w${i}`, ch: CELL[this.base] })), ASCII];
+  }
+
+  // The width the tab needs to show the four words and the ASCII column, tight
+  // (app.ts sizes the Run side by it where it can; a scroll bar and the border in).
+  leastWidth(fontPx: number): number {
+    const tight = dataStyles(fontPx - 0.5)[1];
+    return Math.ceil(needed(this.columns(), tight, monoCh(fontPx - 0.5)) + 14);
   }
 
   show(sections: DataSection[], base: 2 | 10 | 16, labels: LabelMap, pointers: Pointer[]): void {

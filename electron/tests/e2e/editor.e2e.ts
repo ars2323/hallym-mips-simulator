@@ -4,7 +4,7 @@
 
 import { expect, test } from '@playwright/test';
 
-import { launch, openAndAssemble, program, regHex, settled, statusText, textRow, type Running } from './harness.ts';
+import { launch, openAndAssemble, program, regHex, settled, statusText, side, textRow, type Running } from './harness.ts';
 
 let r: Running;
 test.beforeEach(async () => { r = await launch(); });
@@ -14,6 +14,7 @@ const PROGRAM = 'main:\n  li $t0, 5\n  li $t1, 7\n\n  add $t2, $t0, $t1\n  li $v
 // A click in the breakpoint gutter, level with the Editor's line `line`.
 const gutterAt = (line: number) => ({
   click: async () => {
+    await side(r.page, 'Editor');
     const at = (await r.page.locator('.cm-line').nth(line - 1).boundingBox())!;
     const g = (await r.page.locator('.cm-bp-gutter').boundingBox())!;
     await r.page.mouse.click(g.x + g.width / 2, at.y + at.height / 2);
@@ -56,6 +57,7 @@ test('breakpoints from the Editor\'s gutter: set before assembling, kept, stoppe
   // Set in Text: the Editor shows it on the source line.
   await page.getByRole('button', { name: /Reset/ }).click();
   await settled(page);
+  await side(page, 'Run');
   await (await textRow(page, await page.locator('.trow', { has: page.locator('.lno', { hasText: /^2$/ }) }).getAttribute('data-addr') ?? '')).locator('.bp').click();
   await expect(page.locator('.cm-bp-dot')).toHaveCount(2);
 });
@@ -63,6 +65,7 @@ test('breakpoints from the Editor\'s gutter: set before assembling, kept, stoppe
 test('a breakpoint set while the code is unassembled moves with the text and applies at the next assemble', async () => {
   const { page } = r;
   await openAndAssemble(r, program(r.dir, 'p.s', PROGRAM));
+  await side(page, 'Editor');
   await page.locator('.cm-content').click();
   await page.keyboard.press('Control+Home');
   await page.keyboard.insertText('# 맨 위에 한 줄\n'); // now dirty: the Run side waits
@@ -86,6 +89,7 @@ test('the window\'s own dialogs: a new file is asked about even when saved; unsa
   await dialog.getByRole('button', { name: '돌아가기' }).click();
   await expect(page.locator('.titlebar .file')).toContainText('p.s');
 
+  await side(page, 'Editor');
   await page.locator('.cm-content').click();
   await page.keyboard.insertText('# 바꿈\n');
   await page.getByTitle('Open file (Ctrl+O)').click();

@@ -16,7 +16,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { columns } from '../../src/renderer/app/logic/names.ts';
-import { brokenWords, launch, openAndAssemble, resize, sample, settled, type Running } from './harness.ts';
+import { brokenWords, launch, openAndAssemble, resize, sample, settled, side, type Running } from './harness.ts';
 
 const SIZES = [
   { name: '1280x800', width: 1280, height: 800 },
@@ -201,6 +201,7 @@ test.describe(() => {
   test('the Editor: no band for the cursor; while running, the line of PC alone', async () => {
     const { page } = r;
     await lab04(r);
+    await side(page, 'Editor');
     await page.locator('.cm-line', { hasText: 'syscall' }).first().click();
     await expect(page.locator('.cm-activeLine')).toHaveCount(0);
     await expect(page.locator('.cm-pc-line')).toHaveCount(1);

@@ -26,8 +26,6 @@ The original AI data (A1–A4.zip) was downloaded from the download links on the
 > These UI rules are the integrated design guideline for all visual communication media of Hallym University. Using them in any arbitrarily altered form outside the rules damages their original image and causes confusion of identity, so they must be used exactly according to the rules.
 >
 > The UI was created to promote Hallym University and may not be used for commercial purposes.
->
-> Enquiries: Communication Team (Tel 033-248-1333 / de1330@hallym.ac.kr)
 
 ## Description of the symbol mark (translated from the Korean original, page 965)
 

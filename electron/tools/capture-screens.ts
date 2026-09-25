@@ -14,16 +14,24 @@
    the whole screen with the window maximised -- the caption buttons are the
    system's and a page capture has none.
 
-   SCREENS_OUT: write somewhere else (the Windows CI job: report/screens). */
+   The user guide's three pictures (docs/usage/usage.ko.md, usage.en.md)
+   are taken with the set and written to docs/usage/images/: the start
+   screen, tutorial step 4, and the running window with each part named
+   (the names drawn over the page for the picture only).
+
+   SCREENS_OUT: write somewhere else (the Windows CI job: report/screens;
+   the guide's pictures to report/screens/usage). */
 
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { launch, openAndAssemble, openOnly, root, sample, settled, textRow, type Running } from '../tests/e2e/harness.ts';
 
 const out = process.env.SCREENS_OUT ? path.resolve(process.env.SCREENS_OUT) : path.join(root, 'docs/screens');
 mkdirSync(out, { recursive: true });
+const guide = process.env.SCREENS_OUT ? path.join(out, 'usage') : path.join(root, '..', 'docs', 'usage', 'images');
+mkdirSync(guide, { recursive: true });
 
 const LAB04 = 'tests/samples/lab04-ok.s';     // shown as lab04.s
 const LAB04_STEPS = 16;                         // PC 0x0040004c, $t6 just changed
@@ -69,6 +77,49 @@ async function shot(r: Running, name: string, clip?: { x: number; y: number; wid
   written(name, clip ? MAX_CROP_BYTES : MAX_BYTES);
 }
 
+// A shot of the set, also as one of the guide's pictures.
+function forGuide(from: string, name: string): void {
+  copyFileSync(path.join(out, `${from}.png`), path.join(guide, `${name}.png`));
+  console.log(`wrote ${path.relative(root, path.join(guide, `${name}.png`))} (= ${from}.png)`);
+}
+
+// The running window with each part outlined and named, for the guide.
+const PARTS: [string, string][] = [
+  ['.titlebar .toolbar', 'Toolbar'], ['section[aria-label="Editor"]', 'Editor'], ['section[aria-label="Registers"]', 'Registers'],
+  ['section[aria-label="Text"]', 'Text · Data'], ['section[aria-label="Inspector"]', 'Inspector'],
+  ['section[aria-label="Console"]', 'Console'], ['footer.status', 'Status bar'],
+];
+async function namedParts(r: Running, name: string): Promise<void> {
+  await r.page.evaluate((parts) => {
+    const layer = document.createElement('div');
+    layer.id = 'guide-names';
+    layer.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:99999';
+    for (const [sel, label] of parts) {
+      const b = document.querySelector(sel)!.getBoundingClientRect();
+      const box = document.createElement('div');
+      box.style.cssText = `position:fixed;left:${b.left + 1}px;top:${b.top + 1}px;width:${b.width - 2}px;height:${b.height - 2}px;`
+        + 'border:2px solid #E8710A;border-radius:6px;box-sizing:border-box';
+      const chip = document.createElement('div');
+      chip.textContent = label;
+      // The status bar's name on its own empty right end; the others on their bottom edge.
+      const bar = sel === 'footer.status';
+      chip.style.cssText = `position:fixed;left:${bar ? b.right - 90 : b.left + b.width / 2}px;top:${bar ? b.top + (b.height - 22) / 2 : b.bottom - 12}px;`
+        + 'transform:translateX(-50%);background:#E8710A;color:#fff;font:700 13px/22px Pretendard,sans-serif;'
+        + 'padding:0 10px;border-radius:11px;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.25)';
+      layer.append(box, chip);
+    }
+    document.body.append(layer);
+  }, PARTS);
+  const file = path.join(guide, `${name}.png`);
+  await r.page.mouse.move(-10, -10);
+  await r.page.waitForTimeout(1100);
+  await r.page.screenshot({ path: file });
+  const bytes = stripPng(file);
+  console.log(`wrote ${path.relative(root, file)} (${Math.round(bytes / 1024)} KB)`);
+  if (bytes > MAX_BYTES) throw new Error(`${name}.png is ${bytes} bytes, over ${MAX_BYTES}`);
+  await r.page.evaluate(() => document.getElementById('guide-names')?.remove());
+}
+
 // Opened and assembled, the editor's cursor back on line 1 (the click that
 // focused it would leave its line lit next to the PC's).
 async function assembled(r: Running, file: string): Promise<void> {
@@ -89,12 +140,14 @@ async function lab04(r: Running): Promise<void> {
   const r = await launch({ width: 1280, height: 800 });
   const { page } = r;
   await shot(r, 'start');
+  forGuide('start', '01-start');
   await page.getByRole('button', { name: /바로 시작/ }).click();
   await shot(r, 'start-2');
   await openOnly(r, sample(r.dir, LAB04, 'lab04.s'));
   await shot(r, 'split-before');
   await lab04(r);
   await shot(r, 'split-running');
+  await namedParts(r, '03-panels');
   await (await textRow(page, PINNED)).locator('.dis').click();
   await page.waitForSelector('.insp .bitgrid');
   await shot(r, 'inspector');
@@ -151,6 +204,7 @@ async function tutorialStep(r: Running, n: number): Promise<void> {
 {
   const r = await launch({ width: 1280, height: 800 });
   for (const n of [1, 4, 9, 14]) { await tutorialStep(r, n); await shot(r, `tutorial-${String(n).padStart(2, '0')}`); }
+  forGuide('tutorial-04', '02-tutorial-04');
   await tutorialStep(r, 19);
   await r.page.keyboard.press('Control+s');
   await r.page.waitForFunction(() => (window as unknown as { __tutorial: { shown: { phase: number } } }).__tutorial.shown.phase === 1);

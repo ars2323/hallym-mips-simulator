@@ -24,6 +24,19 @@ There are three widths.
 - 1280×800: laptop
 - 960×1080: the left or right half of a 1920 screen
 
+The files, all of them ([`sheet.png`](sheet.png) puts them side by side):
+
+| Scene | Direction | 1920×1080 | 1280×800 | 960×1080 |
+|---|---|---|---|---|
+| A | 1 | [A-1-1920x1080.png](A-1-1920x1080.png) | [A-1-1280x800.png](A-1-1280x800.png) | [A-1-960x1080.png](A-1-960x1080.png) |
+| A | 2 | [A-2-1920x1080.png](A-2-1920x1080.png) | [A-2-1280x800.png](A-2-1280x800.png) | [A-2-960x1080.png](A-2-960x1080.png) |
+| B | 1 | [B-1-1920x1080.png](B-1-1920x1080.png) | [B-1-1280x800.png](B-1-1280x800.png) | [B-1-960x1080.png](B-1-960x1080.png) |
+| B | 2 | [B-2-1920x1080.png](B-2-1920x1080.png) | [B-2-1280x800.png](B-2-1280x800.png) | [B-2-960x1080.png](B-2-960x1080.png) |
+| C | 1 | [C-1-1920x1080.png](C-1-1920x1080.png) | [C-1-1280x800.png](C-1-1280x800.png) | [C-1-960x1080.png](C-1-960x1080.png) |
+| C | 2 | [C-2-1920x1080.png](C-2-1920x1080.png) | [C-2-1280x800.png](C-2-1280x800.png) | [C-2-960x1080.png](C-2-960x1080.png) |
+| D | 1 | [D-1-1920x1080.png](D-1-1920x1080.png) | [D-1-1280x800.png](D-1-1280x800.png) | [D-1-960x1080.png](D-1-960x1080.png) |
+| D | 2 | [D-2-1920x1080.png](D-2-1920x1080.png) | [D-2-1280x800.png](D-2-1280x800.png) | [D-2-960x1080.png](D-2-960x1080.png) |
+
 ## Two directions — the same principle, different choices where interpretations diverge
 
 Principle: **a panel takes up space only when it has content.**

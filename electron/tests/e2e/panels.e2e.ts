@@ -4,7 +4,7 @@
 
 import { expect, test } from '@playwright/test';
 
-import { launch, openAndAssemble, program, regHex, resize, settled, statusText, type Running } from './harness.ts';
+import { launch, openAndAssemble, program, regHex, resize, setSpeed, settled, statusText, type Running } from './harness.ts';
 
 let r: Running;
 test.beforeEach(async () => { r = await launch(); });
@@ -83,7 +83,7 @@ test('Data: one address form, sections apart, zero runs spelled out, labels over
 test('slow run: one line a second, the Editor and the Inspector follow; Esc stops at once', async () => {
   const { page } = r;
   await openAndAssemble(r, program(r.dir, 'loop.s', LOOP));
-  await page.getByRole('radio', { name: '1 line/s' }).click();
+  await setSpeed(page, '1 line/s');
   await page.keyboard.press('F5');
   await expect(page.locator('.status')).toContainText('천천히 실행 중');
   await page.waitForTimeout(2600);
@@ -106,13 +106,13 @@ test('slow run: one line a second, the Editor and the Inspector follow; Esc stop
 test('slow run switched to Instant goes on at full speed; Instant switched to slow slows down', async () => {
   const { page } = r;
   await openAndAssemble(r, program(r.dir, 'loop.s', LOOP));
-  await page.getByRole('radio', { name: '1 line/s' }).click();
+  await setSpeed(page, '1 line/s');
   await page.keyboard.press('F5');
   await expect(page.locator('.status')).toContainText('천천히 실행 중');
-  await page.getByRole('radio', { name: 'Instant' }).click();
+  await setSpeed(page, 'Instant');
   await expect(page.locator('.status')).toContainText('개 명령'); // the core's own run, with progress
   await page.waitForTimeout(500);
-  await page.getByRole('radio', { name: '1 line/s' }).click();
+  await setSpeed(page, '1 line/s');
   await expect(page.locator('.status')).toContainText('천천히 실행 중');
   const fast = parseInt(await regHex(page, '$t0'), 16);
   expect(fast).toBeGreaterThan(10000);

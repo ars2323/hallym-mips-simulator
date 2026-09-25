@@ -18,6 +18,7 @@
     "electron": "node tools/build-ui.ts && node tools/electron.ts",
     "mockups": "node design/mockups/data.ts build/mockups/data.js && node tools/electron.ts design/mockups/render.ts docs/mockups",
     "e2e": "node tools/build-ui.ts && playwright test",
+    "e2e:widths": "node tools/build-ui.ts && node tools/e2e-widths.ts",
     "screens": "node tools/build-ui.ts && node tools/capture-screens.ts",
     "measure:ui": "node tools/build-ui.ts && node tools/measure-ui.ts",
     "package": "node tools/package.ts",

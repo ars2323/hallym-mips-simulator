@@ -116,9 +116,15 @@ if ($Phase -eq 'before') {
   Check (-not $ourP.HasExited) 'ours running, alongside'
   $null = $ourP.CloseMainWindow(); if (-not $ourP.WaitForExit(10000)) { Stop-Process -Id $ourP.Id -Force }
   $null = $qt.CloseMainWindow(); if (-not $qt.WaitForExit(10000)) { Stop-Process -Id $qt.Id -Force }
-  Check (Test-Path $ourData) "our settings folder: $ourData"
-  $hallym = Get-ChildItem $env:APPDATA, $env:LOCALAPPDATA -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '*allym*' } | ForEach-Object { $_.FullName }
+  # Nothing kept from a run (src/main/main.ts): no folder of ours in %APPDATA%,
+  # and the run's temporary profile folder gone once the program has exited.
+  Start-Sleep -Seconds 5
+  Check (-not (Test-Path $ourData)) "nothing of ours in %APPDATA% ($ourData)"
+  $hallym = @(Get-ChildItem $env:APPDATA, $env:LOCALAPPDATA -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '*allym*' } | ForEach-Object { $_.FullName })
   Note "folders named *allym* in APPDATA/LOCALAPPDATA: $($hallym -join '; ')"
+  Check ($hallym.Count -eq 0) 'no folder of ours in APPDATA or at the top of LOCALAPPDATA'
+  $runs = @(Get-ChildItem (Join-Path $env:TEMP 'HallymMIPS') -Directory -ErrorAction SilentlyContinue)
+  Check ($runs.Count -eq 0) "the run's temporary folder removed after exit ($($runs.Count) left)"
   QtSettings | Set-Content "$Report/qt-settings-together.reg"
 }
 
@@ -140,7 +146,7 @@ if ($Phase -eq 'after') {
   Check (Test-Path $qtExe) 'Qt build still installed'
   Check (Test-Path $qtMenu) 'Qt Start menu entry still there'
   Check ((QtSettings) -eq $before) 'Qt settings unchanged by our uninstall'
-  Note "our settings folder after uninstall: $(if (Test-Path $ourData) { 'kept (deleteAppDataOnUninstall: false)' } else { 'gone' })"
+  Check (-not (Test-Path $ourData)) 'nothing of ours in %APPDATA% after uninstall'
 }
 
 if ($script:failures -gt 0) { throw "$($script:failures) check(s) failed" }

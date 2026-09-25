@@ -5,8 +5,6 @@
 > These UI rules are the integrated design guideline for all visual communication media of Hallym University. Using them in any arbitrarily altered form outside the rules damages their original image and causes confusion of identity, so they must be used exactly according to the rules.
 >
 > The UI was created to promote Hallym University and may not be used for commercial purposes.
->
-> Enquiries: Communication Team (Tel 033-248-1333 / de1330@hallym.ac.kr)
 
 This program is for Hallym University classes (non-commercial). The symbol mark (심볼마크), logotype (로고타입), emblem (엠블럼) and signature (시그니처) are used from the original AI data in `assets/ci/` with only scaling and margin adjustments; they are not made monochrome, rotated, changed in proportion, changed in color or separated into elements. A symbol + logotype combination follows the arrangement and margins of the signature (A4) (A = the symbol's width; horizontal combination (좌우조합): the gap between symbol and logotype, etc., `assets/ci/A4/A-4-1.jpg`).
 

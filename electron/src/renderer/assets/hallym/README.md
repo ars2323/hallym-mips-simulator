@@ -8,8 +8,6 @@ permission. They appear in this software only to identify it as a teaching
 tool for Hallym University's courses. This software is not an official
 product of Hallym University.
 
-Questions: Hallym University Communications Team, de1330@hallym.ac.kr.
-
 ## Rules of use (the university's design guidelines)
 
 - Do not change colours, lines, proportions or elements.

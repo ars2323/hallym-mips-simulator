@@ -9,7 +9,9 @@
    assembled.  Ctrl+S is not in CodeMirror's keymap: during a composition
    Chromium hands the key over with isComposing set and CodeMirror does not
    run its keymap then (tests/e2e/ime.e2e.ts), so the window's key handler
-   calls requestSave().
+   calls requestSave() with the key event's isComposing -- Chromium's own
+   word on whether a syllable is open (CodeMirror's view.composing says the
+   same, a step later; one of them is enough).
 
    Typing: Tab inserts spaces to the next multiple of four columns (with
    lines selected, Tab / Shift+Tab indent / outdent them by four); Enter
@@ -208,7 +210,7 @@ export function createEditor(parent: HTMLElement, onSave: () => void, onChange: 
   // Ctrl+S: save now, or right after the composition in progress ends.
   let saveAfterComposition = false;
   const requestSave = (composing: boolean): void => {
-    if (composing || view.composing || view.compositionStarted) saveAfterComposition = true;
+    if (composing) saveAfterComposition = true;
     else onSave();
   };
   const readOnly = new Compartment();

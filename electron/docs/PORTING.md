@@ -461,16 +461,18 @@ The entered line stays in the console history, marked as input (bold blue text).
 
 ## 12. Settings — what is saved and what is used for the current run only
 
+Since 2.0.0 nothing is saved (section 20, "Nothing kept"); until then the font size and the Data radix were.
+
 | What | Saved | Where |
 |---|---|---|
-| Font size | **Saved** | `fontSize` in `userData/settings.json` |
-| Data radix (the radix the Data tab opens in) | **Saved** | `dataBase` |
+| Font size | Current run only | The main process's memory (`settings:get` / `settings:set`) |
+| Data radix (the radix the Data tab opens in) | Current run only | The same |
 | Ctrl + / Ctrl − / Ctrl 0 | Current run only | Inside the window |
 | Advanced: machine options, Run Parameters, exception handler | Current run only | Inside the window. Used from the next assembly (Ctrl+S, "처음으로" (back to the start)) on |
 | Window size and position, panels, recent files, last opened file, breakpoints | **Not saved** | — |
 
-Lab PCs are shared by many people. Every run starts from fixed defaults (QtSpim's defaults).
-`settings.json` holds only two keys, `fontSize` and `dataBase` (`tests/e2e/settings.e2e.ts` reads the file to check).
+Lab PCs are shared by many people. Every run starts from fixed defaults (QtSpim's defaults); no settings file is
+written (`tests/e2e/settings.e2e.ts` checks it).
 
 **Advanced items** (the Qt edition's Simulator › Settings, Run Parameters):
 
@@ -857,4 +859,77 @@ entry, a red run since before the merge).
   core arms a one-shot real-time itimer and ignores SIGALRM, but a tick still pending while the process tears down
   killed it after all its tests had passed (about one run in six).
 - Screenshots are in `electron/docs/screens/`; report links are `https://raw.githubusercontent.com/ars2323/hallym-mips-simulator/<SHA>/electron/docs/screens/<name>.png`.
+
+---
+
+## 20. 2.0.0 — nothing kept, Korean input, the review's leftovers, the comparison
+
+**Nothing kept.** The first requirement for the lab PCs was that closing and opening the program gives the defaults
+back — panel sizes, font, the file that was open — and the README of 1.x promised "a screen that starts the same for
+every student on a shared machine". Until now 2.x kept two settings (font size, Data radix). Now:
+
+- The settings live in the main process for one run (`DEFAULT_SETTINGS`); nothing reads or writes a settings file.
+- Chromium still needs a profile directory while it runs (its caches, `Local State`, crash dumps). It is a folder of
+  its own for each run, `<temp>/HallymMIPS/run-<pid>-<time>` (`userData`, `sessionData`, `crashDumps`), removed after
+  the app has exited: on `quit` a small detached process (`ELECTRON_RUN_AS_NODE`) waits for the app's pid to be gone
+  and removes the folder — removing it from inside the app failed, since Chromium writes to it after `quit`. A folder
+  left by a run that did not exit normally (power cut, killed) is removed at the next start (its pid is not running).
+- `%APPDATA%/HallymMIPS2`, where earlier builds kept `settings.json`, is removed at start.
+- What cannot be avoided: that per-run folder while the program runs. Nothing else is written, except the `.s` files
+  the student saves.
+- `tests/e2e/settings.e2e.ts`: font size up (the settings and Ctrl+=), Data radix Dec, Console folded, Editor
+  collapsed, window 1000×700 — then a restart: 13 px, Hex, Console open, nothing folded, 1280×800 (or maximised on
+  a small screen), one run folder and no settings file, and no folder left once the app has exited.
+  `tools/windows/check-side-by-side.ps1` checks on Windows that nothing of the app is in `%APPDATA%`,
+  `%LOCALAPPDATA%` or `%TEMP%\HallymMIPS` after a run.
+
+**Korean input** (`tests/e2e/ime.e2e.ts`, 12 tests). What breaks Korean input in a web editor is the order of the
+composition events and the keys an IME lets through, and those are the same on every OS; they are made here with
+CDP: `Input.imeSetComposition` (ㅎ → 하 → 한), `Input.insertText` (commit), and the key events an IME sends while
+composing (`keyCode` 229, `isComposing`). Tested: syllables composed and committed once each; Enter, Tab and
+Backspace while composing; Ctrl+S in the middle of a syllable (saves and assembles once the syllable is in); a click
+on another panel while composing (the syllable is committed, once); Korean at the end of a line, then Enter; files
+with Korean comments and strings (UTF-8 and CP949), assembled and run; typed, saved, opened again (UTF-8, byte for
+byte); the Console's input (`syscall` 8), both kinds of Enter. Every editor test ends on the file on disk.
+
+*Enter while composing — what is right.* The review asked for "the syllable committed, no new line; the next Enter
+adds the line". That is what an IME that keeps the key for itself does (the test's second kind), and the editor does
+it. Windows' Microsoft Korean IME does otherwise: it commits the syllable **and lets Enter through**, so one Enter
+gives the syllable and a new line — as in Notepad, and the reason `keydown` Enter arrives twice (first with
+`isComposing`, then without) in every web app that has to handle Korean. The editor follows the IME: it never adds a
+line of its own nor drops one, and the syllable is never split or doubled. Swallowing the Enter that Windows lets
+through would make the editor the one place on a student's PC where Enter after a Korean word does not start a line.
+Both orders are tested.
+
+*The composing checks.* Ctrl+S in the editor asks the key event (`isComposing`) whether a syllable is open and, if
+so, saves when it is committed; the Console's Enter ignores a key event with `isComposing`. The editor also asked
+CodeMirror (`view.composing`); with both checks, removing either one changed nothing (two surviving mutants), so the
+editor now takes the key event's word, Chromium's own. Three mutants remove a composing check and are caught
+(`tools/mutants.ts`: Ctrl+S saves in the middle of a syllable; Ctrl+S taken as not composing; Console Enter taken in
+the middle of a syllable). Enter and Tab in the editor are CodeMirror's: it runs no key binding during a composition.
+
+*The real IME.* The Windows CI job adds Korean to the runner's input languages (`tools/windows/korean-ime.ps1`) and,
+when the IME is there, types 한글 + Enter through it into the editor and the Console (`tests/e2e/ime-real.e2e.ts`,
+keys through `keybd_event`, the IME switched on with `WM_INPUTLANGCHANGEREQUEST` and `IMC_SETCONVERSIONMODE`),
+writing the page's key and composition events to `report/ime-real/`. It is an attempt, reported either way, not a
+gate: the CDP tests are.
+
+**What the review left.** The Data tab's ASCII column is one character per monospaced cell with a faint line
+between the words (was: a gap after every fourth character, `Hell o, M IPS!`), and it is on by default where the
+window has room for it with the Editor at 300 px or more — from a 1140 px window, so at 1280 (the Editor gives up
+about 100 px to it: 502 → 404). The Run side's least width takes the Data tab's (four words and ASCII, the tightest
+margins) into account. Text's fold line (`Kernel code 명령 52개 숨김 Show`) and Registers' (`CP0 레지스터 4개 숨김 Show`)
+are one line each, their text cut with an ellipsis before the button would wrap. At tutorial steps 8 and 9, which
+point at a pinned row, the PC's band in Text is not drawn (one highlight). A closing parenthesis holds to the Korean
+word after it (`(-8)만큼`), as the opening one already did. Deferred: the Data tab is up to 10 px too wide between
+971 and 1034 px (`docs/screens/README.md`, Open issues).
+
+**The comparison** (`tools/capture-compare.ts`, `docs/compare/` at the repository root). Standard QtSpim, built from
+the tag `vanilla-9.1.24`, is driven through X (xdotool) on the same Xvfb as this app: the same file, 13 single steps,
+a 1600×900 window, each program's default font size, fresh settings; six pairs, each side kept alone as well. QtSpim
+brings its Console window forward when the program prints, and the Console then has the keys: the tool focuses the
+main window before every F10.
+
+**Four widths.** `SPIM_E2E_SIZE` sets the window of every test that does not size its own; `tools/e2e-widths.ts`
+(`npm run e2e:widths`) runs all of them at 1280×800, 1093×582, 1024×728 and 910×505.
 

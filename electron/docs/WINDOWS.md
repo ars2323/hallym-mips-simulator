@@ -68,12 +68,13 @@ Other things CI checks every time:
 |---|---|---|---|
 | Install folder | `C:\Program Files\Hallym MIPS Simulator` | `%LOCALAPPDATA%\Programs\Hallym MIPS` | No overlap |
 | Start menu | `(all users) Hallym MIPS Simulator\Hallym MIPS Simulator` | `(this user) Hallym MIPS` | No overlap |
-| Settings | Registry `HKCU\Software\HallymMIPS` | `%APPDATA%\HallymMIPS2` | Qt settings unchanged after this app's install, run, e2e and uninstall |
+| Settings | Registry `HKCU\Software\HallymMIPS` | None kept: a folder for one run, `%TEMP%\HallymMIPS\run-<pid>-<time>`, removed when it closes | Qt settings unchanged after this app's install, run, e2e and uninstall; after the run nothing of this app in `%APPDATA%`, `%LOCALAPPDATA%` or `%TEMP%\HallymMIPS` |
 | Uninstall entry | HKLM | HKCU `Hallym MIPS 2.0.0` | The Qt edition is still installed after the uninstall |
 | `.s` association | None | None | `assoc .s` unchanged |
 | Running at the same time | | | Both stay alive for 10 seconds |
 
-Uninstalling leaves the settings folder (`%APPDATA%\HallymMIPS2`, two values: font size and number base). This is electron-builder's default.
+Nothing is kept between runs (docs/PORTING.md, "Nothing kept"). Builds before 2.0.0 kept the font size and the Data base
+in `%APPDATA%\HallymMIPS2`; 2.0.0 removes that folder when it starts, so an upgrade leaves nothing behind either.
 
 ### File dialogs (CI screen captures, English Windows)
 
@@ -92,7 +93,8 @@ With the installer from the artifact `HallymMIPS-windows`. On **Korean Windows**
 1. **Install (not administrator)** — double-click the installer. It must install without a UAC prompt appearing. A SmartScreen warning
    ("Windows의 PC 보호", "Windows protected your PC") may appear (not signed): "추가 정보 → 실행" ("More info → Run anyway").
 2. **Start menu** — one "Hallym MIPS" entry is visible, and if 1.2.4 is installed, it can be told apart from "Hallym MIPS Simulator".
-3. **Korean IME (Microsoft Korean IME)**
+3. **Korean IME (Microsoft Korean IME)** — the IME's events are tested on every run (`tests/e2e/ime.e2e.ts`, 12 tests,
+   CI included), and CI tries the real IME on the runner (`tests/e2e/ime-real.e2e.ts`); by hand, on Korean Windows:
    - Type `# 한글 주석입니다` ("# This is a Hangul comment") in the editor. Check that no character is entered twice or dropped.
    - Press Ctrl+S **in the middle of composing** a character. Check that the character being composed is saved intact too (reopen to check).
    - Check that Enter during composition, arrow keys during composition and the Han/Eng toggle behave naturally in the editor.
@@ -110,3 +112,44 @@ With the installer from the artifact `HallymMIPS-windows`. On **Korean Windows**
    do not slide under the window buttons.
 10. **Left/right split** — check that at 1366×768, 125%, maximized, Editor and Run are shown side by side; dragging and collapsing the divider; and that when the window is snapped to half the screen
    it switches to Editor / Run tabs.
+
+## Rolling back 2.0.0
+
+If 2.0.0 causes trouble in the labs, the release is taken back and 1.2.4 is the latest release again.
+Everything links to `releases/latest` (the README, the user guide), so the links then give 1.2.4.
+
+1. Turn the release back into a draft (its files stay, visible only to the maintainers):
+
+   ```sh
+   gh release edit v2.0.0 --repo ars2323/hallym-mips-simulator --draft
+   ```
+
+2. Delete the tag, on GitHub and locally:
+
+   ```sh
+   git push origin --delete v2.0.0
+   git tag -d v2.0.0
+   ```
+
+3. Make sure 1.2.4 is the latest release, and check:
+
+   ```sh
+   gh release edit v1.2.4 --repo ars2323/hallym-mips-simulator --latest
+   gh release list --repo ars2323/hallym-mips-simulator   # v1.2.4 marked Latest, no v2.0.0
+   ```
+
+   and open <https://github.com/ars2323/hallym-mips-simulator/releases/latest>: it must show 1.2.4.
+
+4. Tell the students (in Korean; a notice for the course page):
+
+   > Hallym MIPS 2.0.0 에 문제가 있어 잠시 이전 판 1.2.4("Hallym MIPS Simulator")로 돌아갑니다.
+   > - 릴리스 페이지(<https://github.com/ars2323/hallym-mips-simulator/releases/latest>)에서 1.2.4 를 받아 설치하세요.
+   >   사용법은 [1.x 사용법](https://github.com/ars2323/hallym-mips-simulator/blob/main/docs/GUIDE-ko.md)에 있습니다.
+   > - 2.0.0 을 이미 설치했다면 그대로 두어도 되고, 지우려면 설정 → 앱 → 설치된 앱 → "Hallym MIPS 2.0.0" → 제거.
+   >   둘은 따로 설치되며 서로 건드리지 않습니다.
+   > - 저장한 `.s` 파일은 그대로 1.2.4 에서 열 수 있습니다. 두 판은 같은 시뮬레이터 코어를 쓰므로 같은 프로그램은
+   >   같은 결과를 냅니다.
+
+5. The fix goes out as a new version (2.0.1), not under the tag `v2.0.0` again: a student who downloaded 2.0.0 must
+   be able to tell the two apart.
+

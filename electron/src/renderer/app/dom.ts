@@ -23,10 +23,11 @@ export const code = (text: string, cls = ''): HTMLSpanElement => h('span', { cla
 
 // Prose with `code` parts (src/core/explain.ts, stop messages).  A word
 // joiner holds a parenthesis to the word it belongs to -- 값(`0x…`)을 is one
-// word, and Chromium would break before the "(" even with keep-all.
+// word, and Chromium would break before the "(" or after the ")" even with
+// keep-all.
 export function codeText(text: string): DocumentFragment {
   const f = document.createDocumentFragment();
-  for (const p of codeParts(text)) f.append(p.code ? code(p.text) : document.createTextNode(p.text.replace(/([가-힣])\(/g, '$1\u2060(')));
+  for (const p of codeParts(text)) f.append(p.code ? code(p.text) : document.createTextNode(p.text.replace(/([가-힣])\(/g, '$1\u2060(').replace(/\)([가-힣])/g, ')\u2060$1')));
   return f;
 }
 

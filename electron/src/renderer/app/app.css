@@ -133,7 +133,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .hbtn.colbtn { height: 22px; padding: 0 6px; font-size: 11px; }
 .paside:has(.colbtn) { gap: 4px; }
 .pbody { flex: 1; min-height: 0; position: relative; }
-.fold { display: flex; align-items: center; gap: 0 8px; min-height: 30px; padding: 4px 14px; flex-wrap: wrap; color: var(--text-2); font-family: var(--ui); font-size: 12px; border-top: 1px dashed var(--border); flex: none; }
+/* One line: the words give way (…) before the Show button does. */
+.fold .foldtext { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fold .linkbtn { flex: none; }
+.fold { display: flex; align-items: center; gap: 0 8px; min-height: 30px; padding: 4px 14px; flex-wrap: nowrap; color: var(--text-2); font-family: var(--ui); font-size: 12px; border-top: 1px dashed var(--border); flex: none; }
 
 /* ---- the work area ------------------------------------------------------ */
 .work { min-height: 0; min-width: 0; display: grid; }
@@ -252,6 +255,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .trow .src { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; }
 .trow.band { box-shadow: inset 2px 0 0 var(--gray); }
 .trow.pc { background: var(--blue-tint2); border-left-color: var(--blue); }
+.textpanel.quiet-pc .trow.pc:not(.sel) { background: none; border-left-color: transparent; } /* the tutorial's steps 8-9 */
 .trow.sel { background: var(--amber-tint); }
 .trow.sel .dis { color: var(--navy); font-weight: 700; }
 .trow .bp { width: 12px; height: 12px; border-radius: 50%; cursor: pointer; }
@@ -267,7 +271,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 /* Data: Address | +0 | +4 | +8 | +C | ASCII | Labels (panels/data.ts) */
 .data { overflow: auto; padding: 0 0 8px; font-family: var(--code); font-size: calc(var(--fs) - .5px); --dpadl: 15px; --dpadr: 12px; --dgap: 10px; }
-.data[data-style=tight], .data[data-style=small] { --dpadl: 10px; --dpadr: 6px; --dgap: 6px; }
+.data[data-style=tight] { --dpadl: 10px; --dpadr: 6px; --dgap: 6px; }
+.data[data-style=small] { --dpadl: 6px; --dpadr: 4px; --dgap: 4px; }
 .data[data-style=small] { font-size: calc(var(--fs) - 1.5px); }
 .data.hide-ascii .ascii { display: none; }
 .dtable { display: grid; min-width: max-content; --dcell: 8ch; }
@@ -295,7 +300,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .drow .dval.zero { color: var(--dim); }
 .drow .dval.pointed { background: var(--teal-tint); color: var(--teal-text); border-radius: 3px; box-shadow: 0 0 0 2px var(--teal-tint); }
 .drow .dval.lit, .drow .dch.lit { background: var(--amber-tint); box-shadow: 0 0 0 2px var(--amber-tint); border-radius: 3px; }
-.drow .dascii { display: flex; gap: 5px; color: var(--text-2); padding-left: 4px; }
+.drow .dascii { display: flex; color: var(--text-2); padding-left: 4px; }
+/* One run of characters; between two words a faint line that takes no room. */
+.drow .dch + .dch { box-shadow: inset 1px 0 0 var(--border); }
 .drow .dch { white-space: pre; }
 .drow.dzero .dzerotext { grid-column: 2 / -1; font-family: var(--ui); font-size: 12px; color: var(--muted); padding: 0 8px; border-radius: 4px; white-space: nowrap;
   background: repeating-linear-gradient(135deg, var(--window) 0 6px, var(--white) 6px 12px); }

@@ -5,7 +5,7 @@
 
 import { expect, test } from '@playwright/test';
 
-import { launch, openAndAssemble, program, regHex, resize, settled, type Running } from './harness.ts';
+import { launch, openAndAssemble, program, regHex, resize, settled, side, type Running } from './harness.ts';
 
 let r: Running;
 test.beforeEach(async () => { r = await launch(); });
@@ -47,6 +47,7 @@ test('Run side: a card before the first assemble, the machine after, another car
   await expect(page.locator('.run-grid')).toBeVisible();
   await expect(card).toBeHidden();
 
+  await side(page, 'Editor');
   await page.locator('.cm-content').click();
   await page.keyboard.press('End');
   await page.keyboard.insertText(' # 바꿈');
@@ -83,6 +84,7 @@ test('the Editor marks the line being executed, and only the student\'s own line
 test('splitter: drag to share the width, fold either side away and back', async () => {
   const { page } = r;
   await openAndAssemble(r, program(r.dir, 'p.s', PROGRAM));
+  test.skip(await page.getByRole('tab', { name: 'Editor', exact: true }).isVisible(), 'a narrow window has no splitter: Editor and Run are tabs');
   const editorBox = async () => (await page.locator('.pane-editor').boundingBox())!;
   const before = (await editorBox()).width;
   const grip = (await page.locator('.splitter .grip').boundingBox())!;

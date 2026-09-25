@@ -12,13 +12,16 @@
 #   5. side by side with the Qt build 1.2.4 (its release MSI):
 #      tools/windows/check-side-by-side.ps1
 #   6. the e2e tests against the INSTALLED app (utilityProcess, .err, stop,
-#      breakpoints, console input, fonts, settings, About)
+#      breakpoints, console input, fonts, settings, About, Korean input
+#      through the IME's events); then an attempt with the real Microsoft
+#      Korean IME (tools/windows/korean-ime.ps1, tests/e2e/ime-real.e2e.ts)
 #   7. tools/probe-platform.ts: simulator handles while running/stepping
 #      (the core's waitable timer), screenshots of the native file dialogs;
 #      and the fixed set of screens captured on Windows
 #   8. (run by hand, and for a v2.* tag) installing over the build the
-#      Electron repository last made before the merge (48e645c): one folder,
-#      one uninstall entry (tools/windows/check-upgrade.ps1)
+#      Electron repository last made before the merge (48e645c, the
+#      preview build), then this build over itself: one folder, one
+#      uninstall entry (tools/windows/check-upgrade.ps1)
 name: Electron edition (2.x) — Windows
 
 on:
@@ -70,6 +73,9 @@ jobs:
       - name: Node tests
         run: npm test
 
+      - name: Every document's links and pictures (none broken, none unused)
+        run: node tools/check-doc-links.ts
+
       - name: Build the addon (Electron)
         run: node tools/build-electron.ts
 
@@ -112,6 +118,26 @@ jobs:
         run: |
           $env:SPIM_E2E_EXE = (Get-Content report/installed.txt).Trim()
           npx playwright test
+
+      # An attempt, reported either way: the real Microsoft Korean IME
+      # (tests/e2e/ime.e2e.ts, in the step above, is the check that counts:
+      # the IME's events through CDP).
+      - name: Korean IME on the runner (tools/windows/korean-ime.ps1)
+        id: koime
+        continue-on-error: true
+        timeout-minutes: 20
+        shell: pwsh
+        run: tools/windows/korean-ime.ps1 -Report report
+
+      - name: e2e with the real Korean IME, installed app
+        if: steps.koime.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 5
+        shell: pwsh
+        run: |
+          $env:SPIM_E2E_EXE = (Get-Content report/installed.txt).Trim()
+          $env:SPIM_REAL_IME = '1'
+          npx playwright test tests/e2e/ime-real.e2e.ts
 
       - name: Probe (simulator handles, native file dialogs)
         if: always() && hashFiles('electron/report/installed.txt') != ''

@@ -47,8 +47,11 @@ test('the process environment does not move the stack', () => {
     spim.assemble(readFileSync(${JSON.stringify(path.join(root, 'tests/programs/helloworld.s'))}));
     while (spim.step(100000));
     console.log(JSON.stringify(spim.registers()));`;
+  // The child waits out the core's timer tick before it exits, as every test
+  // process does (tests/helpers/timer-at-exit.ts): a pending SIGALRM killed it.
+  const preload = pathToFileURL(path.join(root, 'tests/helpers/timer-at-exit.ts')).href;
   const run = (env: NodeJS.ProcessEnv) =>
-    execFileSync(process.execPath, ['--input-type=module', '-e', script], { env, encoding: 'utf8' });
+    execFileSync(process.execPath, ['--import', preload, '--input-type=module', '-e', script], { env, encoding: 'utf8' });
   const small = run({ PATH: process.env.PATH });
   const large = run({ PATH: process.env.PATH, EXTRA: 'x'.repeat(5000), HOME: '/home/somebody', LANG: 'ko_KR.UTF-8' });
   assert.equal(small, large);

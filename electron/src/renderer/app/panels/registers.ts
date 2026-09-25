@@ -78,7 +78,8 @@ export class RegisterPanel {
       this.list.classList.toggle('show-cp0', show);
       const b = h('button', { class: 'linkbtn', type: 'button' }, show ? 'Hide' : 'Show');
       b.addEventListener('click', () => setFold(!show));
-      fold.replaceChildren(code('CP0'), show ? ' 레지스터를 보이는 중 ' : ' 레지스터는 숨겨 두었습니다 ', b);
+      const n = this.order.filter((k) => this.rows.get(k)!.el.classList.contains('cp0')).length;
+      fold.replaceChildren(h('span', { class: 'foldtext' }, code('CP0'), show ? ` 레지스터 ${n}개 보이는 중` : ` 레지스터 ${n}개 숨김`), b);
     };
     setFold(false);
     this.head = panelHead('Registers');

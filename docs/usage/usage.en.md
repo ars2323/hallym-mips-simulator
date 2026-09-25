@@ -44,34 +44,41 @@ download one of the two files. They are for 64-bit Windows.
 Edge or Chrome may warn that the file *"isn't commonly downloaded"*: a warning
 given to files that few people have downloaded yet.
 
-- **Edge:** in the download list, **…** next to the file → **Keep** →
-  **Show more** → **Keep anyway**.
-- **Chrome:** in the download list, **Keep** (or **Download anyway**).
-
-> [Screenshot placeholder] Edge's download warning and its "Keep" menu
+- **Edge:** when the download ends, the download list opens at the top right
+  with a warning under the file's name. Move the pointer onto that line and a
+  **…** button appears at its right end. **…** → **Keep** opens a small window:
+  open **Show more** there and choose **Keep anyway**. The file then stays in
+  your Downloads folder.
+- **Chrome:** on the file's line in the download list, **Keep** (or
+  **Download anyway**).
 
 ---
 
 ## Getting past the Windows warning
 
 The program is not code-signed, so **Windows always warns the first time you
-run it.** A blue window says *"Windows protected your PC"* (Korean Windows:
-*"Windows의 PC 보호"*) with a single **Don't run** (*실행 안 함*) button.
+run it.** A blue window opens in the middle of the screen. At its top, in large
+letters, it says **"Windows protected your PC"** (Korean Windows:
+**"Windows의 PC 보호"**); the text under it, two or three lines, says that
+Microsoft Defender SmartScreen prevented an unrecognized app from starting.
+At this point there is only one button, at the bottom right:
+**"Don't run"** (*"실행 안 함"*).
 **If you press Don't run, the program does not open.** Instead:
 
-1. In the text of the blue window, click the underlined link **More info**
-   (*추가 정보*).
+1. Just below the text, on the left, there is an underlined link,
+   **"More info"** (*"추가 정보"*). Click it.
+2. The window changes. Two lines appear under the text:
+   - **App:** `HallymMIPS-…-setup.exe` (from the zip: `HallymMIPS.exe`)
+   - **Publisher:** Unknown publisher
 
-   > [Screenshot placeholder] "Windows protected your PC", first view — where the "More info" link is
-
-2. The window now shows **App:** `HallymMIPS-…-setup.exe` (or `HallymMIPS.exe`)
-   and **Publisher:** *Unknown publisher*, and a second button appears.
-   Click **Run anyway** (*실행*).
-
-   > [Screenshot placeholder] after "More info" — where the "Run anyway" button is
-
+   and the buttons at the bottom right go **from one to two**: **"Run anyway"**
+   (*"실행"*) on the left, **"Don't run"** (*"실행 안 함"*) on the right.
+   Click **Run anyway**, the left one.
 3. The installer then installs (next section); `HallymMIPS.exe` from the zip
    opens the program.
+
+"Unknown publisher" is what an unsigned program gets. If the file name on the
+App line is the file you just downloaded, it is safe to run.
 
 The warning comes **once, the first time that file is run.** Opening the
 installed program from the Start menu later does not show it again.
@@ -79,10 +86,12 @@ installed program from the Start menu later does not show it again.
 ### If it still does not open
 
 - **The program from the zip is blocked without a warning:** right-click the
-  zip → **Properties** → at the bottom, tick **Security: Unblock** → **OK**,
-  then **unzip it again.**
-
-  > [Screenshot placeholder] the zip's Properties window, the "Unblock" check box
+  **downloaded zip file** (not the extracted folder) → **Properties**. At the
+  bottom of the **General** tab there is a **Security:** line saying the file
+  came from the internet and might be blocked, with an **"Unblock"**
+  (*"차단 해제"*) check box at its right. Tick it, click **OK** at the bottom
+  of the window, and **extract the zip again.** (No such line: the file is not
+  blocked.)
 
 - **A window without a Run button** — *"This app has been blocked"*, *"Your
   administrator has blocked this app"*: the PC's management policy stops it,
@@ -117,10 +126,18 @@ just install again: it goes over the old one in the same place.
 
 ### What the program remembers
 
-Lab PCs are shared, so the program **remembers almost nothing.** The files you
-opened, the window's size, and where you were in the tutorial are gone when
-you close it. Only two settings (the gear button) are saved: the **font size**
-and the **Data radix**.
+**Nothing.** Lab PCs are shared, so the program starts on the same screen
+whoever opens it.
+
+- While it runs you can change things: the **font size** and the **Data
+  radix** in the settings (the gear button), the Advanced options, the font
+  size with Ctrl + = / Ctrl + −, folded panels, the window's size.
+- When you close it, all of them go back to where they started. So do the
+  files you opened and where you were in the tutorial.
+- While it runs it keeps the temporary files it needs for drawing the window
+  in `%TEMP%\HallymMIPS\`, and removes them when it closes. What a sudden
+  shutdown leaves there is removed the next time it starts.
+- What stays is only the **`.s` files you save yourself.**
 
 ---
 
@@ -130,11 +147,11 @@ The program opens on a start screen where Haram, the university's character,
 says hello. There are two choices:
 
 - **튜토리얼 보기** (see the tutorial) — for your first time. Twenty steps point
-  at one part of the window after another (about ten minutes).
+  at one part of the window after another.
 - **바로 시작** (start right away) — then **새 파일** (new file) or **파일 열기**
   (open a file, Ctrl+O).
 
-> [Screenshot placeholder] the start screen
+![The start screen: Haram says hello, with two choices, 튜토리얼 보기 and 바로 시작](images/01-start.png)
 
 ### The twenty-step tutorial
 
@@ -163,7 +180,10 @@ lightly dimmed.
   tutorial starts from step 1.
 - The **question mark (?) button** at the top right brings it back any time.
 
-> [Screenshot placeholder] a tutorial step (step 4: one `li` line that became two instructions, `lui` + `ori`)
+![Tutorial step 4: the li line in the Editor and the lui and ori rows in Text, pointed at together](images/02-tutorial-04.png)
+
+This is step 4. It points at one `li` line in the Editor and at the two rows
+it became in the Text panel (`lui`, `ori`), together.
 
 ---
 
@@ -171,7 +191,7 @@ lightly dimmed.
 
 With a file open, the **Editor** is on the left and the **Run** side on the right.
 
-> [Screenshot placeholder] the whole window while running, each panel named
+![The window while running, each part named: Toolbar, Editor, Registers, Text · Data, Inspector, Console, Status bar](images/03-panels.png)
 
 | Name | What |
 |---|---|
@@ -179,7 +199,7 @@ With a file open, the **Editor** is on the left and the **Run** side on the righ
 | **Editor** | Where you write assembly. Clicking the column left of the line numbers sets a **breakpoint** (a red dot). While a program runs, the line about to run has a **blue band** |
 | **Registers** | The 32 registers and PC, HI, LO, grouped by use (Arguments, Temporaries, Saved …). The register that just changed is a **yellow row**. **Hex** · **Dec** · **Bin** are the same value in hexadecimal, decimal and binary |
 | **Text** | The assembled machine instructions: **Address** · **Encoding** (the 32 bits in hex) · **Format** (R/I/J) · **Instruction**. A source line that became several instructions has several rows. Clicking a row shows that instruction in the Inspector |
-| **Data** | The tab next to Text. Memory (what you wrote in `.data`, the stack) in 4-byte words; label names above their addresses, and where `$sp` and `$gp` point |
+| **Data** | The tab next to Text. Memory (what you wrote in `.data`, the stack) in 4-byte words, four to a row; label names above their addresses, and where `$sp` and `$gp` point. A run of zero words is one line. The **ASCII** column shows the same bytes as characters (in a narrow window it is turned on with **+ ASCII**) |
 | **Inspector** | One instruction taken apart into its 32 bits: opcode · rs · rt · rd … in colours per field, each field's value and meaning, and one sentence (in Korean) saying what the instruction does |
 | **Console** | Your program's output (syscalls). A syscall that reads input shows an input field here |
 | **Errors** | Shown on the Run side when assembly fails: first what to do, then the errors with a hint for each, and a **N행으로 가기** (go to line N) button |
@@ -265,8 +285,9 @@ assembling it; **Ctrl+S** assembles it again.
 **The binary (Bin) or Encoding column is missing** — the window is too narrow
 for it. Widen the window, or press **+ Bin** / **+ Encoding** in the panel's head.
 
-**The text is too small or too large** — **Ctrl + =** / **Ctrl + −** (for this
-run), or the font size in settings (the gear) to keep it.
+**The text is too small or too large** — **Ctrl + =** / **Ctrl + −**, or the
+font size in settings (the gear). Either lasts for this run only: the next
+start is at the usual size ([What the program remembers](#what-the-program-remembers)).
 
 **Korean comments or Korean file names** — fine. Files are saved in their own
 encoding (UTF-8, or CP949 for older files).

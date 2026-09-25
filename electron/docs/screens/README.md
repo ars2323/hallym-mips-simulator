@@ -18,7 +18,7 @@ The example files and step counts are written inside the tool, so the same scene
 | `inspector.png` | Inspector pinned to the selected instruction (Pinned) | From the `split-running` state, click `0x00400054` (`sra $s1, $t6, 1`) in Text |
 | `dialog.png` | In-app dialog (Haram): New file from a saved file | From the `inspector` state, New file |
 | `error.png` | Assembly error: the Errors panel on the Run side with what to do first, one Haram (curious), `!` in the Editor gutter | 1280×800, open `tests/samples/lab04.s` (`srll` on line 15) and Ctrl+S |
-| `data.png` | Data: areas (User data / Stack), zero runs, label lines, `$gp` and `$sp`, "+ ASCII" for the ASCII hidden for lack of width | 1280×800, `tests/samples/data-labels.s`, Ctrl+S then F10 14 times, Data tab |
+| `data.png` | Data: areas (User data / Stack), zero runs, label lines, `$gp` and `$sp`, the ASCII column on (as from a 1140 px window), `Hello, MIPS!` read as one run with faint lines between the words | 1280×800, `tests/samples/data-labels.s`, Ctrl+S then F10 14 times, Data tab |
 | `lab-1366x768-125.png` | Lab PC: 1366×768 at 125% scaling, maximized | CSS 1093×582 at 1.25× (`--force-device-scale-factor=1.25`), same run as `split-running` |
 | `narrow.png` | Narrow window: the Editor / Run tabs in the bar, Run side | 1366×768 at 150% scaling, CSS 910×505 at 1.5×, same run as `split-running` |
 | `lab-columns.png` | The lab PC's Registers and Text heads, cropped: Name Hex Dec Bin / Address Encoding Format Instruction | Same screen as `lab-1366x768-125`, top 190px of the two panels (150KB or less) |
@@ -37,9 +37,48 @@ the rest on Windows with the same tool and puts them in `report/screens/` (they 
 
 Scenes added in a round are added to this table under names without a round marker.
 
+The user guide's three pictures are taken by the same tool, in the same run, and written to
+[`docs/usage/images/`](../../../docs/usage/images/) at the repository root: `01-start.png` (= `start.png`),
+`02-tutorial-04.png` (= `tutorial-04.png`) and `03-panels.png` (the `split-running` scene with each part
+outlined and named: Toolbar, Editor, Registers, Text · Data, Inspector, Console, Status bar — the names
+are drawn over the page for that picture only).
+
 Links to these screenshots (for example in a round report) have the form
 `https://raw.githubusercontent.com/ars2323/hallym-mips-simulator/<commit SHA>/electron/docs/screens/<name>.png`,
 pinned to a commit SHA, never to a branch.
+
+## Open issues
+
+Everything a review raises goes through this list, whether it is fixed or put off: what it is,
+and what was done or why it waits. Open items stay until they are fixed.
+
+### Open
+
+1. **Data overflows sideways by up to 10 px in a window 971–1034 px wide** (1024×768: 10 px;
+   measured with `tests/samples/data-labels.s`, the ASCII column off). A scroll bar appears under
+   the Data tab, the last characters of the `+C` word are cut, and an area's heading
+   (`User data 0x10000000 — 0x1003ffff 256 KB`) takes two lines.
+   *Why it waits:* in that band the three columns' least widths add up to more than the window —
+   the Editor keeps 300 px (a student's line fits; below that it scrolls), Registers keeps its four
+   columns Name · Hex · Dec · Bin (the course's columns, round 3), and Data needs its address and
+   four words. Making room means giving up one of those earlier decisions, or a two-words-a-row
+   Data layout for one band of widths; both are larger than this round. Below 971 px the window
+   shows Editor and Run as tabs and Data fits; from 1035 px it fits.
+
+### Closed in the 2.0.0 round
+
+- **Data ASCII read as `Hell o, M IPS!`** — the gaps are gone: one character per monospaced cell,
+  aligned with the four word columns, a faint line between the words. On by default from a
+  1140 px window (the Editor then still has 300 px); below, a `+ ASCII` button.
+- **Text's "Show" alone on a third line at 1024** — the fold line is one line, like Registers'
+  `CP0 … Show`: the text is cut with an ellipsis before the button wraps.
+- **Two highlights in Text at tutorial step 9** — while steps 8 and 9 point at a pinned row, the
+  PC's band in Text is not drawn; one highlight (tests/e2e/tutorial.e2e.ts checks both steps).
+- **Data 25 px too wide at 1024** — measured again after the ASCII change: 10 px, and only between
+  971 and 1034 px (open item 1).
+- **A stale path in `data-labels.s`** — `docs/screens/data.png` is now
+  `electron/docs/screens/data.png`; the repository was swept for paths that no longer resolve
+  (none left in files students or readers see).
 
 ## Round log
 

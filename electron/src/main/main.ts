@@ -1,20 +1,26 @@
 /* Electron's main process: the host.  It owns the Simulator (src/sim/host.ts),
    whose core runs in a utility process, and everything that touches the
-   disk: source files (decoded and encoded here, src/node/text-file.ts), the
-   example programs, and the one settings file.  The window sees only
-   window.app (preload.cjs).
+   disk: source files (decoded and encoded here, src/node/text-file.ts) and
+   the example programs.  The window sees only window.app (preload.cjs).
 
-   Nothing of a session is restored: window size, panels and recent files
-   start from fixed defaults every time -- lab PCs are shared.  The settings
-   file holds the font size and the number base, nothing else.
+   Nothing is kept from one run to the next -- lab PCs are shared, and every
+   student starts from the same screen: the window's size, the panels, the
+   files opened, the font size and the Data radix all start from their
+   defaults every time.  Settings live in memory for this run only.
 
-   The settings live in their own folder, %APPDATA%\HallymMIPS2 on Windows
-   (userData), apart from the Qt build's (registry, HKCU\Software\HallymMIPS)
-   so that the two can be installed side by side.  SPIM_USER_DATA (a
-   directory) puts them elsewhere: the tests start every run from a fresh one. */
+   Chromium needs a profile folder while it runs (caches, its own state).
+   Each run gets a new one, <temp>\HallymMIPS\run-<pid>-<time>, removed when
+   the program quits; one a run could not remove (Windows keeps some files
+   open until the process is gone) is removed at the next start, once its
+   process is no longer running.  Nothing goes to %APPDATA%: the folder
+   earlier builds used there (%APPDATA%\HallymMIPS2) is removed at start.
+   SPIM_USER_DATA (a directory) is where the run folders go instead of
+   <temp>\HallymMIPS: the tests look into it. */
 
 import { app, BrowserWindow, dialog, ipcMain, Menu, screen, shell } from 'electron';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 import { decodeTextFile, encodeTextFile, NEW_FILE_FORMAT, type TextFileFormat } from '../node/text-file.ts';
@@ -28,32 +34,49 @@ app.setName('Hallym MIPS');
 const TITLE_BAR_HEIGHT = 40;
 // The Start menu shortcut carries this id (tools/package.ts appId): the window groups with it.
 if (process.platform === 'win32') app.setAppUserModelId('kr.ac.hallym.mips-simulator.electron');
-app.setPath('userData', process.env.SPIM_USER_DATA ?? path.join(app.getPath('appData'), 'HallymMIPS2'));
+// ---- this run's profile folder, and nothing else on disk --------------------
 
-// ---- settings: font size and number base, and nothing else --------------
+const runsDir = process.env.SPIM_USER_DATA ?? path.join(os.tmpdir(), 'HallymMIPS');
+const runDir = path.join(runsDir, `run-${process.pid}-${Date.now()}`);
+const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === 'EPERM'; } };
+// Folders of earlier runs whose process is gone (a running copy's is left alone).
+for (const name of (() => { try { return readdirSync(runsDir); } catch { return []; } })()) {
+  const pid = Number(/^run-(\d+)-/.exec(name)?.[1]);
+  if (pid && pid !== process.pid && !alive(pid)) rmSync(path.join(runsDir, name), { recursive: true, force: true });
+}
+// What earlier builds kept in %APPDATA% (settings.json and a Chromium profile).
+if (!process.env.SPIM_USER_DATA) rmSync(path.join(app.getPath('appData'), 'HallymMIPS2'), { recursive: true, force: true });
+mkdirSync(runDir, { recursive: true });
+app.setPath('userData', runDir);
+app.setPath('sessionData', runDir);
+app.setPath('crashDumps', path.join(runDir, 'Crashpad'));
+// Chromium writes into the folder until its very end, so the folder is removed
+// after the program has exited: by this same executable run as plain Node,
+// detached, waiting for this process to be gone (at most 15 s).
+app.on('quit', () => {
+  const script = `const {rmSync}=require('fs');const pid=${process.pid};const dir=${JSON.stringify(runDir)};
+const gone=()=>{try{process.kill(pid,0);return false}catch(e){return e.code!=='EPERM'}};
+const t0=Date.now();(function wait(){if(gone()||Date.now()-t0>15000){try{rmSync(dir,{recursive:true,force:true,maxRetries:5,retryDelay:200})}catch{}}else setTimeout(wait,100)})();`;
+  try {
+    spawn(process.execPath, ['-e', script], { detached: true, stdio: 'ignore', windowsHide: true, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } }).unref();
+  } catch { /* the next start removes it */ }
+});
+
+// ---- settings: for this run only ------------------------------------------------
 
 export interface Settings {
   fontSize: number;          // px of the code font; the UI font follows
   dataBase: 2 | 10 | 16;     // Data panel values
 }
 const DEFAULT_SETTINGS: Settings = { fontSize: 13, dataBase: 16 };
-const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
+let settings: Settings = { ...DEFAULT_SETTINGS };
 
-function readSettings(): Settings {
-  try {
-    const s = JSON.parse(readFileSync(settingsFile(), 'utf8')) as Partial<Settings>;
-    return {
-      fontSize: Number.isInteger(s.fontSize) && s.fontSize! >= 10 && s.fontSize! <= 24 ? s.fontSize! : DEFAULT_SETTINGS.fontSize,
-      dataBase: s.dataBase === 2 || s.dataBase === 10 ? s.dataBase : 16,
-    };
-  } catch {
-    return { ...DEFAULT_SETTINGS };
-  }
-}
-
-function writeSettings(s: Settings): void {
-  mkdirSync(app.getPath('userData'), { recursive: true });
-  writeFileSync(settingsFile(), JSON.stringify({ fontSize: s.fontSize, dataBase: s.dataBase }, null, 1));
+function setSettings(s: Partial<Settings>): Settings {
+  settings = {
+    fontSize: Number.isInteger(s.fontSize) && s.fontSize! >= 10 && s.fontSize! <= 24 ? s.fontSize! : settings.fontSize,
+    dataBase: s.dataBase === 2 || s.dataBase === 10 || s.dataBase === 16 ? s.dataBase : settings.dataBase,
+  };
+  return { ...settings };
 }
 
 // ---- files ------------------------------------------------------------------
@@ -164,10 +187,9 @@ async function main(): Promise<void> {
     const error = await shell.openPath(paths.chromiumCredits());
     if (error) throw new Error(error);
   }));
-  ipcMain.handle('settings:get', () => readSettings());
+  ipcMain.handle('settings:get', () => ({ ...settings }));
   ipcMain.handle('settings:set', (_e, s: Settings) => {
-    writeSettings(s);
-    return readSettings();
+    return setSettings(s);
   });
 
   win.once('ready-to-show', () => { if (small) win.maximize(); win.show(); });

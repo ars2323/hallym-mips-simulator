@@ -1,5 +1,5 @@
 # The Data tab's example
-# (docs/screens/data.png)
+# (electron/docs/screens/data.png)
         .data
 msg:    .asciiz "Hello, MIPS!"
 count:  .word 3

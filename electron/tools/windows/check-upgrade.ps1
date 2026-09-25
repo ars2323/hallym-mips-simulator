@@ -1,8 +1,9 @@
 # Installing this build over an earlier one, as a student who has the
 # earlier one would: one install folder (%LOCALAPPDATA%\Programs\Hallym MIPS,
 # the same one), one uninstall entry (now this version), one Start menu
-# shortcut, the new program in place.  Then uninstalls, leaving the machine
-# as it was.
+# shortcut, the new program in place.  Then this build once more over
+# itself (a student who runs the same installer again): still one of each.
+# Then uninstalls, leaving the machine as it was.
 #
 #   check-upgrade.ps1 -Old <setup.exe> -OldVersion <x> -New <setup.exe> -NewVersion <y> -Report <dir>
 param([string]$Old, [string]$OldVersion, [string]$New, [string]$NewVersion, [string]$Report)
@@ -54,8 +55,15 @@ Check (($s2.folders -join '|') -eq 'Hallym MIPS') 'one install folder, the same 
 Check ($s2.shortcuts.Count -eq 1) 'one Start menu shortcut'
 Check ($s2.version -like "$NewVersion*" -and $s2.version -notlike "$OldVersion*") "the installed program is $NewVersion (was $OldVersion)"
 
+Note "== $NewVersion again, over itself"
+Install $New
+$s2b = State 'again'
+Check ($s2b.entries.Count -eq 1 -and $s2b.entries[0].DisplayVersion -eq $NewVersion) "installed again: one uninstall entry, $NewVersion"
+Check (($s2b.folders -join '|') -eq 'Hallym MIPS') 'installed again: one install folder'
+Check ($s2b.shortcuts.Count -eq 1) 'installed again: one Start menu shortcut'
+
 Note "== uninstall"
-$entry = $s2.entries[0]
+$entry = $s2b.entries[0]
 $un = ($entry.QuietUninstallString, $entry.UninstallString | Where-Object { $_ } | Select-Object -First 1)
 if ($un -match '^"([^"]+)"\s*(.*)$') { $exe = $Matches[1]; $uargs = $Matches[2] } else { $exe = $un; $uargs = '' }
 if ($uargs -notmatch '/S') { $uargs = "$uargs /S" }

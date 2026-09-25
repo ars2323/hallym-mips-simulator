@@ -21,6 +21,73 @@ assembles and runs exactly as it does in standard SPIM.
 
 ![The Electron edition running a program: Editor, Registers, Text, Inspector](electron/docs/screens/split-running.png)
 
+## What's different
+
+Six pairs, standard QtSpim 9.1.24 on the left and Hallym MIPS 2.x on the
+right, taken by one tool under the same conditions: the same file
+([`data-labels.s`](electron/tests/samples/data-labels.s)), the same 13 single
+steps, the same 1600×900 window, each program's default font size (13 px),
+no saved settings, Linux. **The simulation is identical; only what you see
+differs.** The core is SPIM's own, byte for byte; the one run parameter set on
+purpose is the stack every program starts with (`argv[0]` = `program.s`, no
+environment variables), the same for every student — which is why `$sp`,
+`$a1` and `$a2` differ from QtSpim's below. The conditions, the originals and
+how to make them again: [`docs/compare/`](docs/compare/README.md).
+
+**Registers** — grouped by use (Temporaries, Saved, Pointers …); hex, decimal
+and binary in one row; the register the last step changed marked and scrolled
+into view. QtSpim lists them flat, in one base at a time.
+
+![Registers: standard QtSpim and Hallym MIPS side by side](docs/compare/01-registers.png)
+
+**Text** — columns: address, the 32-bit encoding, a format badge (R / I / J),
+the instruction, the source line and its number; the line of PC marked; the
+exception handler's instructions folded into one line. QtSpim shows the
+segment as text, the kernel's code after the program's.
+
+![Text: standard QtSpim and Hallym MIPS side by side](docs/compare/02-text.png)
+
+**Inspector** — the instruction at PC (or one clicked in Text) as its 32 bits
+in fields, each with its colour, name, bit range, binary, value and meaning,
+and a sentence on what it does with the registers' current values. QtSpim
+shows the word as eight hex digits in the Text panel.
+
+![Inspector: the lw at PC in standard QtSpim's Text panel and in Hallym MIPS's Inspector](docs/compare/03-inspector.png)
+
+**Data** — a table: an address and four words a row, the `.data` labels over
+the words they name, `$gp` and `$sp` marked, a run of zero words folded into
+one line, and an ASCII column that reads `Hello, MIPS!` as a word. QtSpim
+shows each segment as a text dump.
+
+![Data: standard QtSpim and Hallym MIPS side by side](docs/compare/04-data.png)
+
+**Editor and errors** — an editor in the window: Ctrl+S saves and assembles;
+an error is listed on the Run side with what to fix and a button to its line,
+which is marked in the editor. QtSpim has no editor: a file is written
+elsewhere and loaded, and an error is a dialog box and a line of messages.
+
+![The same file with one mistake: standard QtSpim's error dialog and Hallym MIPS's editor and Errors panel](docs/compare/05-editor-errors.png)
+
+**First start** — a start screen and a twenty-step tutorial over the real
+window. QtSpim opens its main window, and its Console as a second window.
+
+![The first start: standard QtSpim's two windows and Hallym MIPS's start screen](docs/compare/06-first-start.png)
+
+Also: opening a file (Ctrl+O) always starts from a clean simulator; Ctrl+S
+saves and assembles as one action and keeps the breakpoints; the panels
+cannot be dragged out of the window; a window half a screen wide shows the
+Editor and the Run side as two tabs; every start is the same screen, since
+nothing is kept between runs, for machines that students share; and it
+installs beside the 1.x edition without touching it (checked on Windows in
+CI), writing nowhere QtSpim does — its own folder and uninstall entry, no file
+associations.
+
+<details><summary>The whole window</summary>
+
+![Hallym MIPS 2.x, the whole window at 1600×900 after the same 13 steps, on the Data tab](docs/compare/window.png)
+
+</details>
+
 ## Download
 
 **[Latest release](https://github.com/ars2323/hallym-mips-simulator/releases/latest)** (Windows 64-bit):

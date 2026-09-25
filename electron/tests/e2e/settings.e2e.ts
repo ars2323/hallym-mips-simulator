@@ -1,41 +1,75 @@
-/* Settings and About.  Saved: the font size and the Data base, nothing
-   else.  Session only: Ctrl +/-, and everything under Advanced. */
+/* Settings and About.  Nothing is kept from one run to the next (a lab PC
+   is shared): the font size, the Data radix, Ctrl +/-, the folds, the
+   window's size -- all back to their defaults at the next start, and
+   nothing of them on disk.  Advanced applies from the next assemble. */
 
 import { expect, test } from '@playwright/test';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { launch, openAndAssemble, program, regHex, settled, statusText } from './harness.ts';
+import { launch, openAndAssemble, program, regHex, sample, settled, side, statusText } from './harness.ts';
 
-test('font size and base are saved; Ctrl +/- and the window are not', async () => {
-  const userData = mkdtempSync(path.join(tmpdir(), 'spim-settings-'));
-  let r = await launch({ width: 1280, height: 800 }, { userData });
+// Every file under `dir`.
+const files = (dir: string): string[] => readdirSync(dir).flatMap((n) => {
+  const p = path.join(dir, n);
+  return statSync(p).isDirectory() ? files(p) : [p];
+});
+
+test('nothing is kept: font size, Data radix, zoom, folds and the window are back to their defaults at the next start', async () => {
+  const runs = mkdtempSync(path.join(tmpdir(), 'spim-runs-'));
+  let r = await launch({ width: 1280, height: 800 }, { userData: runs });
   try {
+    await openAndAssemble(r, sample(r.dir, 'tests/samples/data-labels.s'));
     await r.page.getByTitle('Settings').click();
     const dialog = r.page.locator('dialog.settings');
-    // The base first: a later save of the base must not be what saves the size.
     await dialog.getByRole('button', { name: 'Dec' }).click();
     await dialog.getByRole('button', { name: 'Larger' }).click();
     await dialog.getByRole('button', { name: 'Larger' }).click();
     await expect(dialog.locator('.value')).toHaveText('15px');
     await dialog.getByRole('button', { name: 'Close' }).click();
     await r.page.keyboard.press('Control+=');
-    await r.page.keyboard.press('Control+=');
-    await expect.poll(() => r.page.evaluate(() => document.documentElement.style.getPropertyValue('--fs'))).toBe('17px');
+    await expect.poll(() => r.page.evaluate(() => document.documentElement.style.getPropertyValue('--fs'))).toBe('16px');
+    await r.page.locator('.console').getByRole('button', { name: 'Collapse' }).click();
+    await expect(r.page.locator('.console')).not.toHaveClass(/open/);
+    await r.page.getByRole('button', { name: 'Collapse Editor' }).click();
+    await expect(r.page.locator('.split')).toHaveAttribute('data-folded', 'editor');
+    await r.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setContentSize(1000, 700));
   } finally {
     await r.app.close();
   }
-  expect(JSON.parse(readFileSync(path.join(userData, 'settings.json'), 'utf8'))).toEqual({ fontSize: 15, dataBase: 10 });
-  r = await launch({ width: 1000, height: 700 }, { userData });
+  // Nothing written for the next start (no settings file, no profile of it left
+  // once the next start has cleaned up).
+  r = await launch({ width: 1280, height: 800 }, { userData: runs, keepSize: true });
   try {
-    // The saved size, not the session's zoom; the window at its fixed default.
-    expect(await r.page.evaluate(() => document.documentElement.style.getPropertyValue('--fs'))).toBe('15px');
-    const bounds = await r.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getContentSize());
-    expect(bounds).toEqual([1000, 700]); // (the harness set it; the app keeps nothing of the last run)
+    const { page } = r;
+    expect(await page.evaluate(() => document.documentElement.style.getPropertyValue('--fs'))).toBe('13px');
+    // The window at the app's own default: 1280x800, or maximised on a smaller screen.
+    const win = await r.app.evaluate(({ BrowserWindow, screen }) => {
+      const w = BrowserWindow.getAllWindows()[0];
+      const area = screen.getPrimaryDisplay().workAreaSize;
+      return { size: w.getContentSize(), maximized: w.isMaximized(), small: area.width < 1280 || area.height < 800 };
+    });
+    if (win.small) expect(win.maximized).toBe(true); else expect(win.size).toEqual([1280, 800]);
+    await page.getByTitle('Settings').click();
+    const dialog = page.locator('dialog.settings');
+    await expect(dialog.locator('.value')).toHaveText('13px');
+    await expect(dialog.getByRole('button', { name: 'Hex' })).toHaveClass(/on/);
+    await dialog.getByRole('button', { name: 'Close' }).click();
+    await openAndAssemble(r, sample(r.dir, 'tests/samples/data-labels.s'));
+    await expect(page.locator('.console')).toHaveClass(/open/);
+    await expect(page.locator('.split')).toHaveAttribute('data-folded', 'none');
+    await page.locator('.ptab', { hasText: 'Data' }).click();
+    await expect(page.locator('.dtable')).toHaveClass(/base-16/);
+    // On disk: only this run's folder, and no settings file anywhere.
+    const left = readdirSync(runs);
+    expect(left.length, left.join(', ')).toBe(1);
+    expect(files(runs).filter((f) => /settings/i.test(path.basename(f)))).toEqual([]);
   } finally {
     await r.close();
   }
+  // Quit: once the program has exited, this run's folder goes too.
+  await expect.poll(() => (existsSync(runs) ? readdirSync(runs) : []), { timeout: 20_000 }).toEqual([]);
 });
 
 test('Advanced: options apply from the next assemble, for this session', async () => {
@@ -65,6 +99,7 @@ test('Advanced: options apply from the next assemble, for this session', async (
     await page.getByTitle('Settings').click();
     await dialog.getByText('Pseudo instructions').click();
     await dialog.getByRole('button', { name: 'Close' }).click();
+    await side(page, 'Editor');
     await page.locator('.cm-content').click();
     await page.keyboard.press('Control+s');
     await expect(page.locator('.errors .item').first()).toContainText('syntax error');
