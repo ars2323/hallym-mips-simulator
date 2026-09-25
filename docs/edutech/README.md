@@ -169,7 +169,7 @@ Data 탭, 라벨, `sw`, 스택, 브레이크포인트, Run, 천천히 실행, Re
 | 기본 설정 골든 | 17건 중 17건 통과 | `electron/tests/golden/default.test.ts` |
 | 단위·골든 테스트 | 184개 | `cd electron && npm test` 의 `# tests 184` |
 | 실제 앱 테스트(e2e) | 66개 × 화면 폭 4가지 | `npx playwright test --list` 는 68개(그중 2개는 실제 한국어 IME 용, Windows CI 에서만) · `node tools/e2e-widths.ts` |
-| 한글 입력 검사 | 12개 | `electron/tests/e2e/ime.e2e.ts` |
+| 한글 입력 검사 | 12개 + 실제 입력기 2개 | `electron/tests/e2e/ime.e2e.ts`(입력기 이벤트) · `electron/tests/e2e/ime-real.e2e.ts`(Windows CI 의 Microsoft 한국어 입력기) |
 | 돌연변이 검사 | 118개, 모두 잡힘 | `node tools/mutants.ts` (일부러 틀리게 고친 코드를 테스트가 잡는지) |
 | 튜토리얼 | 20단계 | `electron/src/renderer/app/tutorial.ts` 의 `STEPS` |
 | 지원 화면 폭 | 4가지 | 1280×800 · 1366×768 을 125% 로(1093×582) · 1024×768 · 1366×768 을 150% 로(910×505): `electron/tools/e2e-widths.ts` |
@@ -205,8 +205,10 @@ zip 을 받습니다. 관리자 권한은 필요 없습니다. 코드 서명이 
   안내하지만, 학생에게는 한 단계가 더 있는 셈입니다.
 - **Windows 용만 배포합니다.** 개발과 테스트는 Linux 에서도 하지만, 배포본은 Windows 64비트뿐입니다.
 - **한글 입력.** 조합 중 Enter · Tab · 백스페이스 · Ctrl+S · 다른 곳 클릭, 줄 끝의 한글, 한글 주석 파일,
-  UTF-8 왕복, Console 입력을 브라우저 엔진의 입력기 경로(IME 이벤트)로 검사합니다(12개). 실제 한국어 Windows
-  의 입력기로 한 검사 결과는 `electron/docs/PORTING.md` 에 적습니다.
+  UTF-8 왕복, Console 입력을 브라우저 엔진의 입력기 경로(IME 이벤트)로 검사합니다(12개). 여기에 더해 Windows CI
+  러너(영어판 Windows Server 2025)에 Microsoft 한국어 입력기를 켜고 설치본에 실제 키로 `한글` + Enter 를 쳐서,
+  편집기와 Console 에 한 번씩 온전히 들어가는 것을 확인합니다(2개). 한국어판 Windows 의 화면(대화 상자 문구 등)
+  자체는 자동 검사 밖이라 사람이 확인할 목록에 있습니다(`electron/docs/WINDOWS.md`).
 - **미해결 목록.** 검토에서 나왔지만 아직 고치지 않은 것은
   [`electron/docs/screens/README.md` 의 Open issues](../../electron/docs/screens/README.md#open-issues)에 있습니다.
   지금은 하나입니다: 창 폭 971–1034px 에서 Data 탭이 옆으로 최대 10px 넘칩니다.

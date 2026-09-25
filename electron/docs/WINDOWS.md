@@ -94,7 +94,8 @@ With the installer from the artifact `HallymMIPS-windows`. On **Korean Windows**
    ("Windows의 PC 보호", "Windows protected your PC") may appear (not signed): "추가 정보 → 실행" ("More info → Run anyway").
 2. **Start menu** — one "Hallym MIPS" entry is visible, and if 1.2.4 is installed, it can be told apart from "Hallym MIPS Simulator".
 3. **Korean IME (Microsoft Korean IME)** — the IME's events are tested on every run (`tests/e2e/ime.e2e.ts`, 12 tests,
-   CI included), and CI tries the real IME on the runner (`tests/e2e/ime-real.e2e.ts`); by hand, on Korean Windows:
+   CI included), and CI types 한글 + Enter through the real IME on the runner into the installed app
+   (`tests/e2e/ime-real.e2e.ts`, passing); by hand, on Korean Windows:
    - Type `# 한글 주석입니다` ("# This is a Hangul comment") in the editor. Check that no character is entered twice or dropped.
    - Press Ctrl+S **in the middle of composing** a character. Check that the character being composed is saved intact too (reopen to check).
    - Check that Enter during composition, arrow keys during composition and the Han/Eng toggle behave naturally in the editor.

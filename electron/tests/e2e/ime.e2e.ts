@@ -5,12 +5,15 @@
    events, and they are the same on every OS.
 
    Two kinds of IME for Enter and Tab:
-   - Windows' Microsoft Korean IME: the key is sent to the page as 229
-     (composing), the IME commits the syllable, then the key goes on to the
-     page as itself -- one press gives the syllable and a new line (Notepad
-     does the same).
-   - an IME that takes the key for itself: 229, the commit, and nothing
-     more -- the syllable only; the next press makes the new line.
+   - Windows' Microsoft Korean IME: the key comes to the page as "Process"
+     (keyCode 229, composing), the IME commits the syllable, then the key
+     goes on to the page as itself -- one press gives the syllable and a new
+     line, as in Notepad.  This is the order the real IME produced on the
+     Windows CI runner (tests/e2e/ime-real.e2e.ts, report/ime-real/):
+     keydown Process 229 composing, compositionend, keydown Enter 13.
+   - an IME that takes the key for itself (macOS's sends it as "Enter" with
+     keyCode 229): 229, the commit, and nothing more -- the syllable only;
+     the next press makes the new line.
    Either way the syllable is there once, whole, and the lines are what the
    IME asked for; what is saved is what is on screen.
 
@@ -34,9 +37,10 @@ const compose = (cdp: CDPSession, text: string) =>
   cdp.send('Input.imeSetComposition', { text, selectionStart: text.length, selectionEnd: text.length });
 const commit = (cdp: CDPSession, text: string) => cdp.send('Input.insertText', { text });
 const VK: Record<string, number> = { Enter: 13, Tab: 9, Backspace: 8 };
-// A key the IME has (keyCode 229: "processed by the IME").
-const toIme = (cdp: CDPSession, key: string) =>
-  cdp.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key, code: key, windowsVirtualKeyCode: 229, nativeVirtualKeyCode: 229 });
+// A key the IME has (keyCode 229: "processed by the IME"); Windows names it
+// "Process", macOS keeps the key's name.
+const toIme = (cdp: CDPSession, key: string, name = key) =>
+  cdp.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: name, code: key, windowsVirtualKeyCode: 229, nativeVirtualKeyCode: 229 });
 // The key itself, as the IME lets it go on.
 async function pass(cdp: CDPSession, key: string) {
   const text = key === 'Enter' ? '\r' : key === 'Tab' ? '\t' : undefined;
@@ -50,10 +54,10 @@ async function syllable(cdp: CDPSession, steps: string[]) {
   for (const s of steps) await compose(cdp, s);
   await commit(cdp, steps[steps.length - 1]);
 }
-// Composing `steps`, then the Windows IME's `key`: 229, commit, the key.
+// Composing `steps`, then the Windows IME's `key`: Process 229, commit, the key.
 async function windowsKey(cdp: CDPSession, steps: string[], key: string) {
   for (const s of steps) await compose(cdp, s);
-  await toIme(cdp, key);
+  await toIme(cdp, key, 'Process');
   await commit(cdp, steps[steps.length - 1]);
   await pass(cdp, key);
 }

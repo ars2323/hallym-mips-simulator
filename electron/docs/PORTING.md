@@ -895,8 +895,10 @@ byte); the Console's input (`syscall` 8), both kinds of Enter. Every editor test
 *Enter while composing — what is right.* The review asked for "the syllable committed, no new line; the next Enter
 adds the line". That is what an IME that keeps the key for itself does (the test's second kind), and the editor does
 it. Windows' Microsoft Korean IME does otherwise: it commits the syllable **and lets Enter through**, so one Enter
-gives the syllable and a new line — as in Notepad, and the reason `keydown` Enter arrives twice (first with
-`isComposing`, then without) in every web app that has to handle Korean. The editor follows the IME: it never adds a
+gives the syllable and a new line, as in Notepad. The real IME on the CI runner shows it (below): the page gets
+`keydown Process 229` (composing), `compositionend 글`, then `keydown Enter 13` (not composing) — the order the
+CDP tests reproduce for Windows (macOS's IME sends the first key as `Enter` with 229 instead, the test's second
+kind). The editor follows the IME: it never adds a
 line of its own nor drops one, and the syllable is never split or doubled. Swallowing the Enter that Windows lets
 through would make the editor the one place on a student's PC where Enter after a Korean word does not start a line.
 Both orders are tested.
@@ -908,11 +910,15 @@ editor now takes the key event's word, Chromium's own. Three mutants remove a co
 (`tools/mutants.ts`: Ctrl+S saves in the middle of a syllable; Ctrl+S taken as not composing; Console Enter taken in
 the middle of a syllable). Enter and Tab in the editor are CodeMirror's: it runs no key binding during a composition.
 
-*The real IME.* The Windows CI job adds Korean to the runner's input languages (`tools/windows/korean-ime.ps1`) and,
-when the IME is there, types 한글 + Enter through it into the editor and the Console (`tests/e2e/ime-real.e2e.ts`,
-keys through `keybd_event`, the IME switched on with `WM_INPUTLANGCHANGEREQUEST` and `IMC_SETCONVERSIONMODE`),
-writing the page's key and composition events to `report/ime-real/`. It is an attempt, reported either way, not a
-gate: the CDP tests are.
+*The real IME.* The Windows CI job adds Korean to the runner's input languages (`tools/windows/korean-ime.ps1`;
+the runner, Windows Server 2025 in English, has the Microsoft Korean IME, TIP `0412:{A028AE76-…}`) and types
+`g k s r m f` + Enter through it into the installed app (`tests/e2e/ime-real.e2e.ts`: keys through `keybd_event`,
+the window's input language set to 0412 with `WM_INPUTLANGCHANGEREQUEST`, Hangul mode with
+`IMC_SETCONVERSIONMODE`), writing the page's key and composition events to `report/ime-real/` in the artifact
+`windows-report`. Result: the editor holds `main: # 한글` and one new line, saved as such; the Console's `syscall` 8
+gets `한글` once. The step does not stop the job if the runner has no Korean IME (it is set up at run time); the
+CDP tests are the gate. Not covered by it: the Korean Windows user interface itself (dialog texts), which stays in
+the list of things to check by hand (`docs/WINDOWS.md`).
 
 **What the review left.** The Data tab's ASCII column is one character per monospaced cell with a faint line
 between the words (was: a gap after every fourth character, `Hell o, M IPS!`), and it is on by default where the
