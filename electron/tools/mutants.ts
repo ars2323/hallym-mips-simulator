@@ -350,7 +350,8 @@ const MUTANTS: Mutant[] = [
 
 function copyTree(dir: string, linkBuild: boolean): void {
   for (const d of ['src', 'tests', 'tools']) cpSync(path.join(root, d), path.join(dir, d), { recursive: true });
-  for (const f of ['package.json', 'tsconfig.json', 'playwright.config.ts', 'LICENSE', 'NOTICE']) cpSync(path.join(root, f), path.join(dir, f));
+  for (const f of ['package.json', 'tsconfig.json', 'playwright.config.ts']) cpSync(path.join(root, f), path.join(dir, f));
+  for (const f of ['LICENSE', 'NOTICE']) cpSync(path.join(root, '..', f), path.join(dir, '..', f)); // the repository's
   cpSync(path.join(root, 'native'), path.join(dir, 'native'), {
     recursive: true, filter: (from) => !from.startsWith(path.join(root, 'native', 'build')),
   });

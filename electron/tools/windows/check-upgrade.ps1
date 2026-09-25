@@ -1,10 +1,11 @@
-# Installing 2.0.0 over 2.0.0-alpha.1, as a student who had the alpha would:
-# one install folder (%LOCALAPPDATA%\Programs\Hallym MIPS, the same one),
-# one uninstall entry (now 2.0.0), one Start menu shortcut, the new program
-# in place.  Then uninstalls, leaving the machine as it was.
+# Installing this build over an earlier one, as a student who has the
+# earlier one would: one install folder (%LOCALAPPDATA%\Programs\Hallym MIPS,
+# the same one), one uninstall entry (now this version), one Start menu
+# shortcut, the new program in place.  Then uninstalls, leaving the machine
+# as it was.
 #
-#   check-upgrade.ps1 -Old <alpha setup.exe> -New <2.0.0 setup.exe> -Report <dir>
-param([string]$Old, [string]$New, [string]$Report)
+#   check-upgrade.ps1 -Old <setup.exe> -OldVersion <x> -New <setup.exe> -NewVersion <y> -Report <dir>
+param([string]$Old, [string]$OldVersion, [string]$New, [string]$NewVersion, [string]$Report)
 $ErrorActionPreference = 'Stop'
 New-Item -ItemType Directory -Force $Report | Out-Null
 $log = Join-Path $Report 'upgrade.txt'
@@ -37,20 +38,20 @@ Note "== before"
 $s0 = State 'before'
 Check ($s0.entries.Count -eq 0 -and $s0.folders.Count -eq 0) 'nothing installed to begin with'
 
-Note "== 2.0.0-alpha.1"
+Note "== $OldVersion"
 Install $Old
-$s1 = State 'alpha'
-Check ($s1.entries.Count -eq 1 -and $s1.entries[0].DisplayVersion -eq '2.0.0-alpha.1') 'alpha.1 installed: one entry, 2.0.0-alpha.1'
-Check (($s1.folders -join '|') -eq 'Hallym MIPS') 'alpha.1 in Programs\Hallym MIPS'
+$s1 = State 'earlier'
+Check ($s1.entries.Count -eq 1 -and $s1.entries[0].DisplayVersion -eq $OldVersion) "$OldVersion installed: one entry"
+Check (($s1.folders -join '|') -eq 'Hallym MIPS') "$OldVersion in Programs\Hallym MIPS"
 
-Note "== 2.0.0 over it"
+Note "== $NewVersion over it"
 Install $New
 $s2 = State 'after'
 Check ($s2.entries.Count -eq 1) 'one uninstall entry'
-Check ($s2.entries.Count -ge 1 -and $s2.entries[0].DisplayVersion -eq '2.0.0') 'the entry says 2.0.0'
+Check ($s2.entries.Count -ge 1 -and $s2.entries[0].DisplayVersion -eq $NewVersion) "the entry says $NewVersion"
 Check (($s2.folders -join '|') -eq 'Hallym MIPS') 'one install folder, the same one (Programs\Hallym MIPS)'
 Check ($s2.shortcuts.Count -eq 1) 'one Start menu shortcut'
-Check ($s2.version -like '2.0.0*' -and $s2.version -notlike '*alpha*') 'the installed program is 2.0.0'
+Check ($s2.version -like "$NewVersion*" -and $s2.version -notlike "$OldVersion*") "the installed program is $NewVersion (was $OldVersion)"
 
 Note "== uninstall"
 $entry = $s2.entries[0]

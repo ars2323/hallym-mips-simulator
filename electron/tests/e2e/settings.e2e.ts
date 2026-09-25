@@ -51,7 +51,7 @@ test('Advanced: options apply from the next assemble, for this session', async (
     await page.getByTitle('Settings').click();
     const dialog = page.locator('dialog.settings');
     await dialog.locator('summary').click();
-    await dialog.getByLabel('Program arguments').fill('alpha beta');
+    await dialog.getByLabel('Program arguments').fill('first second');
     await dialog.getByLabel('Program arguments').press('Tab');
     await dialog.getByRole('button', { name: 'Close' }).click();
     expect(await statusText(page)).toContain('설정이 바뀌었습니다');
@@ -99,12 +99,13 @@ test('About: version, SPIM, and every notice from the files the package carries'
     await page.getByTitle('Settings').click();
     await page.getByRole('button', { name: /About · Licenses/ }).click();
     const about = page.locator('dialog.about');
-    await expect(about).toContainText('2.0.0-alpha.1');
+    await expect(about).toContainText('2.0.0');
     await expect(about).toContainText('Based on SPIM 9.1.24 by James R. Larus (BSD)');
     await about.getByRole('button', { name: 'Licenses' }).click();
     const items = about.locator('details');
     await expect(items).toHaveCount(9);
-    for (const [i, text] of [[0, 'James R. Larus'], [1, 'Hallym'], [3, 'SIL OPEN FONT LICENSE'], [5, 'ISC'],
+    // LICENSE: this project's; NOTICE: SPIM's license and the rest (the repository's two files).
+    for (const [i, text] of [[0, 'Hakhyeon Kim'], [1, 'James R. Larus'], [1, 'Qt edition only'], [2, 'Hallym'], [3, 'SIL OPEN FONT LICENSE'], [5, 'ISC'],
                              [7, '@codemirror/view'], [8, 'Electron']] as const) {
       await items.nth(i).locator('summary').click();
       await expect(items.nth(i).locator('pre')).toContainText(text);

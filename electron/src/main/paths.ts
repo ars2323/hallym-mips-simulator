@@ -35,8 +35,8 @@ export const version: string = bundled
    LICENSE and NOTICE next to the executable as well (BSD: the notice goes
    with the binary). */
 export const LICENSES: { name: string; title: string }[] = [
-  { name: 'LICENSE', title: 'SPIM — BSD License (James R. Larus)' },
-  { name: 'NOTICE', title: 'NOTICE — what this program contains, and their licenses' },
+  { name: 'LICENSE', title: 'Hallym MIPS Simulator — BSD 3-Clause License' },
+  { name: 'NOTICE', title: 'NOTICE — SPIM, Electron, fonts, icons, the university\'s marks' },
   { name: 'hallym-assets.md', title: 'Hallym University assets (marks, characters, app icon)' },
   { name: 'OFL-Pretendard.txt', title: 'Pretendard — SIL Open Font License 1.1' },
   { name: 'OFL-D2Coding.txt', title: 'D2Coding — SIL Open Font License 1.1' },
@@ -45,9 +45,10 @@ export const LICENSES: { name: string; title: string }[] = [
   { name: 'third-party.txt', title: 'Bundled libraries (CodeMirror, iconv-lite, node-addon-api …)' },
 ];
 
+// (LICENSE and NOTICE are the repository's, at its root: one of each for both editions.)
 export const LICENSE_SOURCES: Record<string, string> = {
-  'LICENSE': 'LICENSE',
-  'NOTICE': 'NOTICE',
+  'LICENSE': '../LICENSE',
+  'NOTICE': '../NOTICE',
   'hallym-assets.md': 'src/renderer/assets/hallym/README.md',
   'OFL-Pretendard.txt': 'src/renderer/assets/fonts/OFL-Pretendard.txt',
   'OFL-D2Coding.txt': 'src/renderer/assets/fonts/OFL-D2Coding.txt',

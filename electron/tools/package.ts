@@ -89,7 +89,8 @@ export const config: Configuration = {
   npmRebuild: false,
   nodeGypRebuild: false,
   // BSD: the notice goes with the binary, next to the executable as well as in About.
-  extraFiles: [{ from: path.join(root, 'LICENSE'), to: 'LICENSE.txt' }, { from: path.join(root, 'NOTICE'), to: 'NOTICE.txt' }],
+  // The repository's LICENSE and NOTICE (its root, shared by both editions).
+  extraFiles: [{ from: path.join(root, '../LICENSE'), to: 'LICENSE.txt' }, { from: path.join(root, '../NOTICE'), to: 'NOTICE.txt' }],
   win: {
     target: ['nsis', 'zip'],
     icon: path.join(root, 'packaging/icons/HallymMIPS.ico'),

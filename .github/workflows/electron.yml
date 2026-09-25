@@ -16,8 +16,9 @@
 #   7. tools/probe-platform.ts: simulator handles while running/stepping
 #      (the core's waitable timer), screenshots of the native file dialogs;
 #      and the fixed set of screens captured on Windows
-#   8. (run by hand, and for a v2.* tag) installing over 2.0.0-alpha.1:
-#      one folder, one uninstall entry (tools/windows/check-upgrade.ps1)
+#   8. (run by hand, and for a v2.* tag) installing over the build the
+#      Electron repository last made before the merge (48e645c): one folder,
+#      one uninstall entry (tools/windows/check-upgrade.ps1)
 name: Electron edition (2.x) — Windows
 
 on:
@@ -164,11 +165,11 @@ jobs:
             Select-String -Path $h.FullName -Pattern '#define yy|yylval|yyparse|api.prefix|YYSTYPE' | ForEach-Object { "$($_.LineNumber): $($_.Line)" }
           }
 
-  # 2.0.0 over 2.0.0-alpha.1: alpha.1 is built from its own commit (the
-  # Electron repository's last, 48e645c, before the merge), since artifacts
-  # expire and the old repository's are not this one's to read.
+  # This build over the one students may already have: the Electron
+  # repository's last before the merge (48e645c), built here from its commit,
+  # since artifacts expire and the old repository's are not this one's to read.
   upgrade:
-    name: Install over 2.0.0-alpha.1
+    name: Install over the pre-merge build (48e645c)
     needs: windows
     if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v2.')
     runs-on: windows-latest
@@ -187,12 +188,12 @@ jobs:
       - name: Install winflexbison
         run: choco install winflexbison3 --no-progress -y
 
-      - name: Build 2.0.0-alpha.1 from 48e645c
+      - name: Build 48e645c
         working-directory: .
         shell: pwsh
         run: |
-          git worktree add ../alpha 48e645c
-          Set-Location ../alpha
+          git worktree add ../previous 48e645c
+          Set-Location ../previous
           npm ci --ignore-scripts
           npx node-gyp rebuild --directory native
           node tools/build-electron.ts
@@ -205,9 +206,13 @@ jobs:
           name: HallymMIPS-windows
           path: electron/new
 
-      - name: 2.0.0 over 2.0.0-alpha.1
+      - name: This build over 48e645c's
         shell: pwsh
-        run: tools/windows/check-upgrade.ps1 -Old (Get-Item ../../alpha/dist/*-setup.exe).FullName -New (Get-Item new/*-setup.exe).FullName -Report upgrade
+        run: |
+          $old = (Get-Content ../../previous/package.json | ConvertFrom-Json).version
+          $new = (Get-Content package.json | ConvertFrom-Json).version
+          tools/windows/check-upgrade.ps1 -Old (Get-Item ../../previous/dist/*-setup.exe).FullName -OldVersion $old `
+            -New (Get-Item new/*-setup.exe).FullName -NewVersion $new -Report upgrade
 
       - name: Upload the upgrade report
         if: always()

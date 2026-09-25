@@ -6,7 +6,7 @@
 # and scanner are generated into the build directory, never into CPU/.
 #
 # Built on Linux; Windows (MSVC, win_bison/win_flex from winflexbison3) is
-# checked by .github/workflows/windows.yml.
+# checked by ../.github/workflows/electron.yml (the repository root's).
 #
 # ONE INTERVENTION IN THE CORE'S BUILD, WINDOWS ONLY: CPU/run.cpp is compiled
 # through src/run-win.cpp, which replaces CreateWaitableTimer() (see the

@@ -1,0 +1,168 @@
+Hallym MIPS Simulator — notices
+================================
+
+This repository holds two applications. Each entry below says which of them
+it applies to.
+
+  Qt edition (1.x)        the repository root (QtSpim/ and the files around it);
+                          releases 1.2.4 and earlier
+  Electron edition (2.x)  electron/; releases 2.0.0 and later
+
+This project's own license is in LICENSE (BSD 3-Clause). The components below
+keep their own licenses. The university's marks and characters (section 8)
+are under no license from this project at all.
+
+
+Author
+------
+
+Hakhyeon Kim (김학현), AIAC Lab, Hallym University.
+
+This is a personal project, made for teaching computer architecture. It is
+not an official product of Hallym University.
+
+
+1. SPIM and QtSpim — both editions
+----------------------------------
+
+The MIPS32 simulator SPIM and its Qt interface QtSpim, by James R. Larus.
+
+  Home:      https://spimsimulator.sourceforge.net/
+  Source:    https://sourceforge.net/projects/spimsimulator/ (Subversion)
+  Revision:  SPIM/QtSpim 9.1.24, SVN r764 — tag vanilla-9.1.24 in this
+             repository
+
+The simulator core (CPU/) is used unmodified by both editions
+(CPU/ORIGIN.md). The Qt edition's interface (QtSpim/) is a modified version
+of QtSpim's; the Electron edition's interface is new and uses only the core.
+SPIM's own README is kept at the root as README.
+
+SPIM is Copyright (c) 1990-2023, by James R. Larus.
+All rights reserved.
+
+SPIM is distributed under a BSD license:
+
+     Redistribution and use in source and binary forms, with or without modification, are
+     permitted provided that the following conditions are met:
+
+         Redistributions of source code must retain the above copyright notice, this list of
+         conditions and the following disclaimer.
+
+         Redistributions in binary form must reproduce the above copyright notice, this list of
+         conditions and the following disclaimer in the documentation and/or other materials
+         provided with the distribution.
+
+         Neither the name of the James R. Larus nor the names of its contributors may be used to
+         endorse or promote products derived from this software without specific prior written
+         permission.
+
+     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS
+     OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+     MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+     COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+     EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+     SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+     HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+     TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+2. Qt — the Qt edition only
+---------------------------
+
+Qt 5.15, (c) The Qt Company Ltd. and other contributors, under the GNU Lesser
+General Public License version 3 (LGPL-3.0; https://www.gnu.org/licenses/lgpl-3.0.html).
+The Qt edition links the Qt libraries dynamically; the Qt libraries in its zip
+and MSI are unmodified builds from The Qt Company. Qt's source code is
+available from https://download.qt.io/ .
+
+The Electron edition does not use or link Qt; none of this section applies
+to it.
+
+
+3. Electron, Chromium and Node.js — the Electron edition only
+--------------------------------------------------------------
+
+Electron (MIT License, (c) Electron contributors, (c) GitHub Inc.), which
+contains Chromium (BSD-style licenses, (c) The Chromium Authors, with the
+many libraries Chromium includes) and Node.js (MIT License, (c) Node.js
+contributors, with the libraries Node.js includes).
+
+Their license texts ship with every build of the Electron edition, next to
+HallymMIPS.exe:
+  LICENSE.electron.txt     Electron's license
+  LICENSES.chromium.html   Chromium's credits: the licenses of Chromium,
+                           Node.js and the libraries they include
+The program's About > Licenses opens the latter.
+
+
+4. Pretendard — both editions
+-----------------------------
+
+Pretendard, (c) 2021 Kil Hyung-jin (https://github.com/orioncactus/pretendard),
+under the SIL Open Font License 1.1.
+  Qt edition:        QtSpim/edu/theme/fonts/  (license: OFL-Pretendard.txt there)
+  Electron edition:  electron/src/renderer/assets/fonts/Pretendard-*.subset.woff2
+                     (subset, converted to WOFF2; license: OFL-Pretendard.txt there)
+
+
+5. D2Coding — both editions
+---------------------------
+
+D2Coding, (c) NAVER Corporation (https://github.com/naver/d2codingfont),
+under the SIL Open Font License 1.1.
+  Qt edition:        QtSpim/edu/theme/fonts/D2Coding*.ttf  (license: OFL-D2Coding.txt there)
+  Electron edition:  electron/src/renderer/assets/fonts/D2Coding.woff2
+                     (converted to WOFF2; license: OFL-D2Coding.txt there)
+
+
+6. Lucide — both editions
+-------------------------
+
+Lucide icons, (c) Lucide Contributors (https://lucide.dev), under the ISC
+License; the parts derived from Feather, (c) Cole Bemis, under the MIT License.
+  Qt edition:        QtSpim/edu/theme/icons/lucide/  (license: LICENSE.txt there)
+  Electron edition:  electron/src/renderer/assets/icons/lucide/  (license: LICENSE.txt there)
+
+
+7. Other components
+-------------------
+
+Both editions: the core's parser and scanner are generated from CPU/parser.y
+and CPU/scanner.l by GNU Bison (whose special exception applies to the
+generated parser) and flex (whose license puts no condition on generated
+scanners); acknowledged in electron/native/LICENSE.flex.txt.
+
+Electron edition only: the npm packages bundled into the program's JavaScript
+(CodeMirror and its dependencies, iconv-lite, safer-buffer) and node-addon-api
+(compiled into the addon), all under the MIT License. Their list and license
+texts are generated at build time (electron/tools/licenses.ts) and shown in
+About > Licenses.
+
+
+8. Hallym University marks, and the characters Haram and Hari
+-------------------------------------------------------------
+
+The Hallym University symbol, logotype, emblem and signature (both editions),
+and the university's characters Haram (하람) and Hari (하리) (the Electron
+edition), belong to Hallym University.
+
+They appear in this software only to identify it as a teaching tool for
+Hallym University's courses.
+
+They are not covered by this project's license (LICENSE) or by any license in
+this file, and they may not be taken from this repository or from the
+programs and used separately. Anyone who forks or redistributes this project
+must remove them, unless Hallym University has given its own permission.
+
+This software is not an official product of Hallym University.
+
+Where they are:
+  electron/src/renderer/assets/hallym/   marks and characters (README.md there)
+  electron/packaging/icons/              the application icon, made from the symbol
+  QtSpim/edu/theme/brand/                the Qt edition's icon and marks
+  assets/ci/                             the marks' source files and the
+                                         university's regulations for them
+
+Questions about the marks: Hallym University Communications Team,
+de1330@hallym.ac.kr.
