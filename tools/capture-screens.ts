@@ -135,6 +135,38 @@ for (const [name, size, scale] of [
   await r.close();
 }
 
+// The tutorial (docs/PORTING.md 18): steps 1, 4 (lui + ori), 9 (bits =
+// Encoding), 14 (the gutter), 19 (the Errors panel, after Assemble), 20;
+// step 9 again in the narrow window.  Each step is entered as the tutorial
+// enters it (its go()), which sets the machine up the same way every time.
+async function tutorialStep(r: Running, n: number): Promise<void> {
+  const { page } = r;
+  if (!(await page.evaluate(() => (window as unknown as { __tutorial: { active: boolean } }).__tutorial.active))) {
+    await page.getByRole('button', { name: /튜토리얼 보기/ }).click();
+  }
+  await page.evaluate((i) => (window as unknown as { __tutorial: { go(i: number): Promise<void> } }).__tutorial.go(i), n - 1);
+  await page.waitForFunction((k) => (window as unknown as { __tutorial: { shown: { step: number } } }).__tutorial.shown.step === k, n);
+  await page.waitForTimeout(600); // the Data tab and the lists settle; the card follows
+}
+{
+  const r = await launch({ width: 1280, height: 800 });
+  for (const n of [1, 4, 9, 14]) { await tutorialStep(r, n); await shot(r, `tutorial-${String(n).padStart(2, '0')}`); }
+  await tutorialStep(r, 19);
+  await r.page.keyboard.press('Control+s');
+  await r.page.waitForFunction(() => (window as unknown as { __tutorial: { shown: { phase: number } } }).__tutorial.shown.phase === 1);
+  await r.page.waitForTimeout(600);
+  await shot(r, 'tutorial-19');
+  await tutorialStep(r, 20);
+  await shot(r, 'tutorial-20');
+  await r.close();
+}
+{
+  const r = await launch({ width: 910, height: 505 }, { switches: ['--force-device-scale-factor=1.5'] });
+  await tutorialStep(r, 9);
+  await shot(r, 'tutorial-09-narrow');
+  await r.close();
+}
+
 if (process.platform === 'win32') {
   const r = await launch();
   await lab04(r);

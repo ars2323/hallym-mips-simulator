@@ -45,6 +45,7 @@ import { defaultAdvanced, sameAdvanced, settingsDialog, type Advanced } from './
 import { TextPanel } from './panels/text.ts';
 import { welcome } from './panels/welcome.ts';
 import { ask } from './panels/ask.ts';
+import { Tutorial, type Example, type Signal } from './tutorial.ts';
 import type { DataSection } from './panels/data.ts';
 import { panelHead } from './ui.ts';
 
@@ -59,7 +60,8 @@ const NARROW_PX = 980;
 // ---- state ------------------------------------------------------------------
 
 let open = false;                      // a document is open (past the first screen)
-let file: { name: string; path: string | null; format: TextFileFormat | null } = { name: UNTITLED, path: null, format: null };
+// `example`: one of the tutorial's, read-only, never saved.
+let file: { name: string; path: string | null; format: TextFileFormat | null; example?: Example } = { name: UNTITLED, path: null, format: null };
 let dirty = false;
 let settings: Settings = { fontSize: 13, dataBase: 16 };
 let zoom = 0;                          // Ctrl+/-: this session only
@@ -108,6 +110,10 @@ const bAssemble = button('Assemble', 'hammer', 'Ctrl+S', () => void saveAndAssem
 const bRun = button('Run', 'play', 'F5', () => void runOrStop());
 const bStep = button('Step', 'step-forward', 'F10', () => void step());
 const bRestart = button('Reset', 'rotate-ccw', '', () => void restart());
+bAssemble.dataset.tut = 'assemble';
+bRun.dataset.tut = 'run';
+bStep.dataset.tut = 'step';
+bRestart.dataset.tut = 'reset';
 // The speed of Run: Instant (the core runs on its own) or one line a second.
 const speedFast = h('button', { type: 'button', role: 'radio', title: 'Run at full speed' }, 'Instant');
 const speedSlow = h('button', { type: 'button', role: 'radio', title: 'Run one line a second' }, '1 line/s');
@@ -134,7 +140,7 @@ const titlebar = h('header', { class: 'titlebar' },
   viewSwitch,
   h('span', { class: 'drag' }),
   h('span', { class: 'tools' },
-    iconButton('Tutorial', 'circle-question-mark', () => void openTutorial()),
+    iconButton('Tutorial', 'circle-question-mark', () => void startTutorial()),
     iconButton('New file', 'file-plus', () => void newFile()),
     iconButton('Open file (Ctrl+O)', 'folder-open', () => void openFile()),
     bSettings));
@@ -143,7 +149,7 @@ const status = h('footer', { class: 'status' });
 // ---- the first screen ------------------------------------------------------------
 
 const stageWelcome = h('div', { class: 'stage-welcome' }, welcome({
-  tutorial: () => void openTutorial(), newFile: () => void newFile(), openFile: () => void openFile(),
+  tutorial: () => void startTutorial(), newFile: () => void newFile(), openFile: () => void openFile(),
 }));
 
 // ---- the Editor side -------------------------------------------------------------------
@@ -165,7 +171,7 @@ const text = new TextPanel({
   select: (addr) => select(addr),
   toggleBreakpoint: (addr) => void toggleBreakpoint(addr),
 });
-text.onTab = (tab) => { if (tab === 'data') void refreshData(); };
+text.onTab = (tab) => { if (tab === 'data') void refreshData(); emit({ kind: 'tab', tab }); };
 const inspector = new Inspector();
 const consolePanel = new ConsolePanel();
 consolePanel.onInput = (line) => void giveInput(line);
@@ -488,11 +494,13 @@ async function mayReplace(what: 'new' | 'open'): Promise<boolean> {
   return true;
 }
 
-async function load(opened: { name: string; path: string | null; text: string; format: TextFileFormat } | null): Promise<void> {
+async function load(opened: { name: string; path: string | null; text: string; format: TextFileFormat } | null, example?: Example): Promise<void> {
   if (!opened) return;
   await forgetMachine();
-  file = { name: opened.name, path: opened.path, format: opened.format };
+  file = { name: opened.name, path: opened.path, format: opened.format, example };
+  editor.setReadOnly(false);
   editor.setText(opened.text);
+  editor.setReadOnly(example !== undefined);
   dirty = false;
   errors = [];
   saveNote = '';
@@ -514,10 +522,108 @@ async function openFile(): Promise<void> {
   if (!(await mayReplace('open'))) return;
   await load(await api.openFile().catch((e: Error) => { saveNote = e.message; renderChrome(); return null; }));
 }
-async function openTutorial(): Promise<void> {
-  if (!(await mayReplace('open'))) return;
-  await load(await api.openExample('tutorial.s'));
+// ---- the tutorial ----------------------------------------------------------------------
+
+// What was on screen before the tutorial, put back when it ends (unsaved
+// changes too: nothing of the student's is lost or written).
+let beforeTutorial: { file: typeof file; text: string; dirty: boolean; breakpoints: number[] } | null = null;
+
+async function startTutorial(): Promise<void> {
+  if (tutorial.active || busy) return;
+  if (open && dirty && !file.example) {
+    const go = await ask({
+      title: '저장하지 않은 변경이 있습니다', file: file.name,
+      body: '튜토리얼을 하는 동안 이 파일은 잠시 내려갑니다. 끝나면 바뀐 내용 그대로 돌아옵니다. 먼저 저장하려면 돌아가서 Ctrl+S 키를 누르세요.',
+      ok: '튜토리얼 시작', cancel: '돌아가기',
+    });
+    if (!go) return;
+  }
+  beforeTutorial = open && !file.example
+    ? { file: { ...file }, text: editor.text(), dirty, breakpoints: editor.breakpointLines() } : null;
+  await tutorial.start();
 }
+
+const listeners: ((s: Signal) => void)[] = [];
+function emit(s: Signal): void { for (const l of listeners) l(s); }
+
+async function waitWhileRunning(): Promise<void> {
+  for (let i = 0; i < 200 && runState === 'running'; i += 1) await new Promise((r) => setTimeout(r, 20));
+}
+
+const tutorial = new Tutorial({
+  narrow: () => narrow,
+  view: () => view,
+  showView: (v) => showView(v),
+  open: async (name) => { await load(await api.openExample(name), name); },
+  example: () => file.example ?? null,
+  source: () => editor.text(),
+  assembled: () => machineShown(),
+  assemble: () => saveAndAssemble(),
+  step: () => step(),
+  runUntil: async (addr) => {
+    if (!machineShown() && !(await saveAndAssemble())) return;
+    for (let i = 0; i < 500 && lastRegs && lastRegs.pc !== addr && runState !== 'finished' && runState !== 'input'; i += 1) {
+      resumeWith = 'step';
+      await go(() => api.call('step', 1));
+    }
+  },
+  run: async () => { await run(); await waitWhileRunning(); },
+  stop: async () => { await stop(); await waitWhileRunning(); },
+  restart: () => restart(),
+  setSpeed: (sp) => setSpeed(sp),
+  pc: () => lastRegs?.pc ?? null,
+  running: () => runState === 'running',
+  finished: () => runState === 'finished',
+  addressOfLine: (line) => addressOfLine(line),
+  labelAddress: (name) => labels.find(name) ?? null,
+  pin: (addr) => { if (addr === null) { if (selected >= 0) { clearSelection(); renderStatus(); } } else select(addr); },
+  setTab: (t) => text.setTab(t),
+  tab: () => text.tab,
+  breakpointLines: () => editor.breakpointLines(),
+  setBreakpointLine: async (line, on) => {
+    const lines = new Set(editor.breakpointLines());
+    if (on) lines.add(line); else lines.delete(line);
+    editor.setBreakpointLines([...lines]);
+    await editorBreakpoint(line, on);
+  },
+  goToLine: (n) => goToErrorLine(n),
+  errorLine: () => errors.find((e) => e.line > 0)?.line ?? null,
+  expandConsole: () => {
+    const was = consolePanel.expanded;
+    consolePanel.setExpanded(true);
+    layout();
+    return !was;
+  },
+  revealLine: (n) => editor.revealLine(n),
+  lineRect: (n) => editor.lineRect(n),
+  gutterRect: (n) => editor.gutterRect(n),
+  revealRegister: (key) => registers?.revealRegister(key),
+  revealAddr: (addr) => text.revealAddr(addr),
+  showColumn: (panel, key) => (panel === 'regs' ? registers?.showColumn(key as 'dec' | 'bin') ?? 'already' : text.showColumn(key as 'word')),
+  releaseColumn: (panel, key) => { if (panel === 'regs') registers?.releaseColumn(key as 'dec' | 'bin'); else text.releaseColumn(key as 'word'); },
+  on: (l) => { listeners.push(l); },
+  close: async () => {
+    await forgetMachine();
+    const back = beforeTutorial;
+    beforeTutorial = null;
+    if (back) {
+      await load({ name: back.file.name, path: back.file.path, text: back.text, format: back.file.format ?? { encoding: 'UTF-8', byteOrderMark: false, lineEnd: 'LF' } });
+      file.format = back.file.format;
+      editor.setBreakpointLines(back.breakpoints);
+      dirty = back.dirty;
+    } else {
+      open = false;
+      file = { name: UNTITLED, path: null, format: null };
+      editor.setReadOnly(false);
+      editor.setText('');
+      dirty = false;
+      errors = [];
+      renderErrors();
+    }
+    renderChrome();
+  },
+});
+(window as unknown as { __tutorial: Tutorial }).__tutorial = tutorial; // for the tests
 
 // The machine no longer matches what is on screen: a new file.
 async function forgetMachine(): Promise<void> {
@@ -539,6 +645,10 @@ async function saveAndAssemble(): Promise<boolean> {
   if (busy || !open) return false;
   const source = editor.text();
   saveNote = '';
+  if (file.example) {
+    saveNote = '예제라서 저장하지 않습니다';
+    return assemble(source, false);
+  }
   try {
     const saved = await api.saveFile({ path: file.path, name: file.name, text: source, format: file.format });
     if (saved) {
@@ -557,6 +667,7 @@ async function saveAndAssemble(): Promise<boolean> {
 // before (처음으로), so its breakpoints stay.
 async function assemble(source: string, again: boolean): Promise<boolean> {
   busy = true;
+  let after: Signal | null = null;
   note = '';
   congrats.hidden = true;
   try {
@@ -584,6 +695,7 @@ async function assemble(source: string, again: boolean): Promise<boolean> {
       assembledText = null;
       runState = 'ready';
       view = 'run'; // a narrow window: the errors are on the Run side
+      after = { kind: 'assembled', ok: false };
       return false;
     }
     rows = textRows(await api.call('textSegment'));
@@ -617,10 +729,12 @@ async function assemble(source: string, again: boolean): Promise<boolean> {
     if (!again) text.setTab('text');
     if (text.tab === 'data') void refreshData();
     if (narrow) view = 'run';
+    after = { kind: 'assembled', ok: true };
     return true;
   } finally {
     busy = false;
     renderChrome();
+    if (after) emit(after);
   }
 }
 
@@ -633,10 +747,17 @@ function hintFor(message: string): string {
   return '이 줄을 고친 뒤 다시 어셈블하세요.';
 }
 
+// "N행으로 가기": the Editor (a narrow window: its tab), the line.
+function goToErrorLine(n: number): void {
+  if (narrow) showView('editor');
+  editor.goToLine(n);
+  emit({ kind: 'goto', line: n });
+}
+
 function renderErrors(): void {
   editor.showErrors(errors.map((e) => e.line).filter((n) => n > 0));
   if (!errors.length) { errorBody.replaceChildren(); return; }
-  const toLine = (n: number) => { if (narrow) showView('editor'); editor.goToLine(n); };
+  const toLine = (n: number) => goToErrorLine(n);
   const first = errors.find((e) => e.line > 0) ?? errors[0];
   const go = h('button', { class: 'btn primary', type: 'button' }, first.line ? `${first.line}행으로 가기` : '고치러 가기');
   go.addEventListener('click', () => (first.line ? toLine(first.line) : showView('editor')));
@@ -729,11 +850,12 @@ async function go(call: () => Promise<RunResult>): Promise<RunResult | null> {
     for (const e of result.errors) consolePanel.append(e.endsWith('\n') ? e : e + '\n');
     consolePanel.waitForInput(result.reason === 'input');
     if (text.tab === 'data') void refreshData();
-    if (result.reason === 'exit' && result.errors.length === 0 && !congratsShown) showCongrats();
+    if (result.reason === 'exit' && result.errors.length === 0 && !congratsShown && !tutorial.active) showCongrats();
     return result;
   } finally {
     busy = false;
     renderChrome();
+    emit({ kind: 'stopped', reason: result.reason });
   }
 }
 
@@ -772,6 +894,7 @@ async function runSlow(): Promise<void> {
   } finally {
     slow = null;
     renderChrome();
+    emit({ kind: 'slow-ended' });
   }
   if (switchTo === 'fast') { switchTo = null; await run(); }
 }
@@ -804,6 +927,7 @@ async function stop(): Promise<void> {
 async function restart(): Promise<void> {
   if (busy || lastProgram === null) return;
   await assemble(lastProgram, true);
+  emit({ kind: 'reset' });
 }
 
 async function giveInput(line: string): Promise<void> {
@@ -836,6 +960,7 @@ async function setBreakpoint(addr: number, on: boolean): Promise<void> {
 // A breakpoint set or cleared in the Editor's gutter.  Before an assemble
 // (or with changed code) it is only kept by line, for the next assemble.
 async function editorBreakpoint(line: number, on: boolean): Promise<void> {
+  emit({ kind: 'breakpoint', line, on });
   if (!machineShown()) return;
   const addr = addressOfLine(line);
   if (addr === null) {
@@ -909,6 +1034,7 @@ function showCongrats(): void {
 // ---- keys -----------------------------------------------------------------------------------
 
 window.addEventListener('keydown', (e) => {
+  if (tutorial.handleKey(e)) return;
   if (document.querySelector('dialog[open]')) return; // the dialog has the keys (Esc closes it)
   const mod = e.ctrlKey || e.metaKey;
   const inEditor = editorHost.contains(e.target as Node);

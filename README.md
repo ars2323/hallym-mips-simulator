@@ -6,6 +6,7 @@ Hallym MIPS — MIPS 시뮬레이터의 Electron판. 지금 있는 것은 넷이
 - 코어를 자기 프로세스에서 돌리는 실행 제어(실행·정지·브레이크포인트·콘솔 입출력)
 - Qt판(`hallym-mips-simulator`)의 `QtSpim/edu/core` 를 옮긴 순수 TS 모듈
 - 창: Editor | Run 좌우 분할 — 첫 화면, 코드 작성, 한 줄씩 실행, Inspector, Data (화면: `docs/screens/`)
+- 튜토리얼 20단계: 읽기 전용 예제(`src/examples/tutorial.s`, `tutorial-error.s`), 상태를 기억하지 않음 (`docs/PORTING.md` 18절)
 
 Qt판과 같은 결과를 내는지는 골든과 코어 대조 테스트가 확인한다. 구조는 `docs/ARCHITECTURE.md`,
 Qt판과 다르게 한 것은 `docs/PORTING.md` 에 있다.

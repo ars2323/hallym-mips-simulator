@@ -25,7 +25,7 @@
 
 import { defaultKeymap, history, historyKeymap, indentLess, indentMore, insertNewline } from '@codemirror/commands';
 import { indentUnit } from '@codemirror/language';
-import { EditorSelection, EditorState, RangeSet, RangeSetBuilder, StateEffect, StateField, type Extension } from '@codemirror/state';
+import { Compartment, EditorSelection, EditorState, RangeSet, RangeSetBuilder, StateEffect, StateField, type Extension } from '@codemirror/state';
 import {
   Decoration, type DecorationSet, EditorView, gutter, GutterMarker, keymap, lineNumbers,
   ViewPlugin, type ViewUpdate,
@@ -194,6 +194,13 @@ export interface Editor {
   showPcLine(line: number | null): void;
   breakpointLines(): number[];
   setBreakpointLines(lines: number[]): void;
+  // The tutorial's examples are read-only (breakpoints still set and clear).
+  setReadOnly(on: boolean): void;
+  // For the tutorial: bring line `n` into view, and where it is on screen
+  // (null: not drawn); `gutter` is the breakpoint gutter's cell of the line.
+  revealLine(n: number): void;
+  lineRect(n: number): DOMRect | null;
+  gutterRect(n: number): DOMRect | null;
 }
 
 export function createEditor(parent: HTMLElement, onSave: () => void, onChange: () => void,
@@ -204,6 +211,7 @@ export function createEditor(parent: HTMLElement, onSave: () => void, onChange: 
     if (composing || view.composing || view.compositionStarted) saveAfterComposition = true;
     else onSave();
   };
+  const readOnly = new Compartment();
   const view = new EditorView({
     parent,
     state: EditorState.create({
@@ -226,6 +234,7 @@ export function createEditor(parent: HTMLElement, onSave: () => void, onChange: 
           },
         }),
         EditorState.tabSize.of(4),
+        readOnly.of([]),
       ],
     }),
   });
@@ -259,5 +268,31 @@ export function createEditor(parent: HTMLElement, onSave: () => void, onChange: 
       view.focus();
     },
     requestSave,
+    setReadOnly: (on) => view.dispatch({ effects: readOnly.reconfigure(on ? [EditorState.readOnly.of(true)] : []) }),
+    revealLine: (n) => {
+      if (n < 1 || n > view.state.doc.lines) return;
+      view.dispatch({ effects: EditorView.scrollIntoView(view.state.doc.line(n).from, { y: 'center' }) });
+    },
+    lineRect: (n) => editorLineRect(n),
+    gutterRect: (n) => {
+      const line = editorLineRect(n);
+      const g = view.dom.querySelector('.cm-bp-gutter')?.getBoundingClientRect();
+      return line && g ? new DOMRect(g.left, line.top, g.width, line.height) : null;
+    },
   };
+  // The line's box: from the text's left edge to a little past its end,
+  // within the visible part of the editor; null when the line is not drawn
+  // (far outside the view).
+  function editorLineRect(n: number): DOMRect | null {
+    if (n < 1 || n > view.state.doc.lines) return null;
+    const line = view.state.doc.line(n);
+    const end = view.coordsAtPos(line.to);
+    if (!view.coordsAtPos(line.from) || !end) return null;
+    const block = view.lineBlockAt(line.from);
+    const content = view.contentDOM.getBoundingClientRect();
+    const scroller = view.scrollDOM.getBoundingClientRect();
+    const left = Math.max(content.left, scroller.left);
+    const right = Math.min(Math.max(end.right + 8, left + 40), scroller.right);
+    return new DOMRect(left, view.documentTop + block.top, right - left, block.height);
+  }
 }

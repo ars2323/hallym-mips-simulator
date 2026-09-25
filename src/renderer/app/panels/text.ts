@@ -209,6 +209,25 @@ export class TextPanel {
     this.renderWindow();
   }
 
+  // For the tutorial: the row of `addr` into view; a column shown whatever
+  // the width (true if it was not already), and let go again.
+  revealAddr(addr: number): void {
+    const i = this.shown.findIndex((x) => x.addr === addr);
+    if (i >= 0) this.reveal(i);
+  }
+  // As RegisterPanel.showColumn.
+  showColumn(key: 'word' | 'addr' | 'fmt'): 'already' | 'hidden' | 'shown' {
+    if (this.forced.has(key)) return 'already';
+    const hidden = this.columns?.hidden.has(key) ?? false;
+    this.forced.add(key);
+    this.fit();
+    return hidden ? 'hidden' : 'shown';
+  }
+  releaseColumn(key: 'word' | 'addr' | 'fmt'): void {
+    this.forced.delete(key);
+    this.fit();
+  }
+
   rowFor(addr: number): TextRow | undefined {
     return this.all.find((x) => x.addr === addr);
   }

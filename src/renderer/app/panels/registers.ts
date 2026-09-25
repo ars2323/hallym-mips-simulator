@@ -161,6 +161,26 @@ export class RegisterPanel {
     if (first && !this.scrolledByStudent()) this.reveal(this.rows.get(first)!.el);
   }
 
+  // For the tutorial: a register's row into view; a column shown whatever
+  // the width (true if it was not already), and let go again.
+  revealRegister(key: string): void {
+    const row = this.rows.get(key);
+    if (row) this.reveal(row.el);
+  }
+  // 'already': turned on before (leave it on); 'hidden': the width had
+  // taken it away; 'shown': it was there anyway.
+  showColumn(key: 'dec' | 'bin'): 'already' | 'hidden' | 'shown' {
+    if (this.forced.has(key)) return 'already';
+    const hidden = this.columns?.hidden.has(key) ?? false;
+    this.forced.add(key);
+    this.fit();
+    return hidden ? 'hidden' : 'shown';
+  }
+  releaseColumn(key: 'dec' | 'bin'): void {
+    this.forced.delete(key);
+    this.fit();
+  }
+
   // Scrolls as little as possible to have `row` in view, below the sticky
   // column head, with a row to spare on either side.
   private reveal(row: HTMLElement): void {

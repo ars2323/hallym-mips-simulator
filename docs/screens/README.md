@@ -23,6 +23,13 @@
 | `narrow.png` | 좁은 창: 막대의 Editor / Run 탭, Run 쪽 | 1366×768 배율 150%, CSS 910×505 를 1.5배로, `split-running` 과 같은 실행 |
 | `lab-columns.png` | 실습실 PC 의 Registers·Text 머리를 잘라 냄: Name Hex Dec Bin / Address Encoding Format Instruction | `lab-1366x768-125` 와 같은 화면, 두 패널의 위쪽 190px(150KB 이하) |
 | `1024x768.png` | 1024×768 배율 100%: 좌우 분할 그대로, Text 는 Format·Source 를 버튼으로 | CSS 1024×728(작업 표시줄), `split-running` 과 같은 실행 |
+| `tutorial-01.png` | 튜토리얼 1단계: Editor 머리와 첫 줄들, 카드와 하람 | 1280×800, 튜토리얼 보기 → 1단계 |
+| `tutorial-04.png` | 4단계: `li $t0, 0x12345678` 이 `lui` + `ori` 두 줄이 된 Text 행 | 1280×800, 튜토리얼의 `go()` 로 4단계(어셈블까지) |
+| `tutorial-09.png` | 9단계: 비트 그리드 opcode·rs·rt·rd 와 Text 의 Encoding 값 | 1280×800, 9단계(시작 코드와 `li` 두 줄, `add` 실행, Inspector 고정) |
+| `tutorial-14.png` | 14단계: 거터(브레이크포인트 칸)와 그 줄 | 1280×800, 14단계 |
+| `tutorial-19.png` | 19단계: `tutorial-error.s` 를 어셈블한 뒤의 Errors 패널 | 1280×800, 19단계에서 Ctrl+S |
+| `tutorial-20.png` | 20단계: 가운데 카드, 하람(congrats) | 1280×800, 20단계 |
+| `tutorial-09-narrow.png` | 9단계를 좁은 창(Run 쪽)에서 | 910×505 를 1.5배로 |
 | `windows-frame.png` | **실제 Windows 11** 에서 최대화한 설치본: 앱의 막대 + 시스템의 창 버튼 | CI(`windows.yml`, 러너 화면 1024×768)만. 설치본으로 `split-running` 과 같은 실행 뒤 최대화, 화면 전체 |
 
 `windows-frame.png` 은 CI 아티팩트 `windows-report` 의 `report/screens/windows-frame.png` 를 그대로 가져온다. CI 는 같은 도구로
