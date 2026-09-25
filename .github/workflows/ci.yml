@@ -230,7 +230,13 @@ jobs:
                   ConvertFrom-Json |
                   Where-Object { -not $_.isDraft -and $_.tagName -match '^v1\.' } |
                   Select-Object -First 1).tagName
-          if ($tag) {
+          # A build of the version already released (a commit after the
+          # release that does not change the version) has no upgrade to
+          # check: installing 1.2.4 over 1.2.4 only makes a second entry.
+          $msi = (Get-Item dist/*.msi).Name
+          if ($tag -and $msi -like "*-$($tag.TrimStart('v'))-*") {
+            Write-Host "previous release $tag is this build's version ($msi): no upgrade to check"
+          } elseif ($tag) {
             Write-Host "previous release: $tag"
             gh release download $tag --pattern "*.msi" --dir previous
           }
