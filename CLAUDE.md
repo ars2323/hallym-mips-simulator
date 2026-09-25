@@ -1,11 +1,12 @@
-# Hallym MIPS Simulator — Claude Code 작업 규칙
+# Hallym MIPS Simulator — working rules for Claude Code
 
-SPIM/QtSpim **9.1.24** (SVN r764, git tag `vanilla-9.1.24`) 기반 교육용 확장판 QtSpim-Edu 1.0.1의 한림대학교용 파생판.
-레이아웃·기능·시뮬레이터 코어는 QtSpim-Edu 그대로 두고 **겉모습(브랜딩·색·글꼴·아이콘·간격)만** 바꾼다 (PLAN.md "H단계").
-수업에서 표준 QtSpim과 함께 쓰이므로 **시뮬레이션 결과는 원본과 완전히 같아야 하고, 바뀌는 것은 GUI뿐**이다.
-최종 배포 대상은 **Windows**. 전체 계획은 `PLAN.md`, 코드 구조 조사 결과는 `docs/ARCHITECTURE.md`(1단계에서 작성), 디자인 토큰은 `docs/design/tokens.md`.
+A Hallym University derivative of QtSpim-Edu 1.0.1, the educational extension based on SPIM/QtSpim **9.1.24** (SVN r764, git tag `vanilla-9.1.24`).
+The layout, features and simulator core stay exactly as in QtSpim-Edu; **only the appearance (branding, colors, fonts, icons, spacing)** changes (PLAN.md, "Stage H").
+It is used in class alongside standard QtSpim, so **the simulation results must be completely identical to the original, and only the GUI changes**.
+This repository also holds the Electron edition (2.x, the current version) in `electron/`, which shares `CPU/`; its rules and history are in `electron/docs/PORTING.md`. These rules are for the Qt edition (1.x) at the root.
+The final distribution target is **Windows**. The overall plan is in `PLAN.md`, the results of the code structure survey are in `docs/ARCHITECTURE.md` (written in stage 1), and the design tokens are in `docs/design/tokens.md`.
 
-## 빌드 (Linux 개발 환경)
+## Build (Linux development environment)
 
 ```bash
 mkdir -p build && cd build && qmake ../QtSpim/QtSpim.pro && make -j$(nproc)
@@ -13,53 +14,53 @@ mkdir -p build && cd build && qmake ../QtSpim/QtSpim.pro && make -j$(nproc)
 ```
 
 - Ubuntu 22.04 · Qt 5.15.3 · bison 3.8.2 · flex 2.6.4 · g++ 11
-- Windows 빌드: Qt 5.15.2 + MSVC 2019 (PLAN 2단계에서 CI로 구성)
-- 반드시 shadow build(`build/`). 소스 디렉터리에서 qmake 실행 금지.
+- Windows build: Qt 5.15.2 + MSVC 2019 (set up as CI in PLAN stage 2)
+- Always use a shadow build (`build/`). Never run qmake in the source directory.
 
-## 절대 규칙
+## Absolute rules
 
-1. **`CPU/` 디렉터리는 수정하지 않는다.** 시뮬레이터 코어는 원본 그대로. 수정이 불가피하다고 판단되면 작업을 멈추고 사유와 대안을 보고한다.
-2. **`CPU/version.h`의 `SPIM_VERSION`은 수정하지 않는다.** 우리 버전 정보는 `QtSpim/edu/edu_version.h`에 둔다.
-3. **기존 기능 회귀 금지.** 원본에 있던 메뉴·동작(레지스터/메모리 값 변경, 브레이크포인트, 표시 진법 옵션, User/Kernel 표시 토글, 인쇄, 로그 저장, 설정, 실행 인자 등)은 새 UI에서도 전부 동작해야 한다. 목록은 `docs/ARCHITECTURE.md`의 "보존 기능" 표가 기준이다.
-4. **Qt 5.15 공통 API만 사용.** Qt6 전용 API, 5.15에서 deprecated된 API, POSIX/Win32 전용 API 금지. Linux(5.15.3)와 Windows(5.15.2) 양쪽에서 빌드되어야 한다.
-5. **빌드가 소스 트리를 더럽히면 안 된다.** `make` 후 `git status`가 깨끗해야 한다.
-6. **코어 구조를 추측하지 않는다.** 레지스터 배열, 텍스트 세그먼트, 명령어 인코딩, 심볼 테이블, 메모리 읽기 경로 등은 반드시 소스를 읽어 확인하고 `docs/ARCHITECTURE.md`에 파일:줄 근거와 함께 기록한 뒤 사용한다.
-7. **숫자 표시는 한 곳에서만 만든다.** hex/dec/bin 변환, 명령어 필드 분해, 주소 계산은 `QtSpim/edu/core/`의 테스트된 함수를 통해서만 한다. 위젯 안에서 즉석 포맷팅 금지.
-8. **이름.** 표시명 "Hallym MIPS Simulator", 실행 파일·설정 폴더 "HallymMIPS", 한글 "한림 MIPS 시뮬레이터"(안내문에만). 화면·메뉴·파일명·문서 어디에도 QtSpim/Spim/Edu 표기를 남기지 않는다. 예외: BSD·LGPL 조건상 About → License 탭과 동봉 LICENSE 파일의 원본 저작권 고지(James Larus, SPIM)와 Qt LGPL 고지는 그대로 둔다. 코드 식별자(`edu_*`, `EDU_*`)는 이름이 아니라 코드이므로 바꾸지 않는다.
-9. **CI 자산은 변형하지 않는다.** 심볼마크·로고타입·엠블럼·시그니처(`assets/ci/`)는 축소와 여백만. 단색화·회전·비율 변경·색 변경·요소 분리 금지. 색·글꼴·간격은 `docs/design/tokens.md`의 토큰만 쓴다 — `QtSpim/edu/theme/tokens.h`와 `theme/light.qss` 밖에서 색·글꼴 리터럴 금지.
-10. **문자열 리터럴은 `const char*` 또는 `QString`으로만 받는다.** MSVC의 `-Zc:strictStrings`는 코어(`CPU/`)가 `char*`에 리터럴을 넘기기 때문에 `.pro`에서 껐다. `QtSpim/edu/`의 새 코드는 그 예외에 기대지 않는다: 리터럴을 `char*`에 대입하거나 `char*` 매개변수에 넘기지 않는다.
+1. **Do not modify the `CPU/` directory.** The simulator core stays as in the original. (`CPU/ORIGIN.md` is the one file there that is not upstream's: a note of where the core comes from and that both editions build from it; `tools/regress.sh` leaves it out.) If you judge a modification to be unavoidable, stop the work and report the reason and the alternatives.
+2. **Do not modify `SPIM_VERSION` in `CPU/version.h`.** Our version information lives in `QtSpim/edu/edu_version.h`.
+3. **No regressions in existing features.** Every menu and behavior of the original (changing register/memory values, breakpoints, display radix options, the User/Kernel display toggle, printing, saving the log, settings, run arguments, etc.) must all work in the new UI as well. The reference list is the "preserved features" table in `docs/ARCHITECTURE.md`.
+4. **Use only the Qt 5.15 common API.** Qt6-only APIs, APIs deprecated in 5.15, and POSIX-only/Win32-only APIs are forbidden. It must build on both Linux (5.15.3) and Windows (5.15.2).
+5. **The build must not dirty the source tree.** `git status` must be clean after `make`.
+6. **Do not guess the core's structure.** The register array, text segment, instruction encoding, symbol table, memory read paths, etc. must be confirmed by reading the source and recorded in `docs/ARCHITECTURE.md` with file:line evidence before they are used.
+7. **Numeric display is produced in one place only.** hex/dec/bin conversion, instruction field breakdown and address calculation are done only through the tested functions in `QtSpim/edu/core/`. No ad-hoc formatting inside widgets.
+8. **Names.** Display name "Hallym MIPS Simulator", executable and settings folder "HallymMIPS", Korean name "한림 MIPS 시뮬레이터" (Hallym MIPS Simulator; in the guides only). No QtSpim/Spim/Edu name may remain anywhere on screen, in menus, in file names or in documents. Exception: because of the BSD and LGPL terms, the original copyright notice (James Larus, SPIM) and the Qt LGPL notice in the About → License tab and in the bundled LICENSE file stay as they are. Code identifiers (`edu_*`, `EDU_*`) are code, not names, so they are not changed.
+9. **Do not alter the CI assets.** The symbol mark, logotype, emblem and signature (`assets/ci/`) may only be scaled and given margins. Making them monochrome, rotating them, changing their proportions, changing their colors or separating their elements is forbidden. Use only the tokens in `docs/design/tokens.md` for colors, fonts and spacing — no color or font literals outside `QtSpim/edu/theme/tokens.h` and `theme/light.qss`.
+10. **Take string literals only as `const char*` or `QString`.** MSVC's `-Zc:strictStrings` is turned off in the `.pro` because the core (`CPU/`) passes literals to `char*`. New code in `QtSpim/edu/` does not rely on that exception: never assign a literal to a `char*` or pass one to a `char*` parameter.
 
-## 검증 — 완료 선언 전 필수
+## Verification — required before declaring anything done
 
-1. 새로 추가·수정한 코드에서 컴파일 경고 0
-2. `tests/` 단위 테스트 전부 통과
-3. UI 변경이 있으면 스크린샷 하네스로 캡처하고 **이미지를 직접 Read로 열어 확인**한다. 캡처 없이 UI 작업 완료라고 말하지 않는다.
-4. 회귀 스크립트 통과: `Tests/`의 원본 테스트 프로그램 실행 결과가 `vanilla-9.1.24` 빌드와 동일
-5. 단계 종료 시 **사람 체크포인트**: 실제 모니터(Linux)에서 사람이 확인할 체크리스트를 제시하고 멈춘다. 사람 승인 없이 다음 단계로 넘어가지 않는다. Windows zip 확인은 단계마다 하지 않고 **7단계 완료 후(3~7단계를 한 번에)와 8단계**에서 한다 — 그 사이에는 push마다 도는 CI(Windows 빌드·단위 테스트·패키징)가 초록불이어야 한다.
+1. Zero compiler warnings in newly added or modified code
+2. All unit tests in `tests/` pass
+3. If the UI changed, capture it with the screenshot harness and **open the images yourself with Read to check them**. Never say UI work is done without a capture.
+4. The regression script passes: the results of running the original test programs in `Tests/` are identical to the `vanilla-9.1.24` build
+5. At the end of a stage, a **human checkpoint**: present a checklist for a person to verify on a real monitor (Linux) and stop. Do not move on to the next stage without human approval. The Windows zip check is not done at every stage but **after stage 7 is complete (stages 3–7 at once) and in stage 8** — in between, the CI that runs on every push (Windows build, unit tests, packaging) must be green.
 
-offscreen 캡처는 폰트·DPI·테마가 실제와 다를 수 있다. 내용·배치 확인용이지 최종 외관 판정용이 아니다.
+Offscreen captures may differ from the real thing in fonts, DPI and theme. They are for checking content and layout, not for judging the final appearance.
 
-## 코드 배치
+## Code layout
 
-| 위치 | 용도 |
+| Location | Purpose |
 |---|---|
-| `QtSpim/edu/core/` | 순수 로직(포맷터, 디코더). QtCore까지만 의존. 전부 단위 테스트 대상 |
-| `QtSpim/edu/` | 새 GUI 코드(모델, 뷰, 인스펙터, 에디터) |
-| `tests/` | Qt Test 기반 단위 테스트 (별도 `.pro`) |
-| `tools/` | 스크린샷 하네스, 회귀 스크립트 |
-| `docs/` | ARCHITECTURE.md 등 |
+| `QtSpim/edu/core/` | Pure logic (formatters, decoder). Depends on QtCore at most. All of it is covered by unit tests |
+| `QtSpim/edu/` | New GUI code (models, views, inspector, editor) |
+| `tests/` | Qt Test–based unit tests (separate `.pro`) |
+| `tools/` | Screenshot harness, regression scripts |
+| `docs/` | ARCHITECTURE.md, etc. |
 
-원본 `QtSpim/*.cpp` 수정은 새 코드를 연결하는 최소한으로 한정하고, 수정 지점마다 `// EDU:` 주석을 단다.
+Changes to the original `QtSpim/*.cpp` are limited to the minimum needed to hook up the new code, and every change point gets an `// EDU:` comment.
 
-## 커밋
+## Commits
 
-- 작게, 한 커밋 한 목적. 메시지 형식: `[단계번호] 요약` (예: `[3] register panel: group headers`)
-- 포맷 변경과 로직 변경을 섞지 않는다. `git clang-format`으로 **새/변경 줄만** 포맷. 원본 파일 전체 재포맷 금지.
-- 원본 파일의 권한 비트(100755) 변경 금지.
-- 단계 완료 시 태그 `stage-N`.
+- Small, one purpose per commit. Message format: `[stage number] summary` (e.g. `[3] register panel: group headers`)
+- Do not mix formatting changes with logic changes. Format **only new/changed lines** with `git clang-format`. Reformatting whole original files is forbidden.
+- Changing the permission bits (100755) of original files is forbidden.
+- When a stage is complete, tag it `stage-N`.
 
-## 한국어 · Windows 주의
+## Korean and Windows caveats
 
-- 학생 PC의 Windows 사용자명·경로에 한글이 들어갈 수 있다. 파일 경로가 QString에서 코어(`char*`, `fopen`)로 넘어가는 지점의 인코딩을 확인하고 한글 경로로 테스트한다.
-- `.s` 파일에 한글 주석이 흔하다. 에디터는 UTF-8 기본, CP949 파일 열기 지원, 줄바꿈(CRLF/LF) 원본 유지.
-- 설치 시 표준 QtSpim과 충돌하지 않아야 한다(설치 경로, 실행 파일명, MSI UpgradeCode, `.s` 확장자 연결).
+- Windows user names and paths on students' PCs may contain Korean. Check the encoding at the point where a file path passes from a QString to the core (`char*`, `fopen`), and test with Korean paths.
+- Korean comments are common in `.s` files. The editor defaults to UTF-8, supports opening CP949 files, and keeps the original line endings (CRLF/LF).
+- Installation must not conflict with standard QtSpim (installation path, executable name, MSI UpgradeCode, `.s` file association).

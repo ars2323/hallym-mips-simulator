@@ -1,31 +1,31 @@
-# 하지 않은 것 · 이후에 검토할 것
+# Not done · to consider later
 
-1.0.0의 범위 밖으로 남긴 것들. 우선순위 없음.
+Things left outside the scope of 1.0.0. In no particular order.
 
-## 화면
+## Screen
 
-- **FP 레지스터 탭**: 원본 그대로다. 단정도/배정도 해석과 비트 분해(부호·지수·가수)를 Int Regs와 같은 트리 + 인스펙터로.
-- **실행 중인 줄을 에디터에 표시**: Text의 PC 행 ↔ 에디터의 소스 줄(`SOURCE(inst)`의 줄 번호)을 서로 따라가게.
-- **에디터**: 찾기/바꾸기, 되돌리기 메뉴 항목, 들여쓰기 도움, 어두운 테마. 최근 파일 목록 지우기.
-- **Data 패널**: 값이 바뀐 워드 강조(레지스터처럼), 문자열/배열 단위로 묶어 보기, 0-구간 직접 펼치기.
-- **Console**: 원본 그대로. 입력 대기 중임을 알리는 표시.
-- 표시 언어: 메뉴·대화상자는 전부 영어다. 한국어 번역(.ts). 최초 실행 튜토리얼만 한/영 두 언어로 되어 있다.
-- **튜토리얼**: 지금은 패널 7개를 짚는 데서 끝난다. "Ctrl+S를 눌러 보세요" 같은 실습형 단계, 진도 저장, 개별 기능(브레이크포인트, Go to, 레이아웃 프리셋)의 짧은 도움말.
-- **앱 아이콘**: 48px 이상은 원형 엠블럼, 그 아래는 심볼이다(1.0.1). 두 마크가 섞이는 것이 어색하면 전부 심볼로 통일하는 선택지가 있다(`docs/design/captures/app-icon-options.png`).
+- **FP register tab**: as in the original. Single/double precision interpretation and a bit breakdown (sign, exponent, mantissa), with the same tree + inspector as Int Regs.
+- **Showing the executing line in the editor**: make the PC row in Text and the source line in the editor (the line number from `SOURCE(inst)`) follow each other.
+- **Editor**: find/replace, undo menu items, indentation help, a dark theme. Clearing the recent files list.
+- **Data panel**: highlighting words whose value changed (as for registers), grouped views by string/array, expanding zero runs directly.
+- **Console**: as in the original. An indicator that it is waiting for input.
+- Display language: menus and dialogs are all in English. A Korean translation (.ts). Only the first-run tutorial exists in both Korean and English.
+- **Tutorial**: at present it ends after pointing out 7 panels. Hands-on steps such as "try pressing Ctrl+S", saving progress, short help for individual features (breakpoints, Go to, layout presets).
+- **App icon**: 48px and larger is the round emblem, smaller sizes are the symbol (1.0.1). If mixing the two marks looks awkward, one option is to use the symbol everywhere (`docs/design/captures/app-icon-options.png`).
 
-## 어셈블러 · 프로그램 구성
+## Assembler · program structure
 
-- **여러 파일을 하나의 프로그램으로**: 지금은 Load File의 "Add to current program"으로만 가능하고, 에디터는 파일 하나만 다룬다.
-- **첫 syntax error 뒤의 에러도 한 번에 보기**: 코어의 파서가 거기서 멈춘다. `CPU/`를 고치지 않고는 어렵다.
-- 코드가 참조하지 않는 **예외 핸들러의 로컬 라벨**: 핸들러는 코어가 직접 읽어서 로더 복제가 닿지 않는다(ARCHITECTURE §15.2).
+- **Several files as one program**: at present this is possible only through Load File's "Add to current program", and the editor handles only one file.
+- **Seeing the errors after the first syntax error all at once**: the core's parser stops there. Hard to do without modifying `CPU/`.
+- **Local labels of the exception handler** that the code does not reference: the core reads the handler itself, so the loader mirror does not reach it (ARCHITECTURE §15.2).
 
-## 배포
+## Distribution
 
-- **코드 서명**: 하지 않았다. SmartScreen 경고가 뜬다.
-- **자동 업데이트**: 없다. 새 버전은 릴리스 페이지에서 받아 덮어쓴다.
-- macOS / Linux 패키지: Linux는 소스 빌드만, macOS는 확인한 적 없음.
-- 원본의 MinGW용 WiX 소스(`Setup/QtSpim_Win_Deployment`)는 손대지 않았다.
+- **Code signing**: not done. A SmartScreen warning appears.
+- **Automatic updates**: none. A new version is downloaded from the releases page and copied over the old one.
+- macOS / Linux packages: Linux is source build only; macOS has never been checked.
+- The original WiX sources for MinGW (`Setup/QtSpim_Win_Deployment`) were left untouched.
 
-## 원본의 문제로, 고치지 않고 둔 것
+## Problems in the original, left unfixed
 
-`docs/ARCHITECTURE.md` §12와 `docs/GUIDE-ko.md` 5절 참고: 브레이크포인트 줄의 로그 깨짐, 한 줄 늦는 에러 줄 번호(로그), `Shift-F5` 단축키 표기, 시스템 로캘 밖의 경로를 열지 못함(코어의 `fopen(char*)`).
+See `docs/ARCHITECTURE.md` §12 and section 5 of `docs/GUIDE-ko.md`: the garbled log on breakpoint lines, the error line number that is one line late (in the log), the `Shift-F5` shortcut label, and paths outside the system locale cannot be opened (the core's `fopen(char*)`).

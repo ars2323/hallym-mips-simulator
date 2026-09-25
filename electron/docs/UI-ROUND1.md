@@ -1,118 +1,118 @@
-# 창 1차 — 시안과 다른 곳, 캐릭터 자리, 잰 값
+# Window round 1 — differences from the mockups, character placement, measurements
 
-방향 1 "무대 전환"을 실제로 동작하게 만든 첫 판의 기록이다. 이때 찍은 캡처(네 장면 × 세 크기, 시안 대조표
-`sheet.png`)는 지금의 고정 세트(`docs/screens/README.md`)로 바뀌면서 지웠다. 커밋 `070aac5` 의 `docs/screens/` 에 남아 있다.
-아래 용어는 그때의 것이다(창의 이름은 뒤에 영어로 통일했다: `docs/PORTING.md` 16절).
+This is the record of the first version that made direction 1, "stage switching", actually work. The captures taken then (four scenes × three sizes, and the mockup comparison sheet
+`sheet.png`) were deleted when they were replaced by the current fixed set (`docs/screens/README.md`). They remain in `docs/screens/` at commit `070aac5`.
+The terms below are the ones used at that time (the window's names were later unified in English: `docs/PORTING.md` section 16).
 
-| 장면 | 앱에서 한 일 |
+| Scene | What was done in the app |
 |---|---|
-| A 첫 화면 | 앱을 띄운 그대로 |
-| B 코드 (오류) | `lab04.s` 를 열고 Ctrl+S. 15행 `srll` 이 진짜 오류다 |
-| C 한 줄씩 실행 | 고친 `lab04-ok.s`(창에는 `lab04.s`)를 열고 Ctrl+S, F10 16번. PC `0x0040004c`, 방금 바뀐 것은 `$t6` |
-| D Inspector | 같은 상태에서 `sra $s1, $t6, 1`(`0x00400054`) 줄을 누름 |
+| A Start screen | The app as it starts |
+| B Code (error) | Open `lab04.s` and press Ctrl+S. `srll` on line 15 is a real error |
+| C Single-stepping | Open the fixed `lab04-ok.s` (shown in the window as `lab04.s`), press Ctrl+S, then F10 16 times. PC `0x0040004c`; the register just changed is `$t6` |
+| D Inspector | In the same state, click the `sra $s1, $t6, 1` (`0x00400054`) line |
 
-## 시안과 다른 곳, 그리고 왜
+## Differences from the mockups, and why
 
-### 모든 장면
+### All scenes
 
-| 시안 | 앱 | 왜 |
+| Mockup | App | Why |
 |---|---|---|
-| 상단에 `?` 와 톱니 두 개 | `?`(튜토리얼 예제 열기), 새 파일, 파일 열기, 톱니 | 첫 화면을 지나면 새 파일·열기에 닿을 곳이 없었다. 메뉴 막대는 없앴다 |
-| 첫 화면에도 [코드]/[실행] 전환 | 첫 화면에는 없다 | 아직 전환할 대상이 없다 |
-| 상태 표시줄 오른쪽의 "방향 · 장면" 표 | 없다 | 시안을 구분하려던 표시다 |
+| Two items at the top: `?` and a gear | `?` (opens the tutorial example), New file, Open file, gear | Once past the start screen there was nowhere to reach New file and Open. The menu bar was removed |
+| A [코드]/[실행] ("Code"/"Run") switch on the start screen too | Not on the start screen | There is nothing to switch to yet |
+| The "방향 · 장면" ("direction · scene") label on the right of the status bar | None | It was a label to tell the mockups apart |
 
-### A 첫 화면
+### A Start screen
 
-| 시안 | 앱 | 왜 |
+| Mockup | App | Why |
 |---|---|---|
-| 네 가지 시작(예제 열기·튜토리얼·새 파일·파일 열기) + 최근 파일 | **튜토리얼 보기 / 바로 시작** 둘. 바로 시작을 누르면 **새 파일 / 파일 열기** | 요청한 구성이다. 최근 파일은 없다: 상태를 되살리지 않는다(실습실 PC 는 여럿이 쓴다) |
-| 튜토리얼 "20단계, 10분쯤" | 튜토리얼 예제(`src/examples/tutorial.s`, Qt판 샘플)를 편집기에 연다 | 20단계 튜토리얼은 이번 범위가 아니다 |
+| Four ways to start (open example, tutorial, new file, open file) + recent files | Two: **튜토리얼 보기 / 바로 시작** ("View tutorial" / "Start now"). Clicking 바로 시작 shows **새 파일 / 파일 열기** ("New file" / "Open file") | This is the requested layout. No recent files: state is not restored (lab PCs are shared by many people) |
+| Tutorial "20단계, 10분쯤" ("20 steps, about 10 minutes") | Opens the tutorial example (`src/examples/tutorial.s`, a Qt edition sample) in the editor | The 20-step tutorial is not in this round's scope |
 
-### B 코드
+### B Code
 
-| 시안 | 앱 | 왜 |
+| Mockup | App | Why |
 |---|---|---|
-| 오류 줄의 틀린 낱말에 물결 밑줄 | 줄 전체를 칠하고 줄 번호 옆에 빨간 점 | 코어는 줄만 알려 준다. 어느 낱말인지 고르면 추측이 된다 |
-| 편집기 줄 번호 | CodeMirror 의 줄 번호 + 오류 점 칸 | 실제 편집기다 |
-| 1920 에서 폭이 남는다 | 그대로 남는다 | 시안 README 의 "알게 된 것" 그대로다. 채우는 방안(기계어 미리보기)은 이번 범위가 아니다 |
+| Wavy underline under the wrong word on the error line | The whole line is colored, with a red dot next to the line number | The core only reports the line. Picking which word would be guesswork |
+| Editor line numbers | CodeMirror's line numbers + a column for the error dot | It is a real editor |
+| Width left over at 1920 | Still left over | Exactly as in "What we learned" in the mockups README. A way to fill it (machine code preview) is not in this round's scope |
 
-### C 한 줄씩 실행
+### C Single-stepping
 
-| 시안 | 앱 | 왜 |
+| Mockup | App | Why |
 |---|---|---|
-| 상태: "한 줄씩 실행 중 · 16단계 · PC … · 방금 바뀜" | "한 줄 실행했습니다 (PC …) · 16단계 · 방금 바뀜: `$t6`" | 멈춘 이유(`limit`·`breakpoint`·`input`·`stopped`)마다 문장이 다르다 |
-| Text 머리 "사용자 명령 30개" | "명령 30개" + "명령 보기" | "명령 보기"는 고르지 않고 Inspector 를 여는 곳이다(빈 Inspector 의 팻말) |
-| "CP0 · FP 레지스터는 기본으로 숨김" | "CP0 레지스터는 기본으로 숨김 · 보기"(펼쳐진다) | FP 레지스터 표시는 이번에 만들지 않았다 |
-| 브레이크포인트 칸은 비어 있다 | 줄에 마우스를 올리면 흐린 점, 누르면 빨간 점 | 누를 곳을 보여 준다 |
-| 960 의 작은 레지스터 표에 머리가 없다 | 한 벌의 머리(이름·16진·10진) | 두 열이 같은 뜻이다 |
+| Status: "한 줄씩 실행 중 · 16단계 · PC … · 방금 바뀜" ("Single-stepping · step 16 · PC … · just changed") | "한 줄 실행했습니다 (PC …) · 16단계 · 방금 바뀜: `$t6`" ("Executed one line (PC …) · step 16 · just changed: `$t6`") | The sentence differs for each stop reason (`limit`, `breakpoint`, `input`, `stopped`) |
+| Text head "사용자 명령 30개" ("30 user instructions") | "명령 30개" ("30 instructions") + "명령 보기" ("View instruction") | "명령 보기" is the place that opens the Inspector without choosing an instruction (the sign in the empty Inspector) |
+| "CP0 · FP 레지스터는 기본으로 숨김" ("CP0 · FP registers hidden by default") | "CP0 레지스터는 기본으로 숨김 · 보기" ("CP0 registers hidden by default · Show") (expands) | Showing the FP registers was not built this time |
+| The breakpoint column is empty | Hovering over a line shows a faint dot; clicking makes a red dot | It shows where to click |
+| The small register table at 960 has no head | One set of heads (name, hex, decimal) | The two columns mean the same thing |
 
-### D Inspector — 1280 에서 시트를 낮췄다
+### D Inspector — the sheet was made lower at 1280
 
-| | 시안 | 앱 |
+| | Mockup | App |
 |---|---|---|
-| 1280×800 시트 높이 | 약 407px(영역의 60%) | **311px** |
-| 시트 위에 온전히 보이는 Text 줄 | 9줄 | **13줄** (시트가 없을 때 26줄) |
+| Sheet height at 1280×800 | About 407px (60% of the area) | **311px** |
+| Text lines fully visible above the sheet | 9 lines | **13 lines** (26 lines without the sheet) |
 
-필드 표는 그대로 두고 둘레를 줄였다.
+The field table was left as it is, and the space around it was reduced.
 
-- "소스 …" 줄을 제목 줄 안으로 올렸다(한 줄 절약).
-- 비트 띠의 줄 높이: 범위 14px, 비트 20px, 이름 15px.
-- 필드 표의 행 높이는 20px, 머리 행은 18px 이다. 위아래 여백은 4px/2px 이다.
-- 설명 상자의 바깥 여백은 4px/10px, 안쪽 여백은 6px/10px 이다.
-- 손잡이 위 여백은 5px 이다.
+- The "소스 …" ("Source …") line was moved up into the title line (saves one line).
+- Line heights of the bit strip: range 14px, bits 20px, names 15px.
+- Field table rows are 20px high and the header row is 18px. Top/bottom padding is 4px/2px.
+- The explanation box's outer margin is 4px/10px and its inner padding is 6px/10px.
+- The margin above the handle is 5px.
 
-시트 높이는 비율이 아니라 내용 높이다. 그래서 1920 에서도 311px 이다(시안은 46%).
+The sheet height is the content height, not a ratio. So it is 311px at 1920 too (the mockup had 46%).
 
-| 시안 | 앱 | 왜 |
+| Mockup | App | Why |
 |---|---|---|
-| 설명: "`$t6`(= `0x80000001`)을 shamt만큼 …" | "`$t6` 값(`0x80000001`)을 shamt(`1`)만큼 …" | 조사는 레지스터 이름이나 숫자가 아니라 한국어 명사 뒤에 붙인다. `$a0`, `5` 를 어떻게 읽느냐에 따라 을/를이 갈리기 때문이다(`src/core/explain.ts`) |
-| 표의 "뜻" 열은 UI 글꼴 | mono | 뜻에 `0x…`(즉시값) 가 올 수 있다 |
-| 고른 줄이 시트 바로 위 | 같다. 목록 끝의 줄도 시트 위로 올라온다 | 목록 아래에 시트만큼 여백을 둔다 |
+| Explanation: "`$t6`(= `0x80000001`)을 shamt만큼 …" ("`$t6` (= `0x80000001`) by shamt …") | "`$t6` 값(`0x80000001`)을 shamt(`1`)만큼 …" ("the `$t6` value (`0x80000001`) by shamt (`1`) …") | The Korean particle is attached after a Korean noun, not after a register name or a number. Whether the object particle is 을 or 를 depends on how `$a0` or `5` is read aloud (`src/core/explain.ts`) |
+| The table's "뜻" ("Meaning") column in the UI font | mono | A meaning can contain `0x…` (an immediate) |
+| The selected line just above the sheet | Same. Even a line at the end of the list comes up above the sheet | Space as tall as the sheet is left below the list |
 
-## 캐릭터를 둔 자리 (이 네 곳뿐)
+## Where the characters are placed (only these four)
 
-| 자리 | 캐릭터 | 언제 |
+| Place | Character | When |
 |---|---|---|
-| 첫 화면 | `hello`(인사), 210px | 늘 |
-| 빈 Inspector | `sign`(팻말), 96px | 명령을 고르지 않고 Inspector 를 열 때. 문구는 팻말 판 위가 아니라 옆에 둔다 |
-| 빈 콘솔 | `talk`(소통), 96px | 출력이 없는 콘솔을 펼칠 때 |
-| 첫 성공 실행 | `congrats`(축하), 120px | 오류 없이 `exit` 로 끝난 첫 실행에서 **한 번**. 닫거나 다음 동작(F10·F5·어셈블)을 하면 사라지고, 그 실행(세션) 동안 다시 나오지 않는다 |
+| Start screen | `hello` (greeting), 210px | Always |
+| Empty Inspector | `sign` (signpost), 96px | When the Inspector is opened without choosing an instruction. The text is placed beside the sign, not on its board |
+| Empty console | `talk` (communication), 96px | When a console with no output is expanded |
+| First successful run | `congrats` (congratulations), 120px | **Once**, on the first run that ends with `exit` without errors. It disappears when closed or on the next action (F10, F5, assemble), and does not appear again for that run (session) of the app |
 
-모두 흰 면 위에 있다. teal 면, 툴바, 패널 머리, 상태 표시줄, 오류 목록에는 두지 않았다.
-원본 PNG 를 CSS 높이로만 줄였다(최소 76px).
+All are on white surfaces. None were put on teal surfaces, the toolbar, panel heads, the status bar or the error list.
+The original PNGs were only scaled down by CSS height (minimum 76px).
 
-## 잰 것 (`npm run measure:ui`, 1280×800, xvfb 소프트웨어 렌더링)
+## Measurements (`npm run measure:ui`, 1280×800, xvfb software rendering)
 
-### 레지스터 다시 그리기 — F10 300번
+### Register redraw — F10 300 times
 
-| 무엇 | 값 |
+| What | Value |
 |---|---|
-| 한 번 갱신하는 스크립트 시간 | p50 0.1–0.2 ms, p95 0.3 ms, 최대 0.6 ms |
-| 글자가 바뀐 행 | 한 단계에 2행(PC 와 바뀐 레지스터 하나) |
-| DOM 이 바뀐 행(MutationObserver) | 한 단계에 **3행 / 39행**: PC, 새로 바뀐 것, 강조가 꺼진 이전 것 |
-| 초당 단계(키 → 갱신 확인) | 약 220–240 |
-| 프레임 | p50 16.7 ms, 최대 16.8 ms, 33 ms 넘은 프레임 0, 긴 작업(>50 ms) 0 |
+| Script time for one update | p50 0.1–0.2 ms, p95 0.3 ms, max 0.6 ms |
+| Rows whose text changed | 2 rows per step (the PC and one changed register) |
+| Rows whose DOM changed (MutationObserver) | **3 rows / 39 rows** per step: the PC, the newly changed one, and the previous one whose highlight went off |
+| Steps per second (key → update confirmed) | About 220–240 |
+| Frames | p50 16.7 ms, max 16.8 ms, 0 frames over 33 ms, 0 long tasks (>50 ms) |
 
-레지스터 행은 한 번 만들고 바뀐 칸만 고친다. 바뀐 행만 갱신된다는 것은 MutationObserver 로 확인했다.
+Register rows are created once and only the changed cells are updated. That only changed rows are updated was confirmed with MutationObserver.
 
-### 실행 중 (F5, 끝없는 루프 2초)
+### While running (F5, endless loop for 2 seconds)
 
-프레임 p50 16.7 ms, 최대 16.8 ms. 33 ms 넘은 프레임과 긴 작업은 0 이다.
-2초 동안 약 700만 명령을 실행했다. 진행 이벤트는 상태 표시줄만 고친다.
+Frames p50 16.7 ms, max 16.8 ms. Frames over 33 ms and long tasks: 0.
+About 7 million instructions were executed in 2 seconds. Progress events update only the status bar.
 
-### tt.core.s — 가상 목록이 필요한가
+### tt.core.s — is a virtual list needed?
 
-사용자 명령 4,703개(커널 52개는 접힘)를 CPU 보통 속도와 CDP 로 4배 느리게 한 속도에서 쟀다.
-4배 느린 쪽은 실습실의 느린 PC 를 흉내 낸 것이다.
+Measured with 4,703 user instructions (52 kernel instructions folded) at normal CPU speed and at 4× slower via CDP.
+The 4× slower case imitates a slow PC in the lab.
 
-| | 가상 목록 (보통) | 가상 목록 (CPU ×4) | 모든 행 DOM (보통) | 모든 행 DOM (CPU ×4) |
+| | Virtual list (normal) | Virtual list (CPU ×4) | All rows in DOM (normal) | All rows in DOM (CPU ×4) |
 |---|---|---|---|---|
-| DOM 행 / 전체 요소 | 37 / 약 960 | 37 / 약 960 | 4,703 / 42,861 | 4,703 / 42,861 |
-| 채우기(그려질 때까지) | 11–12 ms | 31–35 ms | 74–442 ms | 2.3–2.8 s |
-| 끝까지 스크롤 240프레임 | 최대 16.8 ms, 긴 작업 0 | 최대 16.8 ms, 긴 작업 0 | 최대 16.8 ms, 긴 작업 0 | **p50 33 ms, p95 67–83 ms, 117프레임이 33 ms 초과, 긴 작업 232** |
-| F10 한 번 → 그려짐 | 17 ms | 42–51 ms | 31–33 ms | 133–141 ms |
+| DOM rows / total elements | 37 / about 960 | 37 / about 960 | 4,703 / 42,861 | 4,703 / 42,861 |
+| Fill (until painted) | 11–12 ms | 31–35 ms | 74–442 ms | 2.3–2.8 s |
+| Scroll to the end, 240 frames | max 16.8 ms, 0 long tasks | max 16.8 ms, 0 long tasks | max 16.8 ms, 0 long tasks | **p50 33 ms, p95 67–83 ms, 117 frames over 33 ms, 232 long tasks** |
+| One F10 → painted | 17 ms | 42–51 ms | 31–33 ms | 133–141 ms |
 
-결론: **필요하다.** 이 기계의 보통 속도에서는 모든 행을 DOM 에 두어도 스크롤이 버틴다.
-하지만 채우기에 수백 ms 가 걸리고, CPU 가 4배 느리면 스크롤의 절반이 끊기고 한 단계가 0.1초를 넘는다.
-가상 목록은 이 앱에 이미 들어가 있다(`src/renderer/app/logic/virtual.ts`, 보이는 행 앞뒤로 10행).
-`?text=full` 을 붙이면 비교용으로 모든 행을 둔다.
+Conclusion: **it is needed.** At this machine's normal speed, scrolling holds up even with all rows in the DOM.
+But filling takes hundreds of ms, and with the CPU 4× slower half of the scrolling stutters and one step takes over 0.1 seconds.
+The virtual list is already in this app (`src/renderer/app/logic/virtual.ts`, 10 rows before and after the visible rows).
+Appending `?text=full` keeps all rows, for comparison.

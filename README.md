@@ -1,94 +1,82 @@
 # Hallym MIPS Simulator
 
-An educational GUI extension of [SPIM / QtSpim](https://spimsimulator.sourceforge.net/) 9.1.24,
-the MIPS32 simulator by James R. Larus, for the computer architecture courses
-of Hallym University. The simulator core (`CPU/`) is
-**unmodified**: programs assemble and run exactly as they do in standard
-QtSpim, and the test suite checks that on every push. Only the interface is
-new, and in this edition it carries the university's identity: its colours,
-fonts and marks (`docs/design/tokens.md`).
+> **사용법 (한국어): [docs/usage/usage.ko.md](docs/usage/usage.ko.md)** — 내려받기, 설치,
+> Windows 경고 창 넘기기, 첫 실행과 튜토리얼, 화면 설명, 자주 막히는 곳.
+>
+> User guide (English): [docs/usage/usage.en.md](docs/usage/usage.en.md)
 
-## What's different
+A MIPS simulator for the computer architecture courses of Hallym University,
+built on [SPIM](https://spimsimulator.sourceforge.net/) by James R. Larus.
+Students write MIPS assembly, assemble it, and run it one line at a time,
+watching registers, memory and each instruction's 32 bits change.
 
-Both programs below were given the same file (`helloworld.s`), the same steps,
-the same 1600×900 window and the same environment. **The simulation is
-identical; only what you see changes.**
+**Version 2.x — the Electron edition, in [`electron/`](electron/) — is the
+current version.** Version 1.x — the Qt edition, a modified QtSpim, at the
+root of this repository — is the previous one. It is still maintained as a
+fallback and can still be downloaded:
+[release 1.2.4](https://github.com/ars2323/hallym-mips-simulator/releases/tag/v1.2.4).
 
-**Registers** — after *Run*. Grouped by role, `$name` and number together, hex
-and decimal side by side, and everything the run changed in bold teal; upstream is
-one flat list in one base at a time.
+Both editions run the same, unmodified SPIM core ([`CPU/`](CPU/)): a program
+assembles and runs exactly as it does in standard SPIM.
 
-![Registers: standard QtSpim and Hallym MIPS Simulator side by side](docs/images/compare/en/01-registers.png)
-
-**Text** — columns instead of a text dump: a breakpoint column, the machine
-word, a type badge (R / I / J …), the instruction, the source line. The kernel
-segment is one folded row until you want it.
-
-![Text segment: standard QtSpim and Hallym MIPS Simulator side by side](docs/images/compare/en/02-text.png)
-
-**Instruction Inspector** — select an instruction and the panel under Text
-spreads its word over thirty-two boxes, one per bit, MSB on the left and LSB
-on the right, each field in its own colour, with a line per field giving its
-bit range, its bits, its value and what that value means -- and, for a branch
-or a jump, the sum that produced its destination. Upstream shows the word as
-hex and nothing more.
-
-![Inspector: field breakdown of lw, not available in standard QtSpim](docs/images/compare/en/03-inspector.png)
-
-**Data and stack** — a table with headers, the labels of `.data`, a marker on
-the word `$sp` points to, words / halves / bytes. The strings at the top of the
-stack (environment variables and paths, i.e. your user name) are folded away
-instead of being the first thing in every screenshot.
-
-![Data segment: standard QtSpim and Hallym MIPS Simulator side by side](docs/images/compare/en/04-data.png)
-
-**Editor** — write, press Ctrl+S to save *and* assemble, get the errors as a
-list with markers on their lines. Standard QtSpim has no editor.
-
-**Console and Messages** — what your program prints and what the simulator
-says are two tabs of one panel along the bottom, not a second window to lose
-behind the first. A syscall that waits for input brings the Console tab
-forward and gives it the keyboard; an error brings Messages forward.
-
-![Editor with error list; standard QtSpim has none](docs/images/compare/en/05-editor.png)
-
-**A tutorial on the first run** — twenty steps over the real window, pointing
-at one thing at a time, in Korean or English; Help > Tutorial brings it back.
-
-Also: one way in (Open, Ctrl+O) that always starts from a clean simulator,
-Ctrl+S that saves, clears and assembles as one action and keeps your
-breakpoints, three arrangements of the window including one for a window half
-a screen wide, panels that cannot be dragged out of the window, a screen that
-starts the same for every student on a shared machine, and an installation
-that sits beside a standard QtSpim without touching it.
-
-<details><summary>The whole window</summary>
-
-![Hallym MIPS Simulator main window](docs/images/main-window.png)
-
-</details>
+![The Electron edition running a program: Editor, Registers, Text, Inspector](electron/docs/screens/split-running.png)
 
 ## Download
 
 **[Latest release](https://github.com/ars2323/hallym-mips-simulator/releases/latest)** (Windows 64-bit):
 
-- `HallymMIPS-<version>-win64.zip` — recommended. Unzip, run `HallymMIPS.exe`. No administrator rights needed.
-- `HallymMIPS-<version>-win64.msi` — installer (Program Files, Start menu).
-- User guide: [한국어](docs/GUIDE-ko.md) · [English](docs/GUIDE.md) (PDFs on the release page)
+- `HallymMIPS-<version>-win-x64-setup.exe` — the installer. Installs for the
+  current user only (no administrator rights), adds a Start menu entry.
+- `HallymMIPS-<version>-win-x64.zip` — no installation: unzip, run `HallymMIPS.exe`.
 
-The program is not code-signed; on the SmartScreen prompt choose *More info → Run anyway*.
+The program is not code-signed, so Windows SmartScreen warns the first time it
+runs. Choose **More info → Run anyway**; the user guide
+([한국어](docs/usage/usage.ko.md#windows-경고-창-넘기기) ·
+[English](docs/usage/usage.en.md#getting-past-the-windows-warning)) shows the
+steps. Version 2.x installs beside 1.x without touching it.
 
-## 영상
+## Repository layout
 
-| | |
-|---|---|
-| [Introduction](https://youtu.be/wgRYCoxG9qE) | 7분 · 개발 배경과 주요 기능 |
-| [Tutorial](https://youtu.be/6EakLfmDeug) | 4분 · 설치 후 첫 실습까지 |
+```text
+CPU/            the SPIM core (SPIM/QtSpim 9.1.24), unmodified, shared by both editions (CPU/ORIGIN.md)
+electron/       the Electron edition (2.x): electron/docs/DEVELOPMENT.md
+QtSpim/         the Qt edition (1.x): QtSpim's interface, modified
+tests/ tools/   the Qt edition's tests and tools
+Tests/ ...      SPIM's own files, as upstream has them (README, ChangeLog, Documentation/, spim/, xspim/, PCSpim/)
+docs/           the user guide (docs/usage/) and the Qt edition's documents
+LICENSE NOTICE  this project's license; third-party components and the university's marks
+```
+
+The Qt edition stays at the root, where 1.2.4 was built from, so that its
+build paths do not move: if 2.x has to be pulled back from the labs, 1.x can be
+rebuilt and released exactly as before.
 
 ## Building
 
-Qt 5.15, bison and flex are needed (Linux: g++; Windows: MSVC 2019 with
-winflexbison). Always build out of the source tree:
+### Electron edition (2.x)
+
+Node 22.18 or later, a C++ compiler, make, python3, bison and flex (on
+Windows: MSVC and winflexbison). From `electron/`:
+
+```sh
+cd electron
+npm install --ignore-scripts
+npm run build            # the SPIM addon (native/build/Release/spim.node)
+npm test                 # unit and golden tests
+npm run build:electron   # the addon against Electron's headers
+npm run electron         # start the app
+npm run e2e              # the real app, through Playwright (needs a display; xvfb-run on Linux)
+npm run package          # installer and zip in electron/dist/ (on Windows)
+```
+
+More in [`electron/docs/DEVELOPMENT.md`](electron/docs/DEVELOPMENT.md);
+how it differs from the Qt edition, and why, in
+[`electron/docs/PORTING.md`](electron/docs/PORTING.md).
+
+### Qt edition (1.x)
+
+Qt 5.15, bison and flex (Linux: g++; Windows: MSVC 2019 with winflexbison).
+Always build out of the source tree:
 
 ```sh
 mkdir -p build && cd build && qmake ../QtSpim/QtSpim.pro && make -j"$(nproc)"
@@ -98,31 +86,30 @@ Tests: `tests/tests.pro` (unit tests, including an oracle that checks the
 instruction decoder and the file loader against the real SPIM core),
 `tools/regress.sh` (output against vanilla 9.1.24, saved logs byte for byte),
 `tools/check-menu-load.sh --compare-vanilla`, `tools/check-editor.sh`.
-`docs/ARCHITECTURE.md` (in Korean) describes the code and lists everything that
-intentionally differs from upstream; `docs/FUTURE.md` lists what is not done.
-`docs/design/tokens.md` is the design system (colours from the university's
-UI manual, fonts, spacing); `QtSpim/edu/theme/` implements it.
+`docs/ARCHITECTURE.md` describes the code; `docs/GUIDE.md` and
+`docs/GUIDE-ko.md` are the 1.x user guide.
+
+### Continuous integration
+
+Two workflows, one per edition: **Qt edition (1.x)** (`ci.yml`, Linux and
+Windows) and **Electron edition (2.x) — Windows** (`electron.yml`). A change
+under `electron/` runs only the second, a change elsewhere only the first, and
+a change to `CPU/` runs both.
 
 ## License
 
-SPIM is Copyright (c) 1990-2023 James R. Larus and is distributed under a BSD
-license; the full text is in [`README`](README), which is upstream's file and
-is kept as it is. The changes in this repository are offered under the same
-terms. The program links to the Qt library, which is distributed under the GNU
-Lesser General Public License version 3 and version 2.1.
+This project is under the BSD 3-Clause License ([`LICENSE`](LICENSE)).
+It is built on SPIM, Copyright (c) 1990-2023 James R. Larus, also under a BSD
+license; SPIM's own README is kept at the root as [`README`](README).
+[`NOTICE`](NOTICE) lists every third-party component and which edition it
+applies to: SPIM and QtSpim (both), Qt under the LGPL v3 (the Qt edition only),
+Electron, Chromium and Node.js (the Electron edition only), the fonts
+Pretendard and D2Coding (SIL OFL 1.1) and the Lucide icons (ISC).
 
-Developed by Hakhyeon Kim, AIAC Lab, Hallym University.
+The Hallym University marks and the characters Haram and Hari belong to
+Hallym University. They are not covered by this project's license and may not
+be taken from here and used elsewhere (see [`NOTICE`](NOTICE)).
 
-The bundled fonts Pretendard and D2Coding are under the SIL Open Font License
-1.1 and the Lucide icons under the ISC license (Help > About > License).
-
-The university symbol, logotype, emblem and signature belong to Hallym
-University. They are used whole, scaled and spaced only, never redrawn or
-recoloured, under the university's UI regulations: the identity is made for
-promoting the university and may not be used commercially. Questions about it
-go to the Communications Team (033-248-1333, de1330@hallym.ac.kr). The source
-files and the regulations as published are kept in
-[`assets/ci/`](assets/ci/).
-
-This is a modified version of QtSpim (through [QtSpim-Edu](https://github.com/ars2323/qtspim-edu),
-whose history this repository continues) and is not endorsed by the original author.
+Developed by Hakhyeon Kim, AIAC Lab, Hallym University, as a personal
+project. This is not an official product of Hallym University, and it is not
+endorsed by the original author of SPIM.

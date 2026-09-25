@@ -1,112 +1,112 @@
-# Windows — 확인한 것과 손으로 확인할 것
+# Windows — what was confirmed and what to check by hand
 
-Windows 에서 돌려 본 것은 GitHub Actions 의 `windows-latest`(Windows Server 2025, 영문, 관리자 계정, 화면 1024×768)다.
-워크플로: `.github/workflows/windows.yml`. 매 푸시마다 설치본과 zip 을 **아티팩트**로 올린다(태그·릴리스 없음).
+What has been run on Windows is GitHub Actions' `windows-latest` (Windows Server 2025, English, administrator account, screen 1024×768).
+Workflow: `.github/workflows/electron.yml` at the repository root (it runs for changes under `electron/` or `CPU/`). Every run uploads the installer and the zip as **artifacts**; a release is made from them by hand.
 
-| 파일 | 크기 |
+| File | Size |
 |---|---|
-| `HallymMIPS-2.0.0-alpha.1-win-x64-setup.exe` (NSIS, 사용자 단위) | 102.9 MB (107,914,059 바이트) |
-| `HallymMIPS-2.0.0-alpha.1-win-x64.zip` (압축본) | 139.9 MB (146,689,276 바이트) |
-| 설치된 크기 | 327 MB (Chromium 로캘은 한국어·영어만. 모두 두면 374 MB) |
+| `HallymMIPS-2.0.0-win-x64-setup.exe` (NSIS, per-user) | 102.9 MB (107,914,059 bytes) |
+| `HallymMIPS-2.0.0-win-x64.zip` (archive) | 139.9 MB (146,689,276 bytes) |
+| Installed size | 327 MB (Chromium locales Korean and English only; with all of them, 374 MB) |
 
-### 설치된 327 MB 의 내용
+### What the installed 327 MB contains
 
-| 크기 | 파일 | 무엇 |
+| Size | File | What |
 |---|---|---|
-| 234.6 MB | `HallymMIPS.exe` | Electron(Chromium + Node) 실행 파일 자체 |
-| 24.6 MB + 1.4 MB | `dxcompiler.dll`, `dxil.dll` | Chromium 의 WebGPU(D3D12) 셰이더 컴파일러 |
-| 19.5 MB | `LICENSES.chromium.html` | Chromium·Node 고지 — 배포에 필요 |
-| 11.9 MB | `resources.pak` | Chromium 리소스 |
-| 10.4 MB | `icudtl.dat` | 유니코드·한글 처리(ICU) |
-| **6.6 MB** | `resources\app.asar` | **이 앱의 전부**: 글꼴 2.5 MB, 캐릭터 2.2 MB, 번들 JS 1.8 MB |
-| 5.3 + 4.5 + 0.9 MB | `vk_swiftshader.dll`, `d3dcompiler_47.dll`, `vulkan-1.dll` | GPU 가 없을 때의 소프트웨어 렌더링, D3D |
-| 3.0 MB | `ffmpeg.dll` | 미디어(Electron 이 시작할 때 연다) |
+| 234.6 MB | `HallymMIPS.exe` | The Electron (Chromium + Node) executable itself |
+| 24.6 MB + 1.4 MB | `dxcompiler.dll`, `dxil.dll` | Chromium's WebGPU (D3D12) shader compiler |
+| 19.5 MB | `LICENSES.chromium.html` | Chromium and Node notices — required for distribution |
+| 11.9 MB | `resources.pak` | Chromium resources |
+| 10.4 MB | `icudtl.dat` | Unicode and Hangul handling (ICU) |
+| **6.6 MB** | `resources\app.asar` | **All of this app**: fonts 2.5 MB, characters 2.2 MB, bundled JS 1.8 MB |
+| 5.3 + 4.5 + 0.9 MB | `vk_swiftshader.dll`, `d3dcompiler_47.dll`, `vulkan-1.dll` | Software rendering when there is no GPU, D3D |
+| 3.0 MB | `ffmpeg.dll` | Media (Electron opens it at startup) |
 
-- asar 를 쓴다. 소스맵은 넣지 않는다. `node_modules` 는 없다(모두 번들). 이 셋은 이미 되어 있다.
-- 이 앱의 몫은 2% 다. 나머지는 Electron 런타임이라 Qt판(100 MB 안팎)만큼 줄일 수는 없다.
-- 쉽게 줄일 수 있는 것은 로캘뿐이었고 줄였다(−47 MB). 번들 압축(minify)은 1 MB 남짓이라 하지 않았다.
-- 더 줄이려면 `dxcompiler.dll`·`dxil.dll`(26 MB, WebGPU 전용, 이 앱은 쓰지 않음)을 빼는 방법이 있다. Electron 배포본에서
-  파일을 지우는 것은 지원되지 않는 방식이라, 여러 GPU 에서 확인하기 전에는 하지 않았다.
+- asar is used. Source maps are not included. There is no `node_modules` (everything is bundled). These three are already done.
+- This app's share is 2%. The rest is the Electron runtime, so it cannot be made as small as the Qt edition (around 100 MB).
+- The only easy reduction was the locales, and that was done (−47 MB). Minifying the bundle would save only a little over 1 MB, so it was not done.
+- To reduce it further, `dxcompiler.dll` and `dxil.dll` (26 MB, WebGPU only, not used by this app) could be left out. Deleting files
+  from an Electron distribution is not a supported practice, so it was not done before checking on a range of GPUs.
 
-## 아홉 항목
+## The nine items
 
-| # | 항목 | 어떻게 | 결과 |
+| # | Item | How | Result |
 |---|---|---|---|
-| 1 | utilityProcess — 띄우기, `.err` 로 죽이기, 다시 띄우기 | **자동**: 설치본으로 e2e `flows.e2e.ts` "the simulator process dies" | 통과 |
-| 2 | 무한 루프 정지 → 레지스터 읽기 → 이어서 실행 | **자동**: 설치본 e2e "an endless loop", Node `process.test.ts` 1 | 통과 |
-| 3 | 브레이크포인트 → 멈춤 → 이어서 | **자동**: 설치본 e2e "breakpoint", Node `run-control.test.ts` | 통과 |
-| 4 | 콘솔 입력 되감기 (PC·`$v0`·`$f0`) | **자동**: Node `console-input.test.ts`(6개, `$f0` 포함), 설치본 e2e "console input" | 통과 |
-| 5 | 코어 타이머 | **자동**(측정·실패 조건): `tools/probe-platform.ts --expect-no-leak`, `cp0-timer.test.ts` | 인터럽트 전용 — 교과목에는 안 쓰는 기능. 새던 핸들은 고쳤다(아래): 이제 +0 |
-| 6 | 진짜 한글 IME | **수동** | CI 는 영문 Windows, IME 없음. CDP 흉내(`ime.e2e.ts`)는 Windows 설치본에서도 통과 |
-| 7 | 파일 대화상자 | **자동 캡처** + 수동 확인 | 네이티브 Windows 11 대화상자. 아래 그림 |
-| 8 | 폰트 | **자동**: `hex-mono.e2e.ts` 둘(글꼴이 실제로 `loaded`, 16진수·0 이 든 식별자는 D2Coding) + 네 장면 캡처 | 통과 |
-| 9 | 1.2.4 와 나란히 | **자동**: `tools/windows/check-side-by-side.ps1` (실제 1.2.4 MSI) | 통과. 둘이 동시에 실행됨, 설정·시작 메뉴·폴더 안 겹침 |
+| 1 | utilityProcess — start, kill with `.err`, restart | **Automatic**: e2e `flows.e2e.ts` "the simulator process dies" against the installed build | Pass |
+| 2 | Stop an endless loop → read registers → continue running | **Automatic**: installed-build e2e "an endless loop", Node `process.test.ts` 1 | Pass |
+| 3 | Breakpoint → stop → continue | **Automatic**: installed-build e2e "breakpoint", Node `run-control.test.ts` | Pass |
+| 4 | Console input rewind (PC, `$v0`, `$f0`) | **Automatic**: Node `console-input.test.ts` (6 tests, including `$f0`), installed-build e2e "console input" | Pass |
+| 5 | Core timer | **Automatic** (measurement and failure condition): `tools/probe-platform.ts --expect-no-leak`, `cp0-timer.test.ts` | Interrupts only — a feature the course does not use. The leaking handle was fixed (below): now +0 |
+| 6 | Real Korean IME | **Manual** | CI is English Windows, no IME. The CDP imitation (`ime.e2e.ts`) also passes on the Windows installed build |
+| 7 | File dialogs | **Automatic capture** + manual check | Native Windows 11 dialogs. See below |
+| 8 | Fonts | **Automatic**: two in `hex-mono.e2e.ts` (the fonts are actually `loaded`; identifiers containing hexadecimal or 0 are in D2Coding) + captures of four scenes | Pass |
+| 9 | Side by side with 1.2.4 | **Automatic**: `tools/windows/check-side-by-side.ps1` (the real 1.2.4 MSI) | Pass. Both run at the same time; settings, Start menu and folders do not overlap |
 
-그 밖에 CI 가 매번 확인하는 것:
+Other things CI checks every time:
 
-- Node 테스트 전부(170개) — 프로세스 분리(fork), 정지, 브레이크포인트, 콘솔 입력, 모듈, Qt 골든
-- e2e 15개 전부를 **설치된** `HallymMIPS.exe` 로 (asar, asar 밖의 애드온, 번들된 워커, 라이선스 파일)
-- zip 을 풀어 `HallymMIPS.exe` 가 10초 넘게 살아 있는지, `LICENSE.txt`·`NOTICE.txt` 가 옆에 있는지
-- 설치본 매니페스트가 `asInvoker`(관리자 권한 요청 없음)
+- All Node tests (170) — process separation (fork), stopping, breakpoints, console input, modules, Qt goldens
+- All 15 e2e tests against the **installed** `HallymMIPS.exe` (asar, the addon outside the asar, the bundled worker, license files)
+- That after unpacking the zip, `HallymMIPS.exe` stays alive for more than 10 seconds and `LICENSE.txt` and `NOTICE.txt` are next to it
+- That the installer manifest is `asInvoker` (does not request administrator rights)
 
-### Windows 에서만 드러난 것
+### What showed up only on Windows
 
-- **코어의 이름 표가 플랫폼마다 다르다.** `floor.w.s` 워드가 Windows 에서는 `prefx` 로, 리눅스에서는 `trunc.w.s` 가
-  `suxc1` 로 보인다. `qsort` 의 동률 순서 차이(C 라이브러리마다 다름). 실행에는 영향 없음. `docs/PORTING.md` 7절.
-- **코어 타이머의 핸들 누수 — 고쳤다.** `run_spim()` 마다 이름 붙은 타이머 핸들이 1개씩 샜다(실행 중 초당 364~850,
-  F10 한 번에 1). 이름(`"SPIMTimer"`)은 세션 전체가 공유해 Qt판과 동시에 돌리면 한쪽 `Count` 가 멈출 수 있었다.
-  Windows 에서만 `CPU/run.cpp` 를 `native/src/run-win.cpp` 로 감싸 컴파일해 **이름 없는 타이머 하나**를 재사용한다.
-  고친 뒤: 실행 10초·F10 200번 동안 핸들 +0. CI 가 늘면 실패한다. `docs/PORTING.md` 14절.
-- **설치 관리자가 자기 사본(111 MB)을 `%LOCALAPPDATA%\hallym-mips-simulator-updater` 에 남겼다**
-  (electron-builder 가 자동 업데이트용으로). 업데이트 기능이 없으므로 설치 끝에 지운다(`packaging/installer.nsh`).
-  CI 가 폴더가 없는지 확인한다.
-- 테스트 둘이 Windows 경로에서 깨졌다(ESM `import` 에 드라이브 경로, 위 이름 표). 앱이 아니라 테스트의 문제였다.
+- **The core's name table differs by platform.** The `floor.w.s` word shows as `prefx` on Windows, and on Linux `trunc.w.s`
+  shows as `suxc1`. This is a difference in `qsort`'s ordering of ties (it differs between C libraries). No effect on running. `docs/PORTING.md` section 7.
+- **The core timer's handle leak — fixed.** Every `run_spim()` leaked one named timer handle (364–850 per second while running,
+  1 per F10). The name (`"SPIMTimer"`) is shared by the whole session, so running alongside the Qt edition could make one side's `Count` stop.
+  On Windows only, `CPU/run.cpp` (the shared core in the repository's root `CPU/`) is compiled wrapped in `native/src/run-win.cpp`, which reuses **one unnamed timer**.
+  After the fix: handles +0 over 10 seconds of running and 200 F10 presses. CI fails if the count grows. `docs/PORTING.md` section 14.
+- **The installer left a copy of itself (111 MB) in `%LOCALAPPDATA%\hallym-mips-simulator-updater`**
+  (electron-builder does this for auto-update). There is no update feature, so it is deleted at the end of installation (`packaging/installer.nsh`).
+  CI checks that the folder does not exist.
+- Two tests broke on Windows paths (a drive path in an ESM `import`, and the name table above). It was a problem with the tests, not the app.
 
-### 1.2.4 와 나란히 — 확인한 것 (`check-side-by-side.ps1`)
+### Side by side with 1.2.4 — what was confirmed (`check-side-by-side.ps1`)
 
-| | Qt판 1.2.4 | 이 앱 | 결과 |
+| | Qt edition 1.2.4 | This app | Result |
 |---|---|---|---|
-| 설치 폴더 | `C:\Program Files\Hallym MIPS Simulator` | `%LOCALAPPDATA%\Programs\Hallym MIPS` | 안 겹침 |
-| 시작 메뉴 | `(모든 사용자) Hallym MIPS Simulator\Hallym MIPS Simulator` | `(이 사용자) Hallym MIPS` | 안 겹침 |
-| 설정 | 레지스트리 `HKCU\Software\HallymMIPS` | `%APPDATA%\HallymMIPS2` | 이 앱의 설치·실행·e2e·제거 뒤 Qt 설정 그대로 |
-| 제거 항목 | HKLM | HKCU `Hallym MIPS 2.0.0-alpha.1` | 제거 뒤 Qt 판은 그대로 설치돼 있음 |
-| `.s` 연결 | 없음 | 없음 | `assoc .s` 그대로 |
-| 동시 실행 | | | 둘 다 10초 동안 살아 있음 |
+| Install folder | `C:\Program Files\Hallym MIPS Simulator` | `%LOCALAPPDATA%\Programs\Hallym MIPS` | No overlap |
+| Start menu | `(all users) Hallym MIPS Simulator\Hallym MIPS Simulator` | `(this user) Hallym MIPS` | No overlap |
+| Settings | Registry `HKCU\Software\HallymMIPS` | `%APPDATA%\HallymMIPS2` | Qt settings unchanged after this app's install, run, e2e and uninstall |
+| Uninstall entry | HKLM | HKCU `Hallym MIPS 2.0.0` | The Qt edition is still installed after the uninstall |
+| `.s` association | None | None | `assoc .s` unchanged |
+| Running at the same time | | | Both stay alive for 10 seconds |
 
-제거하면 설정 폴더(`%APPDATA%\HallymMIPS2`, 글자 크기와 진법 두 값)는 남는다. electron-builder 의 기본값이다.
+Uninstalling leaves the settings folder (`%APPDATA%\HallymMIPS2`, two values: font size and number base). This is electron-builder's default.
 
-### 파일 대화상자 (CI 화면 캡처, 영문 Windows)
+### File dialogs (CI screen captures, English Windows)
 
-- 저장: `Save As` — 파일 이름 `제목 없음`, 형식 `MIPS 어셈블리`. Qt판처럼 네이티브 대화상자다.
-- 열기: `Open` — 형식 `MIPS 어셈블리`(`.s`, `.asm`) / `모든 파일`.
-- "저장하지 않은 변경이 있습니다. 버리고 계속할까요?" 는 네이티브 메시지 상자다(제목 "Hallym MIPS Simulator").
-  버튼 글자는 OS 언어를 따른다(영문 Windows 에서 OK/Cancel).
+- Save: `Save As` — file name `제목 없음` ("Untitled"), type `MIPS 어셈블리` ("MIPS assembly"). A native dialog, as in the Qt edition.
+- Open: `Open` — types `MIPS 어셈블리` (`.s`, `.asm`) / `모든 파일` ("All files").
+- "저장하지 않은 변경이 있습니다. 버리고 계속할까요?" ("There are unsaved changes. Discard them and continue?") is a native message box (title "Hallym MIPS Simulator").
+  The button text follows the OS language (OK/Cancel on English Windows).
 
-캡처: CI 아티팩트 `windows-report` 의 `report/probe/dialog-save.png`, `dialog-open.png`,
-고정 세트(`docs/screens/README.md`)는 `report/screens/`, 그중 `windows-frame.png` 는 `docs/screens/` 로 가져온다.
+Captures: `report/probe/dialog-save.png` and `dialog-open.png` in the CI artifact `windows-report`;
+the fixed set (`docs/screens/README.md`) is in `report/screens/`, and of those, `windows-frame.png` is brought into `docs/screens/`.
 
-## 손으로 확인할 것
+## What to check by hand
 
-아티팩트 `HallymMIPS-windows` 의 설치본으로. 학생 PC 와 같은 **한국어 Windows**, 가능하면 **관리자가 아닌 계정**에서.
+With the installer from the artifact `HallymMIPS-windows`. On **Korean Windows**, like the students' PCs, and if possible on a **non-administrator account**.
 
-1. **설치(관리자 아님)** — 설치본을 더블클릭. UAC 창이 뜨지 않고 설치돼야 한다. SmartScreen 경고
-   ("Windows의 PC 보호")가 뜰 수 있다(서명 없음): "추가 정보 → 실행".
-2. **시작 메뉴** — "Hallym MIPS" 하나가 보이고, 1.2.4 가 깔려 있으면 "Hallym MIPS Simulator" 와 구별되는지.
-3. **한글 IME (Microsoft 한국어 입력기)**
-   - 편집기에 `# 한글 주석입니다` 를 친다. 글자가 두 번 들어가거나 빠지지 않는지.
-   - 한 글자를 **조합하는 도중에** Ctrl+S. 조합 중이던 글자까지 온전히 저장되는지(다시 열어 확인).
-   - 조합 중 Enter, 조합 중 방향키, 한/영 전환이 편집기에서 자연스러운지.
-   - 콘솔 입력: `li $v0, 8` 류(문자열 읽기) 프로그램을 실행하고 입력 칸에 한글을 친다. **조합 중 Enter 는
-     줄을 보내지 않고**, 확정 뒤 Enter 가 보내는지. 출력에 한글이 깨지지 않는지.
-4. **파일 대화상자** — Ctrl+S(새 파일), Ctrl+O. 한국어 Windows 에서 버튼·형식 이름이 어떻게 보이는지.
-   한글 폴더·파일 이름(`바탕 화면\과제\1주차.s`)으로 저장하고 다시 열기. CP949 로 된 옛 `.s` 파일 열기.
-5. **폰트** — 레지스터 `$t0`, `CP0`, 주소 `0x00400000` 이 D2Coding(0 에 점)인지, `0×` 로 보이는 곳이 없는지.
-   Windows 의 배율 125%·150% 에서 흐리거나 잘리는 곳이 없는지.
-6. **1.2.4 와 나란히** — 둘 다 띄워 각각 프로그램을 실행. 한쪽을 닫아도 다른 쪽 설정(창 위치, 최근 파일)이 그대로인지.
-7. **zip** — 압축을 풀어 `HallymMIPS.exe` 실행. USB·네트워크 드라이브처럼 경로에 한글·공백이 있는 곳에서도.
-8. **제거** — 설정 → 앱 → "Hallym MIPS 2.0.0-alpha.1" 제거. 시작 메뉴·설치 폴더가 사라지고 1.2.4 는 남는지.
-9. **창 틀** — 최대화 버튼에 마우스를 올리면 스냅 레이아웃이 나오는지, 막대를 두 번 눌러 최대화·복원, 막대를 끌어 이동,
-   화면 위로 끌어 최대화, 최대화했을 때 가장자리가 잘리지 않는지. 배율 125%·150% 에서 창 버튼의 크기, 앱 막대의 버튼·파일 이름이
-   창 버튼 밑으로 들어가지 않는지.
-10. **좌우 분할** — 1366×768 125% 최대화에서 Editor 와 Run 이 나란히 보이는지, 분할선 끌기·접기, 창을 반쪽으로 스냅했을 때
-   Editor / Run 탭으로 바뀌는지.
+1. **Install (not administrator)** — double-click the installer. It must install without a UAC prompt appearing. A SmartScreen warning
+   ("Windows의 PC 보호", "Windows protected your PC") may appear (not signed): "추가 정보 → 실행" ("More info → Run anyway").
+2. **Start menu** — one "Hallym MIPS" entry is visible, and if 1.2.4 is installed, it can be told apart from "Hallym MIPS Simulator".
+3. **Korean IME (Microsoft Korean IME)**
+   - Type `# 한글 주석입니다` ("# This is a Hangul comment") in the editor. Check that no character is entered twice or dropped.
+   - Press Ctrl+S **in the middle of composing** a character. Check that the character being composed is saved intact too (reopen to check).
+   - Check that Enter during composition, arrow keys during composition and the Han/Eng toggle behave naturally in the editor.
+   - Console input: run a program of the `li $v0, 8` kind (read string) and type Hangul in the input box. Check that **Enter during composition
+     does not send the line**, and that Enter after the character is committed does. Check that Hangul in the output is not garbled.
+4. **File dialogs** — Ctrl+S (new file), Ctrl+O. How the buttons and type names look on Korean Windows.
+   Save to and reopen from a Hangul folder and file name (`바탕 화면\과제\1주차.s`, i.e. "Desktop\Assignment\Week1.s"). Open an old `.s` file in CP949.
+5. **Fonts** — check that register `$t0`, `CP0` and address `0x00400000` are in D2Coding (dotted 0) and that nothing shows as `0×`.
+   Check that nothing is blurry or clipped at Windows scaling of 125% and 150%.
+6. **Side by side with 1.2.4** — start both and run a program in each. Check that closing one leaves the other's settings (window position, recent files) unchanged.
+7. **zip** — unpack it and run `HallymMIPS.exe`. Also in places whose path contains Hangul or spaces, like USB or network drives.
+8. **Uninstall** — Settings → Apps → uninstall "Hallym MIPS 2.0.0". Check that the Start menu entry and install folder disappear and 1.2.4 remains.
+9. **Window frame** — check that hovering over the maximize button shows snap layouts, double-clicking the bar maximizes and restores, dragging the bar moves the window,
+   dragging it to the top of the screen maximizes it, and the edges are not clipped when maximized. At scaling of 125% and 150%, check the size of the window buttons, and that the app bar's buttons and file name
+   do not slide under the window buttons.
+10. **Left/right split** — check that at 1366×768, 125%, maximized, Editor and Run are shown side by side; dragging and collapsing the divider; and that when the window is snapped to half the screen
+   it switches to Editor / Run tabs.

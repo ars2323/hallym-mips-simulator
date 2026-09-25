@@ -1,127 +1,127 @@
-# Windows 확인 체크리스트 — 1.2.0
+# Windows checklist — 1.2.0
 
-리눅스에서 도는 자동 검사(단위 테스트, 회귀, 에디터 검사, offscreen 캡처)로는
-**창 관리자와 화면 배율에 달린 것들**을 확인할 수 없다. 아래는 사람이
-Windows에서 한 번 훑어야 하는 목록이다. 별표(★)는 리눅스에서 **원리적으로**
-확인이 불가능해 이번 판에서 처음 검증되는 항목이다.
+The automated checks that run on Linux (unit tests, regression, editor checks, offscreen captures)
+cannot verify **things that depend on the window manager and the display scaling**. Below is the list
+a person has to go through once on Windows. Items marked with a star (★) are ones that **in principle**
+cannot be checked on Linux and are verified for the first time in this release.
 
-zip과 MSI는 릴리스 v1.2.0의 자산을 쓴다.
+Use the zip and MSI assets of release v1.2.0.
 
-## 1. 설치와 실행
+## 1. Installation and launch
 
-- [ ] `HallymMIPS-1.2.0-win64.zip`을 풀고 `HallymMIPS.exe` 실행. 관리자 권한 없이 뜬다.
-- [ ] `HallymMIPS-1.2.0-win64.msi` 설치 → 시작 메뉴에 "Hallym MIPS Simulator".
-- [ ] 1.1.0이 설치된 PC에서 1.2.0 MSI가 **덮어쓰기(업그레이드)** 된다. 항목이 두 개 남지 않는다.
-- [ ] 제어판에서 제거하면 설치 폴더가 남지 않는다.
-- [ ] 표준 QtSpim이 설치된 PC에서 둘 다 정상 실행되고, `.s` 확장자 연결이 서로 바뀌지 않는다.
-- [ ] 사용자명이 한글인 계정(`C:\Users\김학현\…`)에서 파일 열기·저장·어셈블이 된다.
-- [ ] 한글 주석이 든 CP949 `.s` 파일을 열면 글자가 깨지지 않고, 저장 후에도 줄바꿈이 CRLF 그대로다.
+- [ ] Unpack `HallymMIPS-1.2.0-win64.zip` and run `HallymMIPS.exe`. It starts without administrator rights.
+- [ ] Install `HallymMIPS-1.2.0-win64.msi` → "Hallym MIPS Simulator" appears in the Start menu.
+- [ ] On a PC with 1.1.0 installed, the 1.2.0 MSI **installs over it (upgrade)**. Two entries do not remain.
+- [ ] Uninstalling from the Control Panel leaves no installation folder behind.
+- [ ] On a PC with standard QtSpim installed, both run normally and the `.s` file association is not switched between them.
+- [ ] On an account with a Korean user name (`C:\Users\김학현\…`), opening, saving and assembling files work.
+- [ ] Opening a CP949 `.s` file containing Korean comments shows the characters ungarbled, and after saving, the line endings are still CRLF.
 
-## 2. 창의 겉모습
+## 2. Window appearance
 
-- [ ] ★ 제목 표시줄이 **밝은 색**이다. Windows를 어두운 테마로 바꿔도 창은 흰 제목 표시줄과 남색 글씨를 유지한다.
-- [ ] ★ 작업 표시줄 아이콘이 **흰 타일 위 심볼**로 보인다. 어두운 작업 표시줄과 밝은 작업 표시줄 양쪽에서 모양이 뭉개지지 않는다.
-- [ ] ★ 시작 메뉴·바탕화면 바로 가기(48px 이상)는 엠블럼, 작업 표시줄·창 좌상단(32px 이하)은 심볼이다.
-- [ ] ★ 디스플레이 배율 125%와 150%에서 글자가 잘리지 않고 패널 경계가 흐려지지 않는다.
-- [ ] 1366×768 노트북에서 레지스터 8개 그룹이 **스크롤 없이 한 화면**에 들어간다(인스펙터를 연 상태로).
+- [ ] ★ The title bar is **light**. Even when Windows is switched to the dark theme, the window keeps a white title bar with navy text.
+- [ ] ★ The taskbar icon appears as **the symbol on a white tile**. Its shape does not smear on either a dark or a light taskbar.
+- [ ] ★ Start menu and desktop shortcuts (48px and up) show the emblem; the taskbar and the top-left corner of the window (32px and below) show the symbol.
+- [ ] ★ At display scaling of 125% and 150%, text is not cut off and panel borders are not blurry.
+- [ ] On a 1366×768 laptop, the 8 register groups fit **on one screen without scrolling** (with the inspector open).
 
-## 3. 첫 실행 튜토리얼 — 배치 세 가지 ★
+## 3. First-run tutorial — three layouts ★
 
-튜토리얼은 **Help > Tutorial**로 다시 연다. 튜토리얼은 언제나 예제(`samples/tutorial.s`)를 연다. 매 단계에서 볼 것은 세 가지다.
-**(a)** 화면이 어두워지고 짚는 곳만 밝다, **(b)** 카드가 창 안에 완전히 들어와 있고
-버튼을 누를 수 있다, **(c)** 카드 글씨가 흐리지 않다.
+The tutorial is reopened with **Help > Tutorial**. The tutorial always opens the example (`samples/tutorial.s`). At every step, check three things:
+**(a)** the screen is dimmed and only the place being pointed at is bright, **(b)** the card is fully inside the window and
+its buttons can be pressed, **(c)** the card text is not blurry.
 
-- [ ] **기본 배치**에서 18단계를 끝까지 넘긴다.
-- [ ] **탭으로 겹친 배치**(Text와 Data를 한 자리에 끌어다 탭으로 만든 뒤) 튜토리얼을 다시 연다. 1.0.0에서 카드가 사라지던 배치다.
-- [ ] **나란히 배치**(Editor와 Text를 좌우로) 튜토리얼을 다시 연다.
-- [ ] **떼어낸 배치**(패널 하나를 창 밖으로 떼어 독립 창으로) 튜토리얼을 다시 연다. 튜토리얼 오버레이가 본창 위에만 있고 떼어낸 창을 가리지 않는다.
-- [ ] 창을 최대화/복원하고 크기를 바꿔도 어두운 영역과 카드가 창을 따라온다.
-- [ ] 창을 최소화하면 오버레이도 같이 사라지고, 되돌리면 같은 단계로 돌아온다.
-- [ ] 다른 프로그램을 앞으로 가져오면 오버레이가 그 위에 남지 않는다.
-- [ ] 모니터가 둘일 때 창을 다른 모니터(배율이 다르면 더 좋다)로 옮겨도 어두운 영역이 창에 정확히 겹친다.
-- [ ] Enter·→·←·Esc로만 튜토리얼을 끝까지 진행하고 빠져나올 수 있다.
-- [ ] 카드의 "English"를 눌러 영어로 바꾸면 같은 단계에서 문장만 바뀐다.
-- [ ] 편집 중인 내용이 있는 상태에서 **Help > Tutorial**을 열면 저장 여부를 묻는다. **취소**하면 튜토리얼이 시작되지 않고 편집 중인 글이 그대로 남는다.
-- [ ] **저장 안 함**을 고르면 예제가 열리고 19단계 튜토리얼이 시작된다.
-- [ ] 카드의 [다음]·[이전]·[건너뛰기]를 **마우스로** 눌러도 튜토리얼이 끝나지 않고 정상 진행된다(키보드와 같은 동작).
+- [ ] Go through all 18 steps to the end in the **default layout**.
+- [ ] Reopen the tutorial in the **tabbed layout** (after dragging Text and Data onto one spot to make them tabs). This is the layout in which the card disappeared in 1.0.0.
+- [ ] Reopen the tutorial in the **side-by-side layout** (Editor and Text left and right).
+- [ ] Reopen the tutorial in the **detached layout** (one panel pulled out of the window as a separate window). The tutorial overlay is only over the main window and does not cover the detached window.
+- [ ] When the window is maximized/restored or resized, the dimmed area and the card follow the window.
+- [ ] Minimizing the window makes the overlay disappear with it, and restoring it returns to the same step.
+- [ ] Bringing another program to the front does not leave the overlay on top of it.
+- [ ] With two monitors, moving the window to the other monitor (better if its scaling differs) keeps the dimmed area exactly over the window.
+- [ ] The tutorial can be followed to the end and exited using only Enter, →, ← and Esc.
+- [ ] Pressing "English" on the card to switch to English changes only the sentences, on the same step.
+- [ ] Opening **Help > Tutorial** while there are unsaved edits asks whether to save. With **Cancel**, the tutorial does not start and the text being edited stays as it is.
+- [ ] Choosing **Don't save** (Discard) opens the example and starts the 19-step tutorial.
+- [ ] Clicking the card's [다음] (Next) · [이전] (Back) · [건너뛰기] (Skip) **with the mouse** does not end the tutorial; it proceeds normally (the same behavior as the keyboard).
 
-## 3-2. 새 창 배치와 하단 패널 (1.1.0)
+## 3-2. New window layout and bottom panel (1.1.0)
 
-- [ ] 창이 세 열이다: 왼쪽 레지스터(Int/FP 탭), 가운데 에디터 + Console/Messages, 오른쪽 Text/Data + Instruction Inspector.
-- [ ] `read_int`를 쓰는 프로그램을 실행하면 **Console 탭이 저절로 앞으로 나오고**, 바로 타이핑한 값이 프로그램에 들어간다.
-- [ ] 어셈블 오류를 내면 Messages 탭이 앞으로 나오고, Console 탭을 보고 있었다면 Messages 탭에 점이 붙는다.
-- [ ] **Ctrl+L**로 하단 패널이 접혔다 펴진다.
-- [ ] Window > Layout의 두 배치가 모두 적용되고, Window > Tile이 첫 배치로 되돌린다.
-- [ ] Text 패널에서 명령어를 고르면 Instruction Inspector에 비트 그리드가 나온다. 패널을 좁히면 31–16 / 15–0 두 줄로 접힌다.
-- [ ] Data 패널의 워드 셀에 마우스를 올리면 주소와 값(16진수·10진수)이 나온다.
-- [ ] 이전 버전을 쓰던 PC에서 처음 실행하면 저장된 배치를 한 번 버리고 새 배치로 뜬다.
+- [ ] The window has three columns: registers on the left (Int/FP tabs), editor + Console/Messages in the middle, Text/Data + Instruction Inspector on the right.
+- [ ] Running a program that uses `read_int` **brings the Console tab to the front by itself**, and a value typed right away goes into the program.
+- [ ] Causing an assembly error brings the Messages tab to the front, and if the Console tab was being viewed, a dot appears on the Messages tab.
+- [ ] **Ctrl+L** collapses and expands the bottom panel.
+- [ ] Both layouts in Window > Layout apply, and Window > Tile returns to the first layout.
+- [ ] Selecting an instruction in the Text panel shows a bit grid in the Instruction Inspector. When the panel is narrowed, it wraps onto two lines, 31–16 / 15–0.
+- [ ] Hovering the mouse over a word cell in the Data panel shows the address and the value (hexadecimal and decimal).
+- [ ] On the first launch on a PC that used an earlier version, the saved layout is discarded once and the window opens in the new layout.
 
-## 3-3. 1.2.0에서 고친 것 (Windows에서 확인)
+## 3-3. Fixed in 1.2.0 (check on Windows)
 
-- [ ] **압축 풀기**: zip을 탐색기에서 풀면 폴더가 **한 겹만** 생기고, 그 안에 `HallymMIPS.exe`가 바로 있다.
-- [ ] **시작 카드**: 실행할 때마다 [튜토리얼 보기] / [바로 시작]을 묻는다. Tab·좌우 화살표로 옮기고 Enter로 고를 수 있으며, 기본 포커스는 [바로 시작]이다.
-- [ ] **시작 화면**: [바로 시작]을 고르면 에디터 자리에 [새 파일]·[파일 열기]가 나온다. [새 파일]은 저장 위치를 먼저 묻는다.
-- [ ] **2진수 레지스터**: Registers > Binary에서 Name·No.·그룹 이름이 계속 보이고, 값만 가로로 스크롤된다. 변경된 레지스터의 값이 **다른 행과 같은 x좌표에서 시작하고 끝난다**(굵기 차이로 밀리지 않는다).
-- [ ] **레지스터 열 너비**: 경계를 끌어 넓히고 좁힐 수 있고, 다시 실행해도 그 너비가 유지된다. Window > Tile이 기본 너비로 되돌린다.
-- [ ] **한글 글자**: 튜토리얼 카드와 시작 화면의 한글이 흐리지 않다(1.1.0보다 굵다).
-- [ ] **Instruction Inspector**: 비트 번호와 필드 줄이 Console과 비슷한 크기로 읽힌다. 명령어 이름 아래 영문 풀이가 한 줄 나온다.
-- [ ] **패널 글자 크기**: Text·Data·Inspector·Console에 포커스를 두고 Ctrl+=/Ctrl+-/Ctrl+0, Ctrl+휠이 듣는다. 우클릭 메뉴에도 Zoom 항목이 있다. Simulator > Settings의 "All panels text size"가 네 패널을 한 번에 바꾼다.
-- [ ] **2×2 경계**: 가운데 세로선을 끌면 위아래 두 행이 함께, 가로선을 끌면 두 열이 함께 움직인다. 교차점의 작은 잡이를 끌면 둘 다 움직인다.
-- [ ] **File 메뉴**: Load File이 없고 **Open(Ctrl+O)** 하나다. 같은 파일을 두 번 열어도 `main` 중복 오류가 나지 않는다.
-- [ ] **튜토리얼 종료**: 튜토리얼을 어떤 방법으로 끝내도 예제가 닫히고 시작 화면으로 돌아오며, 진법 등 바꿔 둔 설정이 되돌아온다.
-- [ ] **Messages**: 배너 3줄이 실행당 한 번만 찍힌다(초기화할 때는 "Memory and registers cleared"만).
+- [ ] **Unpacking**: unpacking the zip in Explorer creates **only one level** of folder, with `HallymMIPS.exe` directly inside it.
+- [ ] **Start card**: every launch asks [튜토리얼 보기] (View tutorial) / [바로 시작] (Start right away). Tab and the left/right arrows move between them, Enter chooses, and the default focus is on [바로 시작].
+- [ ] **Start screen**: choosing [바로 시작] shows [새 파일] (New file) · [파일 열기] (Open file) in the editor area. [새 파일] asks for the save location first.
+- [ ] **Binary registers**: in Registers > Binary, Name, No. and the group names stay visible and only the values scroll horizontally. The value of a changed register **starts and ends at the same x-coordinate as the other rows** (it is not pushed by the difference in weight).
+- [ ] **Register column widths**: the borders can be dragged wider and narrower, and the widths are kept after a restart. Window > Tile returns them to the default widths.
+- [ ] **Korean text**: the Korean text on the tutorial card and the start screen is not blurry (heavier than in 1.1.0).
+- [ ] **Instruction Inspector**: the bit numbers and the field lines read at about the same size as the Console. One line of English explanation appears below the instruction name.
+- [ ] **Panel text size**: with focus in Text, Data, Inspector or Console, Ctrl+=/Ctrl+-/Ctrl+0 and Ctrl+wheel work. The right-click menu also has Zoom items. "All panels text size" in Simulator > Settings changes all four panels at once.
+- [ ] **2×2 borders**: dragging the middle vertical line moves both the top and bottom rows together; dragging the horizontal line moves both columns together. Dragging the small handle at the intersection moves both.
+- [ ] **File menu**: there is no Load File, only **Open (Ctrl+O)**. Opening the same file twice does not produce a duplicate `main` error.
+- [ ] **Ending the tutorial**: however the tutorial is ended, the example is closed, the app returns to the start screen, and settings that were changed (such as the radix) are restored.
+- [ ] **Messages**: the 3-line banner is printed only once per run (on reinitializing, only "Memory and registers cleared").
 
-## 3-4. 1.2.1에서 고친 것 (Windows에서 확인)
+## 3-4. Fixed in 1.2.1 (check on Windows)
 
-- [ ] **가로 스크롤바**: Registers > Binary, Data > Binary(또는 Bytes), Text > Comments 켠 상태에서 세 패널 모두 아래에 가로 스크롤바가 보이고, 끝까지 밀면 잘려 있던 값·주석이 끝까지 보인다.
-- [ ] **고정 열**: 끝까지 밀어도 Registers의 Name·No., Data의 Address, Text의 BP·Address가 왼쪽에 그대로 남는다. 세그먼트 머리글("User data segment …")의 글자가 고정 띠에 잘리지 않고 띠 오른쪽에서 시작한다.
-- [ ] **고정 띠 위의 조작**: 오른쪽 끝까지 민 상태에서 Text의 BP 칸을 눌러 브레이크포인트가 찍히고 다시 눌러 지워진다. 고정 열에서 오른쪽 클릭하면 그 패널의 메뉴가 나온다(Data는 Change Memory Contents, Registers는 Change Register Contents).
-- [ ] **제자리**: 가로로 민 상태에서 F10으로 몇 번 실행하고 Data의 Go to로 주소를 찾고 Ctrl+S로 다시 어셈블해도 **가로 위치가 그대로다**.
-- [ ] **튜토리얼 뒤**: 가로로 민 상태에서 Help > Tutorial을 열고 끝내면 밀어 둔 자리로 돌아온다.
-- [ ] **시작 카드 버튼**: Tab으로 두 버튼을 오가도 글자가 잘리지 않는다. 두 버튼의 크기가 같다.
-- [ ] **용어**: 화면 어디에도 "투어"가 없다. 시작 카드·카드 본문·Help 메뉴 모두 "튜토리얼 / Tutorial"이다.
+- [ ] **Horizontal scroll bars**: with Registers > Binary, Data > Binary (or Bytes) and Text > Comments turned on, all three panels show a horizontal scroll bar at the bottom, and scrolling all the way shows the values and comments that were cut off, to the end.
+- [ ] **Frozen columns**: even when scrolled all the way, Name and No. in Registers, Address in Data, and BP and Address in Text stay on the left. The text of the segment headers ("User data segment …") is not cut off by the frozen strip and starts to the right of the strip.
+- [ ] **Actions on the frozen strip**: scrolled all the way right, clicking a BP cell in Text sets a breakpoint and clicking again removes it. Right-clicking in the frozen columns shows that panel's menu (Change Memory Contents for Data, Change Register Contents for Registers).
+- [ ] **Staying in place**: scrolled horizontally, stepping a few times with F10, finding an address with Data's Go to and reassembling with Ctrl+S **keep the horizontal position**.
+- [ ] **After the tutorial**: scrolled horizontally, opening and ending Help > Tutorial returns to the scrolled position.
+- [ ] **Start card buttons**: moving between the two buttons with Tab does not cut off their text. The two buttons are the same size.
+- [ ] **Terminology**: "투어" (tour) does not appear anywhere on screen. The start card, the card text and the Help menu all say "튜토리얼 / Tutorial".
 
-## 3-5. 1.2.2에서 고친 것 (Windows에서 확인)
+## 3-5. Fixed in 1.2.2 (check on Windows)
 
-- [ ] **이름과 값이 같은 행**: Registers > Binary에서 이름·번호와 값이 같은 행에 있다. 글자 크기를 Ctrl+휠로 크게·작게 해도, 진법을 바꿔도, 스크롤을 끝까지 내려도 어긋나지 않는다. Data와 Text의 고정 열도 마찬가지다.
-- [ ] **좌우로 튀지 않음**: 가로로 민 상태에서 F10을 연타해도 패널이 **한 순간도** 좌우로 움직이지 않는다(1.2.0에서는 갱신마다 한 프레임씩 튀었다).
-- [ ] **Ctrl+S 열 번**: 같은 파일을 연달아 열 번 저장해도 Messages에 "Memory and registers cleared"가 쌓이지 않고 파일 이름 한 줄씩만 늘어난다. 중복 라벨·undefined symbol 오류도 없다.
-- [ ] **브레이크포인트 유지**: BP를 두 개 찍고, 그 위에 줄을 하나 넣고 Ctrl+S 하면 **같은 문장**에 BP가 그대로 있다.
-- [ ] **아무것도 안 올렸을 때 실행**: Simulator > Reinitialize 뒤 F5를 누르면 주소가 적힌 오류 창 대신 "No program is loaded…" 한 줄이 Messages에 나온다.
-- [ ] **패널을 떼어낼 수 없다**: 제목 표시줄을 창 밖으로 끌어도 독립 창이 되지 않는다. 제목 표시줄에 띄우기 버튼이 없고 더블클릭해도 떠오르지 않는다.
-- [ ] **반쪽 창(960×1080)**: 창을 화면 좌우 절반으로 놓고 세 배치를 각각 본다. 세 번째 배치(**Editor / Text / Data in one place**)에서 세 패널이 각각 읽을 만하다.
-- [ ] **탭 점**: 새 배치에서 Text 탭 뒤에 있을 때 소스를 고치면 Text·Data 탭에 점(●)이 붙고, 그 탭으로 가면 점이 사라진다.
-- [ ] **새 배치에서 튜토리얼 한 바퀴**: 카드가 가리키는 패널이 앞으로 나오고, 끝나면 보던 탭으로 돌아온다.
-- [ ] **매번 같은 화면**: 배치·열 너비·글자 크기·진법을 모두 바꾸고 프로그램을 닫았다 다시 켜면 **전부 기본값**이다. 실행 중에는 **Window > Reset Layout**이 같은 일을 한다.
-- [ ] **시작 화면**: 파일을 열어 두고 껐다 켜면 그 파일이 **다시 열리지 않고** [새 파일]/[파일 열기] 화면이 나온다. Editor > Open Recent도 비어 있다.
-- [ ] **설치**: 1.2.1이 설치된 PC에 1.2.2 MSI를 실행하면 **덮어쓰기(업그레이드)로 설치**되고, 제어판에 1.2.2 하나만 남는다.
+- [ ] **Name and value on the same row**: in Registers > Binary, the name/number and the value are on the same row. They do not get out of line when the text size is made larger or smaller with Ctrl+wheel, when the radix is changed, or when scrolled all the way down. The same goes for the frozen columns in Data and Text.
+- [ ] **No left-right jumping**: scrolled horizontally, hammering F10 does not move the panel left or right **even for a moment** (in 1.2.0 it jumped for one frame on every refresh).
+- [ ] **Ctrl+S ten times**: saving the same file ten times in a row does not pile up "Memory and registers cleared" in Messages; only one line with the file name is added each time. No duplicate label or undefined symbol errors either.
+- [ ] **Breakpoints kept**: set two BPs, insert a line above them and press Ctrl+S; the BPs are still on **the same statements**.
+- [ ] **Running with nothing loaded**: after Simulator > Reinitialize, pressing F5 shows a single line "No program is loaded…" in Messages instead of an error window with an address.
+- [ ] **Panels cannot be detached**: dragging a title bar out of the window does not make it a separate window. The title bar has no float button, and double-clicking does not float it.
+- [ ] **Half-screen window (960×1080)**: put the window on the left or right half of the screen and look at each of the three layouts. In the third layout (**Editor / Text / Data in one place**), each of the three panels is readable.
+- [ ] **Tab dots**: in the new layout, editing the source while behind the Text tab puts a dot (●) on the Text and Data tabs, and the dot disappears when that tab is opened.
+- [ ] **One round of the tutorial in the new layout**: the panel the card points to comes to the front, and at the end the tab that was being viewed comes back.
+- [ ] **The same screen every time**: after changing the layout, column widths, text size and radix, closing and restarting the program brings back **all the defaults**. While running, **Window > Reset Layout** does the same.
+- [ ] **Start screen**: with a file open, quitting and restarting **does not reopen** that file; the [새 파일]/[파일 열기] screen appears. Editor > Open Recent is empty too.
+- [ ] **Installation**: running the 1.2.2 MSI on a PC with 1.2.1 installed **installs over it (upgrade)**, and only 1.2.2 remains in the Control Panel.
 
-## 3-6. 1.2.3에서 고친 것 (Windows에서 확인)
+## 3-6. Fixed in 1.2.3 (check on Windows)
 
-- [ ] **위아래 떨림 없음**: F10을 연타할 때 Text 패널이 위아래로 깜빡이지 않는다. 현재 행이 화면 밖으로 나가면 **한 번만** 따라 움직인다.
-- [ ] **Reset 열 번**: 파일을 어셈블한 뒤 Simulator > Reinitialize를 열 번 눌러도 Text 위에 배너가 한 번도 안 뜨고, 매번 바로 F5로 실행된다. 브레이크포인트도 남아 있다. 저장하지 않은 수정이 있을 때만 "Unsaved changes" 배너가 뜬다.
-- [ ] **패널 모양**: 다섯 영역(Int Regs·Editor·Text·Console·Inspector)의 머리가 **모두 같은 모양**이다 — 탭 하나 이상과 오른쪽 끝 ✕. 제목 줄만 있는 패널이 없다.
-- [ ] **경계 끝까지**: 오른쪽 가운데 교차점을 사방으로 끝까지 끌어도 아래 두 패널(Console·Inspector)이 **사라지지 않는다**. 창을 최소 크기까지 줄여도 마찬가지다.
-- [ ] **배치 두 가지**: Window > Layout에 두 항목만 있다(좌우 뒤집기 없음). 960×1080 반쪽 창에서 두 배치를 모두 본다.
-- [ ] **글자 크기**: Simulator > Settings에서 "All panels text size"를 14pt로 바꾸고 껐다 켜면 **14pt 그대로**다. Ctrl+=를 몇 번 누르고 껐다 켜면 14pt로 돌아온다. Ctrl+0도 14pt로 돌아간다.
-- [ ] **튜토리얼 마지막 카드**: 끝내면 시작 화면으로 돌아간다고 쓰여 있고, 실제로 그렇게 된다.
+- [ ] **No vertical flicker**: when hammering F10, the Text panel does not flicker up and down. When the current row leaves the screen, it follows **only once**.
+- [ ] **Reset ten times**: after assembling a file, pressing Simulator > Reinitialize ten times never shows a banner above Text, and F5 runs right away each time. The breakpoints remain too. The "Unsaved changes" banner appears only when there are unsaved edits.
+- [ ] **Panel shape**: the heads of all five areas (Int Regs, Editor, Text, Console, Inspector) **have the same shape** — one or more tabs and an ✕ at the right end. No panel has only a title line.
+- [ ] **Borders to the limit**: dragging the right-hand middle intersection as far as it goes in every direction does **not make** the two lower panels (Console, Inspector) **disappear**. The same holds when the window is shrunk to its minimum size.
+- [ ] **Two layouts**: Window > Layout has only two items (no left-right flip). Look at both layouts in a 960×1080 half-screen window.
+- [ ] **Text size**: change "All panels text size" in Simulator > Settings to 14pt, quit and restart, and it is **still 14pt**. Press Ctrl+= a few times, quit and restart, and it returns to 14pt. Ctrl+0 also returns to 14pt.
+- [ ] **Last tutorial card**: it says that finishing returns to the start screen, and that is what actually happens.
 
-## 4. 에디터
+## 4. Editor
 
-- [ ] Ctrl+`=`/Ctrl+`-`로 글자가 1pt씩 바뀌고 8pt·32pt에서 조용히 멈춘다. Ctrl+휠도 같다.
-- [ ] Ctrl+`0`으로 원래 크기. 프로그램을 껐다 켜도 마지막 크기가 남는다.
-- [ ] 레지스터 패널을 클릭한 뒤 Ctrl+`0`을 눌러도 에디터 글자 크기가 변하지 않는다.
-- [ ] Settings에서 에디터 글꼴을 바꾸면 크기가 그 글꼴 기준으로 되돌아간다.
-- [ ] 띠 문구 세 가지가 각각 맞게 나온다: 편집한 뒤, Simulator > Reinitialize 뒤, 다른 파일을 File > Load 한 뒤.
-- [ ] 빈 편집창에는 띠가 없다.
+- [ ] Ctrl+`=`/Ctrl+`-` change the text size by 1pt and stop silently at 8pt and 32pt. Ctrl+wheel does the same.
+- [ ] Ctrl+`0` restores the original size. The last size is kept after quitting and restarting the program.
+- [ ] After clicking the register panel, pressing Ctrl+`0` does not change the editor's text size.
+- [ ] Changing the editor font in Settings resets the size relative to that font.
+- [ ] Each of the three banner messages appears correctly: after editing, after Simulator > Reinitialize, and after File > Load of another file.
+- [ ] An empty editor has no banner.
 
-## 5. 패널
+## 5. Panels
 
-- [ ] 패널을 다른 패널 옆으로 끌어다 놓으면 둘이 **반씩** 나눠 가진다(가로·세로 모두).
-- [ ] Window > Layout presets의 배치들이 그대로 적용된다.
-- [ ] 레지스터·Text·Data의 열 머리글에 마우스를 올리면 한국어·영어 설명이 뜬다.
+- [ ] Dragging a panel next to another panel makes the two share the space **half and half** (both horizontally and vertically).
+- [ ] The layouts in Window > Layout presets apply as they are.
+- [ ] Hovering the mouse over the column headers of Registers, Text and Data shows descriptions in Korean and English.
 
-## 6. 결과가 표준 QtSpim과 같은지
+## 6. Are the results the same as standard QtSpim?
 
-- [ ] 과제 프로그램 하나를 두 프로그램에서 같은 단계까지 실행해 레지스터 값과 콘솔 출력이 같다.
-- [ ] File > Save Log File로 저장한 파일이 표준 QtSpim의 것과 같은 형식이다.
+- [ ] Running one assignment program up to the same step in both programs gives the same register values and console output.
+- [ ] A file saved with File > Save Log File has the same format as standard QtSpim's.

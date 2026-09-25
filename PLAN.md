@@ -1,118 +1,118 @@
-# Hallym MIPS Simulator 개발 계획
+# Hallym MIPS Simulator development plan
 
-(0~8단계는 QtSpim-Edu 1.0.1까지의 기록이다. 이 저장소는 그 파생판이며 새 작업은 맨 아래 **H단계**다.)
+(Stages 0–8 are the record up to QtSpim-Edu 1.0.1. This repository is a derivative of it, and new work is **Stage H** at the bottom.)
 
-## 목표
+## Goal
 
-실습에서 쓰는 QtSpim 9.1.24를 **코어는 그대로 두고 GUI만** 확장한다. 학생에게 Windows용으로 배포한다.
+Extend QtSpim 9.1.24, which is used in the lab sessions, **leaving the core as it is and changing only the GUI**. Distribute it to students for Windows.
 
-## 확정된 결정
+## Settled decisions
 
-| 항목 | 결정 | 근거 |
+| Item | Decision | Rationale |
 |---|---|---|
-| 베이스 | SPIM SVN r764 = 9.1.24 (tag `vanilla-9.1.24`) | r760 버전 범프 이후 소스 변경 없음. 배포 바이너리와 동일 |
-| 시뮬레이터 코어 | `CPU/` 수정 금지 | 표준 QtSpim과 실행 결과 동일 보장 |
-| 렌더링 | **B안**: 세 패널을 `*TextEdit`(HTML 문자열) → `QTreeView/QTableView` + 모델로 교체 | 행 선택, 열 고정, 하이라이트, 상세 패널 연동에 필요 |
-| Qt 버전 | Qt 5.15 (Linux 5.15.3 / Windows 5.15.2) | 원본이 Qt5 기준. Qt6 포팅은 목표와 무관 |
-| 개발 환경 | Linux(Ubuntu 22.04) 개발, Windows는 CI 빌드 + 사람 확인 | 빌드 반복 속도 |
-| 레지스터 진법 표시 | 목록은 hex + 부호 있는 dec, 2진수는 인스펙터에서 선택 레지스터만 | 아래 R2 참조 |
-| 에디터 | 완전한 내장 에디터 (.s 열기/저장/새로 만들기 포함) | 사용자 결정 |
-| 저장소 · CI | GitHub 비공개 저장소 + GitHub Actions (저장소 생성·push·CI 구성은 Claude Code가 `gh`로 수행) | Windows 빌드 자동화 |
-| 검증 방식 | 정확도 우선: 오라클 테스트 + 스크린샷 자가 확인 + 단계별 사람 확인 | 아래 "검증 전략" 참조 |
-| 설정 저장소 | `QSettings` 조직/앱 이름을 `QtSpim-Edu`/`QtSpimEdu`로 분리 (원본 `LarusStone`/`QtSpim`) | 표준 QtSpim과 나란히 쓸 때 창 배치를 서로 덮어쓰지 않도록. 1단계에서 적용 |
-| 에디터 배치 | Text·Data와 같은 도크 그룹에 tabify | 원본의 Text/Data는 중앙 탭이 아니라 도크 위젯 (ARCHITECTURE §1.1) |
-| 인스펙터 배치 | 좌측 레지스터 도크 아래 별도 도크 | R1~R3 상세를 레지스터 옆에서 보도록 |
-| 레지스터 열 배치 | Int/FP Regs와 인스펙터는 **왼쪽 도크 영역**(창 전체 높이), 메시지 로그는 Text/Data 아래 | 1080줄 화면에서 47행(그룹 8 + 레지스터 39)을 스크롤 없이 보이게 하는 유일한 배치 (ARCHITECTURE §11) |
-| 인스펙터 높이·폭 | 내용에 맞춤, **최소 6줄(레지스터) ~ 최대 16줄**, 넘으면 스크롤. 폭은 등폭 44자 | 인스펙터가 쓰는 줄만큼 레지스터 목록이 줄어든다. 44자는 FI 형식(`bc1t`)의 필드 표 폭 |
-| Int/FP 세로 탭 | 유지. 8단계 학생 안내문에 한 줄 넣는다 | 왼쪽 도크 영역의 탭은 세로(`QMainWindow::VerticalTabs`) |
-| 명령어 인스펙터 표기 | 필드 **값 줄과 의미 줄을 나눈다**(`35` / `lw`), 목적지는 `Dest = …`, 점프는 공식과 결과 두 줄. 분기 안내문 두 줄만 비례 폰트 + 단어 단위 줄바꿈, 필드 표는 등폭 | 값·의미를 한 줄에 쓰면 FR 형식이 51자. 5단계 체크포인트 |
-| Kernel Text 자동 펼침 | 유지: 접힌 채 시작, PC가 커널에 들어가면 자동으로 펼친다 | 예외가 났을 때 학생이 핸들러에서 PC를 봐야 한다 |
-| Text 메뉴 토글 | 즉시 반영(원본은 뒤집힌 판정 때문에 다음 전체 갱신까지 반영 안 됨). 토글 직후 저장한 로그가 원본과 다른 것도 승인 | ARCHITECTURE §12 16·17번 |
-| BP 칸 클릭 | 브레이크포인트 토글과 함께 그 행도 선택된다(그대로 둔다) | 5단계 체크포인트 |
-| 브레이크포인트 줄의 로그 깨짐 | 원본 그대로 둔다(`N [x0040002] x3402000 …`). 화면만 고친다. 8단계 안내문의 "원본과 같은 알려진 문제"에 넣는다 | 로그는 vanilla와 바이트 동일이 원칙 |
-| 저장 = 어셈블 | **Ctrl+S, F3, 툴바 Assemble이 모두 "저장 후 어셈블"**이다. 메뉴 항목 이름은 "Save and Assemble". 저장만 하는 별도 동작은 두지 않는다(Save As도 저장 후 어셈블). 이름 없는 새 파일은 Save As 후 어셈블. 확인은 묻지 않는다 | 학생에게 "저장했는데 왜 안 바뀌지"가 없게. F3은 원본 단축키(F5·Shift-F5·F10)와 충돌 없음, MARS와 같은 키 |
-| 어셈블 실패 시 | 파일은 **저장된 채로** 둔다(작업 보존). 에러 목록을 보이고, 시뮬레이터는 원본 Reinitialize 경로대로 초기화되므로 상태바에 "Assemble failed — N errors. Simulator was reset." | 이전에 성공한 프로그램이 사라진 이유를 알 수 있게 |
-| 미반영 표시 | 에디터 내용이 마지막 어셈블 이후 바뀌면 Text·Data 패널 상단에 띠 "Source changed — save (Ctrl+S) to assemble". 클릭 = 저장+어셈블. 어셈블하면 사라진다 | 보고 있는 Text/Data가 지금 소스와 다르다는 것을 그 자리에서 알린다 |
-| 시작 시 마지막 파일 | 에디터가 마지막으로 열었던 파일을 자동으로 연다(파일이 있을 때). **자동 어셈블은 하지 않는다** | 시작 시 시뮬레이터 상태는 원본과 같아야 한다. 학생이 Ctrl+S를 누르면 반영된다 |
-| 에디터 최근 파일 | **에디터 전용 목록**을 Editor 메뉴 아래에 둔다. 원본 File > Recent Files 목록은 건드리지 않는다 | 원본은 `st_recentFiles[0]`를 다음 실행의 argv[0]으로 쓴다 — 에디터에서 열기만 해도 바뀌면 로드된 프로그램의 스택이 달라진다 (ARCHITECTURE §17.2) |
-| 어셈블 에러의 줄 번호 | 에러 목록·줄 표시는 **인용된 소스 줄이 실제로 있는 줄**로 보정, 메시지 로그는 코어가 말한 번호 그대로 | 코어는 범위 밖 operand 같은 에러를 다음 문장의 줄 번호로 보고한다 (ARCHITECTURE §12 36번) |
-| 저장소 공개 | GitHub 저장소를 공개로 둔다(Actions 무료). 루트에 영문 README(소개·라이선스·빌드 한 줄·"학생 안내는 릴리스 후") | 비공개 저장소의 Actions 한도 |
-| 버전 | **1.0.0**. About·상태바·zip/MSI 이름에 "QtSpim-Edu 1.0.0", About에 "based on QtSpim 9.1.24" 유지. `edu_version.h`만 바꾸고 `SPIM_VERSION`은 그대로 | 8단계 |
-| 배포 형태 | **zip(portable)이 기본**, MSI는 부가. 안내문에서 zip을 먼저 권장 | 학생 PC에 관리자 권한이 없을 수 있다 |
-| 코드 서명 | 하지 않는다. SmartScreen 경고를 넘기는 방법을 안내문에 적는다 | 8단계 |
-| 배포 채널 | GitHub Releases `v1.0.0` — zip + MSI + 안내문(PDF·MD) | 저장소가 공개라 링크 하나로 배포 가능 |
-| Windows 확인(3~7단계) | 완료: 실행·헬프·화면·에디터·한글 폴더 저장 정상. 메모장 ANSI/BOM 왕복은 CI의 단위 테스트·`check-editor.sh` 결과로 갈음 | 8단계 진입 전 체크포인트 |
-| 타입 배지 판정 | `op.h` 분류가 아니라 **기계어 워드만으로** 결정 | `op.h`의 형식 종류는 피연산자 배치이지 기계어 형식이 아님 (ARCHITECTURE §3.3). `op.h`는 필드 값 오라클로만 |
-| `.data` 라벨 | **로더 복제**: GUI가 `read_assembly_file()`과 줄 단위로 대응되는 절차로 파일을 읽고, `flush_local_labels()` **직전에** `print_symbols()` 출력을 `write_output` 캡처로 수집한다. `// EDU: mirrors read_assembly_file()` 명시 | 코어는 파일 끝에서 로컬 라벨을 테이블에서 뺀다 — 로드 후 `print_symbols()`에는 전역 라벨만 남는다(ARCHITECTURE §3.7, 6단계 확인). 검증: 로드 직후 골든 바이트 동일, 파일 중간 syntax error 시 vanilla와 같은 메시지·상태, `Tests/*.s`의 정의 라벨 수 = 캡처 수, `check-menu-load.sh --compare-vanilla` 동일 |
-| Data 패널 열 | 7열: Address · +0 · +4 · +8 · +C · ASCII · **Labels**. Address는 **줄의 기준 주소**(16의 배수) | 라벨·포인터를 값 칸 밖에 쓸 자리. 열 제목 +0/+4/+8/+C와 주소가 맞아야 한다 (6단계 체크포인트) |
-| 환경변수 접는 범위 | `[$a2, STACK_TOP)`. `argc`와 `argv[]` 포인터는 보이는 채로 | 시작 코드가 읽는 부분은 보여야 한다. 경계가 16의 배수가 아니면 한 줄이 두 영역에 반씩 걸쳐 표시되는데 그대로 둔다 |
-| Data 패널 갱신 | 원본 시점(`data_modified`) + `$sp`/`$fp`/`$gp`가 바뀐 경우 | 마커와 스택 시작이 레지스터를 따라가야 한다 (ARCHITECTURE §12 26번) |
-| 표시 단위 저장 | Words / Half words / Bytes 선택을 설정에 저장 | 6단계 체크포인트 |
-| 상태바 Bare Machine 표시 | 어셈블 방식을 바꾸는 설정이 켜져 있으면 상태바에 배지. Settings 변경 즉시 반영 | 설정은 재시작 후에도 남는다. 켜져 있으면 `li` 같은 pseudo 명령이 syntax error가 되어 학생이 자기 코드를 의심한다 |
-| Load File 확인 | 프로그램이 이미 로드된 상태에서 Load File을 누르면 "Reinitialize and load / Add to current program / Cancel"을 묻는다. 원본 동작 변경 | Reinitialize 없이 같은 파일을 다시 올리면 `Label is defined for the second time … main`(코어 동작, vanilla 동일) |
-| 어셈블 에러 표시 | 에디터 경로: 모달 대신 에러 목록(클릭 시 줄 이동) + 에디터 줄 표시 + 상태바 개수. 로그 창 메시지는 원본대로 | 원본은 에러 하나당 모달 하나 (ARCHITECTURE §4) |
-| 한글 경로 | `CPU/` 수정 없이 **감지·경고만**: 로컬 8비트 인코딩으로 손실 없이 표현 못 하는 경로는 로드 전에 명확히 경고하고 **로드는 건너뛴다** | 코어가 `fopen(char*)`를 쓰므로 근본 해결은 `CPU/` 수정 (ARCHITECTURE §5). 진행하면 `fopen`이 `???` 경로로 실패해 2차 에러가 뜬다 |
-| 헬프 탐색 순서 | `<실행 파일 폴더>/help` **최우선**, 그 뒤에 원본 세 후보(Program Files / Mac 번들 / `/usr/lib/qtspim`) | 배포물은 자기 안에서 완결돼야 한다. 남의 설치 폴더에 의존하면 그쪽이 삭제·갱신될 때 조용히 깨진다 |
-| Windows zip 구성 | `opengl32sw.dll` 유지(약 20MB). 코드 서명은 8단계에서 | GPU 드라이버가 없는 PC 대비 |
-| 레지스터 그룹 제목 | 영어 유지 (Special / Return values / Arguments / Temporaries / Saved / Pointers / Reserved / CP0) | 메뉴·다이얼로그가 전부 영어 |
-| CP0 번호 표기 | No. 열에 `$12` 형식. PC/HI/LO는 빈칸 | `mfc0 $t0, $12` 표기와 일치 |
-| 왼쪽 도크 폭 | 그대로 (열 4개 + 인스펙터 2진수 39자에 맞춘 폭) | 3단계 체크포인트 |
-| Registers > Binary | 목록 값 열이 39자(4비트 묶음 32비트)로 넓어지는 원본식 동작 유지 | 화면과 로그 저장 출력의 진법이 같아야 한다 |
-| Change Value 동작 | 취소 시 "Bad … value" 경고 없음, 값 범위 검사는 플랫폼 무관(10진 -2147483648~4294967295, hex/bin 32비트) | 원본은 취소해도 경고를 띄우고, 범위가 플랫폼의 `long` 크기에 의존 |
-| 검증 절차 | 단계별 사람 확인은 **Linux**에서. Windows 확인은 **7단계 완료 후 3~7단계를 한 번에**, 그리고 **8단계**에서 | push마다 CI가 Windows 빌드·단위 테스트·zip 패키징을 돌리므로 컴파일 문제는 계속 걸러진다 |
-| 문자열 리터럴 | `-Zc:strictStrings`는 코어 때문에 껐지만 `QtSpim/edu/`의 새 코드는 리터럴을 항상 `const char*`/`QString`으로 받는다 | CLAUDE.md에도 기록 |
+| Base | SPIM SVN r764 = 9.1.24 (tag `vanilla-9.1.24`) | No source changes since the r760 version bump. Identical to the distributed binary |
+| Simulator core | Modifying `CPU/` is forbidden | Guarantees execution results identical to standard QtSpim |
+| Rendering | **Option B**: replace the three panels' `*TextEdit` (HTML strings) → `QTreeView/QTableView` + models | Needed for row selection, frozen columns, highlighting and linking to the detail panel |
+| Qt version | Qt 5.15 (Linux 5.15.3 / Windows 5.15.2) | The original is based on Qt5. A Qt6 port is unrelated to the goal |
+| Development environment | Develop on Linux (Ubuntu 22.04); Windows through CI builds + human checks | Build iteration speed |
+| Register radix display | The list shows hex + signed dec; binary only for the selected register, in the inspector | See R2 below |
+| Editor | A complete built-in editor (including opening/saving/creating new .s files) | User's decision |
+| Repository · CI | Private GitHub repository + GitHub Actions (Claude Code creates the repository, pushes and sets up CI with `gh`) | Automating the Windows build |
+| Verification approach | Accuracy first: oracle tests + self-checked screenshots + a human check at each stage | See "Verification strategy" below |
+| Settings store | Separate the `QSettings` organization/application names as `QtSpim-Edu`/`QtSpimEdu` (original: `LarusStone`/`QtSpim`) | So that the two do not overwrite each other's window layout when used side by side with standard QtSpim. Applied in stage 1 |
+| Editor placement | Tabified in the same dock group as Text·Data | In the original, Text/Data are dock widgets, not central tabs (ARCHITECTURE §1.1) |
+| Inspector placement | A separate dock below the register dock on the left | So that the R1–R3 details are seen next to the registers |
+| Register column placement | Int/FP Regs and the inspector in the **left dock area** (the full window height), the message log below Text/Data | The only layout that shows 47 rows (8 groups + 39 registers) without scrolling on a 1080-line screen (ARCHITECTURE §11) |
+| Inspector height and width | Fitted to the content, **minimum 6 lines (register) to maximum 16 lines**, scrolls beyond that. Width is 44 monospace characters | The register list shrinks by as many lines as the inspector uses. 44 characters is the width of the field table for the FI format (`bc1t`) |
+| Int/FP vertical tabs | Keep. Add one line about them to the stage 8 student guide | Tabs in the left dock area are vertical (`QMainWindow::VerticalTabs`) |
+| Instruction inspector notation | Split the field **value line and meaning line** (`35` / `lw`); the destination is `Dest = …`; jumps get two lines, formula and result. Only the two lines of the branch notice use a proportional font + word wrapping; the field table is monospace | Writing value and meaning on one line makes the FR format 51 characters wide. Stage 5 checkpoint |
+| Kernel Text auto-expand | Keep: starts collapsed, expands automatically when the PC enters the kernel | When an exception occurs, the student must see the PC in the handler |
+| Text menu toggles | Take effect immediately (in the original, because of an inverted check, they do not take effect until the next full refresh). It is also approved that a log saved right after a toggle differs from the original | ARCHITECTURE §12 items 16 and 17 |
+| Clicking the BP cell | Toggling the breakpoint also selects that row (left as it is) | Stage 5 checkpoint |
+| Garbled log on breakpoint lines | Left as in the original (`N [x0040002] x3402000 …`). Only the screen is fixed. Listed under "known problems shared with the original" in the stage 8 guide | The principle is that the log is byte-identical to vanilla |
+| Save = assemble | **Ctrl+S, F3 and the toolbar Assemble all mean "save, then assemble"**. The menu item is named "Save and Assemble". There is no separate save-only action (Save As also saves, then assembles). An unnamed new file goes through Save As, then is assembled. No confirmation is asked | So students never wonder "I saved it, why didn't anything change?". F3 does not clash with the original shortcuts (F5·Shift-F5·F10) and is the same key as in MARS |
+| When assembling fails | The file is left **saved** (the work is preserved). The error list is shown, and because the simulator is reset along the original Reinitialize path, the status bar says "Assemble failed — N errors. Simulator was reset." | So the user can tell why the previously successful program disappeared |
+| Out-of-date indicator | If the editor contents have changed since the last assemble, a banner "Source changed — save (Ctrl+S) to assemble" appears at the top of the Text·Data panels. Click = save + assemble. It disappears after assembling | Tells the user, right where they are looking, that the Text/Data being viewed differ from the current source |
+| Last file on startup | The editor automatically opens the file it last had open (if the file exists). **It does not assemble automatically** | The simulator state at startup must be the same as in the original. It takes effect when the student presses Ctrl+S |
+| Editor recent files | An **editor-only list** under the Editor menu. The original File > Recent Files list is left untouched | The original uses `st_recentFiles[0]` as argv[0] of the next run — if merely opening a file in the editor changed it, the loaded program's stack would differ (ARCHITECTURE §17.2) |
+| Line numbers of assembly errors | The error list and line markers are corrected to **the line where the quoted source line actually is**; the message log keeps the number the core reported | The core reports errors such as an out-of-range operand with the line number of the next statement (ARCHITECTURE §12 item 36) |
+| Repository visibility | Make the GitHub repository public (Actions are free). An English README at the root (introduction, license, one-line build, "student guide after the release") | The Actions limits for private repositories |
+| Version | **1.0.0**. "QtSpim-Edu 1.0.0" in About, the status bar and the zip/MSI names; keep "based on QtSpim 9.1.24" in About. Change only `edu_version.h`; leave `SPIM_VERSION` as it is | Stage 8 |
+| Distribution form | **zip (portable) is the default**, MSI is an extra. The guide recommends the zip first | Student PCs may not have administrator rights |
+| Code signing | Not done. The guide explains how to get past the SmartScreen warning | Stage 8 |
+| Distribution channel | GitHub Releases `v1.0.0` — zip + MSI + guide (PDF·MD) | The repository is public, so a single link is enough for distribution |
+| Windows check (stages 3–7) | Done: launching, help, screens, the editor and saving in a folder with a Korean name all work. The Notepad ANSI/BOM round trip is covered instead by the CI unit tests and the `check-editor.sh` results | Checkpoint before entering stage 8 |
+| Type badge decision | Decided **from the machine word alone**, not from the `op.h` classification | The format kinds in `op.h` describe operand layout, not the machine-code format (ARCHITECTURE §3.3). `op.h` is used only as an oracle for field values |
+| `.data` labels | **Loader mirror**: the GUI reads the file with a procedure that corresponds line for line to `read_assembly_file()`, and **just before** `flush_local_labels()` collects the `print_symbols()` output by capturing `write_output`. Marked explicitly with `// EDU: mirrors read_assembly_file()` | The core removes local labels from the table at the end of the file — after loading, only global labels remain in `print_symbols()` (ARCHITECTURE §3.7, confirmed in stage 6). Verification: goldens byte-identical right after loading; on a syntax error in the middle of a file, the same message and state as vanilla; the number of labels defined in `Tests/*.s` = the number captured; `check-menu-load.sh --compare-vanilla` identical |
+| Data panel columns | 7 columns: Address · +0 · +4 · +8 · +C · ASCII · **Labels**. Address is **the row's base address** (a multiple of 16) | A place to write labels and pointers outside the value cells. The column titles +0/+4/+8/+C must match the address (stage 6 checkpoint) |
+| Environment fold range | `[$a2, STACK_TOP)`. `argc` and the `argv[]` pointers stay visible | The part the startup code reads must be visible. If the boundary is not a multiple of 16, one row is shown half in each of the two areas; this is left as it is |
+| Data panel refresh | At the original's times (`data_modified`) + when `$sp`/`$fp`/`$gp` change | The markers and the start of the stack must follow the registers (ARCHITECTURE §12 item 26) |
+| Saving the display unit | The Words / Half words / Bytes choice is saved in the settings | Stage 6 checkpoint |
+| Bare Machine indicator in the status bar | A badge in the status bar when a setting that changes how assembling works is on. Reflected immediately when Settings change | Settings persist across restarts. When it is on, pseudo-instructions such as `li` become syntax errors and students suspect their own code |
+| Load File confirmation | Pressing Load File while a program is already loaded asks "Reinitialize and load / Add to current program / Cancel". A change to the original behavior | Loading the same file again without Reinitialize gives `Label is defined for the second time … main` (core behavior, identical in vanilla) |
+| Assembly error display | Editor path: instead of modal dialogs, an error list (click to go to the line) + line markers in the editor + a count in the status bar. Log window messages as in the original | The original shows one modal per error (ARCHITECTURE §4) |
+| Korean paths | **Detect and warn only**, without modifying `CPU/`: for a path that cannot be represented losslessly in the local 8-bit encoding, warn clearly before loading and **skip the load** | The core uses `fopen(char*)`, so the real fix would be modifying `CPU/` (ARCHITECTURE §5). If loading went ahead, `fopen` would fail on a `???` path and a secondary error would appear |
+| Help search order | `<executable folder>/help` **first**, then the original three candidates (Program Files / Mac bundle / `/usr/lib/qtspim`) | The distribution must be self-contained. Depending on someone else's installation folder breaks silently when that folder is deleted or updated |
+| Windows zip contents | Keep `opengl32sw.dll` (about 20 MB). Code signing in stage 8 | For PCs without a GPU driver |
+| Register group titles | Stay in English (Special / Return values / Arguments / Temporaries / Saved / Pointers / Reserved / CP0) | All menus and dialogs are in English |
+| CP0 number notation | `$12` format in the No. column. Blank for PC/HI/LO | Matches the `mfc0 $t0, $12` notation |
+| Left dock width | Unchanged (a width that fits 4 columns + the 39-character binary in the inspector) | Stage 3 checkpoint |
+| Registers > Binary | Keep the original-style behavior where the list's value column widens to 39 characters (32 bits in groups of 4) | The screen and the saved log output must use the same radix |
+| Change Value behavior | No "Bad … value" warning on cancel; the value range check is platform-independent (decimal -2147483648 to 4294967295, hex/bin 32 bits) | The original shows the warning even on cancel, and its range depends on the platform's size of `long` |
+| Verification procedure | The human check at each stage is done on **Linux**. Windows is checked **once for stages 3–7 together after stage 7 is complete**, and again in **stage 8** | CI runs the Windows build, the unit tests and the zip packaging on every push, so compile problems keep being caught |
+| String literals | `-Zc:strictStrings` is turned off because of the core, but new code in `QtSpim/edu/` always takes literals as `const char*`/`QString` | Also recorded in CLAUDE.md |
 
-## 요구사항 스펙
+## Requirements specification
 
-### 공통: 인스펙터 패널
+### Common: inspector panel
 
-**좌측 레지스터 도크 아래 별도 도크**. 무엇을 선택했느냐에 따라 내용이 바뀐다.
-- 레지스터 선택 → 값 상세(R2)
-- 명령어 선택 → 필드 분해(R3)
-- 메모리 워드 선택 → 값 상세 + 주소 + 심볼
+**A separate dock below the register dock on the left**. Its content changes depending on what is selected.
+- Register selected → value details (R2)
+- Instruction selected → field breakdown (R3)
+- Memory word selected → value details + address + symbol
 
-### R1. 레지스터 용도별 그룹
+### R1. Register groups by purpose
 
-`QTreeView`, 그룹은 최상위 항목(기본 펼침, 접기 가능).
+`QTreeView`; the groups are top-level items (expanded by default, collapsible).
 
-| 그룹 | 레지스터 |
+| Group | Registers |
 |---|---|
-| 특수 | PC, HI, LO |
-| 반환값 | $v0–$v1 |
-| 인자 | $a0–$a3 |
-| 임시 | $t0–$t9 |
-| 보존 | $s0–$s7 |
-| 포인터 | $gp, $sp, $fp(=$s8), $ra |
-| 예약 | $zero, $at, $k0, $k1 |
+| Special | PC, HI, LO |
+| Return values | $v0–$v1 |
+| Arguments | $a0–$a3 |
+| Temporaries | $t0–$t9 |
+| Saved | $s0–$s7 |
+| Pointers | $gp, $sp, $fp(=$s8), $ra |
+| Reserved | $zero, $at, $k0, $k1 |
 | CP0 | Status, Cause, EPC, BadVAddr |
 
-- 열: `이름($t0)` · `번호(R8)` · `Hex` · `Dec`
-- **값이 바뀐 레지스터 강조**. 기준: 실행 명령(Step/Run/Continue 등) **시작 시점 스냅샷 대비 실행이 멈춘 시점**의 차이.
-  Reinitialize/Load 시 스냅샷 초기화. 사용자가 직접 바꾼 값은 강조하지 않음.
-  (원본은 "직전 화면 갱신 대비"라 Run 한 번이면 시작/끝 차이가 통째로 강조된다 — ARCHITECTURE §2.2)
-- 원본의 레지스터 값 변경 기능(더블클릭/우클릭 → 값 입력) 유지
-- FP 레지스터 탭: 이번 범위에서는 원본 유지 (이후 검토 항목은 `docs/FUTURE.md`)
+- Columns: `name ($t0)` · `number (R8)` · `Hex` · `Dec`
+- **Highlight registers whose value changed**. Basis: the difference between a snapshot taken **when an execution command (Step/Run/Continue etc.) starts and the point where execution stops**.
+  The snapshot is reset on Reinitialize/Load. Values the user changed directly are not highlighted.
+  (The original compares against "the previous screen refresh", so after a single Run the whole difference between start and end is highlighted — ARCHITECTURE §2.2)
+- Keep the original's register value editing (double-click/right-click → enter a value)
+- FP register tab: kept as in the original within this scope (items to consider later are in `docs/FUTURE.md`)
 
-### R2. 다중 진법 표시
+### R2. Multiple radix display
 
-2진수 32자리를 32개 행에 동시에 표시하면 패널 폭이 감당되지 않고, 실제로 필요한 건 "지금 보고 있는 레지스터" 하나이므로 다음과 같이 나눈다.
+Showing 32 binary digits on 32 rows at once is more than the panel width can take, and what is actually needed is the one "register being looked at right now", so the display is split as follows.
 
-- **목록**: `0x` + 8자리 hex (0 채움) · 부호 있는 10진수
-- **인스펙터**(선택한 레지스터):
-  - hex, 부호 있는 dec, 부호 없는 dec
-  - 2진수 32비트, 4비트 단위 띄어쓰기, 비트 번호 눈금(31 … 0)
-  - 원본의 Registers 메뉴 진법 옵션(Binary/Hex/Decimal, **있음** — ARCHITECTURE §6.1): 목록의 Hex 열 대신 선택 진법 열로 동작하도록 연결. Data Segment 메뉴에도 같은 옵션이 따로 있다
+- **List**: `0x` + 8 hex digits (zero-padded) · signed decimal
+- **Inspector** (selected register):
+  - hex, signed dec, unsigned dec
+  - 32-bit binary, a space every 4 bits, a bit-number scale (31 … 0)
+  - The original's radix options in the Registers menu (Binary/Hex/Decimal, **they exist** — ARCHITECTURE §6.1): wired so that they act as a column in the selected radix in place of the list's Hex column. The Data Segment menu has the same options separately
 
-### R3. 명령어 타입 + 기계어 필드 분해
+### R3. Instruction type + machine-code field breakdown
 
-Text 패널 열: `BP` · `주소` · `기계어(hex)` · `타입` · `실제 명령어` · `소스(줄번호: 원문)`
+Text panel columns: `BP` · `address` · `machine code (hex)` · `type` · `actual instruction` · `source (line number: original text)`
 
-- 타입 배지: **R / I / J**, 보조프로세서 명령은 **FR / FI**(P&H green card 기준), CP0 명령은 **CP0**으로 표기
-  - **판정은 기계어 워드만으로**: opcode 0 **및 0x1c(SPECIAL2: `mul`, `clz`, `madd`…)** → R, 2·3 → J, 0x10 → CP0, 0x11 → fmt 필드가 8이면 FI 아니면 FR, 나머지 → I
-  - `op.h`의 형식 종류(`R3_TYPE_INST` 등)는 피연산자 배치 분류라 배지 판정에 쓰지 않는다. `op.h`는 **필드 값 오라클**로만 쓴다
-- 같은 소스 줄에서 나온 명령어들(pseudo 확장)은 배경 묶음으로 표시 (`SOURCE(inst) != NULL`이 그룹 시작 — ARCHITECTURE §3.4)
-- Kernel Text Segment는 접힌 그룹 한 줄로 기본 표시, 펼치기 가능. 원본 표시 토글 메뉴 유지
-- 인스펙터(선택 명령어):
+- Type badge: **R / I / J**; coprocessor instructions are shown as **FR / FI** (following the P&H green card), CP0 instructions as **CP0**
+  - **Decided from the machine word alone**: opcode 0 **and 0x1c (SPECIAL2: `mul`, `clz`, `madd`…)** → R, 2·3 → J, 0x10 → CP0, 0x11 → FI if the fmt field is 8, otherwise FR, everything else → I
+  - The format kinds in `op.h` (`R3_TYPE_INST` etc.) classify operand layout, so they are not used to decide the badge. `op.h` is used only as a **field-value oracle**
+- Instructions that come from the same source line (pseudo expansion) are shown as a group with a background (`SOURCE(inst) != NULL` starts a group — ARCHITECTURE §3.4)
+- The Kernel Text Segment is shown by default as a single collapsed group row and can be expanded. The original's display toggle menu is kept
+- Inspector (selected instruction):
   ```
   lw $4, 0($29)                         I-type
   0x8fa40000  at 0x00400000
@@ -122,179 +122,179 @@ Text 패널 열: `BP` · `주소` · `기계어(hex)` · `타입` · `실제 명
   35     29    4     0
   lw     $sp   $a0   0x0000
   ```
-  - 분기 목적지는 **SPIM의 모드에 따라 공식이 다르다** (ARCHITECTURE §13.2):
-    - 기본 모드(Delayed Branches 꺼짐): `Dest = PC + (offset×4) = <주소> [<라벨>]` + 안내 한 줄
-      "SPIM 기본 모드는 지연 분기가 없어 PC 기준으로 인코딩합니다. 교재의 MIPS(PC+4 기준)와 offset 값이 1 다릅니다." (영문 병기).
-      이 안내문은 UI에서 한글이 들어가는 유일한 예외다(학생 설명용)
-    - Bare Machine(Delayed Branches 켜짐): `Dest = PC + 4 + (offset×4)`, 안내문 없음
-  - 점프: 목적지 = `(PC & 0xf0000000) | (target<<2)` (코어 방식), 해당 라벨. 미해결 심볼(예: 아무 파일도 안 올렸을 때 `jal 0x00000000 [main]`)도 정확히 표시
-  - `0x00000040`은 `sll`로 표시(코어와 동일, `ssnop`과 구분 불가)
-  - **명령어 이름·디스어셈블 문자열은 코어 구조체(디스어셈블 경로)에서** 가져온다. 워드를 `inst_decode()`로 재해석하지 않는다(그 함수는 9개 명령을 잘못 부른다 — ARCHITECTURE §13.4). 타입·필드는 `edu_decoder`에서
-  - R-type: funct 이름, shamt
+  - The branch destination **formula depends on SPIM's mode** (ARCHITECTURE §13.2):
+    - Default mode (Delayed Branches off): `Dest = PC + (offset×4) = <address> [<label>]` + one line of notice
+      "SPIM 기본 모드는 지연 분기가 없어 PC 기준으로 인코딩합니다. 교재의 MIPS(PC+4 기준)와 offset 값이 1 다릅니다." ("SPIM's default mode has no delayed branches, so it encodes relative to PC. The offset value differs by 1 from the textbook's MIPS (relative to PC+4).") (shown together with the English).
+      This notice is the only exception where Korean appears in the UI (to explain things to students)
+    - Bare Machine (Delayed Branches on): `Dest = PC + 4 + (offset×4)`, no notice
+  - Jumps: destination = `(PC & 0xf0000000) | (target<<2)` (the core's method), plus the corresponding label. Unresolved symbols (e.g. `jal 0x00000000 [main]` when no file has been loaded) are also shown exactly
+  - `0x00000040` is shown as `sll` (same as the core; it cannot be told apart from `ssnop`)
+  - **Instruction names and disassembly strings come from the core's structures (the disassembly path)**. The word is not reinterpreted with `inst_decode()` (that function gives the wrong name for 9 instructions — ARCHITECTURE §13.4). Type and fields come from `edu_decoder`
+  - R-type: funct name, shamt
 
-### R4. 내장 에디터
+### R4. Built-in editor
 
-- `Editor`는 **Text·Data와 같은 도크 그룹에 tabify** (원본의 Text/Data는 중앙 탭이 아니라 도크 위젯이다 — ARCHITECTURE §1.1)
-  - 파일 로드 전 시작 상태에서는 Editor 탭 활성
-  - Window 메뉴에 Editor 다시 열기 항목
-- 새로 만들기 / 열기 / 저장 / 다른 이름으로 저장 (`.s`, `.asm`), **에디터 전용** 최근 파일 — 전부 Editor 메뉴에
-- 줄 번호, MIPS 문법 강조(지시어, 명령어, 레지스터, 라벨, 주석, 문자열, 숫자)
-- 수정 여부 표시, 저장 안 한 채 새로 만들기/열기/닫기 시 확인 (어셈블은 묻지 않고 저장)
-- **Save and Assemble (Ctrl+S = F3 = 툴바)**: 확인 없이 저장(경로 없는 새 파일만 Save As) → 원본 "Reinitialize and Load File" 경로 그대로 호출 → **성공 시 Text 탭으로 전환, 실패 시 Editor에 머물고 에러 줄 표시**
-  - 코어는 파일을 읽으므로 에디터는 항상 파일 저장 후 로드한다(코어 수정 불필요)
-- 어셈블 에러 → **모달 대신** 에러 목록(클릭 시 줄 이동) + 에디터 줄 표시 + 상태바에 개수. 로그 창 메시지는 원본대로 유지.
-  에러 메시지 형식은 `spim: (parser) <msg> on line <N> of file <path>` + 소스 줄 + 캐럿 (ARCHITECTURE §4)
-- 외부 프로그램이 파일을 바꾸면 감지하고 다시 불러올지 묻기
-- 인코딩: UTF-8 기본 저장, CP949 파일 열기 지원, 줄바꿈 형식 유지
-- 한글 경로: 로컬 8비트 인코딩으로 손실 없이 표현할 수 없는 경로는 로드 전에 명확히 경고 (`CPU/` 수정 없음, 2단계에서 구현)
-- 범위 밖: 여러 파일을 하나의 프로그램으로 링크, 실행 중 현재 줄 에디터 표시 → `docs/FUTURE.md`
+- `Editor` is **tabified in the same dock group as Text·Data** (in the original, Text/Data are dock widgets, not central tabs — ARCHITECTURE §1.1)
+  - In the startup state, before a file is loaded, the Editor tab is active
+  - A Window menu item to reopen the Editor
+- New / Open / Save / Save As (`.s`, `.asm`), **editor-only** recent files — all in the Editor menu
+- Line numbers, MIPS syntax highlighting (directives, instructions, registers, labels, comments, strings, numbers)
+- A modified indicator; confirmation on New/Open/Close with unsaved changes (assembling saves without asking)
+- **Save and Assemble (Ctrl+S = F3 = toolbar)**: save without confirmation (Save As only for a new file with no path) → call the original "Reinitialize and Load File" path unchanged → **on success, switch to the Text tab; on failure, stay in the Editor and mark the error lines**
+  - The core reads files, so the editor always saves the file before loading it (no core change needed)
+- Assembly errors → **instead of modals**, an error list (click to go to the line) + line markers in the editor + a count in the status bar. Log window messages stay as in the original.
+  The error message format is `spim: (parser) <msg> on line <N> of file <path>` + the source line + a caret (ARCHITECTURE §4)
+- Detect when an external program changes the file and ask whether to reload it
+- Encoding: saves as UTF-8 by default, supports opening CP949 files, preserves the line-ending style
+- Korean paths: warn clearly, before loading, about a path that cannot be represented losslessly in the local 8-bit encoding (no `CPU/` change; implemented in stage 2)
+- Out of scope: linking several files into one program, showing the currently executing line in the editor → `docs/FUTURE.md`
 
-### R5. 데이터 / 스택 뷰어
+### R5. Data / stack viewer
 
 `QTableView`
 
-- 열: `주소`(줄의 기준 주소) · `+0` · `+4` · `+8` · `+C` · `ASCII` · `Labels`, 헤더 고정
-- 셀마다 정확한 주소를 툴팁/인스펙터로 확인 가능
-- `.data` 라벨을 해당 주소 행에 표시 — 로더 복제 방식(결정 표 "`.data` 라벨")으로 **파일을 읽는 시점에** 로컬 라벨까지 수집해 주소→라벨 표를 만든다. `print_symbols()` 출력 파싱 규칙은 단위 테스트로 고정 (ARCHITECTURE §3.7)
-- `$sp`, `$fp`, `$gp`가 가리키는 행에 마커
-- **스택 상단의 argv/환경변수 영역은 기본 접힘** — 한 줄 "환경변수 N바이트 (펼치기)"로 표시, 펼치기 가능. 학생이 스크린샷을 제출할 때 사용자명·경로가 노출되는 것을 막기 위함. 인쇄·로그 저장 출력은 원본 그대로(접지 않음)
-- 표시 단위: word / halfword / byte (설정에 저장)
-- 이동: 주소·라벨·레지스터 이름 입력으로 점프, "$sp로 이동" 버튼
-- 세그먼트 선택: User data / Stack / Kernel data
-- ASCII 열은 코어의 바이트 순서(endianness)를 확인한 뒤 실제 메모리 바이트 순서대로 표시
-- 원본의 메모리 값 변경 기능 유지
+- Columns: `address` (the row's base address) · `+0` · `+4` · `+8` · `+C` · `ASCII` · `Labels`, frozen header
+- The exact address of each cell can be checked in a tooltip/the inspector
+- Show `.data` labels on the row of their address — with the loader-mirror approach (decision table, "`.data` labels"), collect the labels, local ones included, **at the time the file is read** and build an address→label table. The rules for parsing the `print_symbols()` output are pinned down by unit tests (ARCHITECTURE §3.7)
+- Markers on the rows that `$sp`, `$fp` and `$gp` point to
+- **The argv/environment-variable area at the top of the stack is collapsed by default** — shown as a single line "Environment variables: N bytes (expand)", which can be expanded. This keeps user names and paths from being exposed when students submit screenshots. Printing and saved log output stay as in the original (not collapsed)
+- Display unit: word / halfword / byte (saved in the settings)
+- Navigation: jump by entering an address, label or register name; a "Go to $sp" button
+- Segment selection: User data / Stack / Kernel data
+- The ASCII column is shown in actual memory byte order, after checking the core's byte order (endianness)
+- Keep the original's memory value editing
 
-## 검증 전략 (정확도 우선)
+## Verification strategy (accuracy first)
 
-1. **오라클 테스트 — 디코더**: 정답을 우리가 만들지 않고 코어에서 가져온다.
-   - `CPU/op.h`의 명령어 표 전체를 순회해 각 명령의 인코딩 형식과 우리 타입 분류가 일치하는지
-   - 코어가 인코딩한 워드를 우리 디코더로 분해 → 코어의 명령어 구조체 필드(opcode, rs, rt, rd, shamt, imm, target)와 일치하는지
-   - 우리 디코더로 분해한 필드를 다시 조립 → 원래 워드와 비트 단위 일치하는지
-   - 입력: `Tests/tt.*.s` 전체 + 경계값(최대/최소 immediate, 음수 분기 오프셋, 미해결 점프)
-2. **단위 테스트 — 포맷터**: 0, 1, -1, INT32_MIN, INT32_MAX, 0x80000000, 0xFFFFFFFF 등 경계값의 hex/dec(부호 유무)/bin 표시
-3. **회귀**: 원본 빌드와 우리 빌드에서 `Tests/` 프로그램 실행 출력 비교 (코어 미수정 확인) — `tools/regress.sh`
-4. **인쇄·로그 저장**: 원본은 위젯의 `toPlainText()`/`print()`를 그대로 쓴다 (ARCHITECTURE §6.5). 패널을 교체하는 단계마다 텍스트 생성기를 같이 만들고, **로그 저장 출력은 원본과 바이트 단위 동일**해야 한다. 회귀 스크립트에 vanilla 대비 비교를 추가한다 (3·5·6단계 완료 조건)
-5. **스크린샷 자가 확인**: `tools/`의 하네스로 offscreen 캡처(파일 로드 → N스텝 → 패널 캡처), Claude Code가 직접 이미지 확인 — `tools/capture-panels.sh`
-6. **사람 체크포인트**: 단계마다 실제 모니터(Linux)에서 확인. Windows zip 확인은 7단계 완료 후(3~7단계 화면 전체 + 한글 경로 저장/열기, CRLF, CP949 파일)와 8단계에서 몰아서 한다 (결정 표 "검증 절차")
+1. **Oracle tests — decoder**: we do not make the correct answers ourselves; we take them from the core.
+   - Walk the whole instruction table in `CPU/op.h` and check that each instruction's encoding format matches our type classification
+   - Break the words the core encoded into fields with our decoder → check that they match the fields of the core's instruction structure (opcode, rs, rt, rd, shamt, imm, target)
+   - Reassemble the fields our decoder produced → check that they match the original word bit for bit
+   - Input: all of `Tests/tt.*.s` + boundary values (maximum/minimum immediate, negative branch offsets, unresolved jumps)
+2. **Unit tests — formatter**: hex/dec (signed and unsigned)/bin display of boundary values such as 0, 1, -1, INT32_MIN, INT32_MAX, 0x80000000, 0xFFFFFFFF
+3. **Regression**: compare the output of running the `Tests/` programs on the original build and on our build (confirms the core is unmodified) — `tools/regress.sh`
+4. **Printing and saving the log**: the original uses the widgets' `toPlainText()`/`print()` directly (ARCHITECTURE §6.5). Each stage that replaces a panel also builds a text generator, and **the saved log output must be byte-for-byte identical to the original**. A comparison against vanilla is added to the regression script (completion condition for stages 3, 5 and 6)
+5. **Self-checked screenshots**: offscreen capture with the harness in `tools/` (load file → N steps → capture panel); Claude Code checks the images itself — `tools/capture-panels.sh`
+6. **Human checkpoints**: at each stage, a check on a real monitor (Linux). The Windows zip check is done in one batch after stage 7 is complete (all screens of stages 3–7 + saving/opening with Korean paths, CRLF, CP949 files) and in stage 8 (decision table, "Verification procedure")
 
-## 단계
+## Stages
 
-각 단계 끝에 사람 확인(Linux) 후 `stage-N` 태그. Windows 확인은 7단계 완료 후와 8단계.
+At the end of each stage, a human check (Linux), then a `stage-N` tag. Windows is checked after stage 7 is complete and in stage 8.
 
-### 0. 원본 재현 ✅
-- [x] r764 export, `vanilla-9.1.24` 태그
-- [x] Linux 빌드, About 9.1.24 확인, helloworld.s 실행 확인
-- [x] 헬프 컬렉션 생성 규칙이 소스 트리(`QtSpim/help/`)에 쓰지 않도록 `.pro` 수정. 완료 조건: `make` 후 `git status` 깨끗, 헬프 창 정상
+### 0. Reproducing the original ✅
+- [x] r764 export, `vanilla-9.1.24` tag
+- [x] Linux build; confirmed About shows 9.1.24 and helloworld.s runs
+- [x] Changed the `.pro` so that the help collection generation rule does not write into the source tree (`QtSpim/help/`). Completion condition: `git status` clean after `make`, the help window works
 
-### 1. 기반 작업 ✅ (`stage-1`)
-- [x] **코드 조사 → `docs/ARCHITECTURE.md`** (파일:줄 근거 포함)
-  - 세 패널의 렌더링 경로와 갱신 시점(스텝/실행/리셋 시 호출 흐름)
-  - 코어 접근 경로: 레지스터 배열, 텍스트 세그먼트와 명령어 구조체, 명령어 인코딩 함수, 디스어셈블 함수, 메모리 읽기, 심볼 테이블
-  - 어셈블 에러 메시지 형식과 출력 경로
-  - QString 파일 경로 → 코어 전달 시 인코딩
-  - **보존 기능 표**: 원본 메뉴·우클릭·다이얼로그 전체 목록
-- [x] **브랜딩**: `edu_version.h`(`9.1.24-edu.N`), 창 제목, About에 수정본 표기(원 저작권 고지·LGPL 문구 유지), 실행 파일명 `QtSpimEdu`, 설정 저장소 분리
-- [x] **테스트 인프라**: `tests/` Qt Test 프로젝트, 첫 테스트 1개로 동작 확인
-- [x] **스크린샷 하네스**: 개발 빌드 옵션(`CONFIG+=edu_devtools`)에서만 켜지는 명령줄 모드 — `--load <file.s> --steps N --capture <panel> --out <png>` (+ `--run`, `--dump console|log|regs`)
-- [x] **회귀 스크립트**: vanilla 빌드와 현재 빌드의 실행 출력 비교 — `tools/regress.sh`
+### 1. Groundwork ✅ (`stage-1`)
+- [x] **Code survey → `docs/ARCHITECTURE.md`** (with file:line evidence)
+  - Rendering paths and refresh times of the three panels (call flow on step/run/reset)
+  - Core access paths: register array, text segment and instruction structure, instruction encoding function, disassembly function, memory reads, symbol table
+  - Assembly error message format and output path
+  - Encoding when a QString file path is passed to the core
+  - **Preserved features table**: complete list of the original's menus, right-click actions and dialogs
+- [x] **Branding**: `edu_version.h` (`9.1.24-edu.N`), window title, a modified-version notice in About (original copyright notice and LGPL text kept), executable name `QtSpimEdu`, separate settings store
+- [x] **Test infrastructure**: `tests/` Qt Test project, confirmed working with one first test
+- [x] **Screenshot harness**: a command-line mode enabled only by a development build option (`CONFIG+=edu_devtools`) — `--load <file.s> --steps N --capture <panel> --out <png>` (+ `--run`, `--dump console|log|regs`)
+- [x] **Regression script**: compares the run output of the vanilla build and the current build — `tools/regress.sh`
 
-### 2. Windows 파이프라인 ✅ (`stage-2`)
-- GitHub **비공개** 저장소 생성(`gh repo create --private`), `main` 브랜치와 태그 push. `gh`·`git` 인증은 개발 PC에 이미 되어 있음
-- CI(GitHub Actions `windows-2022`): Qt 5.15.2 msvc2019_64(aqtinstall) + winflexbison → qmake → 빌드 → `windeployqt` → zip 산출물
-- `.pro`의 Windows용 bison/flex 호출 경로 확인·수정
-- 같은 워크플로에 Linux 빌드 + `make check` + `tools/regress.sh`를 넣어 push마다 실행
-- zip을 풀어 실행한 상태에서 Help가 열려야 한다 (헬프 파일·assistant 동봉)
-- 한글 경로 경고 (결정 표 "한글 경로")
-- `bin/release-*`·WiX의 `QtSpim.exe` 하드코딩은 zip 배포에 필요한 것만 고치고 나머지는 8단계
-- 사람 확인: zip 풀어서 실행, About·helloworld·한글 경로의 .s 파일 로드
+### 2. Windows pipeline ✅ (`stage-2`)
+- Create a **private** GitHub repository (`gh repo create --private`), push the `main` branch and the tags. `gh` and `git` are already authenticated on the development PC
+- CI (GitHub Actions `windows-2022`): Qt 5.15.2 msvc2019_64 (aqtinstall) + winflexbison → qmake → build → `windeployqt` → zip artifact
+- Check and fix the bison/flex invocation paths for Windows in the `.pro`
+- Put a Linux build + `make check` + `tools/regress.sh` in the same workflow, run on every push
+- Help must open when running from the unpacked zip (help files and assistant bundled)
+- Korean path warning (decision table, "Korean paths")
+- Of the `QtSpim.exe` hard-coding in `bin/release-*` and WiX, fix only what the zip distribution needs; the rest in stage 8
+- Human check: unpack the zip and run it; About, helloworld, loading a .s file from a Korean path
 
-### 3. 레지스터 패널 (R1, R2) ✅ (`stage-3`)
-- `edu/core` 포맷터 + 테스트
-- 레지스터 모델/`QTreeView`로 교체, 그룹, 변경 강조
-- 인스펙터 도크 도입(레지스터 상세)
-- 보존 기능: 값 변경, 진법 옵션, 인쇄/로그의 레지스터 출력 — 로그 저장은 원본과 바이트 동일 (회귀 스크립트에 추가)
+### 3. Register panel (R1, R2) ✅ (`stage-3`)
+- `edu/core` formatter + tests
+- Replace with a register model/`QTreeView`, groups, change highlighting
+- Introduce the inspector dock (register details)
+- Preserved features: value editing, radix options, register output in printing/the log — the saved log is byte-identical to the original (added to the regression script)
 
-### 4. 명령어 디코더 (UI 없음) ✅ (`stage-4`)
-- `edu/core/decoder`: 32비트 워드 → 형식, 필드, 이름, 분기/점프 목적지
-- 오라클 테스트 전부 통과가 완료 조건
+### 4. Instruction decoder (no UI) ✅ (`stage-4`)
+- `edu/core/decoder`: 32-bit word → format, fields, name, branch/jump destination
+- Completion condition: all oracle tests pass
 
-### 5. Text 패널 (R3) ✅ (`stage-5`)
-- 모델/`QTableView`로 교체, 타입 배지, pseudo 묶음, Kernel 접기
-- 인스펙터에 명령어 필드 분해 추가. 인스펙터 높이를 "선택 대상에 따라 내용에 맞춤, 최대 N줄"로 변경
-- 보존 기능: 브레이크포인트 설정/해제, 현재 PC 강조, User/Kernel 토글, 인쇄·로그 저장(바이트 동일, 회귀 스크립트에 추가)
+### 5. Text panel (R3) ✅ (`stage-5`)
+- Replace with a model/`QTableView`, type badges, pseudo groups, Kernel folding
+- Add the instruction field breakdown to the inspector. Change the inspector height to "fitted to the content depending on what is selected, at most N lines"
+- Preserved features: setting/clearing breakpoints, current PC highlight, User/Kernel toggle, printing and saving the log (byte-identical, added to the regression script)
 
-### 6. 데이터/스택 패널 (R5) ✅ (`stage-6`)
-- 모델/`QTableView`, 라벨·포인터 마커, 단위 전환, 이동
-- 보존 기능: 메모리 값 변경, 세그먼트 표시 옵션, 인쇄·로그 저장(바이트 동일, 회귀 스크립트에 추가)
+### 6. Data/stack panel (R5) ✅ (`stage-6`)
+- Model/`QTableView`, label and pointer markers, unit switching, navigation
+- Preserved features: memory value editing, segment display options, printing and saving the log (byte-identical, added to the regression script)
 
-### 7. 에디터 (R4) ✅ (`stage-7`)
-- 에디터 도크(Text·Data와 tabify), 파일 입출력, 문법 강조, Assemble 연결, 에러 목록 + 줄 이동 + 상태바 개수, 외부 변경 감지
-- 한글 주석 파일(UTF-8/CP949, CRLF) 왕복 테스트
+### 7. Editor (R4) ✅ (`stage-7`)
+- Editor dock (tabified with Text·Data), file I/O, syntax highlighting, Assemble wiring, error list + go to line + count in the status bar, detection of external changes
+- Round-trip tests of files with Korean comments (UTF-8/CP949, CRLF)
 
-### 8. 릴리스 ✅ (`v1.0.0`)
-- WiX MSI: 새 ProductName, **새 UpgradeCode**, 별도 설치 경로, `.s` 연결은 기본 해제 — 표준 QtSpim과 공존
-- 학생용 사용 안내(무엇이 원본과 다른지 한 장) — 재료는 ARCHITECTURE §12. Int/FP Regs가 세로 탭이라는 것 한 줄 포함.
-  "원본과 같은 알려진 문제" 항목: 브레이크포인트가 걸린 줄이 저장한 로그에서 깨져 보인다(원본과 동일)
-- `1.0.0` 릴리스: GitHub Releases에 zip(기본) + MSI + 안내문(`docs/GUIDE-ko.md`, `docs/GUIDE.md`, PDF)
-- 범위 밖으로 남긴 것은 `docs/FUTURE.md`
+### 8. Release ✅ (`v1.0.0`)
+- WiX MSI: new ProductName, **new UpgradeCode**, separate installation path, `.s` association off by default — coexists with standard QtSpim
+- A student guide (one page on what differs from the original) — material from ARCHITECTURE §12. Includes one line saying that Int/FP Regs are vertical tabs.
+  "Known problems shared with the original" item: a line with a breakpoint looks garbled in the saved log (same as in the original)
+- `1.0.0` release: zip (default) + MSI + guides (`docs/GUIDE-ko.md`, `docs/GUIDE.md`, PDF) on GitHub Releases
+- What was left out of scope is in `docs/FUTURE.md`
 
-## H단계 — Hallym MIPS Simulator (한림대학교용 파생판)
+## Stage H — Hallym MIPS Simulator (derivative for Hallym University)
 
-QtSpim-Edu 1.0.1(`v1.0.1`)에서 갈라진 저장소 `ars2323/hallym-mips-simulator`. 레이아웃·기능·코어는 그대로, **겉모습만** 바꾼다. 0~8단계의 규칙(CPU/ 무수정, 보존 기능 표, 검증 절차, 로그 저장 바이트 동일)은 그대로 적용.
+The repository `ars2323/hallym-mips-simulator`, split off from QtSpim-Edu 1.0.1 (`v1.0.1`). Layout, features and core stay the same; **only the appearance** changes. The rules of stages 0–8 (CPU/ unmodified, the preserved features table, the verification procedure, the saved log byte-identical) still apply.
 
-### 확정된 결정
+### Settled decisions
 
-| 항목 | 결정 | 근거 |
+| Item | Decision | Rationale |
 |---|---|---|
-| 이름 | 표시명 "Hallym MIPS Simulator", 실행 파일·설정 폴더 `HallymMIPS`, 한글 "한림 MIPS 시뮬레이터"(안내문에만). QtSpim/Spim/Edu 표기는 About → License 탭과 LICENSE 파일의 원본 고지에만 남긴다 | 사용자 지시 |
-| CI 자산 | `assets/ci/A1~A4`(원본 zip은 `~/workspace/hallym-ci/`에 보관), 매뉴얼 이미지·규정은 `assets/ci/manual/`. 변형 금지, 축소와 여백만. 앱 아이콘은 심볼 기본형만 | 16·32px에서 엠블럼·시그니처는 형태가 뭉개짐 (`docs/design/mockups/icon-sizes.png`) |
-| 색 | 2945 → #0055A5, 326 → #00A9A5, 281 → #00205B, Cool Gray 4 → #BCBEC0. `.ai`의 CMYK 별색 정의를 `docs/design/tokens.md` §1.1에 기록 | 페이지에 HEX 지정 없음 |
-| 글꼴 | UI Pretendard, 코드 D2Coding(1순위) / JetBrains Mono(대안), 전부 OFL로 리소스 동봉 | Windows/Linux 동일 렌더링 |
-| 아이콘 | Lucide(ISC) SVG 20px, 기본 281 / hover 2945 / disabled Cool Gray 4 | 비트맵 전부 교체 |
-| 시안 절차 | **H1 시안(QSS·글꼴·아이콘만)을 보고 사용자가 A/B를 고른 뒤에야 위젯 코드를 바꾼다** | 사용자 지시 |
-| 저장소 | 공개, 히스토리·태그 유지. 원본 qtspim-edu는 읽기만 | |
-| 시안 | **A "Campus"** + B의 표 헤더(열 구분선 없음, 아래 1px 선만) | 2026-09-22 사용자 선택 |
-| PC 행 / 선택 행 | PC 행 = 2945 틴트 #E8F0F9 + 왼쪽 3px 2945 막대. 선택 행 = 진한 틴트 #D3E2F3 + 진남 글자. **흰 글자 위 진파랑 채움은 쓰지 않는다.** PC이면서 선택 = 막대 + 진한 틴트 | tokens.md §7 ① |
-| 변경값 | 글자색 #00736F + SemiBold, 배경 없음 | §7 ② |
-| 코드 글꼴 | D2Coding만 동봉. JetBrains Mono 제거 | §7 ③ |
-| 1366×768 | 스크롤 허용. 그룹·인스펙터 자동 접기 없음 | §7 ④ |
-| 회색 | UI는 Cool Gray 4 #BCBEC0, 엠블럼 C 내부(Cool Gray 7)는 원본 그대로 | §7 ⑤ |
-| 타입 배지 | 옅은 배경 + 진한 글자, 4px 라운드, 11px SemiBold. R #E8F0F9/#0055A5, I #E6F6F5/#00736F, J #FDF3E1/#8A5A00, CP0/FR/FI 회색·진남 계열 | H2 지시 |
-| pseudo 묶음 띠 | #F5F7FA 배경 + 왼쪽 2px #BCBEC0 | |
-| 에디터 | 현재 줄 #F5F7FA, 줄 번호 #8A94A0, 여백 에러 마커 #C0392B 점. 문법: 지시어 2945, 명령어 281 Medium, 레지스터 #00736F, 라벨 281 SemiBold, 주석 #8A94A0 이탤릭, 문자열 #8A5A00, 숫자 #6B4C9A | |
-| Data | $sp/$fp/$gp 마커 #E6F6F5 배경 + #00736F 글자, 라벨 열 2945 | |
-| 로그 창 | 본문 #2B3440, 오류 #C0392B, 배경 흰색, D2Coding 10pt. 원본 HTML의 Courier·color 태그를 토큰으로 치환 — 화면만, 저장 파일은 바이트 동일 | |
-| 상태바 배지·띠·에러 목록 | 위젯 자체 스타일시트를 토큰으로 다시 씀. 띠 #FDF3E1 배경 + #8A5A00 글자 | |
-| 행·제목 | 코드 표 행 20px, 도크 제목 32px + 제목과 헤더 사이 4px | |
-| 툴바 | Assemble = 아이콘+텍스트 주요 버튼(2945 채움, 흰 글자, 6px 라운드, 높이 28px). 나머지 아이콘만. 구분선으로 파일 / 실행 / 도움말 세 묶음 | |
-| About | 엠블럼 A + 로고타입 + 버전 + License 탭(원본 고지·Qt LGPL·폰트·아이콘 라이선스). 상태바 오른쪽 "Hallym MIPS Simulator 1.0.0" | |
+| Name | Display name "Hallym MIPS Simulator", executable and settings folder `HallymMIPS`, Korean name "한림 MIPS 시뮬레이터" (Hallym MIPS Simulator; in the guides only). QtSpim/Spim/Edu names remain only in the original notices in the About → License tab and the LICENSE file | User's instruction |
+| CI assets | `assets/ci/A1~A4` (the original zips are kept in `~/workspace/hallym-ci/`); the manual's images and rules are in `assets/ci/manual/`. No alteration, only scaling and margins. The app icon uses only the basic form of the symbol | At 16 and 32 px the emblem and the signature lose their shape (`docs/design/mockups/icon-sizes.png`) |
+| Colors | 2945 → #0055A5, 326 → #00A9A5, 281 → #00205B, Cool Gray 4 → #BCBEC0. The CMYK spot color definitions in the `.ai` files are recorded in `docs/design/tokens.md` §1.1 | The pages give no HEX values |
+| Fonts | UI Pretendard, code D2Coding (first choice) / JetBrains Mono (alternative), all bundled as resources under the OFL | Identical rendering on Windows/Linux |
+| Icons | Lucide (ISC) SVG 20px, default 281 / hover 2945 / disabled Cool Gray 4 | Replace all bitmaps |
+| Mockup procedure | **Widget code is changed only after the user has seen the H1 mockups (QSS, fonts and icons only) and chosen A or B** | User's instruction |
+| Repository | Public, history and tags kept. The original qtspim-edu is only read | |
+| Mockup | **A "Campus"** + B's table header (no column separators, only a 1px line underneath) | User's choice, 2026-09-22 |
+| PC row / selected row | PC row = 2945 tint #E8F0F9 + a 3px 2945 bar on the left. Selected row = darker tint #D3E2F3 + navy text. **A dark blue fill with white text is not used.** Both PC and selected = bar + darker tint | tokens.md §7 ① |
+| Changed values | Text color #00736F + SemiBold, no background | §7 ② |
+| Code font | Only D2Coding is bundled. JetBrains Mono removed | §7 ③ |
+| 1366×768 | Scrolling allowed. No automatic collapsing of groups or the inspector | §7 ④ |
+| Gray | The UI uses Cool Gray 4 #BCBEC0; the inside of emblem C (Cool Gray 7) stays as in the original | §7 ⑤ |
+| Type badges | Light background + dark text, 4px rounding, 11px SemiBold. R #E8F0F9/#0055A5, I #E6F6F5/#00736F, J #FDF3E1/#8A5A00, CP0/FR/FI in the gray/navy family | H2 instruction |
+| Pseudo group band | #F5F7FA background + a 2px #BCBEC0 line on the left | |
+| Editor | Current line #F5F7FA, line numbers #8A94A0, error marker in the margin as a #C0392B dot. Syntax: directives 2945, instructions 281 Medium, registers #00736F, labels 281 SemiBold, comments #8A94A0 italic, strings #8A5A00, numbers #6B4C9A | |
+| Data | $sp/$fp/$gp markers #E6F6F5 background + #00736F text, label column 2945 | |
+| Log window | Body text #2B3440, errors #C0392B, white background, D2Coding 10pt. The original HTML's Courier and color tags are replaced with tokens — on screen only; the saved file stays byte-identical | |
+| Status bar badges, banner, error list | The widgets' own style sheets are rewritten with tokens. Banner: #FDF3E1 background + #8A5A00 text | |
+| Rows and titles | Code table rows 20px, dock titles 32px + 4px between the title and the header | |
+| Toolbar | Assemble = icon + text primary button (2945 fill, white text, 6px rounding, 28px high). The rest are icon only. Separators split it into three groups: file / run / help | |
+| About | Emblem A + logotype + version + License tab (original notices, Qt LGPL, font and icon licenses). "Hallym MIPS Simulator 1.0.0" on the right of the status bar | |
 
-### H0. 저장소 ✅
-- [x] clone(히스토리 유지) → `gh repo create ars2323/hallym-mips-simulator --public`, main + 태그 push, CI 첫 실행 초록
-- [x] CLAUDE.md·PLAN.md 갱신
-- [x] `.ai` → PDF/SVG/PNG (Ghostscript + pdftocairo): `assets/ci/converted/`(페이지 전체), `assets/ci/marks/`(심볼 기본형·활용형, 로고타입 국문/국영문/세로/영문 1줄·2줄/한문, 엠블럼 A 2종·B·C, 시그니처 좌우 4종·상하 A/B 8종·세로 2종)
-- [x] 색 근거 기록, 글꼴·아이콘 동봉(`QtSpim/edu/theme/fonts`, `theme/icons/lucide`)
+### H0. Repository ✅
+- [x] clone (history kept) → `gh repo create ars2323/hallym-mips-simulator --public`, push main + tags, first CI run green
+- [x] Updated CLAUDE.md and PLAN.md
+- [x] `.ai` → PDF/SVG/PNG (Ghostscript + pdftocairo): `assets/ci/converted/` (whole pages), `assets/ci/marks/` (symbol basic form and applied form; logotypes in Korean / Korean–English / vertical / English one-line and two-line / Hanja; emblem A (2 variants), B and C; signatures: 4 horizontal, 8 stacked (A/B), 2 vertical)
+- [x] Recorded the color rationale, bundled the fonts and icons (`QtSpim/edu/theme/fonts`, `theme/icons/lucide`)
 
-### H1. 디자인 시스템 — 시안 승인 대기
-- [x] `docs/design/tokens.md` 초안(규정 인용, 색 근거, 대비 표, 타이포·간격·배지·문법 강조)
+### H1. Design system — awaiting mockup approval
+- [x] Draft of `docs/design/tokens.md` (quotations of the rules, color rationale, contrast table, typography, spacing, badges, syntax highlighting)
 - [x] devtools `--qss --font-dir --ui-font --icon-dir`, `tools/capture-theme.sh`, `tools/make-theme-icons.py`
-- [x] 시안 A "Campus" / B "Studio" 캡처 각 3장 + 1366×768 → `docs/design/mockups/`
-- [x] 사람 체크포인트: A 선택 + §7 결정 (2026-09-22)
+- [x] Mockups A "Campus" / B "Studio", 3 captures each + 1366×768 → `docs/design/mockups/`
+- [x] Human checkpoint: A chosen + §7 decisions (2026-09-22)
 
-### H2. 시안 A 구현 ✅ (`v1.0.0`)
-- [x] 코드 색 전면 교체(tokens.md §6 목록 전부) — 위 결정 표. QSS가 안 먹는 위젯은 `applyPanelFont()`/`setPalette` 경로로
-- QSS 한 파일(`QtSpim/edu/theme/light.qss`) + 토큰 헤더(`theme/tokens.h`). 하드코딩 색·글꼴 리터럴 전부 토큰으로; grep으로 잔여 `QColor(`/`QFont(`/`setStyleSheet(` 리터럴 0건
-- 브랜딩: 앱 아이콘(16·32·48·256 .ico/.png/.icns), 창 제목, 작업표시줄, 스플래시(시그니처, 1.2초, 클릭 시 닫힘), About(엠블럼 A + 로고타입 + "Hallym MIPS Simulator 1.0.0" + License 탭), 설정 저장소 `HallymMIPS/HallymMIPS`, 실행 파일 `HallymMIPS`, MSI ProductName/UpgradeCode 새로, 설치 경로 `Program Files\Hallym MIPS Simulator`
-- 인쇄·로그 저장은 원본과 바이트 동일 유지(`regress.sh`)
-- 캡처: 시안과 같은 상태 1920×1080 + 1366×768, 그리고 Run 뒤 변경 강조·에러 목록·Data 마커·스플래시·About 각 1장. 직접 열어 확인, 원본 색이 남은 곳 보고
-- 화면·문서·파일명에서 QtSpim/Spim/Edu 표기 제거(License 탭·LICENSE·ARCHITECTURE의 원본 참조 제외), grep 잔여 0. 하드코딩 색·폰트 리터럴 0
-- `regress.sh`, `check-menu-load.sh`, `check-editor.sh`, 단위 테스트 통과. 로그 저장·인쇄 바이트 동일
-- 문서: GUIDE-ko/GUIDE, README에서 QtSpim/Edu 표기 제거(라이선스 절 제외). 비교 이미지 5장 오른쪽 라벨 "Hallym MIPS Simulator", 왼쪽 "표준 QtSpim" 유지
-- `docs/ARCHITECTURE.md` §12에 이 파생판의 차이(이름·설정 저장소·테마)
-- [x] 시작 화면(스플래시), 크기별 앱 아이콘(16 심볼 / 24+ 엠블럼), 창 제목, AppUserModelID
-- [x] 최초 실행 튜토리얼 7단계(한/영, Help > Tutorial로 재실행), 도크 탭 말줄임
-- 사람 체크포인트(Linux·Windows) → 태그 `v1.0.0`, 릴리스
+### H2. Implementing mockup A ✅ (`v1.0.0`)
+- [x] Replace the colors in the code across the board (everything listed in tokens.md §6) — decision table above. Widgets that QSS does not reach go through the `applyPanelFont()`/`setPalette` path
+- One QSS file (`QtSpim/edu/theme/light.qss`) + a token header (`theme/tokens.h`). All hard-coded color and font literals become tokens; grep finds 0 remaining `QColor(`/`QFont(`/`setStyleSheet(` literals
+- Branding: app icon (16·32·48·256 .ico/.png/.icns), window title, taskbar, splash (signature, 1.2 seconds, closes on click), About (emblem A + logotype + "Hallym MIPS Simulator 1.0.0" + License tab), settings store `HallymMIPS/HallymMIPS`, executable `HallymMIPS`, new MSI ProductName/UpgradeCode, installation path `Program Files\Hallym MIPS Simulator`
+- Printing and saving the log stay byte-identical to the original (`regress.sh`)
+- Captures: the same state as the mockups at 1920×1080 + 1366×768, plus one each of the change highlighting after Run, the error list, the Data markers, the splash and About. Open and check them directly; report where original colors remain
+- Remove the QtSpim/Spim/Edu names from the screens, documents and file names (except the original references in the License tab, LICENSE and ARCHITECTURE); grep leaves 0. 0 hard-coded color/font literals
+- `regress.sh`, `check-menu-load.sh`, `check-editor.sh` and the unit tests pass. Saved log and printing byte-identical
+- Documents: remove the QtSpim/Edu names from GUIDE-ko/GUIDE and the README (except the license section). The five comparison images get the label "Hallym MIPS Simulator" on the right and keep "표준 QtSpim" (standard QtSpim) on the left
+- `docs/ARCHITECTURE.md` §12 gets this derivative's differences (name, settings store, theme)
+- [x] Startup screen (splash), app icons per size (16 symbol / 24+ emblem), window title, AppUserModelID
+- [x] First-run tutorial in 7 steps (Korean/English, rerun from Help > Tutorial), elided dock tab titles
+- Human checkpoint (Linux·Windows) → tag `v1.0.0`, release
 
-## 미결정
+## Undecided
 
-(없음 — H1 §7은 위 결정 표에 반영. 남은 아이디어는 `docs/FUTURE.md`)
+(None — H1 §7 is reflected in the decision table above. Remaining ideas are in `docs/FUTURE.md`)

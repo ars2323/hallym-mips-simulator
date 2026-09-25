@@ -1,97 +1,97 @@
-# 레이아웃 시안
+# Layout mockups
 
-실제 UI 를 만들기 전에 방향을 정하려고 만든 정적 시안이다. 동작은 없다.
-**내용은 모두 실제 시뮬레이터 출력이다.** 손으로 적은 값은 없다(`design/mockups/data.ts`).
+Static mockups made to decide on a direction before building the real UI. They do nothing.
+**All of their content is real simulator output.** No value was written by hand (`design/mockups/data.ts`).
 
-| 장면 | 데이터 |
+| Scene | Data |
 |---|---|
-| A 첫 화면 | 최근 파일 이름(저장소에 있는 파일들) |
-| B 코드를 쓰는 중 | `lab04.s`(4주차 실습, Qt판 `slides/course/src`)를 어셈블한 결과. 15행 `srll` 이 진짜 오류다 |
-| C 한 줄씩 실행 중 | 고친 `lab04-ok.s` 를 16단계 실행한 상태. PC `0x0040004c`(`sll`), 방금 바뀐 것은 `$t6 = 0x80000001` |
-| D Inspector 열림 | 같은 상태에서 `sra $s1, $t6, 1`(`0x00400054`)을 고름. 필드 표는 `src/core/instruction-text.ts` 의 출력 |
+| A Start screen | Recent file names (files that are in the repository) |
+| B Writing code | The result of assembling `lab04.s` (week 4 lab, Qt edition `slides/course/src`). `srll` on line 15 is a real error |
+| C Single-stepping | The fixed `lab04-ok.s` after 16 steps. PC `0x0040004c` (`sll`); the register just changed is `$t6 = 0x80000001` |
+| D Inspector open | In the same state, `sra $s1, $t6, 1` (`0x00400054`) is selected. The field table is the output of `src/core/instruction-text.ts` |
 
-다시 만들기: `npm run mockups`(리눅스에서 화면이 없으면 `xvfb-run -a -s '-screen 0 3400x1800x24' npm run mockups`).
-원본은 `design/mockups/`(HTML/CSS/JS)에 있고, Electron(앱과 같은 엔진)으로 렌더한다.
+To regenerate: `npm run mockups` (on Linux without a display, `xvfb-run -a -s '-screen 0 3400x1800x24' npm run mockups`).
+The sources are in `design/mockups/` (HTML/CSS/JS), rendered with Electron (the same engine as the app).
 
-## 파일 이름
+## File names
 
-`<장면>-<방향>-<폭>x<높이>.png`. 예: `D-2-1280x800.png` 는 장면 D, 방향 2, 1280×800 이다.
-대조표는 `sheet.png` 한 장이다.
+`<scene>-<direction>-<width>x<height>.png`. Example: `D-2-1280x800.png` is scene D, direction 2, 1280×800.
+The comparison sheet is a single image, `sheet.png`.
 
-폭은 셋이다.
+There are three widths.
 
-- 1920×1080: 최대화
-- 1280×800: 노트북
-- 960×1080: 1920 화면의 좌우 절반
+- 1920×1080: maximized
+- 1280×800: laptop
+- 960×1080: the left or right half of a 1920 screen
 
-## 두 방향 — 원칙은 같고, 해석이 갈리는 곳에서 다르게 갔다
+## Two directions — the same principle, different choices where interpretations diverge
 
-원칙: **패널은 내용이 있을 때만 자리를 차지한다.**
+Principle: **a panel takes up space only when it has content.**
 
-- Inspector 는 명령을 고르기 전에는 없다.
-- Data 는 Text 와 같은 탭에 있다.
-- 콘솔은 출력이 없을 때 한 줄이다.
-- 레지스터는 실행할 때 넓어진다.
+- The Inspector does not exist before an instruction is selected.
+- Data shares tabs with Text.
+- The console is one line when there is no output.
+- The registers widen when running.
 
-| 해석이 갈리는 곳 | 방향 1 — 무대 전환 | 방향 2 — 흐름 |
+| Where interpretations diverge | Direction 1 — stage switching | Direction 2 — flow |
 |---|---|---|
-| 국면을 바꾸는 법 | 상단의 **[코드]/[실행]** 전환. 국면마다 화면 전체가 바뀐다 | 전환 없음. 실행하면 편집기가 왼쪽 **레일(48px)**로 접히고 레지스터가 펴진다 |
-| 레지스터 | 실행 중 **왼쪽에 고정**(530~540px, 16진·10진·2진) | **오른쪽**. 코드를 쓸 때는 44px 띠로 접혀 있다가 실행하면 펴진다 |
-| Inspector | **아래에서 올라오는 시트.** 목록은 고른 줄이 시트 위에 보이게 스크롤된다 | **옆에서 열리는 패널.** 1280 에서는 레지스터가 띠로 접히고, 띠에는 방금 바뀐 레지스터(`$t6`)만 남는다 |
-| 960px | 열을 줄인다: Text **위**, 레지스터 **아래**(16진·10진 두 열, 2진은 "방금 바뀜" 상자에만) | 탭으로 접는다: **아래 탭 막대**(코드·기계어·레지스터·콘솔). 기계어 탭 위에 "방금 바뀜" 칩. Inspector 는 오른쪽에서 88% 덮개 |
-| 첫 화면 | 가운데 카드: 인사 캐릭터 + 네 가지 시작 방법 + 최근 파일 | 빈 편집기 안의 안내: 안내 캐릭터가 화살표로 시작 버튼을 가리킨다 |
+| How to change phase | A **[코드]/[실행]** ("Code"/"Run") switch at the top. The whole screen changes with each phase | No switch. Running folds the editor into a **rail (48px)** on the left and unfolds the registers |
+| Registers | **Fixed on the left** while running (530–540px, hex, decimal, binary) | **On the right**. Folded into a 44px strip while writing code, unfolded when running |
+| Inspector | **A sheet that slides up from the bottom.** The list scrolls so that the selected line is visible above the sheet | **A panel that opens at the side.** At 1280 the registers fold into a strip, and only the register just changed (`$t6`) stays in the strip |
+| 960px | Fewer columns: Text **on top**, registers **below** (two columns, hex and decimal; binary only in the "방금 바뀜" ("just changed") box) | Folded into tabs: a **bottom tab bar** (code, machine code, registers, console). A "just changed" chip above the machine code tab. The Inspector is an 88% overlay from the right |
+| Start screen | A centered card: greeting character + four ways to start + recent files | A hint inside the empty editor: the guide character points to the start button with an arrow |
 
-### 시안을 보며 알게 된 것
+### What we learned from the mockups
 
-- **방향 1 의 코드 국면(B)은 1920 에서 폭이 남는다.** 편집기만 전체 폭을 쓴다. 어셈블에 성공한 뒤에만
-  "기계어 미리보기"를 옆에 두는 식으로 채울 수 있다.
-- **방향 1 의 시트는 1280×800 에서 Text 를 9줄로 줄인다.** 고른 줄은 보이지만, 앞뒤 흐름을 보기에는 좁다.
-  대신 레지스터는 가리지 않는다.
-- **방향 2 의 옆 패널은 1280 에서 레지스터를 띠로 접는다.** 비트를 보는 동안 레지스터 전체를 볼 수 없고,
-  바뀐 것 하나만 띠에 남는다. 대신 Text 는 세로 전체를 쓴다.
-- **960 에서는 둘이 크게 다르다.** 방향 1 은 Text 와 레지스터를 동시에 보여 준다(한 줄 실행에 필요한 둘).
-  방향 2 는 한 번에 하나를 보여 주고 칩으로 보완한다.
-- 레지스터 2진 열까지 한 줄에 보이려면 열이 530px 쯤 필요하다(D2Coding 13px, 4비트씩 띄어 쓴 32비트).
-  이보다 좁으면 2진은 "바뀐 것만" 보여 주는 쪽이 낫다.
-- **Pretendard 는 `0x1` 을 `0×1` 로 바꾼다**(`calt` 를 꺼도 바뀐다). 16진수는 UI 글꼴이 아니라
-  D2Coding 으로 쓴다. 시안 전체가 그렇게 되어 있다.
+- **Direction 1's code phase (B) leaves width unused at 1920.** Only the editor uses the full width. It could be filled by, for example,
+  putting a "machine code preview" beside it only after a successful assembly.
+- **Direction 1's sheet cuts Text down to 9 lines at 1280×800.** The selected line is visible, but it is narrow for seeing the flow before and after.
+  On the other hand, it does not cover the registers.
+- **Direction 2's side panel folds the registers into a strip at 1280.** While looking at the bits you cannot see all the registers;
+  only the one that changed stays in the strip. On the other hand, Text uses the full height.
+- **At 960 the two differ greatly.** Direction 1 shows Text and the registers at the same time (the two things needed for single-stepping).
+  Direction 2 shows one at a time and makes up for it with the chip.
+- To show the register binary column on one line as well, the column needs about 530px (D2Coding 13px, 32 bits with a space every 4 bits).
+  Narrower than that, it is better to show binary "only for what changed".
+- **Pretendard turns `0x1` into `0×1`** (even with `calt` off). Hexadecimal is set in D2Coding, not the UI
+  font. The whole mockup does this.
 
-## 캐릭터를 쓴 자리
+## Where the characters are used
 
-아무것도 없는 자리에만 두었다. 흰 면 위에만 두고 teal 면 위에는 두지 않았다. 원본 PNG 를 CSS 로 줄이기만 했고
-높이는 130~210px(최소 76px 이상)이다.
+They are placed only where there is nothing else. Only on white surfaces, never on teal surfaces. The original PNGs were only scaled down with CSS,
+at heights of 130–210px (at least 76px).
 
-| 자리 | 캐릭터 | 시안 |
+| Place | Character | Mockup |
 |---|---|---|
-| 첫 화면(방향 1) | `hello`(인사) | A-1 |
-| 빈 편집기(방향 2) | `guide`(안내). 화살표가 시작 버튼을 가리키게 버튼 오른쪽에 둔다 | A-2 |
+| Start screen (direction 1) | `hello` (greeting) | A-1 |
+| Empty editor (direction 2) | `guide` (guide). Placed to the right of the button so that its arrow points to the start button | A-2 |
 
-넣지 않은 자리: 툴바·패널 머리·상태 표시줄, 오류 목록(B), 바뀐 레지스터 강조와 비트 필드(C·D, 색이 곧 정보인 곳).
+Places left without one: the toolbar, panel heads, the status bar, the error list (B), the changed-register highlight and the bit fields (C, D; places where the color itself is the information).
 
-네 장면 밖이라 렌더하지 않은 자리:
+Places outside the four scenes, so not rendered:
 
-- 명령을 고르지 않은 채 Inspector 를 부르면 `sign`(팻말)과 "Text 에서 명령어를 고르세요"가 뜬다.
-  문구는 팻말 판 위가 아니라 옆에 둔다.
-- 비어 있는 콘솔을 펼치면 `talk`(소통)이 뜬다.
-- 튜토리얼 20단계에는 `guide`·`teach`·`curious`·`best` 가 나온다.
-- 첫 성공 실행 때 `congrats` 가 한 번 나오고, 닫으면 다시 나오지 않는다.
+- Calling up the Inspector without selecting an instruction shows `sign` (signpost) and "Text 에서 명령어를 고르세요" ("Select an instruction in Text").
+  The text is placed beside the sign, not on its board.
+- Expanding an empty console shows `talk` (communication).
+- The 20-step tutorial uses `guide`, `teach`, `curious` and `best`.
+- `congrats` appears once on the first successful run, and does not appear again once closed.
 
-## 기본에서 감출 것 (지우지 않고, 필요할 때 나온다)
+## What to hide by default (not removed; shown when needed)
 
-| QtSpim 에서 온 것 | 어떻게 | 근거 |
+| From QtSpim | How | Rationale |
 |---|---|---|
-| 인쇄(Print) | "더 보기" 메뉴로 | 과제는 파일로 낸다. 화면 인쇄는 쓰는 장면이 없다 |
-| 레이아웃 프리셋 여러 개 | 없앤다 → 국면에 따라 자동 | 원인이 "패널이 늘 자리를 요구"하는 것이었다. 프리셋은 그 증상을 사람이 고르게 할 뿐이다 |
-| 커널 텍스트/데이터 표시 토글(메뉴) | 목록 끝의 "커널 코드 52개 숨김 · 보기" 한 줄 | 예외 처리기는 학생 코드가 아니다. 켜고 끄는 메뉴 대신 그 자리에서 펼친다 |
-| bare machine · delayed branches · delayed loads · mapped I/O · pseudo 명령 허용 · quiet | "고급 설정" 대화상자 | 실습은 기본값만 쓴다. bare 는 Qt판에서 이미 막혀 있다. delayed branches 를 켜면 분기 설명(PC+4)이 바뀐다 |
-| Run Parameters 대화상자 | "고급 설정" 안 | 기본 `argv=["program.s"]` 로 모두 같은 스택을 본다(docs/PORTING.md 4절). 바꿀 일은 argv 를 쓰는 과제뿐이다 |
-| 예외 처리기 파일 지정 | "고급 설정" 안 | 기본 처리기 말고 쓰는 수업이 없다 |
-| FP 레지스터 | 기본으로 숨김. 프로그램에 FP 명령(FR/FI 형식)이 있으면 스스로 나온다 | 정수 실습 동안에는 자리만 차지한다 |
-| CP0 레지스터 | 접힌 묶음. 예외가 나면 펼쳐진다 | 예외를 배울 때만 본다 |
-| Text 열 토글(값·주석) | 없앤다. 좁으면 기계어 열부터 스스로 접는다 | 폭이 모자랄 때의 문제이므로 폭이 판단한다 |
-| Data/레지스터 진법 메뉴 | 패널 머리의 작은 전환으로 | 메뉴 세 단계 안에 있어서 못 찾는다 |
-| Clear Registers · Reinitialize | "처음으로" 하나로 합친다. 어셈블하면 늘 새로 시작한다 | 둘의 차이를 학생이 알 필요가 없다 |
-| Display Symbols | 없앤다 → 레이블은 Text/Data 에 바로 보인다 | 별도 창의 목록을 보는 장면이 없다 |
-| 브레이크포인트 도달 모달 | 상태 표시줄과 PC 줄로만 알린다 | 모달은 레지스터를 가린다 |
-| 글꼴·색 설정 대화상자 | 없앤다 → Ctrl+/− 확대만 | 테마는 한 벌이다. 크기만 바꿀 수 있으면 된다 |
-| Save Log File | "더 보기" 메뉴로 | 조교가 가끔 쓴다. 학생이 매번 보는 버튼은 아니다 |
+| Print | Into the "더 보기" ("More") menu | Assignments are handed in as files. There is no scene where printing the screen is used |
+| Several layout presets | Removed → automatic by phase | The cause was that "panels always demand space". Presets only let people choose the symptom |
+| Kernel text/data display toggles (menu) | One line at the end of the list: "커널 코드 52개 숨김 · 보기" ("52 kernel instructions hidden · Show") | The exception handler is not student code. It is expanded in place instead of through an on/off menu |
+| bare machine · delayed branches · delayed loads · mapped I/O · allow pseudo-instructions · quiet | "고급 설정" ("Advanced settings") dialog | Labs use only the defaults. bare is already blocked in the Qt edition. Turning on delayed branches changes the branch explanation (PC+4) |
+| Run Parameters dialog | Inside "고급 설정" | With the default `argv=["program.s"]` everyone sees the same stack (docs/PORTING.md section 4). The only reason to change it is an assignment that uses argv |
+| Choosing an exception handler file | Inside "고급 설정" | No course uses anything but the default handler |
+| FP registers | Hidden by default. They appear on their own if the program has FP instructions (FR/FI format) | During integer labs they only take up space |
+| CP0 registers | A folded group. Expanded when an exception occurs | Looked at only when learning about exceptions |
+| Text column toggles (value, comment) | Removed. When narrow, columns fold on their own, starting with the machine code column | It is a problem of insufficient width, so the width decides |
+| Data/register number base menus | A small switch in the panel head | Buried three menu levels deep, so nobody finds them |
+| Clear Registers · Reinitialize | Merged into one, "처음으로" ("Back to start"). Assembling always starts afresh | Students do not need to know the difference between the two |
+| Display Symbols | Removed → labels are visible directly in Text/Data | There is no scene where a list in a separate window is looked at |
+| Breakpoint-reached modal | Announced only by the status bar and the PC line | A modal covers the registers |
+| Font and color settings dialog | Removed → only Ctrl+/− zoom | There is one theme. Being able to change the size is enough |
+| Save Log File | Into the "더 보기" menu | TAs use it occasionally. It is not a button students look at every time |

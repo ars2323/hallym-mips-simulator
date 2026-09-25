@@ -1,36 +1,36 @@
-# 한림대학교 UI 매뉴얼 (출처 사본)
+# Hallym University UI manual (copy of the source)
 
-가져온 날짜: 2026-09-22. 원본 페이지:
+Date retrieved: 2026-09-22. Original pages:
 
-- 심볼마크·로고타입·엠블럼: https://www.hallym.ac.kr/hallym/965/subview.do
-- 시그니처: https://www.hallym.ac.kr/hallym/966/subview.do
+- Symbol mark, logotype, emblem: https://www.hallym.ac.kr/hallym/965/subview.do
+- Signature: https://www.hallym.ac.kr/hallym/966/subview.do
 
-## 이미지
+## Images
 
-| 파일 | 페이지의 alt |
+| File | alt text on the page |
 |---|---|
-| symbol-mark.jpg | 심볼마크 |
-| symbol-logo1.jpg | 국영문로고타입 |
-| symbol-logo2.jpg | 영문로고타입 |
-| symbol-logo3.jpg | 한문로고타입 |
-| symbol-emblem1.jpg | 엠블렘 A타입 |
-| symbol-emblem2.jpg | 엠블렘 B타입 |
-| symbol-emblem3.jpg | 엠블렘 C타입 |
-| symbol-signature1.jpg … 4.jpg | 국문 · 영문 · 국영문 · 한문 좌우조합 |
-| symbol-signature5.jpg … 8.jpg | 국문 · 영문 · 국영문 · 한문 상하조합 |
+| symbol-mark.jpg | Symbol mark (심볼마크) |
+| symbol-logo1.jpg | Korean–English logotype (국영문로고타입) |
+| symbol-logo2.jpg | English logotype (영문로고타입) |
+| symbol-logo3.jpg | Hanja (Chinese-character) logotype (한문로고타입) |
+| symbol-emblem1.jpg | Emblem type A (엠블렘 A타입) |
+| symbol-emblem2.jpg | Emblem type B (엠블렘 B타입) |
+| symbol-emblem3.jpg | Emblem type C (엠블렘 C타입) |
+| symbol-signature1.jpg … 4.jpg | Korean · English · Korean–English · Hanja, horizontal combination (국문 · 영문 · 국영문 · 한문 좌우조합) |
+| symbol-signature5.jpg … 8.jpg | Korean · English · Korean–English · Hanja, vertical combination (상하조합) |
 
-원본 AI 데이터(A1~A4.zip)는 같은 페이지의 다운로드 링크(`/sites/hallym/files/A1.zip` 등)에서 받은 것으로, `assets/ci/A1`~`A4`에 압축 해제되어 있다.
+The original AI data (A1–A4.zip) was downloaded from the download links on the same pages (`/sites/hallym/files/A1.zip` etc.) and is unpacked in `assets/ci/A1` to `A4`.
 
-## 페이지에 적힌 사용 규정 (원문)
+## Usage rules stated on the page (translated from the Korean original)
 
-> 본 UI 규정은 한림대학교의 모든 시각전달매체에 대한 디자인 통합 지침으로서 규정외의 임의의 변형된 형태로 사용하는 것은 본연의 이미지를 손상시키고 아이덴티티의 혼란을 초래하므로 규정에 따라 정확하게 사용해야 한다.
+> These UI rules are the integrated design guideline for all visual communication media of Hallym University. Using them in any arbitrarily altered form outside the rules damages their original image and causes confusion of identity, so they must be used exactly according to the rules.
 >
-> UI는 한림대학교 홍보용으로 제작되어 상업용 목적으로 사용 할 수 없다.
+> The UI was created to promote Hallym University and may not be used for commercial purposes.
 >
-> 관련문의 : 커뮤니케이션팀(Tel 033-248-1333 / de1330@hallym.ac.kr)
+> Enquiries: Communication Team (Tel 033-248-1333 / de1330@hallym.ac.kr)
 
-## 심볼마크 설명 (원문, 965 페이지)
+## Description of the symbol mark (translated from the Korean original, page 965)
 
-> 한(翰)·림(林)은 뛰어난 선비들의 모임이란 뜻이다. 한(翰)은 뭇새들의 위를 날면서 넓게 세상을 보는 상상의 새로서 수월성을 추구하는 한림대의 건학정신을 상징한다. 한비정신(翰飛精神)이 곧 한림대의 정신이다. 이 심볼마크는 한비정신을 형상화한 것이다. 새의 모습으로 형상화된 이니셜 HL은 한림의 뛰어난 인재를 상징한다. 특히 H는 Humanity(인간성), L은 Leadership(지도력)을 각각 의미한다. 새가 날아가는 유려한 모습은 세계와 미래를 지향하는 한림대의 진취적 이미지를 표현한다. 청색은 호반도시 춘천의 아름다운 자연환경을, 청록색은 품격 있는 젊음을 상징하고 있다.
+> Han (翰) and Rim (林) together mean "a gathering of outstanding scholars". Han (翰) is an imaginary bird that flies above all other birds and sees the world widely; it symbolizes Hallym University's founding spirit of pursuing excellence. The Hanbi spirit (翰飛精神, "the spirit of Han in flight") is the spirit of Hallym University itself. This symbol mark gives shape to the Hanbi spirit. The initials HL, shaped as a bird, symbolize Hallym's outstanding people. In particular, H stands for Humanity and L for Leadership. The graceful form of the bird in flight expresses the forward-looking image of Hallym University, oriented toward the world and the future. The blue symbolizes the beautiful natural environment of Chuncheon, the city of lakes, and the teal symbolizes youth with dignity.
 
-색상 HEX 값은 페이지에 없다. `.ai` 파일의 별색 정의(CMYK)는 `docs/design/tokens.md`에 옮겨 적었다.
+The page gives no HEX color values. The spot color definitions (CMYK) from the `.ai` files are transcribed in `docs/design/tokens.md`.
