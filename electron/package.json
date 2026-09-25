@@ -1,0 +1,47 @@
+{
+  "name": "hallym-mips-simulator-electron",
+  "version": "2.0.0-alpha.1",
+  "private": true,
+  "description": "The Hallym MIPS simulator (SPIM core) as an Electron app",
+  "license": "BSD-3-Clause",
+  "type": "module",
+  "scripts": {
+    "build": "node-gyp rebuild --directory native",
+    "build:ui": "node tools/build-ui.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"tests/**/*.test.ts\"",
+    "test:mutants": "node tools/mutants.ts",
+    "spike": "node tests/spike/check-text.js && node tests/spike/check-decoder.ts",
+    "gen:op-table": "node tools/gen-op-table.ts",
+    "goldens:default": "node tools/capture-default-goldens.ts",
+    "build:electron": "node tools/build-electron.ts",
+    "electron": "node tools/build-ui.ts && node tools/electron.ts",
+    "mockups": "node design/mockups/data.ts build/mockups/data.js && node tools/electron.ts design/mockups/render.ts docs/mockups",
+    "e2e": "node tools/build-ui.ts && playwright test",
+    "screens": "node tools/build-ui.ts && node tools/capture-screens.ts",
+    "measure:ui": "node tools/build-ui.ts && node tools/measure-ui.ts",
+    "package": "node tools/package.ts",
+    "package:dir": "node tools/package.ts --dir"
+  },
+  "dependencies": {
+    "iconv-lite": "^0.7.3",
+    "node-addon-api": "^8.0.0"
+  },
+  "devDependencies": {
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.13",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^22.20.4",
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
+    "node-gyp": "^13.0.2",
+    "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=22.18"
+  },
+  "productName": "Hallym MIPS Simulator"
+}

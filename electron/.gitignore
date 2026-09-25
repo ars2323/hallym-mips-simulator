@@ -1,0 +1,12 @@
+node_modules/
+build/
+native/build/
+*.node
+dist/
+
+# Asset archives and original font files are unpacked/converted, never committed.
+*.zip
+*.ttf
+*.otf
+test-results/
+playwright-report/

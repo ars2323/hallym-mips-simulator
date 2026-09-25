@@ -1,0 +1,111 @@
+# hallym-mips-simulator-electron
+
+Hallym MIPS — MIPS 시뮬레이터의 Electron판. 지금 있는 것은 넷이다.
+
+- SPIM 코어를 감싼 Node 애드온
+- 코어를 자기 프로세스에서 돌리는 실행 제어(실행·정지·브레이크포인트·콘솔 입출력)
+- Qt판(`hallym-mips-simulator`)의 `QtSpim/edu/core` 를 옮긴 순수 TS 모듈
+- 창: Editor | Run 좌우 분할 — 첫 화면, 코드 작성, 한 줄씩 실행, Inspector, Data (화면: `docs/screens/`)
+- 튜토리얼 20단계: 읽기 전용 예제(`src/examples/tutorial.s`, `tutorial-error.s`), 상태를 기억하지 않음 (`docs/PORTING.md` 18절)
+
+Qt판과 같은 결과를 내는지는 골든과 코어 대조 테스트가 확인한다. 구조는 `docs/ARCHITECTURE.md`,
+Qt판과 다르게 한 것은 `docs/PORTING.md` 에 있다.
+
+## 구조
+
+```text
+CPU/                SPIM 코어. Qt판에서 복사, 무수정 (CPU/ORIGIN.md)
+native/
+  binding.gyp       코어 9개 소스 + bison/flex 액션 + 애드온
+  src/addon.cc      N-API 프런트엔드: 코어가 요구하는 전역·콜백, 그리고 바인딩
+  index.ts          Node 경계. 경로·인코딩·실행 매개변수는 여기서만 다룬다
+src/core/           순수·동기 TS 모듈 (Qt판 QtSpim/edu/core 의 이식)
+  decoder  registers  format  instruction-text  source-text  symbols
+  memory-rows  memory-text  mips-syntax (+ op-table, CPU/op.h 에서 생성)  asm-errors  explain (Inspector 의 한 줄 설명)
+src/node/
+  text-file.ts      소스 파일 바이트 <-> 텍스트 (UTF-8 / CP949 / Latin-1)
+src/sim/            시뮬레이터 프로세스와 그 경계 (docs/ARCHITECTURE.md)
+  host.ts           호스트 쪽: 요청·응답, 이벤트, 사망 감지·재기동
+  worker.ts         시뮬레이터 프로세스: 구간 실행, 정지, 콘솔
+  transport.ts      프로세스를 띄우고 말을 거는 곳 (Node 테스트는 fork, 앱은 utilityProcess)
+  protocol.ts       경계를 넘는 메시지의 타입
+tests/
+  core/  node/      모듈별 테스트 (node:test)
+  renderer/         창의 순수 로직 (보이는 행, 바뀐 레지스터, 멈춤 → 상태)
+  e2e/              실제 앱을 Playwright _electron.launch() 로: 흐름, 한글 조합, 16진수 글꼴
+  sim/              시뮬레이터 프로세스 테스트 (정지, 브레이크포인트, 사망 복구, 콘솔)
+  golden/           Qt판 골든 + 이 앱의 기본값 골든 (tests/golden/README.md)
+  helpers/          골든 파서, 케이스 재생기, 코어 대조 도구
+  programs/ samples/  입력 프로그램 (Qt판에서 복사 + 한글 인코딩 샘플)
+  spike/            첫 스파이크의 검사 스크립트
+tools/
+  mutants.ts        테스트가 틀린 것을 잡는지 보이는 돌연변이 검사
+  package.ts        electron-builder 패키징 (docs/PORTING.md 13절)
+  licenses.ts       번들된 npm 패키지의 라이선스 모음
+  probe-platform.ts 시뮬레이터 핸들·네이티브 파일 대화상자 (플랫폼 확인)
+  windows/check-side-by-side.ps1  Qt판 1.2.4 옆에 설치해 보는 검사
+  scanner-input-experiment.ts   소스 줄 표시 차이의 측정 (docs/PORTING.md 1절)
+  gen-op-table.ts   CPU/op.h -> src/core/op-table.ts
+  capture-default-goldens.ts    기본값 골든을 뜬다
+  build-ui.ts       창 스크립트 번들 (esbuild) -> build/renderer/app.js
+  capture-screens.ts   실제 앱 화면의 고정 세트 -> docs/screens/
+  measure-ui.ts     레지스터 갱신·실행 중 프레임·tt.core.s Text 측정
+src/main/            Electron 메인 프로세스(호스트: 시뮬레이터·파일·설정)와 preload
+src/renderer/app/    창 (docs/ARCHITECTURE.md 6절)
+src/renderer/assets/ Hallym University 자산·폰트·아이콘 (NOTICE 참고)
+src/examples/        첫 화면의 튜토리얼 예제
+packaging/icons/     앱 아이콘 (Hallym University 자산, Qt판에서 그대로)
+design/mockups/      레이아웃 시안 원본 (docs/mockups/README.md)
+docs/screens/        실제 앱 화면의 고정 세트, 라운드마다 다시 찍음 (docs/screens/README.md)
+docs/UI-ROUND1.md    창 1차: 시안과 다른 곳, 캐릭터 자리, 잰 값
+docs/ARCHITECTURE.md  무엇이 어느 프로세스에 있고 왜인가
+docs/PORTING.md       Qt판과 다르게 한 것, 고치면 안 되는 것
+.github/workflows/windows.yml   Windows 빌드 + tt.core.s 워드 검사 (이것 하나)
+```
+
+## 시뮬레이터 (`src/sim/host.ts`)
+
+```ts
+const sim = await Simulator.start();
+await sim.assemble(bytesOrText, { run?, fileName? });   // { ok, errors, symbols, format }
+sim.on('console', (text) => ...);                        // 찍히는 대로
+const r = await sim.run();       // { reason: exit | error | breakpoint | input | stopped | limit, pc, errors }
+await sim.call('provideInput', '42\n');  // reason 'input' 뒤: 다음 run/step 이 그 syscall 부터
+await sim.stop();                // 'stopped' — 머신은 그대로, 들여다볼 수 있다
+await sim.call('setBreakpoint', addr);  sim.call('registers');  sim.call('readWords', addr, n) ...
+sim.on('crashed', ({ message }) => ...); // '시뮬레이터가 중단되었습니다' — 새 프로세스가 이미 떠 있다
+```
+
+코어는 이 프로세스가 아니라 시뮬레이터 프로세스 안에 있다. 그 안의 애드온(`native/index.ts`)에는
+C++ 로 **바이트만** 들어간다. 경로도 인코딩 로직도 C++ 에 없다.
+소스는 flex 메모리 버퍼(`yy_scan_bytes`)로 읽힌다.
+
+## 빌드와 검사 (Linux)
+
+필요한 것: Node ≥ 22.18(TS 를 타입만 지우고 바로 실행), g++, make, python3, bison, flex.
+node-gyp 는 devDependency 로 프로젝트 안에 있다.
+
+```sh
+npm install --ignore-scripts
+npm run build          # native/build/Release/spim.node
+npm run typecheck      # tsc --noEmit
+npm test               # 모든 테스트 (Qt 골든·기본값 골든 포함)
+npm run test:mutants   # 돌연변이마다 해당 테스트가 실패하는지
+npm run spike          # 첫 스파이크의 검사 1·2
+npm run build:electron # 애드온을 Electron 헤더로 (N-API 라 Node 빌드도 Electron 에서 열린다)
+npm run build:ui       # 창 스크립트 번들 (electron·e2e·screens 가 먼저 부른다)
+npm run electron       # 앱을 띄운다
+npm run e2e            # 실제 앱 e2e (Playwright)
+npm run screens        # 화면 고정 세트 → docs/screens/ (docs/screens/README.md)
+npm run measure:ui     # 창의 측정 → build/measure-ui.json
+npm run mockups        # 레이아웃 시안 → docs/mockups/
+npm run package        # 설치본(NSIS, 사용자 단위)과 zip → dist/ (Windows 에서; build:electron 먼저)
+npm run package:dir    # 이 플랫폼용 압축 풀린 패키지만 → dist/*-unpacked (확인용)
+```
+
+창을 띄우는 것(electron, e2e, screens, measure:ui, 창 돌연변이)은 화면이 필요하다. 리눅스에서 화면이 없으면
+`xvfb-run -a -s '-screen 0 2400x1400x24' npm run e2e` 처럼 xvfb 로 돌린다.
+
+Windows 는 GitHub Actions(`windows.yml`)가 한다: 빌드, Node 테스트, 패키지, 설치본을 Qt판 1.2.4 옆에 깔아 겹치지 않는지,
+설치된 앱으로 e2e, 핸들·파일 대화상자·화면 캡처. 설치본과 zip 은 아티팩트로만 올린다(태그·릴리스 없음).
+결과와 손으로 확인할 것은 `docs/WINDOWS.md`. macOS 는 아직 시도하지 않았다.
