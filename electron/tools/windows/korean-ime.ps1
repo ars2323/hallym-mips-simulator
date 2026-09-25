@@ -25,8 +25,10 @@ try {
   $list = Get-WinUserLanguageList
   if (-not ($list | Where-Object LanguageTag -like 'ko*')) { $list.Add('ko-KR') }
   Set-WinUserLanguageList $list -Force
-  Note "input languages: $((Get-WinUserLanguageList | ForEach-Object { "$($_.LanguageTag) [$($_.InputMethodTips -join ', ')]" }) -join '; ')"
 } catch { Note "Set-WinUserLanguageList failed: $($_.Exception.Message)" }
-$tip = (Get-WinUserLanguageList | Where-Object LanguageTag -like 'ko*').InputMethodTips
-if ((Test-Path $imeDir) -and $tip) { Note 'RESULT  the Korean IME is installed'; exit 0 }
+# (Under pwsh the International module runs in a Windows PowerShell session and
+# hands back deserialized objects: the decision is taken on the text it prints.)
+$languages = (Get-WinUserLanguageList | ForEach-Object { "$($_.LanguageTag) [$($_.InputMethodTips -join ', ')]" }) -join '; '
+Note "input languages: $languages"
+if ((Test-Path $imeDir) -and $languages -match '0412:\{A028AE76') { Note 'RESULT  the Korean IME is installed'; exit 0 }
 Note 'RESULT  no Korean IME'; exit 1
