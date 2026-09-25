@@ -1,4 +1,7 @@
-# Windows, for real: build, test, package, install next to the Qt build.
+# The Electron edition (2.x, electron/) on Windows, for real: build, test,
+# package, install next to the Qt edition.  Runs when electron/ or CPU/
+# changes (the Qt edition's workflow, ci.yml, when anything but electron/
+# does); every step works in electron/.
 #
 #   1. the core builds with MSVC + win_flex/win_bison; tt.core.s words match
 #   2. the Node tests on Windows: the simulator process (fork), stop,
@@ -12,15 +15,27 @@
 #      breakpoints, console input, fonts, settings, About)
 #   7. tools/probe-platform.ts: simulator handles while running/stepping
 #      (the core's waitable timer), screenshots of the native file dialogs;
-#      and the four scenes captured on Windows
-name: windows
+#      and the fixed set of screens captured on Windows
+#   8. (run by hand, and for a v2.* tag) installing over 2.0.0-alpha.1:
+#      one folder, one uninstall entry (tools/windows/check-upgrade.ps1)
+name: Electron edition (2.x) — Windows
 
 on:
   push:
+    branches: [main]
+    tags: ['v2.*']
+    paths: ['electron/**', 'CPU/**', '.github/workflows/electron.yml']
+  pull_request:
+    paths: ['electron/**', 'CPU/**', '.github/workflows/electron.yml']
   workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: electron
 
 jobs:
   windows:
+    name: Build, test, package, install
     runs-on: windows-latest
     timeout-minutes: 60
     env:
@@ -84,7 +99,7 @@ jobs:
       - name: The Qt build's 1.2.4 MSI
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release download v1.2.4 -R ars2323/hallym-mips-simulator --pattern "*.msi" --dir qt
+        run: gh release download v1.2.4 --pattern "*.msi" --dir qt
 
       - name: Side by side with 1.2.4 (install, both running)
         shell: pwsh
@@ -98,7 +113,7 @@ jobs:
           npx playwright test
 
       - name: Probe (simulator handles, native file dialogs)
-        if: always() && hashFiles('report/installed.txt') != ''
+        if: always() && hashFiles('electron/report/installed.txt') != ''
         timeout-minutes: 12
         shell: pwsh
         run: |
@@ -106,7 +121,7 @@ jobs:
           node tools/probe-platform.ts report/probe --expect-no-leak
 
       - name: The fixed set of screens (docs/screens/README.md), captured on Windows
-        if: always() && hashFiles('report/installed.txt') != ''
+        if: always() && hashFiles('electron/report/installed.txt') != ''
         timeout-minutes: 10
         shell: pwsh
         run: |
@@ -115,7 +130,7 @@ jobs:
           node tools/capture-screens.ts
 
       - name: Side by side with 1.2.4 (after; uninstall ours)
-        if: always() && hashFiles('report/qt-settings-together.reg') != ''
+        if: always() && hashFiles('electron/report/qt-settings-together.reg') != ''
         shell: pwsh
         run: tools/windows/check-side-by-side.ps1 -Phase after -Report report
 
@@ -124,8 +139,8 @@ jobs:
         with:
           name: HallymMIPS-windows
           path: |
-            dist/*-setup.exe
-            dist/*.zip
+            electron/dist/*-setup.exe
+            electron/dist/*.zip
           if-no-files-found: error
 
       - name: Upload the report
@@ -134,9 +149,9 @@ jobs:
         with:
           name: windows-report
           path: |
-            sizes.txt
-            report/
-            test-results/
+            electron/sizes.txt
+            electron/report/
+            electron/test-results/
           if-no-files-found: ignore
 
       # Diagnosis only: what the generators wrote, when the build fails.
@@ -148,3 +163,56 @@ jobs:
           if ($h) {
             Select-String -Path $h.FullName -Pattern '#define yy|yylval|yyparse|api.prefix|YYSTYPE' | ForEach-Object { "$($_.LineNumber): $($_.Line)" }
           }
+
+  # 2.0.0 over 2.0.0-alpha.1: alpha.1 is built from its own commit (the
+  # Electron repository's last, 48e645c, before the merge), since artifacts
+  # expire and the old repository's are not this one's to read.
+  upgrade:
+    name: Install over 2.0.0-alpha.1
+    needs: windows
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v2.')
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install winflexbison
+        run: choco install winflexbison3 --no-progress -y
+
+      - name: Build 2.0.0-alpha.1 from 48e645c
+        working-directory: .
+        shell: pwsh
+        run: |
+          git worktree add ../alpha 48e645c
+          Set-Location ../alpha
+          npm ci --ignore-scripts
+          npx node-gyp rebuild --directory native
+          node tools/build-electron.ts
+          node tools/package.ts
+          Get-ChildItem dist/*-setup.exe | ForEach-Object { $_.FullName }
+
+      - name: This run's 2.0.0
+        uses: actions/download-artifact@v4
+        with:
+          name: HallymMIPS-windows
+          path: electron/new
+
+      - name: 2.0.0 over 2.0.0-alpha.1
+        shell: pwsh
+        run: tools/windows/check-upgrade.ps1 -Old (Get-Item ../../alpha/dist/*-setup.exe).FullName -New (Get-Item new/*-setup.exe).FullName -Report upgrade
+
+      - name: Upload the upgrade report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: upgrade-report
+          path: electron/upgrade/
+          if-no-files-found: ignore

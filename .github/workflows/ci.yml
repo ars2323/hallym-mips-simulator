@@ -1,4 +1,6 @@
-# Hallym MIPS Simulator continuous integration.
+# The Qt edition (1.x) of the Hallym MIPS Simulator: continuous integration.
+# It does not run for changes under electron/ alone (the Electron edition
+# has its own workflow, electron.yml); CPU/ changes run both.
 #
 # linux:   the development platform.  Builds the release configuration and
 #          the CONFIG+=edu_devtools one, runs the unit tests, the regression
@@ -10,13 +12,15 @@
 # Warnings in our own code fail the linux job; warnings from CPU/ and from
 # generated parser/scanner sources are upstream's and are ignored.
 
-name: CI
+name: Qt edition (1.x)
 
 on:
   push:
     branches: [main]
-    tags: ['stage-*', 'v*']
+    tags: ['stage-*', 'v1.*']
+    paths-ignore: ['electron/**', '.github/workflows/electron.yml']
   pull_request:
+    paths-ignore: ['electron/**', '.github/workflows/electron.yml']
   workflow_dispatch:
 
 jobs:
@@ -224,7 +228,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path previous | Out-Null
           $tag = (gh release list --limit 20 --json tagName,isDraft |
                   ConvertFrom-Json |
-                  Where-Object { -not $_.isDraft -and $_.tagName -match '^v[0-9]' } |
+                  Where-Object { -not $_.isDraft -and $_.tagName -match '^v1\.' } |
                   Select-Object -First 1).tagName
           if ($tag) {
             Write-Host "previous release: $tag"
