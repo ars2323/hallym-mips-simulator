@@ -114,6 +114,13 @@ With the installer from the artifact `HallymMIPS-windows`. On **Korean Windows**
 10. **Left/right split** — check that at 1366×768, 125%, maximized, Editor and Run are shown side by side; dragging and collapsing the divider; and that when the window is snapped to half the screen
    it switches to Editor / Run tabs.
 
+## After publishing
+
+The workflow **Release check (2.x, as downloaded)** (`.github/workflows/release-check.yml`, run by hand with the
+tag) downloads both files from the public release address, compares their SHA-256 with the release notes, installs
+the setup on a clean runner, runs every e2e test against the installed app (the real Microsoft Korean IME included),
+starts the unzipped program, and uninstalls.
+
 ## Rolling back 2.0.0
 
 If 2.0.0 causes trouble in the labs, the release is taken back and 1.2.4 is the latest release again.

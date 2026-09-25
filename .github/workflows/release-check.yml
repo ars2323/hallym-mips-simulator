@@ -1,0 +1,103 @@
+# A published release, as a student gets it: both files downloaded from the
+# public release address (not CI artifacts), their SHA-256 compared with the
+# release notes, the installer run on a clean runner, and every e2e test run
+# against the installed app -- the real Microsoft Korean IME included --
+# then uninstalled.  The zip is unpacked and started.  Run by hand after
+# publishing (and after a rollback's re-release).
+name: Release check (2.x, as downloaded)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag'
+        default: 'v2.0.0'
+        required: true
+
+defaults:
+  run:
+    working-directory: electron
+
+jobs:
+  check:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: npm ci (the tests only)
+        run: npm ci --ignore-scripts
+
+      - name: Download from the public release and compare SHA-256 with the notes
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = '${{ inputs.tag }}'; $v = $tag.TrimStart('v')
+          New-Item -ItemType Directory -Force pub, report | Out-Null
+          $body = gh release view $tag --repo ${{ github.repository }} --json body --jq .body
+          foreach ($f in "HallymMIPS-$v-win-x64-setup.exe", "HallymMIPS-$v-win-x64.zip") {
+            $url = "https://github.com/${{ github.repository }}/releases/download/$tag/$f"
+            Invoke-WebRequest -Uri $url -OutFile "pub/$f"   # no token: what anyone gets
+            $h = (Get-FileHash "pub/$f" -Algorithm SHA256).Hash.ToLower()
+            $line = "$h  $f"
+            Add-Content report/release-check.txt $line
+            if ($body -notmatch [regex]::Escape($line)) { throw "SHA-256 of $f ($h) is not the one in the release notes" }
+            Write-Host "PASS  $line (as in the notes)"
+          }
+
+      - name: Install (per user, silent) and run every e2e test against it
+        timeout-minutes: 20
+        shell: pwsh
+        run: |
+          $v = '${{ inputs.tag }}'.TrimStart('v')
+          $p = Start-Process (Resolve-Path "pub/HallymMIPS-$v-win-x64-setup.exe").Path -ArgumentList '/S' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "installer exit $($p.ExitCode)" }
+          $exe = Join-Path $env:LOCALAPPDATA 'Programs\Hallym MIPS\HallymMIPS.exe'
+          if (-not (Test-Path $exe)) { throw "not installed at $exe" }
+          Add-Content report/release-check.txt "installed: $exe $((Get-Item $exe).VersionInfo.ProductVersion)"
+          tools/windows/korean-ime.ps1 -Report report
+          if ($LASTEXITCODE -eq 0) { $env:SPIM_REAL_IME = '1' }
+          $env:SPIM_E2E_EXE = $exe
+          npx playwright test
+
+      - name: The zip, unpacked, starts
+        shell: pwsh
+        run: |
+          $v = '${{ inputs.tag }}'.TrimStart('v')
+          Expand-Archive -Path "pub/HallymMIPS-$v-win-x64.zip" -DestinationPath zip
+          $p = Start-Process (Resolve-Path zip/HallymMIPS.exe).Path -PassThru
+          Start-Sleep -Seconds 10
+          if ($p.HasExited) { throw "exited by itself with code $($p.ExitCode)" }
+          Write-Host 'PASS  the unpacked program was still running after 10 seconds'
+          $null = $p.CloseMainWindow(); if (-not $p.WaitForExit(10000)) { Stop-Process -Id $p.Id -Force }
+
+      - name: Uninstall
+        if: always()
+        shell: pwsh
+        run: |
+          $e = Get-ChildItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' -ErrorAction SilentlyContinue |
+            ForEach-Object { Get-ItemProperty $_.PSPath } | Where-Object { $_.DisplayName -like 'Hallym MIPS*' } | Select-Object -First 1
+          if ($e) {
+            $un = ($e.QuietUninstallString, $e.UninstallString | Where-Object { $_ } | Select-Object -First 1)
+            if ($un -match '^"([^"]+)"\s*(.*)$') { $x = $Matches[1]; $a = $Matches[2] } else { $x = $un; $a = '' }
+            if ($a -notmatch '/S') { $a = "$a /S" }
+            Start-Process $x -ArgumentList $a -Wait
+            Write-Host 'uninstalled'
+          }
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-check
+          path: |
+            electron/report/
+            electron/test-results/
+          if-no-files-found: ignore
