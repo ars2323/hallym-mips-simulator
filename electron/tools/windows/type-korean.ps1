@@ -28,11 +28,17 @@ public static class Ime {
 }
 "@
 $h = [IntPtr]$Hwnd
+# -File hands "gksrmf,ENTER" over as one string.
+$Keys = @($Keys | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 $WM_INPUTLANGCHANGEREQUEST = 0x50; $WM_IME_CONTROL = 0x283; $IMC_GETCONVERSIONMODE = 1; $IMC_SETCONVERSIONMODE = 2
 function Layout { '{0:X8}' -f ([Ime]::GetKeyboardLayout([Ime]::GetWindowThreadProcessId($h, [IntPtr]::Zero))).ToInt64() }
 function Mode { $w = [Ime]::ImmGetDefaultIMEWnd($h); [Ime]::SendMessage($w, $WM_IME_CONTROL, [IntPtr]$IMC_GETCONVERSIONMODE, [IntPtr]::Zero).ToInt64() }
 
+# Windows lets a background process bring a window forward only after a key
+# press it made: ALT down and up first.
+[Ime]::keybd_event(0x12, 0, 0, [UIntPtr]::Zero); [Ime]::keybd_event(0x12, 0, 2, [UIntPtr]::Zero)
 $null = [Ime]::SetForegroundWindow($h)
+Start-Sleep -Milliseconds 300
 Write-Host "foreground is the window: $([Ime]::GetForegroundWindow() -eq $h)"
 Write-Host "layout before: $(Layout); IME conversion mode before: $(Mode)"
 $hkl = [Ime]::LoadKeyboardLayout('00000412', 1)
