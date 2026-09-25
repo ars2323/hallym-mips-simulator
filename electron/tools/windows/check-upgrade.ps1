@@ -14,9 +14,10 @@ function Note($s) { Write-Host $s; Add-Content $log $s }
 function Check($ok, $what) { if ($ok) { Note "PASS  $what" } else { Note "FAIL  $what"; $script:failed = $true } }
 
 $uninstallRoot = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall'
+# (A fresh machine may have no per-user Uninstall key yet: none installed.)
 $programs = Join-Path $env:LOCALAPPDATA 'Programs'
 $startMenu = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs'
-function Entries { Get-ChildItem $uninstallRoot | ForEach-Object { Get-ItemProperty $_.PSPath } | Where-Object { $_.DisplayName -like 'Hallym MIPS*' } }
+function Entries { Get-ChildItem $uninstallRoot -ErrorAction SilentlyContinue | ForEach-Object { Get-ItemProperty $_.PSPath } | Where-Object { $_.DisplayName -like 'Hallym MIPS*' } }
 function Folders { Get-ChildItem $programs -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '*allym*' } | ForEach-Object { $_.Name } }
 function Shortcuts { Get-ChildItem $startMenu -Recurse -Filter '*.lnk' -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '*allym*' } | ForEach-Object { $_.FullName.Substring($startMenu.Length + 1) } }
 function Install($setup) {
