@@ -21,8 +21,9 @@
 #      and the fixed set of screens captured on Windows
 #   8. (run by hand, and for a v2.* tag) installing over the latest
 #      published 2.x release (its installer downloaded from its release
-#      page) and over the build the Electron repository last made before the
-#      merge (48e645c, the preview build), each time then this build over
+#      page; not run, with a notice, while this build has the released
+#      version) and over the build the Electron repository last made before
+#      the merge (48e645c, the preview build), each time then this build over
 #      itself: one folder, one uninstall entry (tools/windows/check-upgrade.ps1)
 #   9. (a v2.* tag only) the release: published from this run's installer,
 #      with the notes the tagged commit carries (electron/docs/releases/
@@ -259,6 +260,17 @@ jobs:
         run: |
           $old = (Get-Content released/tag.txt).Trim().TrimStart('v')
           $new = (Get-Content package.json | ConvertFrom-Json).version
+          # Between releases main carries the released version (it is raised
+          # only in the commit that is released): nothing to upgrade from, and
+          # installing 2.1.0 over 2.1.0 is not a student's case.  On a tag it
+          # is a mistake.
+          if ($new -eq $old) {
+            if ($env:GITHUB_REF_TYPE -eq 'tag') { throw "this build is $new, the version of the latest release: raise the version in the release commit" }
+            New-Item -ItemType Directory -Force upgrade/release | Out-Null
+            "not run: this build is $new, the version of the latest release (v$old)" | Set-Content upgrade/release/upgrade.txt
+            Write-Host "::notice title=Upgrade over v$old not run::This build is $new, the version of the latest release. The check runs on the release commit, where the version is raised."
+            exit 0
+          }
           tools/windows/check-upgrade.ps1 -Old (Get-Item released/*-setup.exe).FullName -OldVersion $old `
             -New (Get-Item new/*-setup.exe).FullName -NewVersion $new -Report upgrade/release
 

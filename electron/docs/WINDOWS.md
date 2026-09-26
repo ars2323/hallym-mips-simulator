@@ -166,9 +166,9 @@ before it.
    first, so that the older one is installed cleanly (installing an older 2.x over a newer one has not been tested);
    going back to 1.2.4, the two editions sit side by side:
 
-   > Hallym MIPS <bad> 에 문제가 있어 잠시 이전 판 <previous> 로 돌아갑니다.
+   > Hallym MIPS <bad> 버전에 문제가 있어 잠시 이전 버전인 <previous> 버전으로 돌아갑니다.
    > - 먼저 설정 → 앱 → 설치된 앱 → "Hallym MIPS <bad>" → 제거를 누르세요.
-   > - 릴리스 페이지(<https://github.com/ars2323/hallym-mips-simulator/releases/latest>)에서 <previous> 를 받아 설치하세요.
+   > - 릴리스 페이지에서 <previous> 버전의 설치 파일을 받아 설치하세요: <https://github.com/ars2323/hallym-mips-simulator/releases/latest>
    > - 저장한 `.s` 파일은 그대로 열 수 있습니다. 모든 판이 같은 시뮬레이터 코어를 쓰므로 같은 프로그램은 같은 결과를 냅니다.
 
    (Back to 1.2.4: the first line is not needed — 2.x and 1.x are installed apart and do not touch each other — and

@@ -84,18 +84,20 @@ for again each time.
    - every mutant killed (`node tools/mutants.ts`);
    - the Windows CI job's e2e against the installed app, the 1920 test included;
    - installing over 1.2.4 (side by side: Windows CI, every run) and over the latest published 2.x release (the
-     workflow's `upgrade` job: run it by hand on the commit before tagging);
+     workflow's `upgrade` job: run it by hand on the commit to be released, before tagging; on a commit that still
+     carries the released version it has nothing to upgrade from and says so instead);
    - document links: 0 broken, 0 orphans (`node tools/check-doc-links.ts`);
    - greps: no old version given as the current one, no `[스크린샷 자리]`, no "하면 됩니다"-type ending (1.x documents
      excepted);
    - `slides/` unchanged (file count and combined hash).
 4. **How to release.** The version bump (`electron/package.json`, `electron/package-lock.json`) and the release
-   notes, `electron/docs/releases/<version>.md`, go in the commit that is released (rule 7). The notes are in English, for students: the Korean user guide's link first; what they
-   will see that is different; that the program is unsigned and how to get past the Windows warning (link); links
-   back to the previous 2.x release and to 1.2.4; no video links. Push that commit, wait for both workflows and run
-   the checks above, then push the tag `v<version>`. The tag's workflow (`electron.yml`) builds and tests again,
-   installs over the previous release, publishes (not a pre-release; Latest; the installer's SHA-256 added to the
-   notes by CI) and then runs the post-release check (`release-check.yml`). A failure anywhere opens an issue.
+   notes, `electron/docs/releases/<version>.md`, go in the commit that is released (rule 7). The notes are in
+   English, for students: the Korean user guide's link first; what they will see that is different; that the
+   program is unsigned and how to get past the Windows warning (link); links back to the previous 2.x release and
+   to 1.2.4; no video links. Push that commit, wait for both workflows and run the checks above, then push the tag
+   `v<version>`. The tag's workflow (`electron.yml`) builds and tests again, installs over the previous release,
+   publishes (not a pre-release; Latest; the installer's SHA-256 added to the notes by CI) and then runs the
+   post-release check (`release-check.yml`). A failure anywhere opens an issue.
 5. **It is released only when the post-release check has passed:** the installer downloaded from the public release
    address, its SHA-256 the one in the notes, installed on a clean runner, every e2e test run against it, every link
    and picture of the published documents opening, the release Latest, the earlier releases still there. Check its

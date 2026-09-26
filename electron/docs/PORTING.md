@@ -1099,5 +1099,10 @@ documents opening at the tag. It runs in that order because the job that calls i
 by hand (a re-release after a rollback) triggers it by itself (`release: published`; the one CI publishes does not,
 since events made with the workflow's own token start no workflow — the call covers it).
 
+Between releases `main` carries the released version (rule 7), so the `upgrade` job run by hand there has no newer
+version to put over the latest release: it says so in a notice and does not install. (Its first run, on `3e72321`,
+installed 2.0.0 over 2.0.0 and failed on "the installed program is 2.0.0 (was 2.0.0)"; everything else passed.) On a
+tag the same case is an error: the tag's version must be newer than the latest release's.
+
 Rolling back is in `docs/WINDOWS.md` ("Rolling back a release"), written for any version.
 
