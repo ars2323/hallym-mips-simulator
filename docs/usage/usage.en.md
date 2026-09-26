@@ -28,14 +28,11 @@ speak to you in Korean; this guide quotes the Korean where you will see it.
 ## Download
 
 From the [release page](https://github.com/ars2323/hallym-mips-simulator/releases/latest),
-download one of the two files. They are for 64-bit Windows.
+download **one file**, `HallymMIPS-<version>-win-x64-setup.exe`. It is the
+installer, for 64-bit Windows.
 
-| File | When |
-|---|---|
-| `HallymMIPS-<version>-win-x64-setup.exe` | **Usually this one.** The installer; adds a Start menu entry. |
-| `HallymMIPS-<version>-win-x64.zip` | When you would rather not install. Unzip and run. |
-
-- No administrator rights are needed; it installs for the signed-in user only.
+- No administrator rights are needed; it installs for the signed-in user only,
+  and adds a Start menu entry.
 - If the previous version (1.x, "Hallym MIPS Simulator") is installed, it stays
   as it is: 2.x installs beside it, and neither touches the other.
 
@@ -68,14 +65,13 @@ At this point there is only one button, at the bottom right:
 1. Just below the text, on the left, there is an underlined link,
    **"More info"** (*"추가 정보"*). Click it.
 2. The window changes. Two lines appear under the text:
-   - **App:** `HallymMIPS-…-setup.exe` (from the zip: `HallymMIPS.exe`)
+   - **App:** `HallymMIPS-…-setup.exe`
    - **Publisher:** Unknown publisher
 
    and the buttons at the bottom right go **from one to two**: **"Run anyway"**
    (*"실행"*) on the left, **"Don't run"** (*"실행 안 함"*) on the right.
    Click **Run anyway**, the left one.
-3. The installer then installs (next section); `HallymMIPS.exe` from the zip
-   opens the program.
+3. The installer then installs (next section).
 
 "Unknown publisher" is what an unsigned program gets. If the file name on the
 App line is the file you just downloaded, it is safe to run.
@@ -84,14 +80,6 @@ The warning comes **once, the first time that file is run.** Opening the
 installed program from the Start menu later does not show it again.
 
 ### If it still does not open
-
-- **The program from the zip is blocked without a warning:** right-click the
-  **downloaded zip file** (not the extracted folder) → **Properties**. At the
-  bottom of the **General** tab there is a **Security:** line saying the file
-  came from the internet and might be blocked, with an **"Unblock"**
-  (*"차단 해제"*) check box at its right. Tick it, click **OK** at the bottom
-  of the window, and **extract the zip again.** (No such line: the file is not
-  blocked.)
 
 - **A window without a Run button** — *"This app has been blocked"*, *"Your
   administrator has blocked this app"*: the PC's management policy stops it,
@@ -105,10 +93,8 @@ installed program from the Start menu later does not show it again.
 
 ## Installing and starting
 
-### The installer
-
-1. Run `HallymMIPS-<version>-win-x64-setup.exe` (for the warning, see
-   [the previous section](#getting-past-the-windows-warning)).
+1. Run the downloaded `HallymMIPS-<version>-win-x64-setup.exe` (for the
+   warning, see [the previous section](#getting-past-the-windows-warning)).
 2. It installs straight away, asking nothing; when the progress window
    closes, it is done. The program does not open by itself.
 3. Open it from **Start menu → Hallym MIPS**. (No desktop shortcut is made.)
@@ -117,12 +103,6 @@ It is installed in `%LOCALAPPDATA%\Programs\Hallym MIPS`. For a new version,
 just install again: it goes over the old one in the same place.
 
 **Removing it:** Settings → Apps → Installed apps → *Hallym MIPS 2.x.x* → Uninstall.
-
-### The zip
-
-1. **Extract** the zip into a folder of your choice. (Do not run the program
-   from inside the zip without extracting it.)
-2. Run `HallymMIPS.exe` in the extracted folder.
 
 ### What the program remembers
 

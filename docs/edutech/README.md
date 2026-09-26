@@ -177,8 +177,8 @@ Data 탭, 라벨, `sw`, 스택, 브레이크포인트, Run, 천천히 실행, Re
 
 ## 5. 수업에서 어떻게 쓰나
 
-**설치.** [릴리스 페이지](https://github.com/ars2323/hallym-mips-simulator/releases/latest)에서 설치 파일이나
-zip 을 받습니다. 관리자 권한은 필요 없습니다. 코드 서명이 없어 처음 실행할 때 Windows 경고가 뜨는데,
+**설치.** [릴리스 페이지](https://github.com/ars2323/hallym-mips-simulator/releases/latest)에서 설치 파일
+`HallymMIPS-<버전>-win-x64-setup.exe` 하나를 받아 실행합니다. 관리자 권한은 필요 없습니다. 코드 서명이 없어 처음 실행할 때 Windows 경고가 뜨는데,
 넘기는 방법은 [사용법의 해당 절](../usage/usage.ko.md#windows-경고-창-넘기기)에 글로 자세히 있습니다.
 이전 판(1.x)이 깔린 실습실 PC 에도 그대로 옆에 설치되고, 서로 건드리지 않습니다.
 

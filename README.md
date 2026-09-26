@@ -90,11 +90,10 @@ associations.
 
 ## Download
 
-**[Latest release](https://github.com/ars2323/hallym-mips-simulator/releases/latest)** (Windows 64-bit):
-
-- `HallymMIPS-<version>-win-x64-setup.exe` — the installer. Installs for the
-  current user only (no administrator rights), adds a Start menu entry.
-- `HallymMIPS-<version>-win-x64.zip` — no installation: unzip, run `HallymMIPS.exe`.
+**[Latest release](https://github.com/ars2323/hallym-mips-simulator/releases/latest)**
+(Windows 64-bit): one file, `HallymMIPS-<version>-win-x64-setup.exe`. It
+installs for the current user only (no administrator rights) and adds a Start
+menu entry.
 
 The program is not code-signed, so Windows SmartScreen warns the first time it
 runs. Choose **More info → Run anyway**; the user guide
@@ -133,7 +132,7 @@ npm test                 # unit and golden tests
 npm run build:electron   # the addon against Electron's headers
 npm run electron         # start the app
 npm run e2e              # the real app, through Playwright (needs a display; xvfb-run on Linux)
-npm run package          # installer and zip in electron/dist/ (on Windows)
+npm run package          # the installer in electron/dist/ (on Windows)
 ```
 
 More in [`electron/docs/DEVELOPMENT.md`](electron/docs/DEVELOPMENT.md);

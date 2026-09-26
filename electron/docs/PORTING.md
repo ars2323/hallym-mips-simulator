@@ -494,6 +494,10 @@ written (`tests/e2e/settings.e2e.ts` checks it).
 
 `tools/package.ts` creates `build/package/app/` and hands it to electron-builder.
 
+Since 2.0.0 was published the Windows target is the NSIS installer alone, one file: the zip was taken out of the
+distribution (and off the v2.0.0 release) right after, so the build at the tag `v2.0.0` still makes a zip, but the
+release has none.
+
 - The main process and the simulator process are each bundled with esbuild into a single file (`main.js`, `worker.js`).
   At that time `process.env.SPIM_BUNDLE` is defined as `"1"`. `src/main/paths.ts`, `src/sim/transport.ts` and `native/index.ts`
   look at this value and find files next to the bundle. When running from the source tree (development, tests) nothing changes.

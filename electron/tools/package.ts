@@ -1,6 +1,6 @@
 /* Packages the app with electron-builder.
 
-     node tools/package.ts            Windows: NSIS installer + zip (on Windows)
+     node tools/package.ts            Windows: the NSIS installer, one file (on Windows)
      node tools/package.ts --dir      this platform, unpacked only (a check)
 
    1. Stages build/package/app/: the main process and the simulator process
@@ -92,10 +92,9 @@ export const config: Configuration = {
   // The repository's LICENSE and NOTICE (its root, shared by both editions).
   extraFiles: [{ from: path.join(root, '../LICENSE'), to: 'LICENSE.txt' }, { from: path.join(root, '../NOTICE'), to: 'NOTICE.txt' }],
   win: {
-    target: ['nsis', 'zip'],
+    target: ['nsis'], // the installer only: no zip since 2.0.0 (docs/PORTING.md 13)
     icon: path.join(root, 'packaging/icons/HallymMIPS.ico'),
     signAndEditExecutable: true,
-    artifactName: 'HallymMIPS-${version}-win-x64.${ext}', // the zip (nsis has its own below)
   },
   nsis: {
     oneClick: true,

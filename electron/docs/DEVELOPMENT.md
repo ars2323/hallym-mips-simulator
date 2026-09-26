@@ -114,7 +114,7 @@ npm run e2e            # e2e tests of the real app (Playwright)
 npm run screens        # the fixed set of screens -> docs/screens/ (docs/screens/README.md)
 npm run measure:ui     # measurements of the window -> build/measure-ui.json
 npm run mockups        # the layout mockups -> docs/mockups/
-npm run package        # the installer (NSIS, per user) and the zip -> dist/ (on Windows; build:electron first)
+npm run package        # the installer (NSIS, per user), one file -> dist/ (on Windows; build:electron first)
 npm run package:dir    # only this platform's unpacked package -> dist/*-unpacked (for checking)
 ```
 
@@ -126,6 +126,6 @@ Windows is done by GitHub Actions (`electron.yml`): build, the Node tests,
 the package, the installer put next to the Qt edition 1.2.4 to see that they
 do not collide, e2e against the installed app, handles, file dialogs and
 screen captures; run by hand or for a `v2.*` tag it also installs over the
-build before the merge. The installer and the zip are uploaded as artifacts;
-a release is made from them by hand. Results, and what to check by hand, are
+build before the merge. The installer is uploaded as an artifact; a release
+is made from it by hand. Results, and what to check by hand, are
 in `docs/WINDOWS.md`. macOS has not been tried.

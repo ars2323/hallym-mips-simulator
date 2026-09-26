@@ -1,9 +1,10 @@
-# A published release, as a student gets it: both files downloaded from the
-# public release address (not CI artifacts), their SHA-256 compared with the
-# release notes, the installer run on a clean runner, and every e2e test run
-# against the installed app -- the real Microsoft Korean IME included --
-# then uninstalled.  The zip is unpacked and started.  Run by hand after
-# publishing (and after a rollback's re-release).
+# A published release, as a student gets it: the installer downloaded from
+# the public release address (not a CI artifact), its SHA-256 compared with
+# the release notes, the release's assets checked to be that one file, the
+# installer run on a clean runner, and every e2e test run against the
+# installed app -- the real Microsoft Korean IME included -- then
+# uninstalled.  Run by hand after publishing (and after a rollback's
+# re-release).
 name: Release check (2.x, as downloaded)
 
 on:
@@ -42,7 +43,10 @@ jobs:
           $tag = '${{ inputs.tag }}'; $v = $tag.TrimStart('v')
           New-Item -ItemType Directory -Force pub, report | Out-Null
           $body = (gh release view $tag --repo ${{ github.repository }} --json body --jq .body) -join "`n"
-          foreach ($f in "HallymMIPS-$v-win-x64-setup.exe", "HallymMIPS-$v-win-x64.zip") {
+          $assets = @(gh release view $tag --repo ${{ github.repository }} --json assets --jq '.assets[].name')
+          if ($assets.Count -ne 1 -or $assets[0] -ne "HallymMIPS-$v-win-x64-setup.exe") { throw "the release's assets should be the installer alone; they are: $($assets -join ', ')" }
+          Add-Content report/release-check.txt "assets: $($assets -join ', ')"
+          foreach ($f in @("HallymMIPS-$v-win-x64-setup.exe")) {
             $url = "https://github.com/${{ github.repository }}/releases/download/$tag/$f"
             Invoke-WebRequest -Uri $url -OutFile "pub/$f"   # no token: what anyone gets
             $h = (Get-FileHash "pub/$f" -Algorithm SHA256).Hash.ToLower()
@@ -66,17 +70,6 @@ jobs:
           if ($LASTEXITCODE -eq 0) { $env:SPIM_REAL_IME = '1' }
           $env:SPIM_E2E_EXE = $exe
           npx playwright test
-
-      - name: The zip, unpacked, starts
-        shell: pwsh
-        run: |
-          $v = '${{ inputs.tag }}'.TrimStart('v')
-          Expand-Archive -Path "pub/HallymMIPS-$v-win-x64.zip" -DestinationPath zip
-          $p = Start-Process (Resolve-Path zip/HallymMIPS.exe).Path -PassThru
-          Start-Sleep -Seconds 10
-          if ($p.HasExited) { throw "exited by itself with code $($p.ExitCode)" }
-          Write-Host 'PASS  the unpacked program was still running after 10 seconds'
-          $null = $p.CloseMainWindow(); if (-not $p.WaitForExit(10000)) { Stop-Process -Id $p.Id -Force }
 
       - name: Uninstall
         if: always()

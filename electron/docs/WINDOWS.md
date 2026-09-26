@@ -1,12 +1,11 @@
 # Windows — what was confirmed and what to check by hand
 
 What has been run on Windows is GitHub Actions' `windows-latest` (Windows Server 2025, English, administrator account, screen 1024×768).
-Workflow: `.github/workflows/electron.yml` at the repository root (it runs for changes under `electron/` or `CPU/`). Every run uploads the installer and the zip as **artifacts**; a release is made from them by hand.
+Workflow: `.github/workflows/electron.yml` at the repository root (it runs for changes under `electron/` or `CPU/`). Every run uploads the installer as an **artifact**; a release is made from it by hand.
 
 | File | Size |
 |---|---|
 | `HallymMIPS-2.0.0-win-x64-setup.exe` (NSIS, per-user) | 102.9 MB (107,914,059 bytes) |
-| `HallymMIPS-2.0.0-win-x64.zip` (archive) | 139.9 MB (146,689,276 bytes) |
 | Installed size | 327 MB (Chromium locales Korean and English only; with all of them, 374 MB) |
 
 ### What the installed 327 MB contains
@@ -46,7 +45,7 @@ Other things CI checks every time:
 
 - All Node tests (170) — process separation (fork), stopping, breakpoints, console input, modules, Qt goldens
 - All 15 e2e tests against the **installed** `HallymMIPS.exe` (asar, the addon outside the asar, the bundled worker, license files)
-- That after unpacking the zip, `HallymMIPS.exe` stays alive for more than 10 seconds and `LICENSE.txt` and `NOTICE.txt` are next to it
+- That the package is one file, the installer, and that `LICENSE.txt` and `NOTICE.txt` are next to the installed `HallymMIPS.exe`
 - That the installer manifest is `asInvoker` (does not request administrator rights)
 
 ### What showed up only on Windows
@@ -106,20 +105,19 @@ With the installer from the artifact `HallymMIPS-windows`. On **Korean Windows**
 5. **Fonts** — check that register `$t0`, `CP0` and address `0x00400000` are in D2Coding (dotted 0) and that nothing shows as `0×`.
    Check that nothing is blurry or clipped at Windows scaling of 125% and 150%.
 6. **Side by side with 1.2.4** — start both and run a program in each. Check that closing one leaves the other's settings (window position, recent files) unchanged.
-7. **zip** — unpack it and run `HallymMIPS.exe`. Also in places whose path contains Hangul or spaces, like USB or network drives.
-8. **Uninstall** — Settings → Apps → uninstall "Hallym MIPS 2.0.0". Check that the Start menu entry and install folder disappear and 1.2.4 remains.
-9. **Window frame** — check that hovering over the maximize button shows snap layouts, double-clicking the bar maximizes and restores, dragging the bar moves the window,
+7. **Uninstall** — Settings → Apps → uninstall "Hallym MIPS 2.0.0". Check that the Start menu entry and install folder disappear and 1.2.4 remains.
+8. **Window frame** — check that hovering over the maximize button shows snap layouts, double-clicking the bar maximizes and restores, dragging the bar moves the window,
    dragging it to the top of the screen maximizes it, and the edges are not clipped when maximized. At scaling of 125% and 150%, check the size of the window buttons, and that the app bar's buttons and file name
    do not slide under the window buttons.
-10. **Left/right split** — check that at 1366×768, 125%, maximized, Editor and Run are shown side by side; dragging and collapsing the divider; and that when the window is snapped to half the screen
+9. **Left/right split** — check that at 1366×768, 125%, maximized, Editor and Run are shown side by side; dragging and collapsing the divider; and that when the window is snapped to half the screen
    it switches to Editor / Run tabs.
 
 ## After publishing
 
 The workflow **Release check (2.x, as downloaded)** (`.github/workflows/release-check.yml`, run by hand with the
-tag) downloads both files from the public release address, compares their SHA-256 with the release notes, installs
-the setup on a clean runner, runs every e2e test against the installed app (the real Microsoft Korean IME included),
-starts the unzipped program, and uninstalls.
+tag) downloads the installer from the public release address, checks that it is the release's only file, compares
+its SHA-256 with the release notes, installs it on a clean runner, runs every e2e test against the installed app (the
+real Microsoft Korean IME included), and uninstalls.
 
 ## Rolling back 2.0.0
 

@@ -6,9 +6,9 @@
 #   1. the core builds with MSVC + win_flex/win_bison; tt.core.s words match
 #   2. the Node tests on Windows: the simulator process (fork), stop,
 #      breakpoints, console input rewind, the modules, the goldens
-#   3. the package: NSIS installer (per user) and zip, artifacts only --
+#   3. the package: the NSIS installer (per user), an artifact only --
 #      no tag, no release
-#   4. the zip, unpacked, starts
+#   4. the package is that one file: no zip, nothing else
 #   5. side by side with the Qt build 1.2.4 (its release MSI):
 #      tools/windows/check-side-by-side.ps1
 #   6. the e2e tests against the INSTALLED app (utilityProcess, .err, stop,
@@ -79,29 +79,19 @@ jobs:
       - name: Build the addon (Electron)
         run: node tools/build-electron.ts
 
-      - name: Package (NSIS installer + zip)
+      - name: Package (NSIS installer)
         run: node tools/package.ts
 
-      - name: Files and sizes
+      - name: The package is one file, the installer
         shell: pwsh
         run: |
-          Get-ChildItem dist -File | Where-Object { $_.Extension -in '.exe', '.zip' } |
-            ForEach-Object { '{0}  {1:N1} MB  ({2} bytes)' -f $_.Name, ($_.Length / 1MB), $_.Length } |
+          $files = @(Get-ChildItem dist -File | Where-Object { $_.Extension -in '.exe', '.zip', '.msi' })
+          $files | ForEach-Object { '{0}  {1:N1} MB  ({2} bytes)' -f $_.Name, ($_.Length / 1MB), $_.Length } |
             Tee-Object -FilePath sizes.txt
-
-      - name: The zip, unpacked, starts
-        shell: pwsh
-        run: |
-          $out = Join-Path $env:RUNNER_TEMP 'zip'
-          Expand-Archive -Path (Get-Item dist/*.zip).FullName -DestinationPath $out
-          $exe = Join-Path $out 'HallymMIPS.exe'
-          if (-not (Test-Path $exe)) { throw 'no HallymMIPS.exe at the root of the zip' }
-          foreach ($f in 'LICENSE.txt', 'NOTICE.txt') { if (-not (Test-Path (Join-Path $out $f))) { throw "no $f in the zip" } }
-          $p = Start-Process $exe -PassThru
-          Start-Sleep -Seconds 10
-          if ($p.HasExited) { throw "exited by itself with code $($p.ExitCode)" }
-          Write-Host 'PASS  the unpacked program was still running after 10 seconds'
-          $null = $p.CloseMainWindow(); if (-not $p.WaitForExit(10000)) { Stop-Process -Id $p.Id -Force }
+          if ($files.Count -ne 1 -or $files[0].Name -notlike 'HallymMIPS-*-win-x64-setup.exe') {
+            throw "expected one file, HallymMIPS-<version>-win-x64-setup.exe; got: $($files.Name -join ', ')"
+          }
+          Write-Host "PASS  one file: $($files[0].Name)"
 
       - name: The Qt build's 1.2.4 MSI
         env:
@@ -161,13 +151,11 @@ jobs:
         shell: pwsh
         run: tools/windows/check-side-by-side.ps1 -Phase after -Report report
 
-      - name: Upload installer and zip
+      - name: Upload the installer
         uses: actions/upload-artifact@v4
         with:
           name: HallymMIPS-windows
-          path: |
-            electron/dist/*-setup.exe
-            electron/dist/*.zip
+          path: electron/dist/*-setup.exe
           if-no-files-found: error
 
       - name: Upload the report
