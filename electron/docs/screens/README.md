@@ -98,3 +98,4 @@ Entries before the merge refer to commits of the archived repository ars2323/hal
 - Tutorial polish — a46f0ac — 2026-09-25
 - Title bar: shorten the file name first — bcfbfd1 — 2026-09-25
 - 2.0.0 finish (nothing kept, Data ASCII on, one-line folds, the guide's pictures) — ec3b877 — 2026-09-26
+- Windows in use (maximised start, the Editor's 72-column cap, result beats, one dialog, notices, hints) — b790d6d — 2026-09-26
