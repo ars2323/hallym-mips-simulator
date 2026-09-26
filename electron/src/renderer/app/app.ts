@@ -40,7 +40,7 @@ import { notice } from './notice.ts';
 import { nearMiss } from '../../core/near-miss.ts';
 import { createEditor } from './editor.ts';
 import { shortName } from './logic/names.ts';
-import { stateAfter, stopMessage, textRows, type RegisterValues, type RunState, type TextRow } from './logic/machine.ts';
+import { changedKeys, stateAfter, stopMessage, textRows, type RegisterValues, type RunState, type TextRow } from './logic/machine.ts';
 import { aboutDialog } from './panels/about.ts';
 import { ConsolePanel } from './panels/console.ts';
 import { Inspector } from './panels/inspector.ts';
@@ -66,7 +66,8 @@ const NARROW_PX = 980;
 let open = false;                      // a document is open (past the first screen)
 // `example`: one of the tutorial's, read-only, never saved.
 let file: { name: string; path: string | null; format: TextFileFormat | null; example?: Example } = { name: UNTITLED, path: null, format: null };
-let dirty = false;
+let dirty = false;  // changes not saved (the title bar's dot)
+let edited = false; // the Editor's text is not what was last assembled: the Run side shows no machine
 let settings: Settings = { fontSize: 13, dataBase: 16 };
 let zoom = 0;                          // Ctrl+/-: this session only
 let assembledText: string | null = null; // the program the machine holds
@@ -82,12 +83,13 @@ const labels = new LabelMap();          // the program's, for Data
 let resumeWith: 'run' | 'step' = 'run';
 let congratsShown = false;             // once a session
 let errors: { message: AssemblerMessage; line: number }[] = [];
-let saveNote = '';
+let saveNote = '';     // what Ctrl+S did with the file: shown until the first step
+let saveWarn = false;  // ...and whether it is a warning (not saved)
 let note = '';                          // a one-off word in the status bar (breakpoints)
 let crashNote = '';
 let progress: { pc: number; instructions: number } | null = null;
 let lastReason: RunResult['reason'] = 'limit';
-let changedNow = '';
+let changedNow: string[] = []; // the registers the last step or run changed: the yellow rows
 let narrow = false;
 let view: 'editor' | 'run' = 'editor'; // narrow windows: the side on show
 let editorWidth: number | null = null; // px, from the splitter; null: the default share
@@ -111,7 +113,7 @@ function iconButton(title: string, ic: string, onClick: () => void): HTMLButtonE
 }
 
 const fileLabel = h('span', { class: 'file' });
-const bAssemble = button('Assemble', 'hammer', 'Ctrl+S', () => void saveAndAssemble());
+const bAssemble = button('Save & Assemble', 'hammer', 'Ctrl+S', () => void saveAndAssemble());
 const bRun = button('Run', 'play', 'F5', () => void runOrStop());
 const bStep = button('Step', 'step-forward', 'F10', () => void step());
 const bRestart = button('Reset', 'rotate-ccw', '', () => void restart());
@@ -165,7 +167,7 @@ const errorHead = panelHead('Errors');
 const errorBody = h('div', { class: 'pbody ebody' });
 const errorList = h('section', { class: 'panel errors', 'aria-label': 'Errors', hidden: true }, errorHead.root, errorBody);
 const editor = createEditor(editorHost, () => void saveAndAssemble(), () => {
-  if (!dirty) { dirty = true; renderChrome(); }
+  if (!dirty || !edited) { dirty = true; edited = true; renderChrome(); }
 }, (line, on) => void editorBreakpoint(line, on));
 const editorHead = panelHead('Editor');
 const editorPanel = h('section', { class: 'panel editor-panel', 'aria-label': 'Editor' }, editorHead.root, editorHost);
@@ -276,7 +278,7 @@ function buildRegisters(): void {
 }
 
 // The Run side shows the machine only while it holds the Editor's program.
-const machineShown = () => assembledText !== null && !dirty;
+const machineShown = () => assembledText !== null && !edited;
 
 function layout(): void {
   stageWelcome.hidden = open;
@@ -295,6 +297,13 @@ function layout(): void {
   const shown = machineShown();
   const showErrors = !shown && errors.length > 0;
   runGrid.hidden = !shown;
+  // The Registers' "Changed" tag (panels/registers.ts) where the Run side has
+  // that much room past what its panels need: taken from no one -- not the
+  // Editor (it has what the window gives it, up to 72 columns), not Text.
+  if (shown && regsTag > 0) {
+    const spare = runGrid.clientWidth - runLeast;
+    runGrid.style.setProperty('--regs-least', `${regsLeast + (spare >= regsTag ? regsTag : 0)}px`);
+  }
   errorList.hidden = !showErrors;
   placeholder.hidden = shown || showErrors;
   if (!shown && !showErrors) renderPlaceholder();
@@ -318,11 +327,15 @@ const editorMost = (): number => (editorPanel.offsetWidth - editorHost.clientWid
 
 // The Run side's width: what Registers and Text need (their panels say).
 let runLeast = 0;
+let regsLeast = 0; // Registers' least, and what their "Changed" tag adds to it
+let regsTag = 0;
 const fontPx = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fs')) || 13;
 function sizeRunSide(): void {
   if (!registers) return;
   const fs = fontPx();
   const r = registers.widths(fs);
+  regsLeast = r.least;
+  regsTag = r.tag;
   runGrid.style.setProperty('--regs-least', `${r.least}px`);
   runGrid.style.setProperty('--regs-most', `${r.most}px`);
   // Text needs its four columns; Data its four words and the ASCII column --
@@ -331,11 +344,11 @@ function sizeRunSide(): void {
 }
 
 function renderPlaceholder(): void {
-  const changed = assembledText !== null || (lastProgram !== null && dirty);
+  const changed = assembledText !== null || (lastProgram !== null && edited);
   const [title, body] = changed
     ? ['코드가 바뀌었습니다', '지금 실행되는 것은 고치기 전의 코드입니다. 다시 어셈블해서 고친 코드로 바꾸세요.']
     : ['아직 어셈블하지 않았습니다', '어셈블하면 여기에 레지스터와 명령, 콘솔 출력이 나옵니다.'];
-  const go = h('button', { class: 'btn primary', type: 'button' }, icon('hammer'), h('span', {}, 'Assemble'), h('kbd', {}, 'Ctrl+S'));
+  const go = h('button', { class: 'btn primary', type: 'button' }, icon('hammer'), h('span', {}, assembleName(false)), h('kbd', {}, 'Ctrl+S'));
   go.addEventListener('click', () => void saveAndAssemble());
   // The words first, then Haram at the far end from the Editor they are about.
   placeholder.replaceChildren(notice({ pose: 'guide', title, body, more: [h('div', { class: 'row' }, go)] }));
@@ -458,22 +471,35 @@ function showFileName(cols: number): void {
     open && dirty ? h('span', { class: 'dirty', title: 'Unsaved changes' }, ' •') : '');
 }
 
+// The Assemble button's name says what it does: Save & Assemble -- Ctrl+S
+// saves the file (a new one asks where to) and assembles it -- but only
+// Assemble for the tutorial's examples, which are never saved (the status
+// bar says so), and in a title bar too narrow for the long name (the
+// "short" step below; the tooltip still says Save & Assemble).
+const saves = (): boolean => !file.example;
+const assembleName = (short: boolean): string => (saves() && !short ? 'Save & Assemble' : 'Assemble');
+function nameAssemble(): void {
+  (bAssemble.querySelector('.label') as HTMLElement).textContent = assembleName(titlebar.classList.contains('short'));
+  bAssemble.title = saves() ? 'Save & Assemble (Ctrl+S)' : 'Assemble (Ctrl+S): 예제라서 저장하지 않습니다';
+}
+
 // The title bar gives way one step at a time, as far as it has to: the key
-// hints, the buttons' icons (their names stay), the speed as one button,
-// tighter spacing, the file's name (down to FILE_LEAST columns), and last
-// the program's name (the logo stays) -- the file's name then takes back
-// what the program's name left.
+// hints, the buttons' icons (their names stay), Save & Assemble's "Save &",
+// the speed as one button, tighter spacing, the file's name (down to
+// FILE_LEAST columns), and last the program's name (the logo stays) -- the
+// file's name then takes back what the program's name left.
 // It fits when its last item ends before the padding kept for the system's
 // caption buttons (scrollWidth does not count what spills into padding).
-const TITLE_STEPS = 4;
+const TITLE_STEPS = ['nokeys', 'noicons', 'short', 'onespeed', 'tighter'] as const;
 const tools = titlebar.querySelector('.tools') as HTMLElement;
 function fitTitlebar(): void {
   const end = () => titlebar.getBoundingClientRect().right - parseFloat(getComputedStyle(titlebar).paddingRight);
   const fits = () => tools.getBoundingClientRect().right <= end() + 0.5;
-  titlebar.classList.remove('c5');
+  titlebar.classList.remove('noapp');
   showFileName(FILE_MOST);
-  for (let level = 0; level <= TITLE_STEPS; level += 1) {
-    for (let k = 1; k <= TITLE_STEPS; k += 1) titlebar.classList.toggle(`c${k}`, level >= k);
+  for (let level = 0; level <= TITLE_STEPS.length; level += 1) {
+    TITLE_STEPS.forEach((step, k) => titlebar.classList.toggle(step, k < level));
+    nameAssemble();
     if (fits()) return;
   }
   // The longest name that fits, between FILE_LEAST and FILE_MOST columns.
@@ -491,10 +517,15 @@ function fitTitlebar(): void {
     return true;
   };
   if (longest()) return;
-  titlebar.classList.add('c5');
+  titlebar.classList.add('noapp');
   if (!longest()) showFileName(FILE_LEAST);
 }
 window.addEventListener('resize', () => fitTitlebar());
+// The room kept for the caption buttons (the padding's env(titlebar-area-*))
+// is updated after the resize and the layout: fit again then, or a window
+// made wider keeps the title bar it had when narrow.
+(navigator as unknown as { windowControlsOverlay?: EventTarget }).windowControlsOverlay
+  ?.addEventListener('geometrychange', () => fitTitlebar());
 
 function renderStatus(): void {
   const parts: (Node | string)[] = [];
@@ -506,15 +537,15 @@ function renderStatus(): void {
       parts.push(span('err', `오류 ${errors.length}개`));
       const e = errors[0];
       parts.push(span('', e.line ? `${e.line}행 · ` : '', withHex(e.message.message)));
-    } else parts.push(span('', dirty ? '고친 뒤 저장·어셈블 (Ctrl+S)' : '저장·어셈블 (Ctrl+S)'));
-    if (saveNote) parts.push(span('', saveNote));
+    } else parts.push(span('', !saves() ? '어셈블 (Ctrl+S)' : edited ? '고친 뒤 저장·어셈블 (Ctrl+S)' : '저장·어셈블 (Ctrl+S)'));
+    if (saveNote) parts.push(span(saveWarn ? 'warn' : '', saveNote));
   } else {
     const pc = lastRegs ? hex32(lastRegs.pc) : '';
     if (runState === 'running' && slow) {
       parts.push(span('run', '천천히 실행 중 (1 line/s)'));
       if (steps > 0) parts.push(span('', `${steps}단계`));
       if (pc) parts.push(span('', 'PC ', code(pc)));
-      if (changedNow) parts.push(span('', '방금 바뀜: ', code(changedNow)));
+      if (changedNow.length) parts.push(changedPart());
       parts.push(span('', '멈추려면 Esc · 빨리 가려면 Instant'));
     } else if (runState === 'running') {
       parts.push(span('run', '실행 중'));
@@ -523,14 +554,15 @@ function renderStatus(): void {
     } else {
       const reason = lastReason;
       if (runState === 'ready') parts.push(span('', code('F10'), ' Step · ', code('F5'), ' Run'));
+      if (runState === 'ready' && steps === 0 && saveNote) parts.push(span(saveWarn ? 'warn' : '', saveNote));
       else if (runState === 'finished') parts.push(span(reason === 'error' ? 'err' : 'ok', stopMessageFor(reason, pc)));
       else parts.push(span('run', codeText(stopMessage(reason, pc))));
       if (steps > 0 && runState !== 'finished') parts.push(span('', `${steps}단계`));
       if (runState !== 'finished' && reason !== 'limit' && pc) parts.push(span('', 'PC ', code(pc)));
-      if (changedNow) parts.push(span('', '방금 바뀜: ', code(changedNow)));
+      if (changedNow.length) parts.push(changedPart());
       if (selected >= 0) parts.push(span('', '고른 명령 ', code(hex32(selected))));
     }
-    if (dirty) parts.push(span('warn', '코드가 바뀌었습니다 — 다시 어셈블 (Ctrl+S)'));
+    if (edited) parts.push(span('warn', '코드가 바뀌었습니다 — 다시 어셈블 (Ctrl+S)'));
     else if (!sameAdvanced(advanced, applied)) parts.push(span('warn', '설정이 바뀌었습니다 — 다시 어셈블하면(Ctrl+S) 적용됩니다'));
   }
   if (note) parts.push(span('warn', note));
@@ -573,8 +605,9 @@ async function load(opened: { name: string; path: string | null; text: string; f
   editor.setText(opened.text);
   editor.setReadOnly(example !== undefined);
   dirty = false;
+  edited = false;
   errors = [];
-  saveNote = '';
+  [saveNote, saveWarn] = ['', false];
   crashNote = '';
   renderErrors();
   open = true;
@@ -591,7 +624,7 @@ async function newFile(): Promise<void> {
 }
 async function openFile(): Promise<void> {
   if (!(await mayReplace('open'))) return;
-  await load(await api.openFile().catch((e: Error) => { saveNote = e.message; renderChrome(); return null; }));
+  await load(await api.openFile().catch((e: Error) => { [saveNote, saveWarn] = [e.message, true]; renderChrome(); return null; }));
 }
 // ---- the tutorial ----------------------------------------------------------------------
 
@@ -683,12 +716,14 @@ const tutorial = new Tutorial({
       file.format = back.file.format;
       editor.setBreakpointLines(back.breakpoints);
       dirty = back.dirty;
+      edited = back.dirty;
     } else {
       open = false;
       file = { name: UNTITLED, path: null, format: null };
       editor.setReadOnly(false);
       editor.setText('');
       dirty = false;
+      edited = false;
       errors = [];
       renderErrors();
     }
@@ -717,6 +752,7 @@ async function saveAndAssemble(): Promise<boolean> {
   if (busy || !open) return false;
   const source = editor.text();
   saveNote = '';
+  saveWarn = false;
   if (file.example) {
     saveNote = '예제라서 저장하지 않습니다';
     return assemble(source, false);
@@ -728,9 +764,9 @@ async function saveAndAssemble(): Promise<boolean> {
       file.name = saved.name;
       dirty = editor.text() !== source; // typed on while the dialog was up
       saveNote = '저장됨';
-    } else saveNote = '저장하지 않음 (어셈블은 했습니다)';
+    } else [saveNote, saveWarn] = ['저장하지 않음 (어셈블은 했습니다)', true];
   } catch (e) {
-    saveNote = (e as Error).message;
+    [saveNote, saveWarn] = [(e as Error).message, true];
   }
   return assemble(source, false);
 }
@@ -752,10 +788,11 @@ async function assemble(source: string, again: boolean): Promise<boolean> {
       return false; // the process died (a .err directive): onCrashed says so
     }
     crashNote = '';
+    edited = editor.text() !== source; // typed on while it assembled
     consolePanel.clear();
     steps = 0;
     progress = null;
-    changedNow = '';
+    changedNow = [];
     lastReason = 'limit';
     const lines = source.split('\n');
     errors = r.ok ? [] : r.errors.map((raw) => {
@@ -872,7 +909,7 @@ function renderErrors(): void {
 // Before F5 or F10: the program on screen has to be the one in the machine.
 async function ready(): Promise<boolean> {
   if (busy) return false;
-  if (assembledText === null || dirty) {
+  if (assembledText === null || edited) {
     if (!open) return false;
     return saveAndAssemble();
   }
@@ -925,7 +962,7 @@ async function go(call: () => Promise<RunResult>): Promise<RunResult | null> {
     // A slow run between two of its steps is still running.
     runState = slow && result.reason === 'limit' ? 'running' : stateAfter(result.reason);
     registers?.update(now, before);
-    changedNow = changedKey(before, now);
+    changedNow = [...changedKeys(before, now)];
     lastRegs = now;
     text.setPc(now.pc);
     showInspector();
@@ -991,12 +1028,13 @@ async function setSpeed(next: 'fast' | 'slow'): Promise<void> {
   else await api.stop();                // run() then goes on with runSlow()
 }
 
-function changedKey(before: RegisterValues | null, now: RegisterValues): string {
-  if (!before) return '';
-  for (let n = 0; n < 32; n += 1) if (before.general[n] !== now.general[n]) return generalRegisterName(n);
-  if (before.hi !== now.hi) return 'HI';
-  if (before.lo !== now.lo) return 'LO';
-  return '';
+// The status bar's name for the yellow rows, in their yellow: where the
+// Registers panel has no room for its "Changed" tag, this is what says what
+// a yellow row is.  Three names at most, then how many more.
+function changedPart(): HTMLElement {
+  const names = changedNow.slice(0, 3).flatMap((key, i) => (i ? [', ', code(key)] : [code(key)]));
+  const more = changedNow.length > 3 ? ` 외 ${changedNow.length - 3}개` : '';
+  return h('span', { class: 'changed' }, '방금 바뀜: ', ...names, more);
 }
 
 async function stop(): Promise<void> {
@@ -1008,6 +1046,7 @@ async function stop(): Promise<void> {
 
 async function restart(): Promise<void> {
   if (busy || lastProgram === null) return;
+  [saveNote, saveWarn] = ['', false]; // Reset saves nothing
   await assemble(lastProgram, true);
   emit({ kind: 'reset' });
 }

@@ -71,6 +71,18 @@ function fitting(width: number, columns: readonly Column[], drops: readonly (rea
   return last!;
 }
 
+// A badge beside the columns (Registers' "Changed" on the yellow row),
+// wherever the width has room for it: the roomiest style it fits in with the
+// columns `f` shows.  Never in place of a column, never at the cost of the
+// font's pixel (the smaller style), never when the columns overflow; null
+// when there is no room.
+export function badgeStyle(width: number, columns: readonly Column[], f: Fit, badge: Column, ch: number,
+                           all: readonly Style[]): Style | null {
+  if (f.overflow) return null;
+  const shown = [...columns.filter((c) => !f.hidden.has(c.key)), badge];
+  return all.find((style) => style.scale === 1 && needed(shown, style, ch) <= width) ?? null;
+}
+
 // The roomiest style `shown` fits in; the tightest if none does.
 function best(width: number, shown: readonly Column[], hidden: Set<string>, ch: number, all: readonly Style[]): Fit {
   for (const style of all) {

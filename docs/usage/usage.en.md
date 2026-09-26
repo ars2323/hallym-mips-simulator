@@ -20,7 +20,7 @@ students get stuck at section 2, the Windows warning.
 8. [Keys](#keys)
 9. [The previous version (1.x)](#the-previous-version-1x)
 
-The program's screens use English names (Editor, Registers, Assemble …) and
+The program's screens use English names (Editor, Registers, Save & Assemble …) and
 speak to you in Korean; this guide quotes the Korean where you will see it.
 
 ---
@@ -177,15 +177,15 @@ With a file open, the **Editor** is on the left and the **Run** side on the righ
 
 | Name | What |
 |---|---|
-| **Toolbar** | **Assemble** (Ctrl+S) · **Run** (F5; **Stop** while running) · **Run speed** (Instant / 1 line/s) · **Step** (F10) · **Reset**. At the right: the tutorial (?) · new file · open file · settings |
+| **Toolbar** | **Save & Assemble** (Ctrl+S: saves, then assembles; **Assemble** on the tutorial's examples, which are never saved, and in a narrow window) · **Run** (F5; **Stop** while running) · **Run speed** (Instant / 1 line/s) · **Step** (F10) · **Reset**. At the right: the tutorial (?) · new file · open file · settings |
 | **Editor** | Where you write assembly. Clicking the column left of the line numbers sets a **breakpoint** (a red dot). While a program runs, the line about to run has a **blue band** |
-| **Registers** | The 32 registers and PC, HI, LO, grouped by use (Arguments, Temporaries, Saved …). The register that just changed is a **yellow row**. **Hex** · **Dec** · **Bin** are the same value in hexadecimal, decimal and binary |
+| **Registers** | The 32 registers and PC, HI, LO, grouped by use (Arguments, Temporaries, Saved …). The register that just changed is a **yellow row** (in a wide window with a **Changed** tag at its end); the status bar names it too, in the same yellow (*방금 바뀜*, just changed). **Hex** · **Dec** · **Bin** are the same value in hexadecimal, decimal and binary |
 | **Text** | The assembled machine instructions: **Address** · **Encoding** (the 32 bits in hex) · **Format** (R/I/J) · **Instruction**. A source line that became several instructions has several rows. Clicking a row shows that instruction in the Inspector |
 | **Data** | The tab next to Text. Memory (what you wrote in `.data`, the stack) in 4-byte words, four to a row; label names above their addresses, and where `$sp` and `$gp` point. A run of zero words is one line. The **ASCII** column shows the same bytes as characters (in a narrow window it is turned on with **+ ASCII**) |
 | **Inspector** | One instruction taken apart into its 32 bits: opcode · rs · rt · rd … in colours per field, each field's value and meaning, and one sentence (in Korean) saying what the instruction does |
 | **Console** | Your program's output (syscalls). A syscall that reads input shows an input field here. While there is no output it is only as tall as its one-line note; it grows when output comes |
 | **Errors** | Shown on the Run side when assembly fails: first what is wrong and what to do, then each wrong line with a hint, and a **N행으로 가기** (go to line N) button |
-| **Status bar** | At the bottom: what just happened (e.g. *한 줄 실행했습니다*, one line run; *브레이크포인트에서 멈췄습니다*, stopped at a breakpoint), the step count, the register that just changed |
+| **Status bar** | At the bottom: what just happened (e.g. *한 줄 실행했습니다*, one line run; *브레이크포인트에서 멈췄습니다*, stopped at a breakpoint), the step count, the registers that just changed (in yellow, *방금 바뀜: …*); after Ctrl+S, whether the file was saved (*저장됨*, saved; *예제라서 저장하지 않습니다*, an example: not saved) |
 
 In a narrow window (a laptop with a large display scale, for example), the
 Editor and the Run side are shown one at a time; switch with the **Editor | Run**
@@ -219,8 +219,8 @@ border puts it back.
 
    An existing file opens with **open file** (Ctrl+O).
 
-2. Press **Ctrl+S**: it saves and assembles in one go (the first time, it asks
-   where to save). When it succeeds, Registers, Text, the Inspector and the
+2. Press **Ctrl+S** (or the toolbar's **Save & Assemble**): it saves and assembles in one go (the first time, it asks
+   where to save; closing that window assembles without saving). When it succeeds, Registers, Text, the Inspector and the
    Console appear on the right; when it fails, **Errors** does
    ([where students get stuck](#where-students-get-stuck)).
 3. Each **F10** (Step) runs one line. The blue band in the Editor is the line
@@ -263,7 +263,7 @@ line with an instruction. A breakpoint set before assembling takes effect at
 the next assemble (Ctrl+S); one set after assembling takes effect at once.
 
 **The right side is empty / *아직 어셈블하지 않았습니다* (not assembled yet)** —
-press **Ctrl+S** (or **Assemble**).
+press **Ctrl+S** (or **Save & Assemble**).
 
 **코드가 바뀌었습니다 (the code has changed)** — you edited the code after
 assembling it; **Ctrl+S** assembles it again.

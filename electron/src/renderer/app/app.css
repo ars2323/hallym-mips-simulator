@@ -91,21 +91,22 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .speedlabel { font-size: 12px; color: var(--text-2); white-space: nowrap; }
 .titlebar .speedone { display: none; }
 /* A narrow title bar gives way in steps (app.ts fitTitlebar): key hints,
-   the buttons' icons, the speed as one button, tighter spacing, the file's
-   name (app.ts, down to ten columns), and only then the program's name.
-   The buttons keep their names throughout. */
-.titlebar.c1 .btn kbd { display: none; }
-.titlebar.c2 .toolbar .btn img { display: none; }
-.titlebar.c2 .toolbar .btn { padding: 0 9px; }
-.titlebar.c2 .toolbar { gap: 4px; }
-.titlebar.c3 .speedlabel, .titlebar.c3 .speed { display: none; }
-.titlebar.c3 .speedone { display: inline-flex; }
-.titlebar.c4 { gap: 3px; }
-.titlebar.c4 .viewswitch button { padding: 2px 6px; }
-.titlebar.c4 .iconbtn { width: 24px; }
-.titlebar.c4 .toolbar .btn { padding: 0 7px; }
-.titlebar.c4 .drag { min-width: 4px; }
-.titlebar.c5 .appname { display: none; }
+   the buttons' icons, Save & Assemble's "Save &" (app.ts, the text), the
+   speed as one button, tighter spacing, the file's name (app.ts, down to
+   ten columns), and only then the program's name.  The buttons keep their
+   names throughout (Save & Assemble its last word). */
+.titlebar.nokeys .btn kbd { display: none; }
+.titlebar.noicons .toolbar .btn img { display: none; }
+.titlebar.noicons .toolbar .btn { padding: 0 9px; }
+.titlebar.noicons .toolbar { gap: 4px; }
+.titlebar.onespeed .speedlabel, .titlebar.onespeed .speed { display: none; }
+.titlebar.onespeed .speedone { display: inline-flex; }
+.titlebar.tighter { gap: 3px; }
+.titlebar.tighter .viewswitch button { padding: 2px 6px; }
+.titlebar.tighter .iconbtn { width: 24px; }
+.titlebar.tighter .toolbar .btn { padding: 0 7px; }
+.titlebar.tighter .drag { min-width: 4px; }
+.titlebar.noapp .appname { display: none; }
 
 /* ---- status bar --------------------------------------------------------- */
 .status { display: flex; align-items: center; gap: 16px; padding: 0 12px; font-size: 12px; color: var(--text-2); background: var(--white); border-top: 1px solid var(--border); white-space: nowrap; overflow: hidden; }
@@ -113,6 +114,11 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .status .run { color: var(--blue); font-weight: 600; }
 .status .ok { color: var(--teal-text); font-weight: 600; }
 .status .warn { color: var(--amber-text); }
+/* "방금 바뀜: $t1" in the yellow row's own colours: what a yellow row is,
+   where the Registers panel has no room for its "Changed" tag. */
+.status .changed { color: var(--changed-text); background: var(--changed); box-shadow: inset 3px 0 0 var(--changed-bar);
+  padding: 1px 7px 1px 9px; border-radius: 3px; line-height: 16px; }
+.status .changed .mono { font-weight: 700; }
 
 /* ---- the one panel and its head ----------------------------------------- */
 .panel { background: var(--white); border: 1px solid var(--border); border-radius: 8px; display: flex; flex-direction: column; min-height: 0; min-width: 0; overflow: hidden; }
@@ -126,7 +132,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .pmeta { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .paside { display: flex; align-items: center; gap: 6px; flex: none; }
 .paside:empty { display: none; }
-.pmeta + .paside { padding-left: 10px; border-left: 1px solid var(--border); }
+.pmeta:not([hidden]) + .paside { padding-left: 10px; border-left: 1px solid var(--border); }
 .hbtn { height: 24px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--white); color: var(--text-2); font-size: 12px; white-space: nowrap; }
 .hbtn:hover { background: var(--hover); color: var(--navy); }
 .hbtn.on { background: var(--blue-tint); border-color: var(--blue-tint2); color: var(--navy); font-weight: 600; }

@@ -5,10 +5,14 @@
    cost.
 
    What to look at first:
-     - the register that just changed: a yellow row with a bar (and a
-       "Changed" tag where there is room), flashed once when it changes; it
-       lifts at the next step.  After a step the list scrolls to it, unless
-       the student is scrolling it (dom.ts userScrolls);
+     - the register that just changed: a yellow row with a bar, flashed
+       once when it changes, and its own "Changed" tag wherever the panel
+       has the room (logic/columns.ts badgeStyle; the layout gives the
+       panel that room first when the Run side has it, app.ts layout) --
+       the panel's head carries no legend; where the tag does not fit, the
+       status bar says "방금 바뀜: …" in the same yellow.  It lifts at the
+       next step.  After a step the list scrolls to it, unless the student
+       is scrolling it (dom.ts userScrolls);
      - its value in hexadecimal (the strongest column); decimal quieter,
        binary quietest;
      - groups as bands (Special, Constant, Return values, Arguments,
@@ -22,7 +26,7 @@
    the head ("+ Bin"). */
 
 import { cells, changedKeys, registerRows, type RegisterValues } from '../logic/machine.ts';
-import { fit, needed, styles, type Column, type Fit } from '../logic/columns.ts';
+import { badgeStyle, fit, needed, styles, type Column, type Fit } from '../logic/columns.ts';
 import { code, h, monoCh, userScrolls } from '../dom.ts';
 import { perf } from '../perf.ts';
 import { columnButton, panelHead, type Head } from '../ui.ts';
@@ -30,7 +34,7 @@ import { columnButton, panelHead, type Head } from '../ui.ts';
 interface Row { el: HTMLElement; hex: HTMLElement; dec: HTMLElement; bin: HTMLElement; last: string; flags: string }
 
 const COLUMNS: Column[] = [{ key: 'rn', ch: 7 }, { key: 'hex', ch: 10.5 }, { key: 'dec', ch: 10.5 }, { key: 'bin', ch: 28.5 }];
-const TAG: Column = { key: 'tag', px: 62 };
+const TAG: Column = { key: 'tag', px: 56 }; // the badge: "Changed" at 10.5 px, 6 px either side (app.css .rrow .tag)
 const DROPS = [['dec'], ['bin']];
 const NAMES: Record<string, string> = { dec: 'Dec', bin: 'Bin' };
 // Padding and border (left and right together) and the gap between columns.
@@ -83,7 +87,6 @@ export class RegisterPanel {
     };
     setFold(false);
     this.head = panelHead('Registers');
-    this.head.setMeta('노란 줄은 방금 바뀐 레지스터');
     this.root = h('section', { class: 'panel regs', 'aria-label': 'Registers' }, this.head.root, this.list, fold);
     this.scrolledByStudent = userScrolls(this.list);
     new ResizeObserver(() => this.fit()).observe(this.list);
@@ -91,12 +94,15 @@ export class RegisterPanel {
   }
 
   // The width the panel wants: all of Hex, Dec and Bin with tight margins
-  // (`least`), and with room to spare (`most`).  Scroll bar and border in.
-  widths(fontPx: number): { least: number; most: number } {
+  // (`least`), and with room to spare (`most`); `tag`, what the "Changed"
+  // tag adds to the least.  Scroll bar and border in.
+  widths(fontPx: number): { least: number; most: number; tag: number } {
     const ch = monoCh(fontPx);
     const [normal, tight] = styles(NORMAL, TIGHT, fontPx);
     const chrome = (this.list.offsetWidth - this.list.clientWidth || 12) + 2;
-    return { least: Math.ceil(needed(COLUMNS, tight, ch) + chrome), most: Math.ceil(needed([...COLUMNS, TAG], normal, ch) + chrome) };
+    const least = Math.ceil(needed(COLUMNS, tight, ch) + chrome);
+    return { least, most: Math.ceil(needed([...COLUMNS, TAG], normal, ch) + chrome),
+             tag: Math.ceil(needed([...COLUMNS, TAG], tight, ch) + chrome) - least };
   }
 
   // Columns and style for the width the panel has now.
@@ -107,11 +113,14 @@ export class RegisterPanel {
     const ch = monoCh(fontPx);
     const all = styles(NORMAL, TIGHT, fontPx);
     const f = fit(width, COLUMNS, DROPS, this.forced, ch, all);
-    const tag = f.style.name === 'normal' && f.hidden.size === 0 && needed([...COLUMNS, TAG], all[0], ch) <= width;
+    // The "Changed" tag wherever it fits beside the columns the width keeps
+    // (tighter margins for it, but never a column or the font's pixel).
+    const withTag = badgeStyle(width, COLUMNS, f, TAG, ch, all);
+    const tag = withTag !== null;
     const cols = COLUMNS.filter((c) => !f.hidden.has(c.key));
     const template = cols.map((c) => `${c.ch}ch`).join(' ') + (tag ? ` ${TAG.px}px` : '') + ' minmax(0, 1fr)';
     this.root.style.setProperty('--rcols', template);
-    this.root.dataset.style = f.style.name;
+    this.root.dataset.style = (withTag ?? f.style).name;
     for (const key of ['dec', 'bin']) this.root.classList.toggle(`hide-${key}`, f.hidden.has(key));
     this.root.classList.toggle('hide-tag', !tag);
     this.root.classList.toggle('overflow', f.overflow);

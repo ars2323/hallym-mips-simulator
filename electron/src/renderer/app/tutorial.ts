@@ -551,7 +551,7 @@ export const STEPS: Step[] = [
     prepare: async (t) => { if (t.host.running()) await t.host.stop(); } },
   { kind: 'practice', file: 'tutorial.s', keys: ['Ctrl+S'],
     title: () => 'Assemble: 코드를 기계어로',
-    body: () => '쓴 코드를 기계어로 바꾸는 것이 어셈블입니다. Assemble 버튼을 누르거나 Ctrl+S 키를 눌러 보세요. 어셈블이 끝나면 오른쪽 Run 쪽이 켜지고 다음 단계로 넘어갑니다.',
+    body: () => '쓴 코드를 기계어로 바꾸는 것이 어셈블입니다. Assemble 버튼을 누르거나 Ctrl+S 키를 눌러 보세요. 내 파일에서는 이 버튼이 저장도 함께 합니다(Save & Assemble 버튼). 어셈블이 끝나면 오른쪽 Run 쪽이 켜지고 다음 단계로 넘어갑니다.',
     targets: () => [button('assemble')],
     done: (_t, s) => (s.kind === 'assembled' && s.ok ? 'next' : null),
     skip: async (t) => { await t.host.assemble(); } },

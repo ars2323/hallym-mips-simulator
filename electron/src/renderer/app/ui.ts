@@ -17,7 +17,7 @@ export interface Head {
 }
 
 function head(cls: string, left: Node): Head {
-  const meta = h('span', { class: 'pmeta' });
+  const meta = h('span', { class: 'pmeta', hidden: true }); // no note: nothing, not even its divider
   const aside = h('span', { class: 'paside' });
   const root = h('div', { class: `phead ${cls}` }, left, h('span', { class: 'pgrow' }), meta, aside);
   let empty = true;

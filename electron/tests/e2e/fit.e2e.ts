@@ -3,8 +3,13 @@
      Instruction, at 1280x800, on a lab PC (1366x768 at 125%: 1093x582),
      at 1024x768 and at 1366x768 at 150% (910x505, the Run tab);
    - a column the width takes away comes back from the panel's head;
-   - the toolbar's buttons keep their names, the speed says what it is,
-     and the first screen has no toolbar;
+   - the toolbar's buttons keep their names (Save & Assemble its last
+     word, in a narrow title bar), the speed says what it is, and the first
+     screen has no toolbar;
+   - the yellow Registers row says what it is: its own "Changed" tag where
+     the panel has the room (from a 1524 px window on; the maximised 1920
+     screen), the status bar's "방금 바뀜: …" at every width -- the panel's
+     head carries no legend;
    - no Korean word is broken across two lines;
    - a file's name is never followed by a particle;
    - the Editor has no band for the cursor, only the line of PC;
@@ -30,6 +35,36 @@ async function lab04(r: Running, steps = 16): Promise<void> {
   for (let i = 0; i < steps; i += 1) { await r.page.keyboard.press('F10'); await settled(r.page); }
 }
 
+// The Assemble button's name as the title bar shows it: Save & Assemble,
+// or Assemble where "Save &" has given way (the "short" step).
+async function assembleNamed(page: Page, where: string): Promise<void> {
+  const short = (await page.locator('.titlebar.short').count()) === 1;
+  await expect(page.locator('.toolbar .btn[data-tut="assemble"] .label'), where).toHaveText(short ? 'Assemble' : 'Save & Assemble');
+  for (const name of ['Run', 'Step', 'Reset']) {
+    await expect(page.locator('.toolbar .btn .label', { hasText: new RegExp(`^${name}$`) }), where).toBeVisible();
+  }
+}
+
+// What says what the yellow row is: its own "Changed" tag, or the status
+// bar's "방금 바뀜: …" (in the same yellow) -- each whole on screen.
+async function yellowSaid(page: Page): Promise<{ tag: boolean; status: boolean }> {
+  return page.evaluate(() => {
+    const within = (e: HTMLElement | null, box: { left: number; right: number; top: number; bottom: number }) => {
+      if (!e || !e.checkVisibility()) return false;
+      const r = e.getBoundingClientRect();
+      return r.width > 0 && r.left >= box.left - 0.5 && r.right <= box.right + 0.5 && r.top >= box.top - 0.5 && r.bottom <= box.bottom + 0.5;
+    };
+    const list = document.querySelector('.regs-list') as HTMLElement;
+    const l = list.getBoundingClientRect();
+    const status = document.querySelector('.status') as HTMLElement;
+    const s = status.getBoundingClientRect();
+    return {
+      tag: within(document.querySelector('.rrow.chg .tag'), { left: l.left, right: l.left + list.clientWidth, top: l.top, bottom: l.bottom }),
+      status: within(status.querySelector('.changed'), { left: s.left, right: s.right - parseFloat(getComputedStyle(status).paddingRight), top: s.top, bottom: s.bottom }),
+    };
+  });
+}
+
 const shown = (page: Page, selector: string) =>
   page.locator(selector).evaluateAll((els) => els.filter((e) => e.checkVisibility()).map((e) => e.textContent));
 const whole = (page: Page, selector: string) =>
@@ -48,10 +83,13 @@ for (const size of SIZES) {
       expect(await whole(page, '.rrow[data-reg="$t6"] .bin')).toBe(true);
       expect(await whole(page, '.rrow[data-reg="$t6"] .dec')).toBe(true);
 
-      for (const name of ['Assemble', 'Run', 'Step', 'Reset']) {
-        await expect(page.locator('.toolbar .btn .label', { hasText: new RegExp(`^${name}$`) })).toBeVisible();
-      }
+      await assembleNamed(page, size.name);
       await expect(page.locator('.titlebar .appname'), 'the program\'s name gives way last').toBeVisible();
+      // The yellow row says what it is; the panel's head has no legend.
+      const said = await yellowSaid(page);
+      console.log(`[${size.name}] the yellow row: tag ${said.tag}, status bar ${said.status}`);
+      expect(said.status, 'the status bar names the yellow row, whole').toBe(true);
+      await expect(page.locator('.regs .phead .pmeta')).toBeHidden();
       expect(await shown(page, '.speedlabel, .speedone .label')).toEqual([expect.stringMatching(/^(Run speed|Speed: Instant)$/)]);
       // Nothing of ours under the system's caption buttons.
       expect(await page.evaluate(() => {
@@ -106,7 +144,8 @@ for (const size of SIZES) {
 // Again with the caption buttons 30 px wider, as on Windows (on Windows
 // itself the real ones already are).
 const LONG = 'lab04_김학현_20210123.s';
-for (const size of SIZES) {
+const MAXIMISED = { name: 'maximised 1920 (1920x1040)', width: 1920, height: 1040 };
+for (const size of [...SIZES, MAXIMISED]) {
   test(`${size.name}: a long file name gives way before the program's name`, async () => {
     const r = await launch(size);
     const { page } = r;
@@ -128,8 +167,10 @@ for (const size of SIZES) {
             const o = (navigator as unknown as { windowControlsOverlay: { getTitlebarAreaRect(): DOMRect } }).windowControlsOverlay.getTitlebarAreaRect();
             return document.querySelector('.titlebar .tools')!.getBoundingClientRect().right <= o.x + o.width - x + 0.5;
           }, extra), `${where}: under the caption buttons`).toBe(true);
-          for (const label of ['Assemble', 'Run', 'Step', 'Reset']) {
-            await expect(page.locator('.toolbar .btn .label', { hasText: new RegExp(`^${label}$`) }), where).toBeVisible();
+          await assembleNamed(page, where);
+          // The long name where there is room: the maximised screen, and 1280 with a short file name.
+          if (size === MAXIMISED || (size.width === 1280 && name === 'lab04.s')) {
+            await expect(page.locator('.toolbar .btn[data-tut="assemble"] .label'), where).toHaveText('Save & Assemble');
           }
         }
       }
@@ -314,6 +355,42 @@ test('1920x1040: the Editor stops at 72 columns; Source whole, the bit grid full
     await page.keyboard.insertText(`\n#${'abcdefghij'.repeat(7)}k`);
     const scroll = await page.evaluate(() => { const s = document.querySelector('.cm-scroller') as HTMLElement; return { w: s.scrollWidth, c: s.clientWidth }; });
     expect(scroll.w, '72 columns without scrolling sideways').toBeLessThanOrEqual(scroll.c);
+  } finally {
+    await r.close();
+  }
+});
+
+// The "Changed" tag on the yellow row itself where the Run side has the room
+// for it past what its panels need (a 1524 px window on): 1920x1080 at 125 %
+// and the maximised 1920 screen.  The status bar names it all the same.
+for (const size of [{ name: '1536x864 (1920x1080 at 125%)', width: 1536, height: 864 }, MAXIMISED]) {
+  test(`${size.name}: the yellow row carries its own "Changed" tag`, async () => {
+    const r = await launch(size);
+    try {
+      await lab04(r, 3);
+      const said = await yellowSaid(r.page);
+      expect(said, size.name).toEqual({ tag: true, status: true });
+      await expect(r.page.locator('.regs .phead .pmeta')).toBeHidden();
+    } finally {
+      await r.close();
+    }
+  });
+}
+
+// After a run many rows are yellow: the status bar names three and says how
+// many more, whole, in the narrowest window (910, the Run tab).
+test('a run: the status bar names the yellow rows, three and how many more, at 910', async () => {
+  const r = await launch({ width: 910, height: 505 });
+  const { page } = r;
+  try {
+    await openAndAssemble(r, sample(r.dir, 'tests/samples/lab04-ok.s', 'lab04.s'));
+    await side(page, 'Run');
+    await page.keyboard.press('F5');
+    await settled(page);
+    const yellow = await page.locator('.rrow.chg').count();
+    expect(yellow).toBeGreaterThan(3);
+    await expect(page.locator('.status .changed')).toHaveText(new RegExp(`^방금 바뀜: \\S+, \\S+, \\S+ 외 ${yellow - 3}개$`));
+    expect((await yellowSaid(page)).status).toBe(true);
   } finally {
     await r.close();
   }

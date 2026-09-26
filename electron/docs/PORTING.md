@@ -1106,3 +1106,79 @@ tag the same case is an error: the tag's version must be newer than the latest r
 
 Rolling back is in `docs/WINDOWS.md` ("Rolling back a release"), written for any version.
 
+
+---
+
+## 24. The yellow row names itself; Save & Assemble
+
+**No legend in the Registers head.** "노란 줄은 방금 바뀐 레지스터" sat in the panel's head, away from what it
+explained. It went; the head's place stays empty (a note-less head has no divider either, `ui.ts`). The yellow row
+says what it is by itself, with its "Changed" tag, and where the panel has no room for the tag the status bar says
+it: "방금 바뀜: …" in the row's own yellow and bar (`.status .changed`), naming every register the last step or run
+changed — three, then "외 N개" (after a run many rows are yellow; the status bar used to name the first only).
+
+**Where the tag fits.** It used to show only with the roomiest margins and nothing given up, which Registers get from
+a 1708 px window on. Now (`logic/columns.ts` `badgeStyle`) it shows wherever it fits beside the columns the width
+keeps, with the tight margins if need be — never in place of a column, never at the cost of the font's pixel — and
+the layout gives Registers the tag's 62 px (the badge, 56, and a gap) first, when the Run side has that much past
+what its panels need (`app.ts` layout). It is taken from no one: not the Editor, which has what the window gives it
+up to 72 columns, not Text. So the tag shows from a 1524 px window on (1920×1080 at 125 %, 1536, has it; the
+maximised 1920 screen has it with the roomy margins). Below 1524 there is not a pixel for it:
+
+| Window | Editor | Run grid (its panels want 852) | Registers' list | What says what the yellow row is |
+|---|---|---|---|---|
+| 1920×1040, maximised | 586 (72 columns) | 1310 | 486 | the tag and the status bar |
+| 1536×864 | 586 | 926 | 462 | the tag and the status bar |
+| 1280×800 | 404 | 852 | 400 | the status bar |
+| 1093×582 | 300 (its least) | 769 | 400 | the status bar |
+| 1024×728 | 300 | 700 | 400 | the status bar |
+| 910×505 (the Run tab) | — | 894 | 400 | the status bar |
+
+At the four course widths the list is 400 px and Name, Hex, Dec and Bin with the tight margins take 399.25 of them.
+The tag there would cost a column the course needs or someone's width: at 1280 the Editor's (404 → 342 px); at 1093
+and 1024 the Run side is already 83 and 152 px short of what its panels want (Text gives up columns, Data scrolls
+sideways at 1024); at 910 (the Run tab) 42 px are spare, and the tag needs 62. The status bar is the whole window wide, and
+`tests/e2e/fit.e2e.ts` checks at each width that its "방금 바뀜: …" is whole on screen, and at 1536 and 1920 that the
+tag is.
+
+**Save & Assemble.** The button saves and assembles, and its key is Ctrl+S; "Assemble" said half of it. It is now
+Save & Assemble where it saves, and Assemble where it does not:
+
+| The file | The button | Pressing it |
+|---|---|---|
+| on disk (opened, or saved before) | Save & Assemble | saves it in place, assembles; the status bar: "저장됨" |
+| new, never saved (`untitled.s`) | Save & Assemble | asks where to save it (the system's dialog), saves, assembles; the dialog closed: assembles all the same, "저장하지 않음 (어셈블은 했습니다)" |
+| a tutorial example (read-only) | Assemble | assembles; "예제라서 저장하지 않습니다"; the tooltip says so too |
+
+The Run side's placeholder button takes the same name, and the status bar's hint before the first assemble is
+"어셈블 (Ctrl+S)" for an example ("저장·어셈블 (Ctrl+S)" otherwise). What Ctrl+S did with the file is now in the
+status bar after a clean assemble as well, until the first step (it was shown only beside errors).
+`tests/e2e/assemble.e2e.ts` checks the three and the narrow title bar; the tutorial's step 2 card says what the button
+is on the student's own files ("내 파일에서는 이 버튼이 저장도 함께 합니다(Save & Assemble 버튼)").
+
+**A cancelled save.** A new file whose save dialog was closed was assembled, but the window then said "코드가
+바뀌었습니다" and hid the machine, and F10 asked for the file's place again instead of stepping: one flag, `dirty`,
+meant both "not saved" and "not what was assembled". They are two now: `dirty` (the title bar's dot, the question
+before another file replaces it) and `edited` (the Run side's machine, "코드가 바뀌었습니다", F5 and F10
+assembling first).
+
+**The title bar.** "Save & " is 43 px. It gives way in the title bar's chain after the key hints and the buttons'
+icons, before the speed turns into one button and the spacing tightens (`app.ts` TITLE_STEPS, named classes now:
+nokeys, noicons, short, onespeed, tighter; the program's name, last, noapp); the tooltip keeps the whole name. At 910
+nothing changes from 2.1.0 (the name is short there, as the rest already gave way). Room left after the chain, in px,
+lab04.s / a twenty-column name with Hangul (lab04_김학현_20210123.s); "+30": the caption buttons 30 px wider, as on
+Windows:
+
+| Window | lab04.s | +30 | long name | long name, +30 |
+|---|---|---|---|---|
+| 1920×1040 | 768 (Save & Assemble, everything) | 738 | 664 | 634 |
+| 1280×800 | 128 (Save & Assemble, everything) | 98 | 24 | 73 (no key hints) |
+| 1093×582 | 20 (Save & Assemble, no key hints) | 94 (and no icons) | 20 (no key hints, icons) | 33 (Assemble; the speed switch whole) |
+| 1024×728 | 55 (Save & Assemble, no hints, icons) | 25 | 88 (Assemble, one speed button) | 58 |
+| 910×505 | 59 (Assemble, all steps) | 29 | 0.5 (the name cut: lab04_김학현_….s) | 3 (lab04_김….s) |
+
+"Hallym MIPS" stays everywhere; nothing runs under the caption buttons (`fit.e2e.ts`, now with the maximised 1920
+too). And a window made wider kept the title bar it had when narrow: the room kept for the caption buttons (the
+padding's `env(titlebar-area-*)`) is updated only after the resize and the layout, so the title bar is fitted again
+on the overlay's `geometrychange` (seen when the test for the name widened a 910 window to 1280: 392 px free, the
+name still short).
