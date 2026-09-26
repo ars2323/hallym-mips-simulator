@@ -1,6 +1,6 @@
 # Windows — what was confirmed and what to check by hand
 
-What has been run on Windows is GitHub Actions' `windows-latest` (Windows Server 2025, English, administrator account, screen 1024×768).
+What has been run on Windows is GitHub Actions' `windows-latest` (Windows Server 2025, English, administrator account). Its screen starts at 1024×768; the workflow's first step sets it to 1920×1080, the students' size (`tools/windows/screen-1920.ps1`: `Set-DisplayResolution -Width 1920 -Height 1080 -Force`, with `ChangeDisplaySettings` as a fallback; the result is in `report/screen.txt`). It has worked since it was added: the adapter (Microsoft Hyper-V Video) offers 1920×1080, and the e2e against the installed app, the 1920 layout test among them, and the screen captures run on it. If a run reports another size, the 1920 test still runs (a window can be wider than the screen), but `windows-frame.png` is then not the maximised 1920 layout: check that layout by hand on a 1920×1080 PC (item 12 below).
 Workflow: `.github/workflows/electron.yml` at the repository root (it runs for changes under `electron/` or `CPU/`). Every run uploads the installer as an **artifact**; a release is made from it by hand.
 
 | File | Size |
@@ -83,7 +83,7 @@ in `%APPDATA%\HallymMIPS2`; 2.0.0 removes that folder when it starts, so an upgr
   The button text follows the OS language (OK/Cancel on English Windows).
 
 Captures: `report/probe/dialog-save.png` and `dialog-open.png` in the CI artifact `windows-report`;
-the fixed set (`docs/screens/README.md`) is in `report/screens/`, and of those, `windows-frame.png` is brought into `docs/screens/`.
+the fixed set (`docs/screens/README.md`) is in `report/screens/`, and of those, `windows-frame.png` and `windows-frame-tutorial.png` are brought into `docs/screens/`.
 
 ## What to check by hand
 
@@ -114,6 +114,10 @@ With the installer from the artifact `HallymMIPS-windows`. On **Korean Windows**
 10. **Start** — the window opens maximised, with no smaller window seen first; un-maximising gives 1280×800.
 11. **Covered** — with the tutorial on, or a question up, the patch the caption buttons sit on is coloured like the rest
    (not a white square); the buttons still work, and closing the window from there asks about unsaved changes as usual.
+12. **Maximised 1920×1080** — the Editor about 586 px wide (a 72-column line without scrolling), Text's Source column whole,
+   the Inspector's bit grid at full size; while the Console is empty it is one line tall and Registers has the rest of
+   the height; after a program prints, the Console grows; the border between Registers and the Console drags and a
+   double click puts it back.
 
 ## After publishing
 

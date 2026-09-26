@@ -293,19 +293,4 @@ if (process.platform === 'win32') {
   await t.page.waitForTimeout(1500);
   screen('windows-frame-tutorial');
   await t.close();
-  // A 1920x1080 screen (the workflow sets it: tools/windows/screen-1920.ps1):
-  // the default layout maximised, as a student sees it, the caption
-  // buttons and the taskbar included.
-  const wide = await launch();
-  const area = await wide.app.evaluate(({ screen: s }) => s.getPrimaryDisplay().size);
-  if (area.width >= 1920) {
-    await lab04(wide);
-    await wide.page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-    await wide.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].maximize());
-    await wide.page.waitForTimeout(1500);
-    screen('windows-max-1920');
-  } else {
-    console.log(`windows-max-1920: not taken, the screen is ${area.width}x${area.height}`);
-  }
-  await wide.close();
 }

@@ -37,11 +37,10 @@ The example files and step counts are written inside the tool, so the same scene
 | `tutorial-19.png` | Step 19: the Errors panel after assembling `tutorial-error.s` | 1280×800, Ctrl+S at step 19 |
 | `tutorial-20.png` | Step 20: the center card, Haram (congrats) | 1280×800, step 20 |
 | `tutorial-09-narrow.png` | Step 9 in a narrow window (Run side) | 910×505 at 1.5× |
-| `windows-frame.png` | The installed build maximized on **real Windows 11**: the app's bar + the system's window buttons | CI only (`electron.yml` at the repository root; the runner's screen set to 1920×1080 by `tools/windows/screen-1920.ps1`, 1024×768 if that fails — `report/screen.txt`). With the installed build, the same run as `split-running`, then maximized; whole screen |
+| `windows-frame.png` | The installed build maximized on **real Windows** (Server 2025, the Windows 11 shell) at 1920×1080: the default layout as a student sees it — the app's bar, the system's window buttons, the taskbar | CI only (`electron.yml` at the repository root; the runner's screen set to 1920×1080 by `tools/windows/screen-1920.ps1`, 1024×768 if that fails — `report/screen.txt`). With the installed build, the same run as `split-running`, then maximized; whole screen (≤ 700 KB) |
 | `windows-frame-tutorial.png` | The same, with the tutorial on: the caption buttons' patch coloured with the dim (`#bdc5d4`), the buttons still there | CI only, like `windows-frame`; step 14, maximized; whole screen |
-| `windows-max-1920.png` | The default layout maximised on a 1920×1080 Windows screen, as a student sees it: caption buttons, taskbar | CI only, when the runner's screen is 1920 wide; same run as `split-running`, maximized; whole screen (≤ 700 KB) |
 
-`windows-frame.png`, `windows-frame-tutorial.png` and `windows-max-1920.png` are taken as is from `report/screens/` in the CI artifact `windows-report`. CI also takes
+`windows-frame.png` and `windows-frame-tutorial.png` are taken as is from `report/screens/` in the CI artifact `windows-report`. CI also takes
 the rest on Windows with the same tool and puts them in `report/screens/` (they are not committed here).
 
 Scenes added in a round are added to this table under names without a round marker.
@@ -101,3 +100,4 @@ Entries before the merge refer to commits of the archived repository ars2323/hal
 - Title bar: shorten the file name first — bcfbfd1 — 2026-09-25
 - 2.0.0 finish (nothing kept, Data ASCII on, one-line folds, the guide's pictures) — ec3b877 — 2026-09-26
 - Windows in use (maximised start, the Editor's 72-column cap, result beats, one dialog, notices, hints) — b790d6d — 2026-09-26
+- How the window speaks (wording, one-text tutorial cards, the error panel, the Console's height, Windows at 1920×1080) — 51bb424 — 2026-09-26

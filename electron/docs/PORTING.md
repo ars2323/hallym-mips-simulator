@@ -1068,7 +1068,10 @@ included.
 **The runner's screen.** The Windows job sets the screen to 1920×1080 before anything else
 (`tools/windows/screen-1920.ps1`: `Set-DisplayResolution -Width 1920 -Height 1080 -Force`, then
 `ChangeDisplaySettings` if the screen is still otherwise; what it tried and the adapter's modes go to
-`report/screen.txt`). On it the capture tool also takes the maximised default layout as Windows draws it
-(`windows-max-1920.png`, caption buttons and taskbar included). The e2e do not depend on it: a window can be 1920 px
-wide on a smaller screen, and the tests size their own windows.
+`report/screen.txt`). It works: the runner's adapter (Microsoft Hyper-V Video) offers 1920×1080, and
+`Set-DisplayResolution` alone takes the screen from 1024×768 to 1920×1080. The rest of the job runs on it: the 1920
+test in the e2e against the installed app (Editor 586 px = the cap, Registers 847 px tall, the Console 105 px), and
+`windows-frame.png`, which is now the maximised default layout as Windows draws it at 1920×1080, caption buttons
+and taskbar included. The e2e do not depend on it: a window can be 1920 px wide on a smaller screen, and the tests
+size their own windows.
 
