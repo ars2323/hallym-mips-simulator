@@ -36,6 +36,9 @@ for (const size of [{ name: '1280x800', width: 1280, height: 800 }, { name: '192
         expect(all.map((p) => p.where).sort()).toEqual([...expected].sort());
         for (const p of all) {
           expect(Math.abs(p.dx) <= 8 && Math.abs(p.dy) <= 8, `${p.where}: in the middle (${p.dx}, ${p.dy})`).toBe(true);
+          // The Console's empty word is the words alone: the Console is kept as
+          // short as they are (the height goes to Registers); the others have the character.
+          if (p.where === 'Console') { expect(p.char, 'Console: the words alone').toBe(false); continue; }
           expect(p.char, `${p.where}: the character`).toBe(true);
           expect(p.charHeight, `${p.where}: one size`).toBe(120);
           expect(p.title, `${p.where}: one title size`).toBe('16px');

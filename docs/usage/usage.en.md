@@ -73,8 +73,8 @@ At this point there is only one button, at the bottom right:
    Click **Run anyway**, the left one.
 3. The installer then installs (next section).
 
-"Unknown publisher" is what an unsigned program gets. If the file name on the
-App line is the file you just downloaded, it is safe to run.
+"Unknown publisher" is what an unsigned program gets. Check that the file name
+on the **App:** line is the file you just downloaded, and click **Run anyway**.
 
 The warning comes **once, the first time that file is run.** Opening the
 installed program from the Start menu later does not show it again.
@@ -148,10 +148,10 @@ lightly dimmed.
 | 18–20 | Output in the Console, what to do when assembly fails, the end |
 
 - Explanation steps go on with **다음** (next), or the → key.
-- A step that says **"직접 해 보세요"** (try it yourself) asks you to do
-  something (press F10, for example). Once you have, the card points at the
-  result (the register that changed, the value in memory, the Console's
-  output …) and waits; **다음** (next) goes on. If it does not work, press
+- A practice step's card has no **다음** (next) button. Do what the card says
+  (press F10, for example). Once you have, the tutorial goes on, or the card
+  points at the result (the register that changed, the value in memory, the
+  Console's output …) and waits for **다음**. If it does not work, press
   **건너뛰기** (skip), which appears after a few seconds: the tutorial does it for you.
 - **이전** (back, the ← key) goes back a step; **그만두기** (stop, the Esc key)
   ends the tutorial at any time.
@@ -183,14 +183,18 @@ With a file open, the **Editor** is on the left and the **Run** side on the righ
 | **Text** | The assembled machine instructions: **Address** · **Encoding** (the 32 bits in hex) · **Format** (R/I/J) · **Instruction**. A source line that became several instructions has several rows. Clicking a row shows that instruction in the Inspector |
 | **Data** | The tab next to Text. Memory (what you wrote in `.data`, the stack) in 4-byte words, four to a row; label names above their addresses, and where `$sp` and `$gp` point. A run of zero words is one line. The **ASCII** column shows the same bytes as characters (in a narrow window it is turned on with **+ ASCII**) |
 | **Inspector** | One instruction taken apart into its 32 bits: opcode · rs · rt · rd … in colours per field, each field's value and meaning, and one sentence (in Korean) saying what the instruction does |
-| **Console** | Your program's output (syscalls). A syscall that reads input shows an input field here |
-| **Errors** | Shown on the Run side when assembly fails: first what to do, then the errors with a hint for each, and a **N행으로 가기** (go to line N) button |
+| **Console** | Your program's output (syscalls). A syscall that reads input shows an input field here. While there is no output it is only as tall as its one-line note; it grows when output comes |
+| **Errors** | Shown on the Run side when assembly fails: first what is wrong and what to do, then each wrong line with a hint, and a **N행으로 가기** (go to line N) button |
 | **Status bar** | At the bottom: what just happened (e.g. *한 줄 실행했습니다*, one line run; *브레이크포인트에서 멈췄습니다*, stopped at a breakpoint), the step count, the register that just changed |
 
 In a narrow window (a laptop with a large display scale, for example), the
 Editor and the Run side are shown one at a time; switch with the **Editor | Run**
 tabs in the top bar. A column hidden for lack of width comes back with a button
 in the panel's head, such as **+ Bin** or **+ Source**.
+
+The border between the Editor and the Run side, and the one between Registers
+and the Console, can be dragged to make one side bigger. A double click on a
+border puts it back.
 
 ---
 
@@ -238,9 +242,9 @@ changed): press **Ctrl+S** again to assemble the new code.
 **The program does not open / a blue warning appears** — see
 [getting past the Windows warning](#getting-past-the-windows-warning).
 
-**It does not assemble** — the first sentence in **Errors**, on the right, says
-what to do; **N행으로 가기** takes you to the line, which has a `!` beside it in
-the Editor. Common causes: a misspelt instruction (`srll` → `srl`), a register
+**It does not assemble** — look at **Errors**, on the right: each wrong line
+comes with what is wrong and a hint. **N행으로 가기** takes you to the line,
+which has a `!` beside it in the Editor. Fix it and press **Ctrl+S** again. Common causes: a misspelt instruction (`srll` → `srl`), a register
 without its `$` (`t0` → `$t0`), a missing comma.
 
 **F5 was pressed and it does not end** — the program loops forever (check the

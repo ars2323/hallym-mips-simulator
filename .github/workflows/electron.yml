@@ -3,6 +3,7 @@
 # changes (the Qt edition's workflow, ci.yml, when anything but electron/
 # does); every step works in electron/.
 #
+#   0. the screen set to 1920x1080, the students' (tools/windows/screen-1920.ps1)
 #   1. the core builds with MSVC + win_flex/win_bison; tt.core.s words match
 #   2. the Node tests on Windows: the simulator process (fork), stop,
 #      breakpoints, console input rewind, the modules, the goldens
@@ -53,6 +54,15 @@ jobs:
 
       - name: Install winflexbison
         run: choco install winflexbison3 --no-progress -y
+
+      # The screen the students have and the default layout is made for:
+      # 1920x1080 (the runner starts at 1024x768).  Everything after it --
+      # the e2e against the installed app, the screens -- runs on it.
+      # Reported either way (report/screen.txt); the e2e do not depend on it.
+      - name: Screen 1920x1080 (tools/windows/screen-1920.ps1)
+        continue-on-error: true
+        shell: powershell
+        run: tools/windows/screen-1920.ps1 -Report report
 
       - name: Tool versions
         shell: cmd

@@ -38,11 +38,17 @@ async function atStep(page: Page, n: number, phase = 0, result = false): Promise
 async function checkStep(page: Page, n: number, phase = 0, result = false): Promise<void> {
   const s = await atStep(page, n, phase, result);
   const where = `step ${n}.${phase}${result ? ' (result)' : ''}`;
-  // A result beat: the card says it is done, and waits with [다음] (no [건너뛰기]).
+  // A card is one text, a title and a body: no separate line of instructions.
+  await expect(page.locator('.tut-card .tut-say > p'), where).toHaveCount(1);
+  await expect(page.locator('.tut-card .tut-say h3'), where).toHaveCount(1);
+  // A practice step waits for the student: no [다음] until it is done; its
+  // result then waits with [다음] (and no [건너뛰기]).
+  const kind = await page.evaluate(() => [...document.querySelector('.tut-card')!.classList].find((c) => c.startsWith('kind-')));
   if (result) {
-    await expect(page.locator('.tut-card.done .tut-done')).toBeVisible();
-    await expect(page.locator('.tut-card .tut-next')).toBeVisible();
-    await expect(page.locator('.tut-card .tut-skip')).toHaveCount(0);
+    await expect(page.locator('.tut-card.done .tut-next'), where).toBeVisible();
+    await expect(page.locator('.tut-card .tut-skip'), where).toHaveCount(0);
+  } else if (kind === 'kind-practice') {
+    await expect(page.locator('.tut-card .tut-next'), where).toHaveCount(0);
   }
   if (n < 20) expect(s.targets.length, where).toBeGreaterThan(0);
   // A click in the middle of each target reaches that very target.
@@ -83,7 +89,7 @@ const middle = (r: { left: number; top: number; right: number; bottom: number })
 
 // The practice steps whose result is pointed at before the next step
 // (told to, done, shown what it did, then [다음]); the others go straight on.
-const RESULT = new Set([5, 12, 15, 16, 17, 18]);
+const RESULT = new Set([5, 12, 15, 17, 18]);
 
 // Walks steps 1..20: by doing each practice step, or by skipping it.
 async function walk(page: Page, how: 'do' | 'skip'): Promise<void> {

@@ -642,7 +642,7 @@ and choosing one in Text pins it to that instruction (the header shows "고정: 
 - Switching: slow → instant cuts the wait and hands over to the core's run (`run`). Instant → slow stops the core (`stop`) and continues slowly.
 - Breakpoints stop before that instruction; input waits and then continues slowly. Register highlighting, the Inspector and the Editor line follow every step.
 
-**Errors and breakpoints (C-1).** The error panel puts what to do first ("15행을 고친 뒤 다시 Ctrl+S 하면 됩니다" (fix line 15, then press Ctrl+S again), and a button that goes to that line),
+**Errors and breakpoints (C-1).** The error panel puts what to do first (fix line 15, then press Ctrl+S again; worded differently since, section 22), and a button that goes to that line),
 then the core's message and line, then help for common messages. Haram (the `curious` pose) is at the end of the panel. Gutter: a breakpoint is a red dot in the leftmost
 column (click to toggle), an error is a `!` badge — different shapes. Breakpoints in the Editor are remembered by line, so they move along when the code is edited,
 and on every assembly they are set on the first word of that line. Ones set in Text also show on the Editor's line. They cannot be set on a line with no instruction (a notice is shown).
@@ -749,7 +749,7 @@ several Korean words.
 
 **The band in the Editor.** Current-line highlighting (`highlightActiveLine`) was removed. While running, the only band in the Editor is the execution line.
 
-**Error screen.** Assembly errors go in the Errors panel on the Run side (the larger side). It contains what to do ("15행을 고친 뒤 다시 Ctrl+S 하면 됩니다" (fix line 15, then press Ctrl+S again)),
+**Error screen.** Assembly errors go in the Errors panel on the Run side (the larger side). It contains what to do (fix line 15, then press Ctrl+S again; worded differently since, section 22),
 the "15행으로 가기" (go to line 15) button, and the error list. Haram (the `curious` pose) appears only once, at the far right of the panel. Not between the text and the Editor,
 and with no arrow. The Editor keeps only the `!` in the gutter and the line colour. In a narrow window a failed assembly switches to the Run tab, and "N행으로 가기" (go to line N)
 returns to the Editor tab.
@@ -1019,4 +1019,56 @@ a number past it (`$s10`, `$t10`, `$a4`, `$32`) is named with the family's range
 and comments are not looked at (a label is the student's own name). "`.global` 지시어는 없습니다. 혹시 `.globl`?";
 "`$s10` 레지스터는 없습니다. `$s` 레지스터는 `$s0`–`$s7` 입니다."; "레지스터 이름 앞에는 `$` 기호가 있어야 합니다:
 `t0` → `$t0`." (`tests/core/near-miss.test.ts`; two mutants loosen the rule and the tie).
+
+---
+
+## 22. How the window speaks — wording, the tutorial's cards, the error panel, the Console's height, Windows at 1920
+
+**No "that is all it takes" ending.** The ending that tells the student "doing X is enough" is a procedure's
+voice: it puts the reader in the pupil's place. The window says what to do instead ("…고친 뒤 Ctrl+S 키를 다시
+누르세요"). It was in the error panel's title and in its line for several errors; the user guide had the same tone
+in a few places (what the Errors panel "tells you to do", "it is safe to run"). With it went sentences that said something twice or told what the screen already
+shows: the unsaved-changes question ("저장하지 않은 변경이 있습니다" then "바뀐 내용을 저장하지 않았습니다"), the
+tutorial's step 4 ending on its own title, step 12 announcing the "0 → 12" its result card then shows, step 17
+saying twice that the breakpoints stay, the stop message's "레지스터와 메모리를 볼 수 있습니다" (now what to do next:
+"이어서 하려면 F5", as at a breakpoint).
+
+**A tutorial card is one text.** The green line under a practice card ("직접 해 보세요 — 되면 결과를 짚어 드립니다")
+and under a result ("됐습니다 — 결과를 본 뒤 다음으로") gave orders from outside the text. A card is now a title and
+a body. A practice step's body says what to do, and its last sentence what happens once it is done ("점을 찍으면
+다음으로 넘어갑니다", "실행하면 무엇이 바뀌었는지 짚어 드립니다"); a result's body is what just happened. That the card
+has no [다음] is the other sign that it waits (`tests/e2e/tutorial.e2e.ts` checks: one paragraph on every card, no
+[다음] on a practice card until its result, [다음] and no [건너뛰기] on a result). Step 16's result card went: it
+only said that the slow run the student had just stopped had stopped; the steps with a result card are 5, 12, 15,
+17 and 18.
+
+**The error panel.** "15행" was said four times in a small block (the title — line 15, then Ctrl+S again —, the
+line under it, the error, the button), and "아래에 무엇이 문제인지 적었습니다" pointed 20 px down. Now the title
+says what is wrong — "코드에 오류가 있습니다" (several: "코드에 오류가 N개 있습니다") — the line under it what to
+do — "아래 줄을 고친 뒤 Ctrl+S 키를 다시 누르세요." (several: "위에서부터 하나씩 고친 뒤 …") — and the line's number
+is in the error and on the button only ("N행으로 가기").
+
+**The Console's height.** At 1920 the empty Console took 260 px while Registers above it scrolled. The Console's
+height now follows the Editor's rule turned on its side: while it is empty (no output, no input asked for) it is as
+tall as its one-line note (105 px at the default font; its character is left out there, the Inspector's is on the
+same screen), and Registers takes the rest; with output it has its share as before, clamp(120 px, 26vh, 260 px).
+A grip between Registers and the Console drags the border (at least 72 px of Console, 120 px of Registers) and a
+double click puts it back, like the splitter between the Editor and the Run side. Nothing of it is kept. Maximised
+1920 (1920×1040): Registers 847 px tall, the Console 105 (were 692 and 260), 781 of the 1040 px of registers shown
+(was 626); with output 692 and 260 as before. 1280×800: 607/105 (504/208); 1093×582: 389/105 (343/151); 1024×728:
+535/105 (451/189); 910×505: 312/105 (286/131).
+
+**The Editor's width on Windows.** The 72-column cap took its character width from CodeMirror
+(`defaultCharacterWidth`), and on Windows that figure was 7.0 px while the code font draws 6.75 px at the Editor's
+13.5 px: the Editor came out 604 px, not 586 (seen in CI; the test had been made to skip on a screen smaller than
+1920×1040, which hid it). The width is now measured with the code font itself (`monoCh` at the Editor's size), and
+the layout is done again when the fonts have loaded. The 1920 test runs everywhere again, the Windows CI job
+included.
+
+**The runner's screen.** The Windows job sets the screen to 1920×1080 before anything else
+(`tools/windows/screen-1920.ps1`: `Set-DisplayResolution -Width 1920 -Height 1080 -Force`, then
+`ChangeDisplaySettings` if the screen is still otherwise; what it tried and the adapter's modes go to
+`report/screen.txt`). On it the capture tool also takes the maximised default layout as Windows draws it
+(`windows-max-1920.png`, caption buttons and taskbar included). The e2e do not depend on it: a window can be 1920 px
+wide on a smaller screen, and the tests size their own windows.
 

@@ -121,3 +121,41 @@ test('narrow windows show one side at a time; 1093 wide (1366 at 125%) keeps bot
   await expect(page.locator('.run-grid')).toBeVisible();
   await expect(page.locator('.editor-panel')).toBeHidden();
 });
+
+// The Console's height (app.css): as tall as its words while it is empty,
+// Registers taking the rest; its share -- clamp(120 px, 26vh, 260 px) --
+// once there is output; the grip between them drags, a double click resets.
+test('the Console: as tall as its words while empty, its share with output; the grip drags it, a double click resets', async () => {
+  const { page } = r;
+  const HELLO = '        .data\nmsg:    .asciiz "hello\\n"\n        .text\nmain:   li $v0, 4\n        la $a0, msg\n        syscall\n        li $v0, 10\n        syscall\n';
+  await openAndAssemble(r, program(r.dir, 'hello.s', HELLO));
+  await side(page, 'Run');
+  const heights = () => page.evaluate(() => {
+    const height = (s: string) => Math.round((document.querySelector(s) as HTMLElement).getBoundingClientRect().height);
+    const words = document.querySelector('.console .notice') as HTMLElement;
+    const needs = words.checkVisibility() ? Math.round(words.getBoundingClientRect().height + (document.querySelector('.console .phead') as HTMLElement).getBoundingClientRect().height) + 2 : 0;
+    return { column: height('.run-grid .leftcol'), registers: height('.regs'), console: height('.console'), needs, window: window.innerHeight };
+  });
+  const empty = await heights();
+  expect(Math.abs(empty.console - empty.needs), `empty: ${JSON.stringify(empty)}`).toBeLessThanOrEqual(3);
+  expect(Math.abs(empty.registers + 8 + empty.console - empty.column)).toBeLessThanOrEqual(2);
+  await page.keyboard.press('F5');
+  await settled(page);
+  await expect(page.locator('.console .clog')).toContainText('hello');
+  const output = await heights();
+  const share = Math.min(260, Math.max(120, 0.26 * output.window));
+  expect(Math.abs(output.console - share), `with output: ${JSON.stringify(output)}`).toBeLessThanOrEqual(2);
+  expect(output.registers).toBeLessThan(empty.registers);
+  // The grip: 60 px up gives the Console 60 px more; a double click, the share again.
+  const g = (await page.locator('.vgrip').boundingBox())!;
+  const [x, y] = [g.x + g.width / 2, g.y + g.height / 2];
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x, y - 60, { steps: 4 });
+  await page.mouse.up();
+  const dragged = await heights();
+  expect(Math.abs(dragged.console - (output.console + 60)), `dragged: ${JSON.stringify(dragged)}`).toBeLessThanOrEqual(6);
+  expect(Math.abs(dragged.registers + 8 + dragged.console - dragged.column)).toBeLessThanOrEqual(2);
+  await page.locator('.vgrip').dblclick();
+  expect(Math.abs((await heights()).console - share)).toBeLessThanOrEqual(2);
+});

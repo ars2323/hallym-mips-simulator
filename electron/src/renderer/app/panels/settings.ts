@@ -119,7 +119,7 @@ export function settingsDialog(events: SettingsEvents): { root: HTMLDialogElemen
       h('div', { class: 'prow' }, h('span', {}, 'Font size'), h('span', { class: 'grow' }), minus, size, plus),
       h('small', { class: 'hint' }, '이번 실행에만 적용됩니다. Ctrl + / Ctrl − / Ctrl 0 키로도 바꿀 수 있습니다.'),
       h('div', { class: 'prow' }, h('span', {}, 'Data radix'), h('span', { class: 'grow' }), bases),
-      h('small', { class: 'hint' }, 'Data 탭의 값을 이 진법으로 보입니다. 이번 실행에만 적용됩니다.'),
+      h('small', { class: 'hint' }, 'Data 탭의 값을 이 진법으로 보여 줍니다. 이번 실행에만 적용됩니다.'),
       details,
       h('div', { class: 'row' }, aboutButton, h('span', { class: 'grow' }), close));
   };

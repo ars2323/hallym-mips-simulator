@@ -14,13 +14,14 @@ The example files and step counts are written inside the tool, so the same scene
 | `start.png` | Start screen: Haram (greeting) and the two paths (튜토리얼 보기 / 바로 시작, "View tutorial" / "Start now"), no toolbar | 1280×800, as started |
 | `start-2.png` | Start screen, second step: 새 파일 / 파일 열기 ("New file" / "Open file"), "← 처음으로" ("← Back to start") | 1280×800, 바로 시작 clicked |
 | `split-before.png` | Left/right split, before assembling: the right side shows the guide card (a notice: the words in the middle, the character at the far end) | 1280×800, `tests/samples/lab04-ok.s` only opened, as `lab04.s` |
-| `assembled.png` | Just assembled, before the first step: the Inspector's and the Console's words, notices in the middle of their panels | 1280×800, same file, Ctrl+S |
+| `assembled.png` | Just assembled, before the first step: the Inspector's word in the middle of its panel; the empty Console only as tall as its one-line word, Registers taking the rest | 1280×800, same file, Ctrl+S |
 | `split-running.png` | Left/right split, running: current line highlighted in Editor and Text, Inspector follows the PC | 1280×800, same file, Ctrl+S then F10 16 times (PC `0x0040004c`, just changed `$t6`) |
 | `inspector.png` | Inspector pinned to the selected instruction (Pinned) | From the `split-running` state, click `0x00400054` (`sra $s1, $t6, 1`) in Text |
 | `dialog.png` | In-app dialog (Haram): New file from a saved file | From the `inspector` state, New file |
-| `error.png` | Assembly error: the Errors panel on the Run side with what to do first, one Haram (curious), `!` in the Editor gutter; the hint names `srl` for `srll` | 1280×800, open `tests/samples/lab04.s` (`srll` on line 15) and Ctrl+S |
+| `error.png` | Assembly error: the Errors panel on the Run side — what is wrong ("코드에 오류가 있습니다"), what to do ("아래 줄을 고친 뒤 Ctrl+S 키를 다시 누르세요."), the error with its line, the button; the line's number twice, one Haram (curious), `!` in the Editor gutter; the hint names `srl` for `srll` | 1280×800, open `tests/samples/lab04.s` (`srll` on line 15) and Ctrl+S |
+| `error-several.png` | Several errors: "코드에 오류가 3개 있습니다", "위에서부터 하나씩 고친 뒤 …", each error with its line | 1280×800, `tests/samples/editor-errors.s`, Ctrl+S |
 | `error-near-miss.png` | An error whose hint names the slip: `.global` for `.globl` | 1280×800, a file with `.global main`, Ctrl+S |
-| `max-1920.png` | A maximised 1920 screen: the Editor at what 72 columns need (586 px), the width beyond it on the Run side — Text's Source column whole, the Inspector's bit grid at full size | 1920×1040 (1080 under the taskbar), same run as `split-running` |
+| `max-1920.png` | A maximised 1920 screen: the Editor at what 72 columns need (586 px), the width beyond it on the Run side — Text's Source column whole, the Inspector's bit grid at full size; the empty Console as tall as its word (105 px), Registers the rest of the height (847 px) | 1920×1040 (1080 under the taskbar), same run as `split-running` |
 | `errors-max.png` | The Errors panel on a maximised 1920 screen: title, what went wrong, the errors, the button and Haram as one block in the middle | 1920×1040, `tests/samples/lab04.s`, Ctrl+S |
 | `data.png` | Data: areas (User data / Stack), zero runs, label lines, `$gp` and `$sp`, the ASCII column on (as from a 1140 px window), `Hello, MIPS!` read as one run with faint lines between the words | 1280×800, `tests/samples/data-labels.s`, Ctrl+S then F10 14 times, Data tab |
 | `lab-1366x768-125.png` | Lab PC: 1366×768 at 125% scaling, maximized | CSS 1093×582 at 1.25× (`--force-device-scale-factor=1.25`), same run as `split-running` |
@@ -30,16 +31,17 @@ The example files and step counts are written inside the tool, so the same scene
 | `tutorial-01.png` | Tutorial step 1: the Editor head and the first lines, the card and Haram | 1280×800, 튜토리얼 보기 → step 1 |
 | `tutorial-04.png` | Step 4: the Text rows where `li $t0, 0x12345678` became the two lines `lui` + `ori` | 1280×800, step 4 via the tutorial's `go()` (up to assembling) |
 | `tutorial-09.png` | Step 9: the bit grid's opcode, rs, rt, rd and the Encoding value in Text | 1280×800, step 9 (starting code and two `li` lines, `add` executed, Inspector pinned) |
-| `tutorial-14.png` | Step 14: the gutter (breakpoint column) and its line | 1280×800, step 14 |
+| `tutorial-14.png` | Step 14, a practice step: the gutter (breakpoint column) and its line; the card is one text — what to do, and in its last sentence that the dot moves it on — with no [다음] | 1280×800, step 14 |
 | `tutorial-quit-ask.png` | The quit question over the tutorial: Haram in the dialog, the card and rings under the backdrop, one Haram | 1280×800, step 14, 그만두기 |
-| `tutorial-18-done.png` | Step 18's result beat: the Console's output and the status bar pointed at, [다음] awaited | 1280×800, step 18, then F5 |
+| `tutorial-18-done.png` | Step 18's result beat: the Console's output and the status bar pointed at; the card's text is what just happened, [다음] awaited | 1280×800, step 18, then F5 |
 | `tutorial-19.png` | Step 19: the Errors panel after assembling `tutorial-error.s` | 1280×800, Ctrl+S at step 19 |
 | `tutorial-20.png` | Step 20: the center card, Haram (congrats) | 1280×800, step 20 |
 | `tutorial-09-narrow.png` | Step 9 in a narrow window (Run side) | 910×505 at 1.5× |
-| `windows-frame.png` | The installed build maximized on **real Windows 11**: the app's bar + the system's window buttons | CI only (`electron.yml` at the repository root, runner screen 1024×768). With the installed build, the same run as `split-running`, then maximized; whole screen |
+| `windows-frame.png` | The installed build maximized on **real Windows 11**: the app's bar + the system's window buttons | CI only (`electron.yml` at the repository root; the runner's screen set to 1920×1080 by `tools/windows/screen-1920.ps1`, 1024×768 if that fails — `report/screen.txt`). With the installed build, the same run as `split-running`, then maximized; whole screen |
 | `windows-frame-tutorial.png` | The same, with the tutorial on: the caption buttons' patch coloured with the dim (`#bdc5d4`), the buttons still there | CI only, like `windows-frame`; step 14, maximized; whole screen |
+| `windows-max-1920.png` | The default layout maximised on a 1920×1080 Windows screen, as a student sees it: caption buttons, taskbar | CI only, when the runner's screen is 1920 wide; same run as `split-running`, maximized; whole screen (≤ 700 KB) |
 
-`windows-frame.png` and `windows-frame-tutorial.png` are taken as is from `report/screens/` in the CI artifact `windows-report`. CI also takes
+`windows-frame.png`, `windows-frame-tutorial.png` and `windows-max-1920.png` are taken as is from `report/screens/` in the CI artifact `windows-report`. CI also takes
 the rest on Windows with the same tool and puts them in `report/screens/` (they are not committed here).
 
 Scenes added in a round are added to this table under names without a round marker.

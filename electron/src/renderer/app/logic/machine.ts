@@ -140,7 +140,7 @@ export function stopMessage(reason: StopReason, pc: string): string {
     case 'error': return '실행 오류로 멈췄습니다';
     case 'breakpoint': return `브레이크포인트에서 멈췄습니다 (PC \`${pc}\`) — 이어서 하려면 F5`;
     case 'input': return '입력을 기다립니다 — 콘솔에 입력하고 Enter';
-    case 'stopped': return `멈췄습니다 (PC \`${pc}\`) — 레지스터와 메모리를 볼 수 있습니다`;
+    case 'stopped': return `멈췄습니다 (PC \`${pc}\`) — 이어서 하려면 F5`;
     case 'limit': return `한 줄 실행했습니다 (PC \`${pc}\`)`;
   }
 }

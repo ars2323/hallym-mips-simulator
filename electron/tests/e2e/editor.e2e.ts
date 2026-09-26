@@ -25,7 +25,10 @@ test('an assembly error: what to do first, Haram, and a mark unlike a breakpoint
   const { page } = r;
   await openAndAssemble(r, program(r.dir, 'bad.s', 'main:\n  li $t0, 5\n  srll $t1, $t0, 1\n'));
   const panel = page.locator('.errors');
-  await expect(panel.locator('h3')).toHaveText('3행을 고친 뒤 다시 Ctrl+S 하면 됩니다');
+  await expect(panel.locator('h3')).toHaveText('코드에 오류가 있습니다');                    // what is wrong
+  await expect(panel.locator('.notice .say > p')).toHaveText('아래 줄을 고친 뒤 Ctrl+S 키를 다시 누르세요.'); // what to do
+  // The line's number twice at most: in the error and on the button.
+  expect(((await panel.locator('.notice').textContent()) ?? '').split('3행').length - 1).toBeLessThanOrEqual(2);
   await expect(panel.locator('img.char')).toHaveCount(1);
   await expect(panel.locator('.hint')).toContainText('혹시'); // the slip named: srll -> srl
   await expect(panel.locator('.hint .mono').last()).toHaveText('srl');

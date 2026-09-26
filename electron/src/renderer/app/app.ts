@@ -34,7 +34,7 @@ import type { Settings } from '../../main/main.ts';
 import type { TextFileFormat } from '../../node/text-file.ts';
 import type { RunResult } from '../../sim/protocol.ts';
 import './api.ts';
-import { asset, character, code, codeText, h, icon, withHex } from './dom.ts';
+import { asset, character, code, codeText, h, icon, monoCh, withHex } from './dom.ts';
 import { overlayColor } from './logic/overlay.ts';
 import { notice } from './notice.ts';
 import { nearMiss } from '../../core/near-miss.ts';
@@ -91,6 +91,7 @@ let changedNow = '';
 let narrow = false;
 let view: 'editor' | 'run' = 'editor'; // narrow windows: the side on show
 let editorWidth: number | null = null; // px, from the splitter; null: the default share
+let consoleHeight: number | null = null; // px, from the grip over the Console; null: the default
 let speed: 'fast' | 'slow' = 'fast';   // this session only
 let slow: { cancel(): void } | null = null; // a slow run going on
 let switchTo: 'fast' | 'slow' | null = null; // a run being switched to the other speed
@@ -186,7 +187,12 @@ let registers: RegisterPanel | null = null;
 const centre = h('div', { class: 'centre' }, text.root, inspector.root, congrats);
 // Registers over the Console on the left, Text/Data over the Inspector on
 // the right: both of those get the whole height (a lab PC has ~480 px).
-const leftCol = h('div', { class: 'leftcol' }, regsHost, consolePanel.root);
+// Between Registers and the Console, a grip: drag to share the height,
+// double-click for the default (the Console as tall as its words while it
+// is empty, its share once there is output: app.css).
+const consoleGrip = h('div', { class: 'vgrip', role: 'separator', 'aria-orientation': 'horizontal', title: '끌어서 높이 조절 · 두 번 눌러 되돌리기' },
+  h('span', { class: 'grip' }));
+const leftCol = h('div', { class: 'leftcol' }, regsHost, consoleGrip, consolePanel.root);
 const runGrid = h('div', { class: 'run-grid' }, leftCol, centre);
 const placeholder = h('div', { class: 'run-placeholder notice-host' });
 const runPanel = h('div', { class: 'run-side' }, placeholder, errorList, runGrid);
@@ -230,6 +236,21 @@ splitter.addEventListener('pointerdown', (e) => {
   splitter.addEventListener('pointerup', up);
 });
 splitter.addEventListener('dblclick', () => { editorWidth = null; layout(); });
+
+consoleGrip.addEventListener('pointerdown', (e) => {
+  if (!consolePanel.expanded) return; // folded: the Expand button opens it
+  consoleGrip.setPointerCapture(e.pointerId);
+  const bottom = leftCol.getBoundingClientRect().bottom;
+  const move = (m: PointerEvent) => {
+    // At least the Console's head and a line; Registers keeps its head and a few rows.
+    consoleHeight = Math.round(Math.max(72, Math.min(leftCol.clientHeight - 8 - 120, bottom - m.clientY)));
+    layout();
+  };
+  const up = () => { consoleGrip.removeEventListener('pointermove', move); consoleGrip.removeEventListener('pointerup', up); };
+  consoleGrip.addEventListener('pointermove', move);
+  consoleGrip.addEventListener('pointerup', up);
+});
+consoleGrip.addEventListener('dblclick', () => { consoleHeight = null; layout(); });
 
 function showView(v: 'editor' | 'run'): void {
   view = v;
@@ -278,6 +299,8 @@ function layout(): void {
   placeholder.hidden = shown || showErrors;
   if (!shown && !showErrors) renderPlaceholder();
   runGrid.classList.toggle('console-open', consolePanel.expanded);
+  if (consoleHeight === null) leftCol.style.removeProperty('--console-h');
+  else leftCol.style.setProperty('--console-h', `${consoleHeight}px`);
   editor.showPcLine(shown && runState !== 'ready' ? pcSourceLine() : null);
 }
 
@@ -286,8 +309,12 @@ function layout(): void {
 // shorter, and every pixel past that is a pixel the Run side reads with:
 // Text's Source column and the Inspector are what grow with the window.
 // Never a share of the window: a share is right at one width only.
+// The character's width is measured with the code font itself, at the
+// Editor's size (dom.ts monoCh; not CodeMirror's own figure, which can be
+// taken before the font has loaded), and the layout is done again once the
+// fonts are in (below, "fonts").
 const EDITOR_COLUMNS = 72;
-const editorMost = (): number => (editorPanel.offsetWidth - editorHost.clientWidth) + editor.widthFor(EDITOR_COLUMNS);
+const editorMost = (): number => (editorPanel.offsetWidth - editorHost.clientWidth) + editor.widthFor(EDITOR_COLUMNS, monoCh(fontPx() + 0.5));
 
 // The Run side's width: what Registers and Text need (their panels say).
 let runLeast = 0;
@@ -306,7 +333,7 @@ function sizeRunSide(): void {
 function renderPlaceholder(): void {
   const changed = assembledText !== null || (lastProgram !== null && dirty);
   const [title, body] = changed
-    ? ['코드가 바뀌었습니다', '지금 기계에 있는 것은 고치기 전의 코드입니다. 저장하고 다시 어셈블하면(Ctrl+S) 고친 코드로 실행합니다.']
+    ? ['코드가 바뀌었습니다', '지금 실행되는 것은 고치기 전의 코드입니다. 다시 어셈블해서 고친 코드로 바꾸세요.']
     : ['아직 어셈블하지 않았습니다', '어셈블하면 여기에 레지스터와 명령, 콘솔 출력이 나옵니다.'];
   const go = h('button', { class: 'btn primary', type: 'button' }, icon('hammer'), h('span', {}, 'Assemble'), h('kbd', {}, 'Ctrl+S'));
   go.addEventListener('click', () => void saveAndAssemble());
@@ -523,7 +550,7 @@ async function mayReplace(what: 'new' | 'open'): Promise<boolean> {
     return ask({
       title: '저장하지 않은 변경이 있습니다',
       file: file.name,
-      body: `바뀐 내용을 저장하지 않았습니다. ${what === 'new' ? '새 파일을 열면' : '다른 파일을 열면'} 바뀐 내용은 사라집니다.`,
+      body: `${what === 'new' ? '새 파일을 열면' : '다른 파일을 열면'} 저장하지 않은 내용은 사라집니다.`,
       ok: '버리고 계속', cancel: '돌아가기', danger: true,
     });
   }
@@ -799,9 +826,10 @@ function hintFor(message: string, source: string): string {
     return '명령 이름, 레지스터 이름(예: `$t0`), 쉼표를 확인해 보세요.';
   }
   if (/defined for the second time|already defined/i.test(message)) return '같은 이름의 라벨이 두 번 있습니다. 한쪽 이름을 바꾸세요.';
+  if (/shift distance/i.test(message)) return '옮길 비트 수는 0 부터 31 까지만 쓸 수 있습니다.';
   if (/too large|out of range|immediate/i.test(message)) return '값이 이 명령이 담을 수 있는 크기를 넘었습니다. 먼저 `li` 명령으로 레지스터에 넣어 보세요.';
   if (/undefined|unknown/i.test(message)) return '쓰기 전에 정의하지 않은 이름입니다. 철자와 `.globl` 선언을 확인해 보세요.';
-  return '이 줄을 고친 뒤 다시 어셈블하세요.';
+  return ''; // nothing to add to "고친 뒤 Ctrl+S 키를 다시 누르세요" above: no hint
 }
 
 // "N행으로 가기": the Editor (a narrow window: its tab), the line.
@@ -818,9 +846,6 @@ function renderErrors(): void {
   const first = errors.find((e) => e.line > 0) ?? errors[0];
   const go = h('button', { class: 'btn primary', type: 'button' }, first.line ? `${first.line}행으로 가기` : '고치러 가기');
   go.addEventListener('click', () => (first.line ? toLine(first.line) : showView('editor')));
-  const lead = first.line
-    ? `${first.line}행을 고친 뒤 다시 Ctrl+S 하면 됩니다`
-    : '고친 뒤 다시 Ctrl+S 하면 됩니다';
   const items = errors.map((e) => {
     const where = h('button', { class: 'linkbtn line', type: 'button', disabled: !e.line }, e.line ? `${e.line}행` : '');
     where.addEventListener('click', () => { if (e.line) toLine(e.line); });
@@ -828,17 +853,18 @@ function renderErrors(): void {
       h('span', { class: 'msg' },
         h('span', { class: 'what' }, withHex(e.message.message)),
         e.message.source ? code(e.message.source, 'src') : null,
-        h('span', { class: 'hint' }, codeText(hintFor(e.message.message, e.message.source)))));
+        ((hint) => (hint ? h('span', { class: 'hint' }, codeText(hint)) : null))(hintFor(e.message.message, e.message.source))));
   });
   errorHead.setMeta(errors.length === 1 ? '1 error' : `${errors.length} errors`);
-  // What to do first (the title), then what went wrong, then the errors
-  // themselves.  Haram once, at the far end: not between the words and the
-  // Editor they are about, and no arrow.
-  const sub = errors.length > 1 ? `오류가 ${errors.length}개 있습니다. 위에서부터 하나씩 고치면 됩니다.`
-    : first.line ? `${first.line}행에서 어셈블러가 읽지 못한 부분이 있습니다. 아래에 무엇이 문제인지 적었습니다.`
-      : '어셈블러가 읽지 못한 부분이 있습니다. 아래에 무엇이 문제인지 적었습니다.';
+  // What is wrong (the title), what to do (the line under it), then the
+  // errors, each with its line; the button goes to the first.  The line's
+  // number is said twice at most: in the error and on the button.  Haram
+  // once, at the far end: not between the words and the Editor they are
+  // about, and no arrow.
+  const title = errors.length > 1 ? `코드에 오류가 ${errors.length}개 있습니다` : '코드에 오류가 있습니다';
+  const todo = errors.length > 1 ? '위에서부터 하나씩 고친 뒤 Ctrl+S 키를 다시 누르세요.' : '아래 줄을 고친 뒤 Ctrl+S 키를 다시 누르세요.';
   errorBody.replaceChildren(h('div', { class: 'notice-host' },
-    notice({ pose: 'curious', title: lead, body: sub, more: [h('div', { class: 'items' }, ...items), h('div', { class: 'row' }, go)] })));
+    notice({ pose: 'curious', title, body: todo, more: [h('div', { class: 'items' }, ...items), h('div', { class: 'row' }, go)] })));
 }
 
 // ---- running ----------------------------------------------------------------------------
@@ -1146,6 +1172,10 @@ async function start(): Promise<void> {
   applyFont();
   measure();
   new ResizeObserver(() => measure()).observe(document.body);
+  // fonts: a width measured in the code font before it had loaded is
+  // measured again (the Editor's 72 columns, the tables' columns).
+  document.fonts.addEventListener('loadingdone', () => measure());
+  void document.fonts.ready.then(() => measure());
   renderChrome();
   // The columns are measured in the mono font: again once it is in.
   void document.fonts.ready.then(() => { text.fit(); registers?.fit(); renderChrome(); });

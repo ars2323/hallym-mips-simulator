@@ -41,6 +41,7 @@ const DATA = 'tests/samples/data-labels.s';
 const DATA_STEPS = 14;                          // past the sw onto the stack
 const TYPO = '        .text\n        .global main            # .globl\nmain:   li      $v0, 10\n        syscall\n';
 const MAX_BYTES = 400 * 1024;
+const MAX_SCREEN_BYTES = 700 * 1024; // a whole Windows screen, up to 1920x1080
 const MAX_CROP_BYTES = 150 * 1024;
 
 // PNG without its ancillary chunks: the signature, then IHDR, PLTE, tRNS,
@@ -167,6 +168,9 @@ async function lab04(r: Running): Promise<void> {
   await assembled(r, program(r.dir, 'typo.s', TYPO));
   await page.waitForSelector('.errors .item');
   await shot(r, 'error-near-miss');
+  await assembled(r, sample(r.dir, 'tests/samples/editor-errors.s'));
+  await page.waitForSelector('.errors .item + .item');
+  await shot(r, 'error-several');
   await assembled(r, sample(r.dir, DATA));
   await steps(r, DATA_STEPS);
   await page.locator('.ptab', { hasText: 'Data' }).click();
@@ -272,7 +276,7 @@ $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
 $bmp.Save('${file}', [System.Drawing.Imaging.ImageFormat]::Png)`;
   const done = spawnSync('powershell', ['-NoProfile', '-Command', ps], { encoding: 'utf8' });
   if (done.status !== 0) throw new Error(`${name}: ${done.stderr}`);
-  written(name);
+  written(name, MAX_SCREEN_BYTES);
 }
 if (process.platform === 'win32') {
   const r = await launch();
@@ -289,4 +293,19 @@ if (process.platform === 'win32') {
   await t.page.waitForTimeout(1500);
   screen('windows-frame-tutorial');
   await t.close();
+  // A 1920x1080 screen (the workflow sets it: tools/windows/screen-1920.ps1):
+  // the default layout maximised, as a student sees it, the caption
+  // buttons and the taskbar included.
+  const wide = await launch();
+  const area = await wide.app.evaluate(({ screen: s }) => s.getPrimaryDisplay().size);
+  if (area.width >= 1920) {
+    await lab04(wide);
+    await wide.page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await wide.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].maximize());
+    await wide.page.waitForTimeout(1500);
+    screen('windows-max-1920');
+  } else {
+    console.log(`windows-max-1920: not taken, the screen is ${area.width}x${area.height}`);
+  }
+  await wide.close();
 }

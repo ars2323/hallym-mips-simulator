@@ -14,6 +14,10 @@
                that result on the same card and waits for [다음]: told to,
                done, shown what it did, and only then on.  A step whose
                result the next step points at anyway goes straight on.
+   A card is one text, a title and a body: a practice step's body says what
+   to do and, in its last sentence, what happens once it is done; there is
+   no separate line of instructions under it.  No [다음] on the card is the
+   other sign that it waits for the student.
 
    What a step points at is ringed, the rest of the window only lightly
    dimmed (the surroundings are what the student is learning); clicks
@@ -376,8 +380,6 @@ export class Tutorial {
     if (step.kind === 'explain' || res) buttons.push(button('다음', 'primary tut-next', () => this.next()));
     if (step.kind === 'practice' && !res && this.skipShown) buttons.push(button('건너뛰기', 'tut-skip', () => void this.skip()));
     if (step.kind === 'end') buttons.push(button('끝내기', 'primary tut-finish', () => void this.end()));
-    const doing = res ? h('p', { class: 'tut-done' }, '됐습니다 — 결과를 본 뒤 다음으로')
-      : step.kind === 'practice' ? h('p', { class: 'tut-doing' }, '직접 해 보세요 — 되면 결과를 짚어 드립니다') : null;
     card.className = `tut-card kind-${step.kind}${res ? ' done' : ''}`;
     card.replaceChildren(
       h('div', { class: 'tut-say' },
@@ -385,7 +387,6 @@ export class Tutorial {
           step.kind === 'end' ? null : button('그만두기', 'tut-quit linkish', () => void this.quit())),
         h('h3', {}, (res ?? step).title(this)),
         h('p', {}, codeText((res ?? step).body(this))),
-        doing,
         h('div', { class: 'tut-buttons' }, ...buttons)),
       character(step.pose ?? 'haram', 76));
     (card.querySelector('img.char') as HTMLElement).classList.add('tut-char');
@@ -544,25 +545,25 @@ export const STEPS: Step[] = [
   // ---- the screen
   { kind: 'explain', file: 'tutorial.s', view: 'editor', pose: 'hello',
     title: () => '여기가 Editor 패널입니다',
-    body: () => '어셈블리 코드를 쓰는 곳입니다. 지금은 튜토리얼 예제가 열려 있습니다. 예제는 읽기 전용이라 고쳐지지 않습니다.',
+    body: () => '어셈블리 코드를 쓰는 곳입니다. 지금 열린 것은 튜토리얼 예제라서 고칠 수 없습니다(읽기 전용).',
     targets: (t) => [$('.editor-panel .phead'), lines(t, 1, 6)],
     reveal: (t) => t.host.revealLine(1),
     prepare: async (t) => { if (t.host.running()) await t.host.stop(); } },
   { kind: 'practice', file: 'tutorial.s', keys: ['Ctrl+S'],
     title: () => 'Assemble: 코드를 기계어로',
-    body: () => 'Assemble 버튼을 누르거나 Ctrl+S 키를 누르세요. 누르면 오른쪽의 Run 쪽이 켜집니다.',
+    body: () => '쓴 코드를 기계어로 바꾸는 것이 어셈블입니다. Assemble 버튼을 누르거나 Ctrl+S 키를 눌러 보세요. 어셈블이 끝나면 오른쪽 Run 쪽이 켜지고 다음 단계로 넘어갑니다.',
     targets: () => [button('assemble')],
     done: (_t, s) => (s.kind === 'assembled' && s.ok ? 'next' : null),
     skip: async (t) => { await t.host.assemble(); } },
   { kind: 'explain', file: 'tutorial.s', view: 'run',
     title: () => 'Registers 패널',
-    body: () => 'MIPS 레지스터 32개가 쓰임새대로 묶여 있습니다. 띠 하나가 한 묶음입니다. 예를 들어 Temporaries 묶음은 계산하는 동안 값을 잠시 두는 레지스터들입니다.',
+    body: () => 'MIPS 레지스터 32개가 쓰임새대로 묶여 있습니다. 표시한 Temporaries 묶음은 계산하는 동안 값을 잠시 두는 레지스터들입니다.',
     targets: () => [$('.regs .phead'), $$('.rgroup').find((g) => g.textContent?.includes('Temporaries'))],
     prepare: async (t) => { if (!t.host.assembled()) await t.host.assemble(); },
     reveal: () => scrollIn($$('.rgroup').find((g) => g.textContent?.includes('Temporaries')) ?? null) },
   { kind: 'explain', file: 'tutorial.s', view: 'run', tab: 'text',
     title: () => '소스 한 줄이 명령 두 개가 되었습니다',
-    body: () => '소스 한 줄 `li $t0, 0x12345678` → 기계 명령 두 개: `lui` (위 16비트), `ori` (아래 16비트). 명령 하나에는 32비트 상수가 다 들어가지 않기 때문입니다. 이렇게 소스 한 줄이 기계 명령 여러 개가 되기도 합니다.',
+    body: () => '`li $t0, 0x12345678` → `lui`(위 16비트) + `ori`(아래 16비트). 명령 하나에는 32비트 상수가 다 들어가지 않아서, 어셈블러가 두 명령으로 나누었습니다.',
     // Both ends of it: the Editor's line and the two Text rows (a narrow
     // window shows one side: the rows).
     targets: (t) => [...(t.host.narrow() ? [] : [lines(t, t.line(BIG))]), trow(t.addr(BIG)), trow(t.addr(BIG) + 4)],
@@ -571,7 +572,7 @@ export const STEPS: Step[] = [
   // ---- one line at a time
   { kind: 'practice', file: 'tutorial.s', view: 'editor', keys: ['F10'],
     title: () => 'Step: 한 줄 실행',
-    body: () => '파란 줄이 지금 실행할 줄입니다. F10 키(또는 Step 버튼)를 눌러 이 줄을 실행해 보세요. 시작 코드와 앞의 `li` 두 줄은 미리 실행해 두었습니다.',
+    body: () => '파란 줄이 다음에 실행할 줄입니다. 시작 코드와 앞의 `li` 두 줄은 미리 실행해 두었습니다. F10 키(또는 Step 버튼)를 눌러 이 줄을 실행해 보세요. 실행하면 무엇이 바뀌었는지 짚어 드립니다.',
     targets: (t) => [button('step'), lines(t, t.line(ADD))],
     prepare: async (t) => {
       if (!t.host.assembled()) await t.host.assemble();
@@ -581,26 +582,26 @@ export const STEPS: Step[] = [
     reveal: (t) => t.host.revealLine(t.line(ADD)),
     done: (_t, s) => (s.kind === 'stopped' ? 'next' : null),
     result: { view: 'run',
-      title: () => '한 줄 실행됐습니다',
-      body: () => '파란 줄이 다음 줄로 내려갔고, Registers 패널에서 레지스터 하나가 노란 줄이 되었습니다. 방금 실행한 명령이 바꾼 레지스터입니다.',
+      title: () => '한 줄을 실행했습니다',
+      body: () => '파란 줄이 다음 줄로 내려갔고, 오른쪽 Registers 패널에서 `$t3` 레지스터가 노란 줄이 되었습니다.',
       targets: (t) => [$('.rrow[data-reg="$t3"]'), ...(t.host.narrow() ? [] : [$('.editor-panel .cm-pc-line')])],
       reveal: (t) => t.host.revealRegister('$t3') },
     skip: async (t) => { await t.host.step(); } },
   { kind: 'explain', file: 'tutorial.s', view: 'run',
     title: () => '노란 줄: 방금 바뀐 레지스터',
-    body: () => '방금 실행한 `add $t3, $t1, $t2` 명령이 5 + 7 = 12, 그 결과를 이 레지스터에 넣었습니다. 명령 하나가 무엇을 바꿨는지 노란 줄로 보입니다.',
+    body: () => '노란 줄은 방금 실행한 줄이 바꾼 레지스터입니다. `add $t3, $t1, $t2` 명령이 두 값을 더한 결과(5 + 7 = 12)를 `$t3` 레지스터에 넣었습니다.',
     targets: () => [$('.rrow[data-reg="$t3"]')],
     prepare: async (t) => { await t.atLeast(SUB); },
     reveal: (t) => t.host.revealRegister('$t3') },
   { kind: 'explain', file: 'tutorial.s', view: 'run',
     title: () => '같은 값의 세 얼굴',
-    body: () => 'Hex = 16진수, Dec = 10진수, Bin = 2진수. 셋 모두 같은 값 12입니다. 2진수는 네 자리씩 묶어 두었습니다.',
+    body: () => 'Hex = 16진수, Dec = 10진수, Bin = 2진수. 셋 모두 같은 값 12입니다. 2진수는 읽기 쉽게 네 자리씩 띄어 두었습니다.',
     targets: () => regCells('$t3'),
     prepare: async (t) => { await t.atLeast(SUB); t.column('regs', 'dec'); t.column('regs', 'bin'); },
     reveal: (t) => t.host.revealRegister('$t3') },
   { kind: 'explain', file: 'tutorial.s', view: 'run', tab: 'text',
     title: () => 'Inspector 패널: 방금 그 명령의 32비트',
-    body: () => '방금 실행한 `add` 명령을 32비트로 풀어 보여 줍니다. 비트를 필드로 나누고, 필드마다 이름과 뜻을 적었습니다.',
+    body: () => '방금 실행한 `add` 명령을 32비트로 나누어 보여 줍니다. 필드마다 이름과 값, 뜻이 적혀 있습니다.',
     targets: () => [$('.insp .phead'), $('.insp .ihead'), $('.insp .bitgrid')],
     prepare: async (t) => { await t.atLeast(SUB); t.host.pin(t.addr(ADD)); },
     leave: async (t) => { if (t.index !== 8) t.host.pin(null); } },
@@ -618,7 +619,7 @@ export const STEPS: Step[] = [
   // ---- memory
   { kind: 'practice', file: 'tutorial.s', view: 'run',
     title: () => 'Data 탭',
-    body: () => 'Data 탭을 눌러 보세요. 프로그램의 `.data` 부분에 적은 문자열과 워드가 메모리 어디에 올라가 있는지 보입니다.',
+    body: () => 'Data 탭에서는 프로그램의 `.data` 부분에 적은 문자열과 워드가 메모리 어디에 있는지 볼 수 있습니다. Data 탭을 눌러 보세요. 누르면 다음 단계로 넘어갑니다.',
     targets: () => [$$('.textpanel .ptab').find((b) => b.textContent === 'Data')],
     prepare: async (t) => { if (!t.host.assembled()) await t.host.assemble(); if (t.host.tab() === 'data') t.host.setTab('text'); },
     done: (_t, s) => (s.kind === 'tab' && s.tab === 'data' ? 'next' : null),
@@ -631,7 +632,7 @@ export const STEPS: Step[] = [
     reveal: () => scrollIn(msgTags()) },
   { kind: 'practice', file: 'tutorial.s', view: 'run', tab: 'data', keys: ['F10'],
     title: () => 'sw: 메모리에 쓰기',
-    body: (t) => `${t.host.narrow() ? '' : '왼쪽에 강조한 줄이 `sw $t3, total` 입니다. '}F10 키를 몇 번 눌러 \`sw\` 줄까지 실행해 보세요. \`total\` 자리의 값이 바뀝니다: 0 → 12 (Hex 0000000c).`,
+    body: (t) => `${t.host.narrow() ? '' : '왼쪽에 표시한 '}\`sw $t3, total\` 줄은 \`$t3\` 레지스터의 값을 메모리의 \`total\` 자리에 씁니다. F10 키를 몇 번 눌러 이 줄까지 실행해 보세요. 실행하고 나면 \`total\` 자리가 어떻게 바뀌었는지 보여 드립니다.`,
     targets: (t) => [...(t.host.narrow() ? [] : [lines(t, t.line(SW))]), dataCell(t)],
     prepare: async (t) => {
       await t.atLeast(SUB);
@@ -640,8 +641,8 @@ export const STEPS: Step[] = [
     reveal: (t) => { if (!t.host.narrow()) t.host.revealLine(t.line(SW)); scrollIn(dataCell(t)); },
     done: (t, s) => (s.kind === 'stopped' && ((t.host.pc() ?? 0) >= t.addr(LW) || t.host.finished()) ? 'next' : null),
     result: { view: 'run', tab: 'data',
-      title: () => '`total` 자리가 12 가 되었습니다',
-      body: () => '`sw $t3, total` 명령이 `$t3` 값 12 를 메모리의 `total` 자리에 썼습니다. 16진수로는 0000000c 입니다.',
+      title: () => '메모리에 썼습니다',
+      body: () => '`sw` 명령이 `$t3` 레지스터의 값 12 를 `total` 자리에 썼습니다. 표시한 칸이 0 에서 12 로 바뀌었습니다(16진수 0000000c).',
       targets: (t) => [dataCell(t)],
       reveal: (t) => scrollIn(dataCell(t)) },
     skip: async (t) => { await t.host.runUntil(t.addr(LW)); } },
@@ -654,7 +655,7 @@ export const STEPS: Step[] = [
   // ---- control
   { kind: 'practice', file: 'tutorial.s', view: 'editor',
     title: (t) => `브레이크포인트: ${t.line(PRINT)}행에서 멈추게`,
-    body: (t) => `${t.line(PRINT)}행의 맨 왼쪽(줄 번호 왼쪽 칸)을 눌러 빨간 점을 찍어 보세요. 실행하다가 이 줄 앞에서 멈춥니다. 한 번 더 누르면 지워집니다.`,
+    body: (t) => `${t.line(PRINT)}행의 맨 왼쪽, 줄 번호 왼쪽 칸을 눌러 빨간 점을 찍어 보세요. 실행하다가 이 줄 앞에서 멈추게 하는 표시이고, 같은 칸을 한 번 더 누르면 지워집니다. 점을 찍으면 다음으로 넘어갑니다.`,
     // The gutter cell and its line, one ring: one thing to do.
     targets: (t) => [gutterAndLine(t, t.line(PRINT))],
     prepare: async (t) => {
@@ -666,7 +667,7 @@ export const STEPS: Step[] = [
     skip: async (t) => { await t.host.setBreakpointLine(t.line(PRINT), true); } },
   { kind: 'practice', file: 'tutorial.s', keys: ['F5'],
     title: () => 'Run: 끝까지, 또는 브레이크포인트까지',
-    body: () => 'F5 키(또는 Run 버튼)를 누르세요. 프로그램이 쭉 실행되다가 빨간 점을 찍은 줄 앞에서 멈춥니다.',
+    body: () => 'Run 버튼(F5 키)은 한 줄씩이 아니라 프로그램을 쭉 실행합니다. 프로그램이 끝나거나 빨간 점을 만나면 멈춥니다. F5 키를 눌러 보세요. 어디서 멈췄는지 알려 드립니다.',
     targets: () => [button('run')],
     prepare: async (t) => {
       await t.notFinished();
@@ -675,54 +676,50 @@ export const STEPS: Step[] = [
     },
     done: (_t, s) => (s.kind === 'stopped' && (s.reason === 'breakpoint' || s.reason === 'exit') ? 'next' : null),
     result: {
-      title: (t) => (t.host.finished() ? '끝까지 실행되었습니다' : '브레이크포인트에서 멈췄습니다'),
-      body: (t) => (t.host.finished() ? '브레이크포인트가 없어서 프로그램이 끝까지 실행되었습니다. 상태 표시줄에 그렇게 나옵니다.'
-        : '빨간 점을 찍은 줄 앞에서 실행이 멈췄습니다. 상태 표시줄에도 나옵니다. 멈춘 자리에서 레지스터와 메모리를 살펴볼 수 있습니다.'),
+      title: (t) => (t.host.finished() ? '끝까지 실행되었습니다' : '빨간 점에서 멈췄습니다'),
+      body: (t) => (t.host.finished() ? '빨간 점이 없어서 프로그램이 끝까지 실행되었습니다.'
+        : '빨간 점을 찍은 줄 앞에서 멈췄습니다. 이 줄은 아직 실행되지 않았습니다. 아래 상태 표시줄에도 멈춘 자리가 나옵니다.'),
       targets: (t) => [status(), ...(t.host.narrow() || t.host.finished() ? [] : [$('.editor-panel .cm-pc-line')])],
       reveal: (t) => { if (!t.host.narrow() && !t.host.finished()) t.host.revealLine(t.line(PRINT)); } },
     skip: async (t) => { await t.host.run(); } },
   { kind: 'practice', file: 'tutorial.s', keys: ['F5'],
     title: () => 'Run speed: 천천히 실행',
-    body: () => 'Run speed 칸에서 1 line/s 쪽을 고른 뒤 F5 키를 누르세요. 1초에 한 줄씩 실행됩니다. 몇 줄 지나가는 것을 본 뒤 Esc 키(또는 Stop 버튼)로 멈추세요.',
+    body: () => 'Run speed 칸에서 1 line/s 쪽을 고른 뒤 F5 키를 누르세요. 1초에 한 줄씩 실행되면서 파란 줄과 노란 줄이 옮겨 갑니다. 몇 줄 지켜본 뒤 Esc 키(또는 Stop 버튼)로 멈추면 다음으로 넘어갑니다.',
     targets: () => [$('.speedbox'), button('run')],
     prepare: async (t) => { await t.notFinished(); },
     done: (_t, s) => (s.kind === 'slow-ended' ? 'next' : null),
-    result: {
-      title: () => '멈췄습니다',
-      body: () => '한 줄씩 실행되는 동안 파란 줄과 노란 줄이 옮겨 가는 것을 보았습니다. 멈춘 자리는 상태 표시줄에 있습니다.',
-      targets: () => [status()] },
     skip: async (t) => { if (t.host.running()) await t.host.stop(); },
     leave: async (t) => { if (t.host.running()) await t.host.stop(); await t.host.setSpeed('fast'); } },
   { kind: 'practice', file: 'tutorial.s',
     title: () => 'Reset: 처음으로',
-    body: () => 'Reset 버튼을 누르세요. 프로그램을 다시 어셈블해서 처음부터 실행할 수 있게 합니다. 브레이크포인트는 그대로 남습니다.',
+    body: () => 'Reset 버튼은 프로그램을 다시 어셈블해 처음부터 실행할 수 있게 합니다. Reset 버튼을 눌러 보세요. 무엇이 처음으로 돌아가는지 보여 드립니다.',
     targets: () => [button('reset')],
     prepare: async (t) => { if (!t.host.assembled()) await t.host.assemble(); },
     done: (_t, s) => (s.kind === 'reset' ? 'next' : null),
     result: { view: 'run',
       title: () => '처음으로 돌아왔습니다',
-      body: () => '`$t3` 레지스터가 다시 0 이 되었고, 파란 줄이 시작 코드의 첫 줄로 돌아갔습니다. 브레이크포인트는 그대로 남아 있습니다.',
+      body: () => '`$t3` 레지스터가 다시 0 이 되었습니다. 프로그램이 처음 상태로 돌아가서, F10 키나 F5 키로 처음부터 다시 실행할 수 있습니다. 찍어 둔 빨간 점은 그대로 남아 있습니다.',
       targets: () => [$('.rrow[data-reg="$t3"]'), status()],
       reveal: (t) => t.host.revealRegister('$t3') },
     skip: async (t) => { await t.host.restart(); } },
   // ---- input, output, errors
   { kind: 'practice', file: 'tutorial.s', view: 'run', keys: ['F5'],
     title: () => '출력은 Console 패널에',
-    body: (t) => `${t.host.narrow() ? '' : `${t.line(OUT_SYSCALL) + 1}행의 \`syscall\` 줄이 문자열을 출력합니다(\`$v0\` 값 4 = 문자열 출력). `}F5 키로 끝까지 실행해 보세요. 브레이크포인트에서 멈추면 F5 키를 한 번 더. 결과가 Console 패널에 나옵니다. 입력을 받는 부분은 없습니다.`,
+    body: (t) => `${t.host.narrow() ? '' : `${t.line(OUT_SYSCALL) + 1}행의 \`syscall\` 줄이 문자열을 출력합니다(\`$v0\` 값 4 = 문자열 출력). `}F5 키로 끝까지 실행해 보세요. 빨간 점에서 멈추면 F5 키를 한 번 더 누르세요. 프로그램이 끝나면 출력이 어디에 나왔는지 보여 드립니다.`,
     targets: (t) => [...(t.host.narrow() ? [] : [lines(t, t.line(OUT_SYSCALL) + 1)]), $('.console')],
     prepare: async (t) => { await t.notFinished(); if (t.host.expandConsole()) t.did.push('console opened'); },
     reveal: (t) => { if (!t.host.narrow()) t.host.revealLine(t.line(OUT_SYSCALL) + 1); },
     done: (_t, s) => (s.kind === 'stopped' && (s.reason === 'exit' || s.reason === 'error') ? 'next' : null),
     result: { view: 'run',
       title: () => '출력이 나왔습니다',
-      body: () => 'Console 패널에 프로그램이 출력한 문자열이 있습니다. 상태 표시줄에는 프로그램이 끝났다고 나옵니다.',
+      body: () => '`syscall` 명령이 출력한 문자열이 Console 패널에 나왔습니다. 프로그램은 여기서 끝났습니다(아래 상태 표시줄).',
       targets: () => [$('.console .clog'), status()] },
     skip: async (t) => { for (let i = 0; i < 3 && !t.host.finished(); i += 1) await t.host.run(); } },
   { kind: 'practice', file: 'tutorial-error.s', view: 'editor', keys: ['Ctrl+S'], pose: 'curious',
     title: (t) => (t.phase === 0 ? '오류가 나면' : 'Errors 패널'),
     body: (t) => (t.phase === 0
-      ? '이번에는 일부러 한 줄을 틀리게 쓴 예제입니다. Assemble 버튼(또는 Ctrl+S 키)을 눌러 보세요.'
-      : `오류는 Errors 패널에 나옵니다. 맨 위에 할 일, 그 아래에 오류와 고치는 요령이 있습니다. ${t.host.errorLine() ?? ''}행으로 가기 버튼을 눌러 보세요.`),
+      ? '이번에는 일부러 한 줄을 틀리게 쓴 예제입니다. Assemble 버튼(또는 Ctrl+S 키)을 눌러 보세요. 오류가 어디에 어떻게 나오는지 이어서 보여 드립니다.'
+      : `맨 위에 무엇이 잘못됐는지와 할 일이, 그 아래에 틀린 줄과 고치는 요령이 있습니다. ${t.host.errorLine() ?? ''}행으로 가기 버튼을 누르면 Editor 패널의 그 줄로 가고, 튜토리얼도 다음으로 넘어갑니다.`),
     targets: (t) => (t.phase === 0 ? [button('assemble')]
       : [textOf($('.run-side .errors .notice h3')), textOf($('.run-side .errors .item')), $('.run-side .errors .row .btn')]),
     // The Editor's line with the error is part of what to look at.

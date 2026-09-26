@@ -210,7 +210,13 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .run-placeholder[data-kind=changed] h3 { color: var(--amber-text); }
 .run-grid { display: grid; min-height: 0; gap: 8px;
   grid-template-columns: clamp(var(--regs-least, 417px), 46%, var(--regs-most, 505px)) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
-.run-grid .leftcol { grid-row: 1; grid-column: 1; display: grid; min-height: 0; gap: 8px; grid-template-rows: minmax(0, 1fr) auto; }
+.run-grid .leftcol { grid-row: 1; grid-column: 1; display: grid; min-height: 0; gap: 0; grid-template-rows: minmax(0, 1fr) 8px auto; }
+/* The grip between Registers and the Console (app.ts): drag to share the height, double-click for the default. */
+.vgrip { display: flex; align-items: center; justify-content: center; cursor: row-resize; touch-action: none; }
+.vgrip .grip { width: 36px; height: 3px; border-radius: 2px; background: var(--border); }
+.vgrip:hover .grip { background: var(--muted); }
+.leftcol:has(> .console:not(.open)) .vgrip { cursor: default; }
+.leftcol:has(> .console:not(.open)) .vgrip .grip { visibility: hidden; }
 .run-grid .regshost { display: grid; min-height: 0; }
 .run-grid .centre { grid-row: 1; grid-column: 2; display: grid; min-height: 0; gap: 8px; position: relative;
   grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
@@ -421,8 +427,17 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 
 /* ---- Console ------------------------------------------------------------ */
-.console.open { height: clamp(120px, 26vh, 260px); }
-.cbody { flex: 1; min-height: 0; display: flex; flex-direction: column; container-type: size; }
+/* The Console's height: while it is empty, as tall as its words (one
+   sentence; the height beyond goes to Registers, which is what a step
+   changes); once there is output or a question for input, its share; the
+   grip over it (--console-h, app.ts) overrides both. */
+.console.open { height: var(--console-h, clamp(120px, 26vh, 260px)); }
+.console.open.is-empty { height: var(--console-h, auto); }
+.cbody { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.console .notice-host { container-type: normal; } /* its words decide its height while it is empty */
+/* Its empty word is the words alone, compact (the character is the Inspector's, next to it). */
+.console .notice img.char { display: none; }
+.console .notice { padding: 10px 16px; gap: 0; }
 .clog { flex: 1; min-height: 0; margin: 0; padding: 6px 12px; overflow: auto; font-size: var(--fs); line-height: 1.5; white-space: pre-wrap; word-break: break-all; }
 .clog .typed { color: var(--blue); font-weight: 700; }
 .cinrow { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-top: 1px solid var(--border); flex: none; }
@@ -521,7 +536,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .tut-quit:hover { color: var(--navy); text-decoration: underline; }
 .tut-say h3 { margin: 4px 0 6px; font-size: 15px; line-height: 1.35; color: var(--navy); }
 .tut-say p { margin: 0; color: var(--text); font-size: 13px; line-height: 1.55; }
-.tut-say .tut-doing { margin-top: 8px; color: var(--teal-text); font-size: 12px; font-weight: 600; }
 .tut-buttons { display: flex; justify-content: flex-end; gap: 6px; margin-top: 10px; }
 .tut-card.kind-end { width: min(420px, calc(100vw - 32px)); }
 /* The narrow window (Editor | Run as tabs): a slimmer card, so that it still finds a place beside the error list's words. */
@@ -529,4 +543,3 @@ button { font: inherit; color: inherit; cursor: pointer; }
 body.tutorial-on img.char:not(.tut-char):not(.modal img.char) { visibility: hidden; }
 /* A dialog over the tutorial: its Haram speaks; the card's gives way (one Haram). */
 body.dialog-open .tut-card img.char { visibility: hidden; }
-.tut-say .tut-done { margin-top: 8px; color: var(--teal-text); font-size: 12px; font-weight: 600; }

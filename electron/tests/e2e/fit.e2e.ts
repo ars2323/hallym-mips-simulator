@@ -265,9 +265,6 @@ test('1920x1040: the Editor stops at 72 columns; Source whole, the bit grid full
   const r = await launch({ width: 1920, height: 1040 });
   const { page } = r;
   try {
-    // A screen this window does not fit on (the Windows CI runner's is 1024x768) cannot show this layout.
-    const fits = await r.app.evaluate(({ screen }) => { const a = screen.getPrimaryDisplay().workAreaSize; return a.width >= 1920 && a.height >= 1040; });
-    test.skip(!fits, 'a screen smaller than 1920x1040');
     await lab04(r);
     await page.waitForTimeout(300);
     const m = await page.evaluate(() => {
@@ -293,7 +290,18 @@ test('1920x1040: the Editor stops at 72 columns; Source whole, the bit grid full
         binDigits: bin.textContent!.replace(/[^01]/g, '').length, binCut: bin.scrollWidth > bin.clientWidth, binShown: getComputedStyle(bin).display !== 'none',
       };
     });
-    console.log(`[1920x1040] ${JSON.stringify(m)}`);
+    const v = await page.evaluate(() => {
+      const height = (s: string) => Math.round((document.querySelector(s) as HTMLElement).getBoundingClientRect().height);
+      const list = document.querySelector('.regs-list') as HTMLElement;
+      const words = document.querySelector('.console .notice') as HTMLElement;
+      const head = document.querySelector('.console .phead') as HTMLElement;
+      return { column: height('.run-grid .leftcol'), registersHeight: height('.regs'), consoleHeight: height('.console'), consoleNeeds: Math.round(words.getBoundingClientRect().height + head.getBoundingClientRect().height) + 2,
+        rowsShown: list.clientHeight, rowsAll: list.scrollHeight };
+    });
+    console.log(`[1920x1040] ${JSON.stringify({ ...m, ...v })}`);
+    // Height: the Console, empty, as tall as its words; Registers the rest.
+    expect(Math.abs(v.consoleHeight - v.consoleNeeds), 'the empty Console as tall as its words').toBeLessThanOrEqual(3);
+    expect(Math.abs(v.registersHeight + 8 + v.consoleHeight - v.column), 'Registers has the rest').toBeLessThanOrEqual(2);
     expect(Math.abs(m.editor - m.cap), 'the Editor at what 72 columns need').toBeLessThanOrEqual(2);
     expect(m.sourceCut, 'Source cut short').toBe(0);
     expect(m.bitFont, 'the bit grid at its full size').toBe(`${parseFloat(m.bitFontFull) + 2}px`);

@@ -103,6 +103,7 @@ export class ConsolePanel {
     this.head.setMeta(this.waiting ? 'Waiting for input' : '');
     this.body.hidden = !this.expanded;
     const empty = this.text === '' && !this.waiting;
+    this.root.classList.toggle('is-empty', empty); // app.css: as tall as its words
     this.emptyNote.hidden = !empty;
     this.log.hidden = empty;
   }
