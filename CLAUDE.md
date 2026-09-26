@@ -71,7 +71,7 @@ A change that has not reached the students has not been made. These rules hold f
 for again each time.
 
 1. **A round that changes the app ends with a release.** The app is `electron/src`, `electron/native` and `CPU/`.
-   A round that changes only documents, tests or CI does not release: its report says "no release" and why.
+   A round that changes only documents, tests or CI does not release: its report says "배포 없음" (no release) and why.
 2. **The version is decided here, not asked for.** A change a student can see → minor (2.2.0); fixes only → patch
    (2.1.1). The report gives the reason.
 3. **Release only when everything is green.** If one check is red, do not release: report it. The checks, reported
