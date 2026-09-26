@@ -3,7 +3,7 @@
 A Hallym University derivative of QtSpim-Edu 1.0.1, the educational extension based on SPIM/QtSpim **9.1.24** (SVN r764, git tag `vanilla-9.1.24`).
 The layout, features and simulator core stay exactly as in QtSpim-Edu; **only the appearance (branding, colors, fonts, icons, spacing)** changes (PLAN.md, "Stage H").
 It is used in class alongside standard QtSpim, so **the simulation results must be completely identical to the original, and only the GUI changes**.
-This repository also holds the Electron edition (2.x, the current version) in `electron/`, which shares `CPU/`; its rules and history are in `electron/docs/PORTING.md`. These rules are for the Qt edition (1.x) at the root.
+This repository also holds the Electron edition (2.x, the current version) in `electron/`, which shares `CPU/`; its rules and history are in `electron/docs/PORTING.md`. The rules below are for the Qt edition (1.x) at the root, except the last section, **"Releasing the Electron edition (2.x)"**, which applies to every round that changes the Electron app.
 The final distribution target is **Windows**. The overall plan is in `PLAN.md`, the results of the code structure survey are in `docs/ARCHITECTURE.md` (written in stage 1), and the design tokens are in `docs/design/tokens.md`.
 
 ## Build (Linux development environment)
@@ -64,3 +64,43 @@ Changes to the original `QtSpim/*.cpp` are limited to the minimum needed to hook
 - Windows user names and paths on students' PCs may contain Korean. Check the encoding at the point where a file path passes from a QString to the core (`char*`, `fopen`), and test with Korean paths.
 - Korean comments are common in `.s` files. The editor defaults to UTF-8, supports opening CP949 files, and keeps the original line endings (CRLF/LF).
 - Installation must not conflict with standard QtSpim (installation path, executable name, MSI UpgradeCode, `.s` file association).
+
+## Releasing the Electron edition (2.x)
+
+A change that has not reached the students has not been made. These rules hold for every round; they are not asked
+for again each time.
+
+1. **A round that changes the app ends with a release.** The app is `electron/src`, `electron/native` and `CPU/`.
+   A round that changes only documents, tests or CI does not release: its report says "no release" and why.
+2. **The version is decided here, not asked for.** A change a student can see → minor (2.2.0); fixes only → patch
+   (2.1.1). The report gives the reason.
+3. **Release only when everything is green.** If one check is red, do not release: report it. The checks, reported
+   as a table:
+   - both workflows green on the commit to be released (the Qt build and the Electron build);
+   - the unit tests (`cd electron && npm test`);
+   - every e2e test at the four widths (`npm run e2e:widths`: 1280, 1093, 1024, 910), the 1920 test among them;
+   - Korean input: the CDP tests (in the e2e) and the real Microsoft Korean IME (Windows CI);
+   - settings reset to their defaults at every start (in the e2e);
+   - every mutant killed (`node tools/mutants.ts`);
+   - the Windows CI job's e2e against the installed app, the 1920 test included;
+   - installing over 1.2.4 (side by side: Windows CI, every run) and over the latest published 2.x release (the
+     workflow's `upgrade` job: run it by hand on the commit before tagging);
+   - document links: 0 broken, 0 orphans (`node tools/check-doc-links.ts`);
+   - greps: no old version given as the current one, no `[스크린샷 자리]`, no "하면 됩니다"-type ending (1.x documents
+     excepted);
+   - `slides/` unchanged (file count and combined hash).
+4. **How to release.** The version bump (`electron/package.json`, `electron/package-lock.json`) and the release
+   notes, `electron/docs/releases/<version>.md`, go in the commit that is released (rule 7). The notes are in English, for students: the Korean user guide's link first; what they
+   will see that is different; that the program is unsigned and how to get past the Windows warning (link); links
+   back to the previous 2.x release and to 1.2.4; no video links. Push that commit, wait for both workflows and run
+   the checks above, then push the tag `v<version>`. The tag's workflow (`electron.yml`) builds and tests again,
+   installs over the previous release, publishes (not a pre-release; Latest; the installer's SHA-256 added to the
+   notes by CI) and then runs the post-release check (`release-check.yml`). A failure anywhere opens an issue.
+5. **It is released only when the post-release check has passed:** the installer downloaded from the public release
+   address, its SHA-256 the one in the notes, installed on a clean runner, every e2e test run against it, every link
+   and picture of the published documents opening, the release Latest, the earlier releases still there. Check its
+   result and report it with the release's address and the hash.
+6. **Never delete an old release.** 1.2.4 is the Qt edition's last; the earlier 2.x releases are where to go back.
+   The notes link back to them; rolling back is in `electron/docs/WINDOWS.md`, "Rolling back a release".
+7. **The version is raised only in the commit that is released,** never in the middle of a round.
+

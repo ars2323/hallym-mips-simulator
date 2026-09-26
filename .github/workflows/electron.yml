@@ -19,10 +19,18 @@
 #   7. tools/probe-platform.ts: simulator handles while running/stepping
 #      (the core's waitable timer), screenshots of the native file dialogs;
 #      and the fixed set of screens captured on Windows
-#   8. (run by hand, and for a v2.* tag) installing over the build the
-#      Electron repository last made before the merge (48e645c, the
-#      preview build), then this build over itself: one folder, one
-#      uninstall entry (tools/windows/check-upgrade.ps1)
+#   8. (run by hand, and for a v2.* tag) installing over the latest
+#      published 2.x release (its installer downloaded from its release
+#      page) and over the build the Electron repository last made before the
+#      merge (48e645c, the preview build), each time then this build over
+#      itself: one folder, one uninstall entry (tools/windows/check-upgrade.ps1)
+#   9. (a v2.* tag only) the release: published from this run's installer,
+#      with the notes the tagged commit carries (electron/docs/releases/
+#      <version>.md) and the installer's SHA-256, not a pre-release, Latest;
+#      then checked as a student gets it (release-check.yml: downloaded from
+#      the public address, hash, install, every e2e, links, Latest, the
+#      earlier releases still there).  A failure anywhere on a tag opens an
+#      issue.
 name: Electron edition (2.x) — Windows
 
 on:
@@ -189,11 +197,13 @@ jobs:
             Select-String -Path $h.FullName -Pattern '#define yy|yylval|yyparse|api.prefix|YYSTYPE' | ForEach-Object { "$($_.LineNumber): $($_.Line)" }
           }
 
-  # This build over the one students may already have: the Electron
-  # repository's last before the merge (48e645c), built here from its commit,
-  # since artifacts expire and the old repository's are not this one's to read.
+  # This build over the ones students may already have: the latest published
+  # 2.x release, downloaded from its release page; and the Electron
+  # repository's last build before the merge (48e645c), built here from its
+  # commit, since artifacts expire and the old repository's are not this
+  # one's to read.
   upgrade:
-    name: Install over the pre-merge build (48e645c)
+    name: Install over the latest 2.x release and the pre-merge build
     needs: windows
     if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v2.')
     runs-on: windows-latest
@@ -224,11 +234,33 @@ jobs:
           node tools/package.ts
           Get-ChildItem dist/*-setup.exe | ForEach-Object { $_.FullName }
 
-      - name: This run's 2.0.0
+      - name: This run's installer
         uses: actions/download-artifact@v4
         with:
           name: HallymMIPS-windows
           path: electron/new
+
+      - name: The latest published 2.x release's installer
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Published, not a pre-release, not this run's own tag: the newest such 2.x release.
+          $releases = gh release list --repo $env:GITHUB_REPOSITORY --exclude-drafts --exclude-pre-releases --limit 100 --json tagName,publishedAt | ConvertFrom-Json
+          $tag = ($releases | Where-Object { $_.tagName -like 'v2.*' -and $_.tagName -ne $env:GITHUB_REF_NAME } |
+            Sort-Object { [datetime]$_.publishedAt } -Descending | Select-Object -First 1).tagName
+          if (-not $tag) { throw 'no published 2.x release to install over' }
+          gh release download $tag --repo $env:GITHUB_REPOSITORY --pattern '*-setup.exe' --dir released
+          "$tag" | Set-Content released/tag.txt
+          Get-ChildItem released | ForEach-Object { $_.Name }
+
+      - name: This build over the latest 2.x release
+        shell: pwsh
+        run: |
+          $old = (Get-Content released/tag.txt).Trim().TrimStart('v')
+          $new = (Get-Content package.json | ConvertFrom-Json).version
+          tools/windows/check-upgrade.ps1 -Old (Get-Item released/*-setup.exe).FullName -OldVersion $old `
+            -New (Get-Item new/*-setup.exe).FullName -NewVersion $new -Report upgrade/release
 
       - name: This build over 48e645c's
         shell: pwsh
@@ -236,7 +268,7 @@ jobs:
           $old = (Get-Content ../../previous/package.json | ConvertFrom-Json).version
           $new = (Get-Content package.json | ConvertFrom-Json).version
           tools/windows/check-upgrade.ps1 -Old (Get-Item ../../previous/dist/*-setup.exe).FullName -OldVersion $old `
-            -New (Get-Item new/*-setup.exe).FullName -NewVersion $new -Report upgrade
+            -New (Get-Item new/*-setup.exe).FullName -NewVersion $new -Report upgrade/preview
 
       - name: Upload the upgrade report
         if: always()
@@ -245,3 +277,84 @@ jobs:
           name: upgrade-report
           path: electron/upgrade/
           if-no-files-found: ignore
+
+  # A v2.* tag: the release.  Published from this run's installer (the one
+  # the e2e ran against), with the notes the tagged commit carries and the
+  # installer's SHA-256; not a pre-release; Latest.  Only after the build,
+  # the tests and the upgrades have passed.
+  publish:
+    name: Publish the release
+    needs: [windows, upgrade]
+    if: startsWith(github.ref, 'refs/tags/v2.')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: This run's installer
+        uses: actions/download-artifact@v4
+        with:
+          name: HallymMIPS-windows
+          path: dist
+
+      - name: The version, the notes, the installer, its SHA-256
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          package=$(node -p "require('./electron/package.json').version")
+          [ "$package" = "$version" ] || { echo "::error::the tag is $GITHUB_REF_NAME but electron/package.json says $package"; exit 1; }
+          notes="electron/docs/releases/$version.md"
+          [ -f "$notes" ] || { echo "::error::no release notes for $version: $notes"; exit 1; }
+          setup="dist/HallymMIPS-$version-win-x64-setup.exe"
+          [ -f "$setup" ] || { echo "::error::no $setup"; exit 1; }
+          [ "$(ls dist | wc -l)" = 1 ] || { echo "::error::the package is not one file: $(ls dist)"; exit 1; }
+          hash=$(sha256sum "$setup" | cut -d' ' -f1)
+          {
+            cat "$notes"
+            printf '\n## SHA-256\n\nBuilt by CI from the tag `%s` (commit %s). To check the download on Windows: `certutil -hashfile <file> SHA256`.\n\n```\n%s  %s\n```\n' \
+              "$GITHUB_REF_NAME" "${GITHUB_SHA::7}" "$hash" "$(basename "$setup")"
+          } > release-notes.md
+          echo "SETUP=$setup" >> "$GITHUB_ENV"
+          echo "$hash  $(basename "$setup")"
+
+      - name: Publish (not a pre-release; Latest)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "$SETUP" --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "Hallym MIPS ${GITHUB_REF_NAME#v}" --notes-file release-notes.md --latest
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json url,isDraft,isPrerelease,assets \
+            --jq '"\(.url)  draft=\(.isDraft) prerelease=\(.isPrerelease)  " + ([.assets[].name] | join(", "))'
+
+  # Then the release as a student gets it (release-check.yml).
+  release-check:
+    name: The published release, as downloaded
+    needs: publish
+    if: startsWith(github.ref, 'refs/tags/v2.')
+    uses: ./.github/workflows/release-check.yml
+    with:
+      tag: ${{ github.ref_name }}
+
+  # A tag whose build, tests, upgrade, publishing or post-release check
+  # failed: an issue says so, so that it cannot go unnoticed.
+  release-failed:
+    name: Report a failed release
+    needs: [windows, upgrade, publish, release-check]
+    if: failure() && startsWith(github.ref, 'refs/tags/v2.')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Open an issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "Release $GITHUB_REF_NAME failed" --body "The workflow for the tag \`$GITHUB_REF_NAME\` failed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
+
+          Build / tests: ${{ needs.windows.result }}; upgrade: ${{ needs.upgrade.result }}; publish: ${{ needs.publish.result }}; post-release check: ${{ needs.release-check.result }}.
+
+          If the release was published and its check failed, see electron/docs/WINDOWS.md, \"Rolling back a release\"."
+

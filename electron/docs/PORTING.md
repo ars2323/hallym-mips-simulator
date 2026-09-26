@@ -514,7 +514,7 @@ release has none.
 | Install | MSI, per machine (administrator), `Program Files\Hallym MIPS Simulator` | NSIS, **per user** (no administrator), `%LOCALAPPDATA%\Programs\Hallym MIPS` |
 | Start menu | `Hallym MIPS Simulator` inside the folder `Hallym MIPS Simulator` | **`Hallym MIPS`** |
 | Settings | registry `HKCU\Software\HallymMIPS\HallymMIPS` | folder `%APPDATA%\HallymMIPS2` |
-| Uninstall entry | HKLM, product code | HKCU, `Hallym MIPS 2.0.0` |
+| Uninstall entry | HKLM, product code | HKCU, `Hallym MIPS <version>` |
 | Executable | `HallymMIPS.exe` | `HallymMIPS.exe` (in a different folder, so they do not collide) |
 | `.s` association | none | none |
 
@@ -1074,4 +1074,30 @@ test in the e2e against the installed app (Editor 586 px = the cap, Registers 84
 `windows-frame.png`, which is now the maximised default layout as Windows draws it at 1920×1080, caption buttons
 and taskbar included. The e2e do not depend on it: a window can be 1920 px wide on a smaller screen, and the tests
 size their own windows.
+
+---
+
+## 23. Releases — every round that changes the app ends with one
+
+v2.0.0's installer, published with the build of `b50e37d`, stayed the one students got while four rounds of changes
+went only to `main`. From now on a round that changes the app (`electron/src`, `electron/native`, `CPU/`) ends with a
+release, by the rules in `CLAUDE.md` at the repository root ("Releasing the Electron edition (2.x)"): the version
+decided by what a student sees (minor) or not (patch), everything green first, the version raised and the notes
+written in the commit that is released, the release checked as downloaded before it counts, no old release deleted.
+
+**A tag does the rest.** Pushing `v2.x.y` runs `electron.yml`: the Windows job (build, tests, package, side by side
+with 1.2.4, e2e against the installed app, the real Korean IME, the screens); the `upgrade` job, now over the latest
+published 2.x release — its installer downloaded from its release page — as well as over the pre-merge preview build,
+each time then over itself; then `publish` (Ubuntu: the tag must match `electron/package.json`, the notes
+`electron/docs/releases/<version>.md` must exist, the package must be one file; the release is created from that run's
+installer with the notes and the installer's SHA-256 appended, not a pre-release, Latest); then `release-check`, which
+calls `release-check.yml` with the tag. A failure in any of these opens an issue. `release-check.yml` checks the
+release as a student gets it: Latest, the installer its only file, 1.2.4 and every 2.x release still there, the
+installer downloaded from the public address with the SHA-256 of the notes, installed on a clean runner (screen
+1920×1080) with every e2e test passing against it (the real IME included), and every link and picture of the published
+documents opening at the tag. It runs in that order because the job that calls it needs `publish`; a release published
+by hand (a re-release after a rollback) triggers it by itself (`release: published`; the one CI publishes does not,
+since events made with the workflow's own token start no workflow — the call covers it).
+
+Rolling back is in `docs/WINDOWS.md` ("Rolling back a release"), written for any version.
 

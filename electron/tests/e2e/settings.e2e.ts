@@ -4,11 +4,13 @@
    nothing of them on disk.  Advanced applies from the next assemble. */
 
 import { expect, test } from '@playwright/test';
-import { existsSync, mkdtempSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { launch, openAndAssemble, program, regHex, sample, settled, side, statusText } from './harness.ts';
+import { launch, openAndAssemble, program, regHex, root, sample, settled, side, statusText } from './harness.ts';
+
+const VERSION = (JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')) as { version: string }).version;
 
 // Every file under `dir`.
 const files = (dir: string): string[] => readdirSync(dir).flatMap((n) => {
@@ -136,7 +138,7 @@ test('About: version, SPIM, and every notice from the files the package carries'
     await page.getByTitle('Settings').click();
     await page.getByRole('button', { name: /About · Licenses/ }).click();
     const about = page.locator('dialog.about');
-    await expect(about).toContainText('2.0.0');
+    await expect(about).toContainText(VERSION); // package.json's
     await expect(about).toContainText('Based on SPIM 9.1.24 by James R. Larus (BSD)');
     await about.getByRole('button', { name: 'Licenses' }).click();
     const items = about.locator('details');

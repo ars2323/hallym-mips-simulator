@@ -5,7 +5,7 @@ Workflow: `.github/workflows/electron.yml` at the repository root (it runs for c
 
 | File | Size |
 |---|---|
-| `HallymMIPS-2.0.0-win-x64-setup.exe` (NSIS, per-user) | 102.9 MB (107,914,059 bytes) |
+| `HallymMIPS-<version>-win-x64-setup.exe` (NSIS, per-user) | about 103 MB (each run's exact size is in `sizes.txt`, in the artifact `windows-report`) |
 | Installed size | 327 MB (Chromium locales Korean and English only; with all of them, 374 MB) |
 
 ### What the installed 327 MB contains
@@ -68,12 +68,13 @@ Other things CI checks every time:
 | Install folder | `C:\Program Files\Hallym MIPS Simulator` | `%LOCALAPPDATA%\Programs\Hallym MIPS` | No overlap |
 | Start menu | `(all users) Hallym MIPS Simulator\Hallym MIPS Simulator` | `(this user) Hallym MIPS` | No overlap |
 | Settings | Registry `HKCU\Software\HallymMIPS` | None kept: a folder for one run, `%TEMP%\HallymMIPS\run-<pid>-<time>`, removed when it closes | Qt settings unchanged after this app's install, run, e2e and uninstall; after the run nothing of this app in `%APPDATA%`, `%LOCALAPPDATA%` or `%TEMP%\HallymMIPS` |
-| Uninstall entry | HKLM | HKCU `Hallym MIPS 2.0.0` | The Qt edition is still installed after the uninstall |
+| Uninstall entry | HKLM | HKCU `Hallym MIPS <version>` | The Qt edition is still installed after the uninstall |
 | `.s` association | None | None | `assoc .s` unchanged |
 | Running at the same time | | | Both stay alive for 10 seconds |
 
 Nothing is kept between runs (docs/PORTING.md, "Nothing kept"). Builds before 2.0.0 kept the font size and the Data base
-in `%APPDATA%\HallymMIPS2`; 2.0.0 removes that folder when it starts, so an upgrade leaves nothing behind either.
+in `%APPDATA%\HallymMIPS2`; 2.0.0 and later remove that folder when they start, so an upgrade leaves nothing behind
+either.
 
 ### File dialogs (CI screen captures, English Windows)
 
@@ -105,7 +106,7 @@ With the installer from the artifact `HallymMIPS-windows`. On **Korean Windows**
 5. **Fonts** — check that register `$t0`, `CP0` and address `0x00400000` are in D2Coding (dotted 0) and that nothing shows as `0×`.
    Check that nothing is blurry or clipped at Windows scaling of 125% and 150%.
 6. **Side by side with 1.2.4** — start both and run a program in each. Check that closing one leaves the other's settings (window position, recent files) unchanged.
-7. **Uninstall** — Settings → Apps → uninstall "Hallym MIPS 2.0.0". Check that the Start menu entry and install folder disappear and 1.2.4 remains.
+7. **Uninstall** — Settings → Apps → uninstall "Hallym MIPS <version>". Check that the Start menu entry and install folder disappear and 1.2.4 remains.
 8. **Window frame** — check that hovering over the maximize button shows snap layouts, double-clicking the bar maximizes and restores, dragging the bar moves the window,
    dragging it to the top of the screen maximizes it, and the edges are not clipped when maximized. At scaling of 125% and 150%, check the size of the window buttons, and that the app bar's buttons and file name
    do not slide under the window buttons.
@@ -119,50 +120,60 @@ With the installer from the artifact `HallymMIPS-windows`. On **Korean Windows**
    the height; after a program prints, the Console grows; the border between Registers and the Console drags and a
    double click puts it back.
 
-## After publishing
+## Releasing, and after publishing
 
-The workflow **Release check (2.x, as downloaded)** (`.github/workflows/release-check.yml`, run by hand with the
-tag) downloads the installer from the public release address, checks that it is the release's only file, compares
-its SHA-256 with the release notes, installs it on a clean runner, runs every e2e test against the installed app (the
-real Microsoft Korean IME included), and uninstalls.
+A release is made by pushing a tag `v2.x.y` on a commit whose `electron/package.json` has that version and which
+carries the notes `electron/docs/releases/<version>.md` (the rules: `CLAUDE.md` at the repository root, "Releasing the
+Electron edition (2.x)"). The tag's workflow (`electron.yml`) builds and tests, installs over the latest published 2.x
+release, publishes the release from that run's installer — not a pre-release, Latest, the SHA-256 added to the notes —
+and then calls **Release check (2.x, as downloaded)** (`release-check.yml`): the release is Latest with the installer
+as its only file, 1.2.4 and every 2.x release are still there, the installer downloaded from the public address has
+the SHA-256 of the notes, it installs on a clean runner (screen 1920×1080), every e2e test passes against it (the real
+Microsoft Korean IME included), and every link and picture of the published documents opens at the tag. A failure in
+any of these opens an issue ("Release v2.x.y failed"). The check also runs by itself for a release published by hand
+(a re-release), and by hand with a tag.
 
-## Rolling back 2.0.0
+## Rolling back a release
 
-If 2.0.0 causes trouble in the labs, the release is taken back and 1.2.4 is the latest release again.
-Everything links to `releases/latest` (the README, the user guide), so the links then give 1.2.4.
+If the latest 2.x release causes trouble in the labs, it is taken back and the release before it is the latest again
+(after 2.1.0, that is 2.0.0; after 2.0.0, it was 1.2.4). Everything links to `releases/latest` (the README, the user
+guide), so the links then give the earlier one. Below, `<bad>` is the version taken back and `<previous>` the one
+before it.
 
-1. Turn the release back into a draft (its files stay, visible only to the maintainers):
+1. Turn the release back into a draft (its file stays, visible only to the maintainers):
 
    ```sh
-   gh release edit v2.0.0 --repo ars2323/hallym-mips-simulator --draft
+   gh release edit v<bad> --repo ars2323/hallym-mips-simulator --draft
    ```
 
 2. Delete the tag, on GitHub and locally:
 
    ```sh
-   git push origin --delete v2.0.0
-   git tag -d v2.0.0
+   git push origin --delete v<bad>
+   git tag -d v<bad>
    ```
 
-3. Make sure 1.2.4 is the latest release, and check:
+3. Make the earlier release the latest, and check:
 
    ```sh
-   gh release edit v1.2.4 --repo ars2323/hallym-mips-simulator --latest
-   gh release list --repo ars2323/hallym-mips-simulator   # v1.2.4 marked Latest, no v2.0.0
+   gh release edit v<previous> --repo ars2323/hallym-mips-simulator --latest
+   gh release list --repo ars2323/hallym-mips-simulator   # v<previous> marked Latest, no v<bad>
    ```
 
-   and open <https://github.com/ars2323/hallym-mips-simulator/releases/latest>: it must show 1.2.4.
+   and open <https://github.com/ars2323/hallym-mips-simulator/releases/latest>: it must show `<previous>`.
 
-4. Tell the students (in Korean; a notice for the course page):
+4. Tell the students (in Korean; a notice for the course page). Going back within 2.x, the newer version is removed
+   first, so that the older one is installed cleanly (installing an older 2.x over a newer one has not been tested);
+   going back to 1.2.4, the two editions sit side by side:
 
-   > Hallym MIPS 2.0.0 에 문제가 있어 잠시 이전 판 1.2.4("Hallym MIPS Simulator")로 돌아갑니다.
-   > - 릴리스 페이지(<https://github.com/ars2323/hallym-mips-simulator/releases/latest>)에서 1.2.4 를 받아 설치하세요.
-   >   사용법은 [1.x 사용법](https://github.com/ars2323/hallym-mips-simulator/blob/main/docs/GUIDE-ko.md)에 있습니다.
-   > - 2.0.0 을 이미 설치했다면 그대로 두어도 되고, 지우려면 설정 → 앱 → 설치된 앱 → "Hallym MIPS 2.0.0" → 제거.
-   >   둘은 따로 설치되며 서로 건드리지 않습니다.
-   > - 저장한 `.s` 파일은 그대로 1.2.4 에서 열 수 있습니다. 두 판은 같은 시뮬레이터 코어를 쓰므로 같은 프로그램은
-   >   같은 결과를 냅니다.
+   > Hallym MIPS <bad> 에 문제가 있어 잠시 이전 판 <previous> 로 돌아갑니다.
+   > - 먼저 설정 → 앱 → 설치된 앱 → "Hallym MIPS <bad>" → 제거를 누르세요.
+   > - 릴리스 페이지(<https://github.com/ars2323/hallym-mips-simulator/releases/latest>)에서 <previous> 를 받아 설치하세요.
+   > - 저장한 `.s` 파일은 그대로 열 수 있습니다. 모든 판이 같은 시뮬레이터 코어를 쓰므로 같은 프로그램은 같은 결과를 냅니다.
 
-5. The fix goes out as a new version (2.0.1), not under the tag `v2.0.0` again: a student who downloaded 2.0.0 must
-   be able to tell the two apart.
+   (Back to 1.2.4: the first line is not needed — 2.x and 1.x are installed apart and do not touch each other — and
+   its user guide is [the 1.x guide](https://github.com/ars2323/hallym-mips-simulator/blob/main/docs/GUIDE-ko.md).)
 
+5. The fix goes out as a new version (a patch: 2.1.1 after 2.1.0), never under the tag taken back: a student who
+   downloaded the bad one must be able to tell the two apart. Publishing it by hand (a re-release) runs the
+   post-release check by itself; a tag does everything, as for any release.

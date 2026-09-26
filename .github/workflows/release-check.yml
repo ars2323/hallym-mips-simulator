@@ -1,19 +1,33 @@
-# A published release, as a student gets it: the installer downloaded from
-# the public release address (not a CI artifact), its SHA-256 compared with
-# the release notes, the release's assets checked to be that one file, the
-# installer run on a clean runner, and every e2e test run against the
-# installed app -- the real Microsoft Korean IME included -- then
-# uninstalled.  Run by hand after publishing (and after a rollback's
-# re-release).
+# A published 2.x release, as a student gets it:
+#   - the release is Latest, its only asset is the installer, and the earlier
+#     releases (1.2.4 and every 2.x) are all still there;
+#   - the installer downloaded from the public release address (not a CI
+#     artifact), its SHA-256 compared with the release notes;
+#   - installed on a clean runner (screen 1920x1080), every e2e test run
+#     against it -- the real Microsoft Korean IME included -- then uninstalled;
+#   - every link and picture of the README, the user guide, docs/compare and
+#     docs/edutech, as GitHub serves them at the tag.
+#
+# Runs by itself: the tag's own workflow calls it once it has published the
+# release (electron.yml, jobs publish -> release-check), and a release
+# published by hand (a re-release after a rollback) triggers it.  It can also
+# be run by hand with a tag.
 name: Release check (2.x, as downloaded)
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       tag:
         description: 'Release tag'
-        default: 'v2.0.0'
+        type: string
         required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (v2.x.y)'
+        required: true
+  release:
+    types: [published]
 
 defaults:
   run:
@@ -21,12 +35,18 @@ defaults:
 
 jobs:
   check:
+    name: Check ${{ inputs.tag || github.event.release.tag_name }}
+    # The Qt edition's releases (v1.*) are not this check's.
+    if: startsWith(inputs.tag || github.event.release.tag_name, 'v2.')
     runs-on: windows-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
+    env:
+      TAG: ${{ inputs.tag || github.event.release.tag_name }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ env.TAG }}
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -35,41 +55,69 @@ jobs:
       - name: npm ci (the tests only)
         run: npm ci --ignore-scripts
 
+      - name: Screen 1920x1080 (tools/windows/screen-1920.ps1)
+        continue-on-error: true
+        shell: powershell
+        run: tools/windows/screen-1920.ps1 -Report report
+
+      - name: Latest, one asset, and the earlier releases still there
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $repo = '${{ github.repository }}'
+          $latest = gh api "repos/$repo/releases/latest" --jq .tag_name
+          if ($latest -ne $env:TAG) { throw "Latest is $latest, not $env:TAG" }
+          Write-Host "PASS  Latest: $latest"
+          $v = $env:TAG.TrimStart('v')
+          $release = gh release view $env:TAG --repo $repo --json isDraft,isPrerelease,assets | ConvertFrom-Json
+          if ($release.isDraft -or $release.isPrerelease) { throw "$env:TAG is a draft or a pre-release" }
+          $assets = @($release.assets | ForEach-Object { $_.name })
+          if ($assets.Count -ne 1 -or $assets[0] -ne "HallymMIPS-$v-win-x64-setup.exe") { throw "the release's assets should be the installer alone; they are: $($assets -join ', ')" }
+          Write-Host "PASS  one asset: $($assets[0])"
+          # 1.2.4 (the Qt edition's last) and every 2.x release: never deleted.
+          $published = @(gh release list --repo $repo --exclude-drafts --limit 200 --json tagName | ConvertFrom-Json | ForEach-Object { $_.tagName })
+          $must = @('v1.2.4') + @(git tag -l 'v2.*')
+          $gone = @($must | Where-Object { $_ -notin $published })
+          if ($gone.Count) { throw "releases gone: $($gone -join ', ')" }
+          Write-Host "PASS  still there: $($must -join ', ')"
+
       - name: Download from the public release and compare SHA-256 with the notes
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = '${{ inputs.tag }}'; $v = $tag.TrimStart('v')
+          $v = $env:TAG.TrimStart('v')
           New-Item -ItemType Directory -Force pub, report | Out-Null
-          $body = (gh release view $tag --repo ${{ github.repository }} --json body --jq .body) -join "`n"
-          $assets = @(gh release view $tag --repo ${{ github.repository }} --json assets --jq '.assets[].name')
-          if ($assets.Count -ne 1 -or $assets[0] -ne "HallymMIPS-$v-win-x64-setup.exe") { throw "the release's assets should be the installer alone; they are: $($assets -join ', ')" }
-          Add-Content report/release-check.txt "assets: $($assets -join ', ')"
-          foreach ($f in @("HallymMIPS-$v-win-x64-setup.exe")) {
-            $url = "https://github.com/${{ github.repository }}/releases/download/$tag/$f"
-            Invoke-WebRequest -Uri $url -OutFile "pub/$f"   # no token: what anyone gets
-            $h = (Get-FileHash "pub/$f" -Algorithm SHA256).Hash.ToLower()
-            $line = "$h  $f"
-            Add-Content report/release-check.txt $line
-            if ($body -notmatch [regex]::Escape($line)) { throw "SHA-256 of $f ($h) is not the one in the release notes" }
-            Write-Host "PASS  $line (as in the notes)"
-          }
+          $body = (gh release view $env:TAG --repo ${{ github.repository }} --json body --jq .body) -join "`n"
+          $f = "HallymMIPS-$v-win-x64-setup.exe"
+          $url = "https://github.com/${{ github.repository }}/releases/download/$env:TAG/$f"
+          Invoke-WebRequest -Uri $url -OutFile "pub/$f"   # no token: what anyone gets
+          $h = (Get-FileHash "pub/$f" -Algorithm SHA256).Hash.ToLower()
+          $line = "$h  $f"
+          Add-Content report/release-check.txt $line
+          if ($body -notmatch [regex]::Escape($line)) { throw "SHA-256 of $f ($h) is not the one in the release notes" }
+          Write-Host "PASS  $line (as in the notes)"
 
       - name: Install (per user, silent) and run every e2e test against it
         timeout-minutes: 20
         shell: pwsh
         run: |
-          $v = '${{ inputs.tag }}'.TrimStart('v')
+          $v = $env:TAG.TrimStart('v')
           $p = Start-Process (Resolve-Path "pub/HallymMIPS-$v-win-x64-setup.exe").Path -ArgumentList '/S' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "installer exit $($p.ExitCode)" }
           $exe = Join-Path $env:LOCALAPPDATA 'Programs\Hallym MIPS\HallymMIPS.exe'
           if (-not (Test-Path $exe)) { throw "not installed at $exe" }
-          Add-Content report/release-check.txt "installed: $exe $((Get-Item $exe).VersionInfo.ProductVersion)"
+          $version = (Get-Item $exe).VersionInfo.ProductVersion
+          Add-Content report/release-check.txt "installed: $exe $version"
+          if ($version -notlike "$v*") { throw "installed $version, not $v" }
           tools/windows/korean-ime.ps1 -Report report
           if ($LASTEXITCODE -eq 0) { $env:SPIM_REAL_IME = '1' }
           $env:SPIM_E2E_EXE = $exe
           npx playwright test
+
+      - name: Every link and picture of the published documents, at the tag
+        run: node tools/check-doc-links.ts --online ${{ env.TAG }}
 
       - name: Uninstall
         if: always()

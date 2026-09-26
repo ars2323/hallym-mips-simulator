@@ -92,7 +92,7 @@ export const config: Configuration = {
   // The repository's LICENSE and NOTICE (its root, shared by both editions).
   extraFiles: [{ from: path.join(root, '../LICENSE'), to: 'LICENSE.txt' }, { from: path.join(root, '../NOTICE'), to: 'NOTICE.txt' }],
   win: {
-    target: ['nsis'], // the installer only: no zip since 2.0.0 (docs/PORTING.md 13)
+    target: ['nsis'], // the installer only: no zip from 2.1.0 on (docs/PORTING.md 13)
     icon: path.join(root, 'packaging/icons/HallymMIPS.ico'),
     signAndEditExecutable: true,
   },
