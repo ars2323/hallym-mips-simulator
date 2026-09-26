@@ -6,9 +6,14 @@
    Two kinds of step:
      explain   points at something; [다음] (or →) goes on;
      practice  the student does the thing (Assemble, F10, a click in the
-               gutter...), the tutorial sees it happen and goes on by
-               itself; [건너뛰기] turns up after a few seconds, and does it
-               for them, so that the steps after have what they need.
+               gutter...), the tutorial sees it happen; [건너뛰기] turns up
+               after a few seconds, and does it for them, so that the steps
+               after have what they need.  A practice step whose result is
+               something to see (a register changed, a word in memory, a
+               stop at a breakpoint, output in the Console) then points at
+               that result on the same card and waits for [다음]: told to,
+               done, shown what it did, and only then on.  A step whose
+               result the next step points at anyway goes straight on.
 
    What a step points at is ringed, the rest of the window only lightly
    dimmed (the surroundings are what the student is learning); clicks
@@ -84,6 +89,16 @@ export interface TutorialHost {
 type Target = Element | { rect: DOMRect | null; within: Element | null } | null | undefined;
 type Key = 'F5' | 'F10' | 'Ctrl+S';
 
+// A practice step's result beat: what to point at once it is done.
+interface Result {
+  view?: 'editor' | 'run';
+  tab?: 'text' | 'data';
+  title(t: Tutorial): string;
+  body(t: Tutorial): string;
+  targets(t: Tutorial): Target[];
+  reveal?(t: Tutorial): void;
+}
+
 interface Step {
   kind: 'explain' | 'practice' | 'end';
   file?: Example;
@@ -98,6 +113,7 @@ interface Step {
   prepare?(t: Tutorial): Promise<void>;     // the machine where the step needs it
   reveal?(t: Tutorial): void;               // the targets into view
   done?(t: Tutorial, s: Signal): 'next' | 'phase' | null;
+  result?: Result;                          // shown after `done`, before the next step
   skip?(t: Tutorial): Promise<void>;
   leave?(t: Tutorial): Promise<void>;
 }
@@ -110,6 +126,7 @@ export class Tutorial {
   active = false;
   index = 0;
   phase = 0;
+  result = false;                       // a practice step done: its result on the card, [다음] awaited
   private lastStep = 0;                 // this run of the program only
   private busy = false;
   private readonly forced: ['regs' | 'text', string][] = [];
@@ -124,7 +141,7 @@ export class Tutorial {
   private lastReveal = 0;
   private advanceTimer = 0;
   // The last layout, for the tests: what is pointed at and where the card is.
-  shown: { step: number; phase: number; targets: Rect[]; card: Rect | null; hits: boolean[]; did: string[] } = { step: 0, phase: 0, targets: [], card: null, hits: [], did: [] };
+  shown: { step: number; phase: number; result: boolean; targets: Rect[]; card: Rect | null; hits: boolean[]; did: string[] } = { step: 0, phase: 0, result: false, targets: [], card: null, hits: [], did: [] };
   // What this step had to do to show its targets (for the report and tests).
   did: string[] = [];
 
@@ -218,6 +235,7 @@ export class Tutorial {
       if (this.active && i !== this.index) await STEPS[this.index].leave?.(this);
       this.index = i;
       this.phase = 0;
+      this.result = false;
       this.did = [];
       const step = STEPS[i];
       if (step.file && this.host.example() !== step.file) await this.host.open(step.file);
@@ -254,9 +272,23 @@ export class Tutorial {
     } finally {
       this.busy = false;
     }
-    // A step with phases goes on to its next phase, the others to the next step.
+    // A step with phases goes on to its next phase, one with a result to
+    // that, the others to the next step.
     if (this.index === 18 && this.phase === 0) { this.phase = 1; this.renderCard(); this.armSkip(); return; }
+    if (step.result) { this.showResult(); return; }
     this.next();
+  }
+
+  // The result beat: the card points at what the step just did and waits.
+  private showResult(): void {
+    const res = STEPS[this.index].result!;
+    this.result = true;
+    clearTimeout(this.skipTimer);
+    if (res.tab && this.host.tab() !== res.tab) { this.host.setTab(res.tab); this.did.push(`tab ${res.tab}`); }
+    if (res.view && this.host.narrow() && this.host.view() !== res.view) { this.host.showView(res.view); this.did.push(`side ${res.view}`); }
+    this.renderCard();
+    this.lastLayout = '';
+    this.lastReveal = 0;
   }
 
   private signal(s: Signal): void {
@@ -268,6 +300,7 @@ export class Tutorial {
       this.renderCard();
       this.armSkip();
     } else if (verdict === 'next') {
+      if (STEPS[this.index].result) { if (!this.result) this.showResult(); return; }
       const at = this.index;
       clearTimeout(this.advanceTimer);
       this.advanceTimer = window.setTimeout(() => { if (this.index === at && this.active) this.next(); }, 500);
@@ -290,13 +323,14 @@ export class Tutorial {
     }
     if (e.key === 'ArrowRight' && !(e.target as HTMLElement).closest?.('input')) {
       take();
-      if (step.kind === 'explain') this.next();
+      if (step.kind === 'explain' || this.result) this.next();
       else if (step.kind === 'practice' && this.skipShown) void this.skip();
       return true;
     }
     if (e.key === 'ArrowLeft' && !(e.target as HTMLElement).closest?.('input')) { take(); this.back(); return true; }
     if (key) {
       if (this.phase > 0 && this.index === 18) return take(); // the file is assembled: now the Errors panel
+      if (this.result) return take();                       // done: the result is what to look at
       return allowed.has(key) ? false : take();
     }
     if (e.ctrlKey || e.metaKey) return take(); // Ctrl+O and the like: not now
@@ -337,18 +371,20 @@ export class Tutorial {
       b.addEventListener('click', onClick);
       return b;
     };
+    const res = this.result ? step.result : undefined;
     const buttons: HTMLElement[] = [button('이전', 'tut-back', () => this.back(), n === 1)];
-    if (step.kind === 'explain') buttons.push(button('다음', 'primary tut-next', () => this.next()));
-    if (step.kind === 'practice' && this.skipShown) buttons.push(button('건너뛰기', 'tut-skip', () => void this.skip()));
+    if (step.kind === 'explain' || res) buttons.push(button('다음', 'primary tut-next', () => this.next()));
+    if (step.kind === 'practice' && !res && this.skipShown) buttons.push(button('건너뛰기', 'tut-skip', () => void this.skip()));
     if (step.kind === 'end') buttons.push(button('끝내기', 'primary tut-finish', () => void this.end()));
-    const doing = step.kind === 'practice' ? h('p', { class: 'tut-doing' }, '직접 해 보세요 — 되면 저절로 넘어갑니다') : null;
-    card.className = `tut-card kind-${step.kind}`;
+    const doing = res ? h('p', { class: 'tut-done' }, '됐습니다 — 결과를 본 뒤 다음으로')
+      : step.kind === 'practice' ? h('p', { class: 'tut-doing' }, '직접 해 보세요 — 되면 결과를 짚어 드립니다') : null;
+    card.className = `tut-card kind-${step.kind}${res ? ' done' : ''}`;
     card.replaceChildren(
       h('div', { class: 'tut-say' },
         h('div', { class: 'tut-top' }, h('span', { class: 'tut-count' }, `${n} / ${STEPS.length}`),
           step.kind === 'end' ? null : button('그만두기', 'tut-quit linkish', () => void this.quit())),
-        h('h3', {}, step.title(this)),
-        h('p', {}, codeText(step.body(this))),
+        h('h3', {}, (res ?? step).title(this)),
+        h('p', {}, codeText((res ?? step).body(this))),
         doing,
         h('div', { class: 'tut-buttons' }, ...buttons)),
       character(step.pose ?? 'haram', 76));
@@ -361,16 +397,17 @@ export class Tutorial {
   private layout(): void {
     if (!this.card || !this.dim || !this.rings || this.busy) return;
     const step = STEPS[this.index];
-    const rects = targetRects(step.targets(this));
+    const now: { targets(t: Tutorial): Target[]; reveal?(t: Tutorial): void } = this.result ? step.result! : step;
+    const rects = targetRects(now.targets(this));
     // A target not (wholly) in view: bring it in, at most five times a second.
-    if (step.reveal && (rects.missing || rects.clipped) && performance.now() - this.lastReveal > 200) {
+    if (now.reveal && (rects.missing || rects.clipped) && performance.now() - this.lastReveal > 200) {
       this.lastReveal = performance.now();
-      step.reveal(this);
+      now.reveal(this);
       if (!this.did.includes('scrolled')) this.did.push('scrolled');
     }
     const w = window.innerWidth;
     const hh = window.innerHeight;
-    const key = JSON.stringify([rects.list, w, hh, this.card.offsetWidth, this.card.offsetHeight, this.index, this.phase]);
+    const key = JSON.stringify([rects.list, w, hh, this.card.offsetWidth, this.card.offsetHeight, this.index, this.phase, this.result]);
     if (key === this.lastLayout) return;
     this.lastLayout = key;
     const holes = merge(rects.list.map((r) => grow(r, 4)));
@@ -388,10 +425,15 @@ export class Tutorial {
     const size = { width: this.card.offsetWidth, height: this.card.offsetHeight };
     // Below the title bar: the card never hides the toolbar.
     const view = { left: 0, top: ($('.titlebar')?.getBoundingClientRect().bottom ?? 0), right: w, bottom: hh };
+    // Beside the targets and off what the step keeps off; failing that,
+    // beside the targets alone (over what was kept off: the Editor at step
+    // 19, whose line is worth seeing but not what the card talks about);
+    // never over a target.
     const keepOff = targetRects(step.avoid?.(this) ?? []).list;
+    const grown = rects.list.map((r) => grow(r, 4));
     const at = step.kind === 'end' || rects.list.length === 0
       ? { left: (w - size.width) / 2, top: (hh - size.height) / 2, side: null }
-      : place([...rects.list.map((r) => grow(r, 4)), ...keepOff], size, view) ?? { left: w - size.width - 8, top: hh - size.height - 8, side: null };
+      : place([...grown, ...keepOff], size, view) ?? place(grown, size, view) ?? { left: w - size.width - 8, top: hh - size.height - 8, side: null };
     this.card.style.left = `${Math.round(at.left)}px`;
     this.card.style.top = `${Math.round(at.top)}px`;
     // Haram at the card's far end from the targets.
@@ -406,7 +448,7 @@ export class Tutorial {
       return !!hit && !!rects.owners[i]?.contains(hit);
     });
     this.shown = {
-      step: this.index + 1, phase: this.phase, targets: rects.list, hits, did: [...this.did],
+      step: this.index + 1, phase: this.phase, result: this.result, targets: rects.list, hits, did: [...this.did],
       card: { left: at.left, top: at.top, right: at.left + size.width, bottom: at.top + size.height },
     };
   }
@@ -496,6 +538,7 @@ function gutterAndLine(t: Tutorial, n: number): Target {
   return { rect: new DOMRect(g.left, Math.min(g.top, l.top), l.right - g.left, Math.max(g.bottom, l.bottom) - Math.min(g.top, l.top)), within: scroller() };
 }
 const msgTags = () => $$('.dtags').find((e) => /\bmsg\b/.test(e.textContent ?? '')) ?? null;
+const status = () => $('.status .run') ?? $('.status');
 
 export const STEPS: Step[] = [
   // ---- the screen
@@ -537,6 +580,11 @@ export const STEPS: Step[] = [
     },
     reveal: (t) => t.host.revealLine(t.line(ADD)),
     done: (_t, s) => (s.kind === 'stopped' ? 'next' : null),
+    result: { view: 'run',
+      title: () => '한 줄 실행됐습니다',
+      body: () => '파란 줄이 다음 줄로 내려갔고, Registers 패널에서 레지스터 하나가 노란 줄이 되었습니다. 방금 실행한 명령이 바꾼 레지스터입니다.',
+      targets: (t) => [$('.rrow[data-reg="$t3"]'), ...(t.host.narrow() ? [] : [$('.editor-panel .cm-pc-line')])],
+      reveal: (t) => t.host.revealRegister('$t3') },
     skip: async (t) => { await t.host.step(); } },
   { kind: 'explain', file: 'tutorial.s', view: 'run',
     title: () => '노란 줄: 방금 바뀐 레지스터',
@@ -591,6 +639,11 @@ export const STEPS: Step[] = [
     },
     reveal: (t) => { if (!t.host.narrow()) t.host.revealLine(t.line(SW)); scrollIn(dataCell(t)); },
     done: (t, s) => (s.kind === 'stopped' && ((t.host.pc() ?? 0) >= t.addr(LW) || t.host.finished()) ? 'next' : null),
+    result: { view: 'run', tab: 'data',
+      title: () => '`total` 자리가 12 가 되었습니다',
+      body: () => '`sw $t3, total` 명령이 `$t3` 값 12 를 메모리의 `total` 자리에 썼습니다. 16진수로는 0000000c 입니다.',
+      targets: (t) => [dataCell(t)],
+      reveal: (t) => scrollIn(dataCell(t)) },
     skip: async (t) => { await t.host.runUntil(t.addr(LW)); } },
   { kind: 'explain', file: 'tutorial.s', view: 'run', tab: 'data',
     title: () => '스택은 어디에 있나',
@@ -621,6 +674,12 @@ export const STEPS: Step[] = [
       if ((t.host.pc() ?? 0) >= t.addr(PRINT) && (t.host.pc() ?? 0) < 0x80000000) await t.host.restart();
     },
     done: (_t, s) => (s.kind === 'stopped' && (s.reason === 'breakpoint' || s.reason === 'exit') ? 'next' : null),
+    result: {
+      title: (t) => (t.host.finished() ? '끝까지 실행되었습니다' : '브레이크포인트에서 멈췄습니다'),
+      body: (t) => (t.host.finished() ? '브레이크포인트가 없어서 프로그램이 끝까지 실행되었습니다. 상태 표시줄에 그렇게 나옵니다.'
+        : '빨간 점을 찍은 줄 앞에서 실행이 멈췄습니다. 상태 표시줄에도 나옵니다. 멈춘 자리에서 레지스터와 메모리를 살펴볼 수 있습니다.'),
+      targets: (t) => [status(), ...(t.host.narrow() || t.host.finished() ? [] : [$('.editor-panel .cm-pc-line')])],
+      reveal: (t) => { if (!t.host.narrow() && !t.host.finished()) t.host.revealLine(t.line(PRINT)); } },
     skip: async (t) => { await t.host.run(); } },
   { kind: 'practice', file: 'tutorial.s', keys: ['F5'],
     title: () => 'Run speed: 천천히 실행',
@@ -628,6 +687,10 @@ export const STEPS: Step[] = [
     targets: () => [$('.speedbox'), button('run')],
     prepare: async (t) => { await t.notFinished(); },
     done: (_t, s) => (s.kind === 'slow-ended' ? 'next' : null),
+    result: {
+      title: () => '멈췄습니다',
+      body: () => '한 줄씩 실행되는 동안 파란 줄과 노란 줄이 옮겨 가는 것을 보았습니다. 멈춘 자리는 상태 표시줄에 있습니다.',
+      targets: () => [status()] },
     skip: async (t) => { if (t.host.running()) await t.host.stop(); },
     leave: async (t) => { if (t.host.running()) await t.host.stop(); await t.host.setSpeed('fast'); } },
   { kind: 'practice', file: 'tutorial.s',
@@ -636,6 +699,11 @@ export const STEPS: Step[] = [
     targets: () => [button('reset')],
     prepare: async (t) => { if (!t.host.assembled()) await t.host.assemble(); },
     done: (_t, s) => (s.kind === 'reset' ? 'next' : null),
+    result: { view: 'run',
+      title: () => '처음으로 돌아왔습니다',
+      body: () => '`$t3` 레지스터가 다시 0 이 되었고, 파란 줄이 시작 코드의 첫 줄로 돌아갔습니다. 브레이크포인트는 그대로 남아 있습니다.',
+      targets: () => [$('.rrow[data-reg="$t3"]'), status()],
+      reveal: (t) => t.host.revealRegister('$t3') },
     skip: async (t) => { await t.host.restart(); } },
   // ---- input, output, errors
   { kind: 'practice', file: 'tutorial.s', view: 'run', keys: ['F5'],
@@ -645,6 +713,10 @@ export const STEPS: Step[] = [
     prepare: async (t) => { await t.notFinished(); if (t.host.expandConsole()) t.did.push('console opened'); },
     reveal: (t) => { if (!t.host.narrow()) t.host.revealLine(t.line(OUT_SYSCALL) + 1); },
     done: (_t, s) => (s.kind === 'stopped' && (s.reason === 'exit' || s.reason === 'error') ? 'next' : null),
+    result: { view: 'run',
+      title: () => '출력이 나왔습니다',
+      body: () => 'Console 패널에 프로그램이 출력한 문자열이 있습니다. 상태 표시줄에는 프로그램이 끝났다고 나옵니다.',
+      targets: () => [$('.console .clog'), status()] },
     skip: async (t) => { for (let i = 0; i < 3 && !t.host.finished(); i += 1) await t.host.run(); } },
   { kind: 'practice', file: 'tutorial-error.s', view: 'editor', keys: ['Ctrl+S'], pose: 'curious',
     title: (t) => (t.phase === 0 ? '오류가 나면' : 'Errors 패널'),
@@ -652,7 +724,7 @@ export const STEPS: Step[] = [
       ? '이번에는 일부러 한 줄을 틀리게 쓴 예제입니다. Assemble 버튼(또는 Ctrl+S 키)을 눌러 보세요.'
       : `오류는 Errors 패널에 나옵니다. 맨 위에 할 일, 그 아래에 오류와 고치는 요령이 있습니다. ${t.host.errorLine() ?? ''}행으로 가기 버튼을 눌러 보세요.`),
     targets: (t) => (t.phase === 0 ? [button('assemble')]
-      : [textOf($('.run-side .errors .errtext h3')), textOf($('.run-side .errors .item')), $('.run-side .errors .row .btn')]),
+      : [textOf($('.run-side .errors .notice h3')), textOf($('.run-side .errors .item')), $('.run-side .errors .row .btn')]),
     // The Editor's line with the error is part of what to look at.
     avoid: (t) => (t.phase === 1 && !t.host.narrow() ? [$('.editor-panel')] : []),
     prepare: async (t) => { t.host.showView('editor'); },

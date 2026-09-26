@@ -44,13 +44,15 @@ test('nothing is kept: font size, Data radix, zoom, folds and the window are bac
   try {
     const { page } = r;
     expect(await page.evaluate(() => document.documentElement.style.getPropertyValue('--fs'))).toBe('13px');
-    // The window at the app's own default: 1280x800, or maximised on a smaller screen.
-    const win = await r.app.evaluate(({ BrowserWindow, screen }) => {
+    // The window as the app opens it: maximised (Windows; on a Linux display
+    // without a window manager maximising is nothing, and it is its own
+    // 1280x800) -- not the 1000x700 of the last run.
+    const win = await r.app.evaluate(({ BrowserWindow }) => {
       const w = BrowserWindow.getAllWindows()[0];
-      const area = screen.getPrimaryDisplay().workAreaSize;
-      return { size: w.getContentSize(), maximized: w.isMaximized(), small: area.width < 1280 || area.height < 800 };
+      return { size: w.getContentSize(), maximized: w.isMaximized() };
     });
-    if (win.small) expect(win.maximized).toBe(true); else expect(win.size).toEqual([1280, 800]);
+    if (process.platform === 'win32') expect(win.maximized).toBe(true);
+    if (!win.maximized) expect(win.size).toEqual([1280, 800]);
     await page.getByTitle('Settings').click();
     const dialog = page.locator('dialog.settings');
     await expect(dialog.locator('.value')).toHaveText('13px');

@@ -20,6 +20,7 @@ export interface AppApi {
   openCredits(): Promise<void>;             // LICENSES.chromium.html, in the browser
   getSettings(): Promise<Settings>;
   setSettings(s: Settings): Promise<Settings>;
+  setOverlay(color: string | null): Promise<void>;  // the caption buttons' patch; null: white
 }
 
 export interface AboutInfo {

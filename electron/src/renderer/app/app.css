@@ -142,7 +142,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .work { min-height: 0; min-width: 0; display: grid; }
 .stage-welcome { display: flex; align-items: center; justify-content: center; padding: 24px; overflow: auto; }
 .split { display: grid; min-height: 0; min-width: 0; padding: 8px; gap: 0;
-  grid-template-columns: var(--editor-w, clamp(300px, 40%, 760px)) 8px minmax(0, 1fr); } /* --editor-w: app.ts layout() */
+  grid-template-columns: var(--editor-w, clamp(300px, 40%, 590px)) 8px minmax(0, 1fr); } /* --editor-w: app.ts layout(): what 72 columns need, no more */
 .pane { display: grid; min-height: 0; min-width: 0; }
 .splitter { cursor: col-resize; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
 .foldbtn { width: 8px; height: 22px; padding: 0; border: 0; border-radius: 3px; background: none; color: var(--muted); font-size: 12px; line-height: 22px; cursor: pointer; }
@@ -190,13 +190,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .k-LabelDefinition { color: var(--navy); font-weight: 700; }
 .k-Number { color: var(--purple); }
 
-.errors .ebody { overflow: auto; }
-.errbody { display: flex; align-items: flex-start; gap: 24px; padding: 20px 24px 20px 24px; }
-.errbody img.char { flex: none; margin-left: auto; }
-.errtext { flex: 1; min-width: 0; max-width: 640px; }
-.errtext h3 { margin: 0 0 4px; font-size: 18px; color: var(--navy); }
-.errtext .sub { margin: 0 0 10px; color: var(--text-2); }
-.errtext .row { margin-top: 14px; }
+.errors .ebody { display: flex; overflow: auto; }
+.errors .notice { max-width: 760px; }
+.errors .notice .say > p { margin-bottom: 10px; }
+.errors .notice .row { margin-top: 14px; }
 .errors .item { display: grid; grid-template-columns: 18px 44px minmax(0, 1fr); align-items: baseline; gap: 8px; padding: 8px 0; border-top: 1px solid var(--border); font-size: 14px; }
 .errors .mark, .cm-error-mark { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 3px;
   border: 1.5px solid var(--error); color: var(--error); background: var(--white); font: 800 10px/1 var(--ui); }
@@ -208,11 +205,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 /* ---- the Run side -------------------------------------------------------- */
 .run-side { display: grid; min-height: 0; min-width: 0; container-type: inline-size; container-name: run; }
-.run-placeholder { display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--white); border: 1px dashed var(--border); border-radius: 8px; }
-.run-placeholder .card { display: flex; align-items: center; gap: 20px; max-width: 520px; }
-.run-placeholder .card img.char { flex: none; }
-.run-placeholder h3 { margin: 0 0 6px; font-size: 16px; color: var(--navy); }
-.run-placeholder p { margin: 0 0 14px; color: var(--text-2); }
+.run-placeholder { background: var(--white); border: 1px dashed var(--border); border-radius: 8px; }
+.run-placeholder .notice .row { margin-top: 14px; }
 .run-placeholder[data-kind=changed] h3 { color: var(--amber-text); }
 .run-grid { display: grid; min-height: 0; gap: 8px;
   grid-template-columns: clamp(var(--regs-least, 417px), 46%, var(--regs-most, 505px)) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
@@ -356,6 +350,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* ---- Inspector ---------------------------------------------------------- */
 .insp { container-type: inline-size; }
 .insp .ibody { overflow: auto; }
+.insp .ibody.is-empty { display: flex; }
 /* A narrow Inspector: smaller bits, so that 32 of them fit across. */
 @container (max-width: 520px) {
   .insp .fbits .bit { font-size: 11px; line-height: 20px; margin: 0; }
@@ -428,7 +423,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* ---- Console ------------------------------------------------------------ */
 .console.open { height: clamp(120px, 26vh, 260px); }
 .cbody { flex: 1; min-height: 0; display: flex; flex-direction: column; container-type: size; }
-@container (max-height: 150px) or (max-width: 320px) { .console .empty img.char { display: none; } .console .empty { padding: 8px 16px; } }
 .clog { flex: 1; min-height: 0; margin: 0; padding: 6px 12px; overflow: auto; font-size: var(--fs); line-height: 1.5; white-space: pre-wrap; word-break: break-all; }
 .clog .typed { color: var(--blue); font-weight: 700; }
 .cinrow { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-top: 1px solid var(--border); flex: none; }
@@ -437,12 +431,17 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .cinput { flex: 1; height: 28px; padding: 0 8px; border: 1px solid var(--blue); border-radius: 6px; font-size: var(--fs); outline: none; }
 .cinput:focus { box-shadow: 0 0 0 3px var(--blue-tint2); }
 
-/* ---- empty states and characters (white surfaces only) ------------------ */
-.empty { display: flex; align-items: center; justify-content: center; gap: 20px; padding: 16px 24px; flex: 1; min-height: 0; }
-.empty img.char { flex: none; }
-.empty .say { max-width: 360px; }
-.empty .say h3 { margin: 0 0 4px; font-size: 15px; font-weight: 600; color: var(--navy); }
-.empty .say p { margin: 0; color: var(--text-2); }
+/* ---- notices (notice.ts): an empty panel's word, the card before the first
+   assemble, the error list -- one shape, in the middle of its panel, the
+   character at the far end (white surfaces only) ------------------------- */
+.notice-host { display: flex; flex: 1; min-height: 0; min-width: 0; align-items: center; justify-content: center; overflow: auto; container-type: size; }
+.notice { display: flex; align-items: center; gap: 24px; max-width: 640px; padding: 16px 24px; margin: auto; }
+.notice .say { flex: 1; min-width: 0; }
+.notice .say h3 { margin: 0 0 6px; font-size: 16px; font-weight: 600; color: var(--navy); }
+.notice .say > p { margin: 0; color: var(--text-2); line-height: 1.5; }
+.notice img.char { flex: none; }
+/* Too short or too narrow for the character (the Console at a small window, the Inspector at 1093 px): the words alone. */
+@container (max-height: 156px) or (max-width: 380px) { .notice img.char { display: none; } .notice { padding: 8px 16px; gap: 0; } }
 .congrats { position: absolute; right: 16px; bottom: 16px; z-index: 6; display: flex; align-items: center; gap: 16px; padding: 12px 18px 12px 12px; background: var(--white); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,32,91,.14); }
 .congrats h3 { margin: 0 0 2px; font-size: 15px; color: var(--navy); }
 .congrats p { margin: 0 0 8px; color: var(--text-2); }
@@ -465,7 +464,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 /* ---- dialogs ------------------------------------------------------------ */
 .modal { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto; padding: 20px 22px; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 16px 48px rgba(0,32,91,.20); color: var(--text); }
-.modal::backdrop { background: rgba(0,32,91,.18); }
+.modal::backdrop { background: rgba(0,32,91,.35); } /* logic/overlay.ts DIALOG_BACKDROP: the caption buttons' patch matches */
 .modal.ask { width: min(480px, calc(100vw - 32px)); }
 .askbody { display: flex; gap: 18px; align-items: center; }
 .askbody img.char { flex: none; }
@@ -525,4 +524,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .tut-say .tut-doing { margin-top: 8px; color: var(--teal-text); font-size: 12px; font-weight: 600; }
 .tut-buttons { display: flex; justify-content: flex-end; gap: 6px; margin-top: 10px; }
 .tut-card.kind-end { width: min(420px, calc(100vw - 32px)); }
-body.tutorial-on img.char:not(.tut-char) { visibility: hidden; }
+/* The narrow window (Editor | Run as tabs): a slimmer card, so that it still finds a place beside the error list's words. */
+@media (max-width: 979px) { .tut-card { width: min(280px, calc(100vw - 32px)); } .tut-card.kind-end { width: min(420px, calc(100vw - 32px)); } }
+body.tutorial-on img.char:not(.tut-char):not(.modal img.char) { visibility: hidden; }
+/* A dialog over the tutorial: its Haram speaks; the card's gives way (one Haram). */
+body.dialog-open .tut-card img.char { visibility: hidden; }
+.tut-say .tut-done { margin-top: 8px; color: var(--teal-text); font-size: 12px; font-weight: 600; }

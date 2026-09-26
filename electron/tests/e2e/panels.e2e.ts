@@ -17,7 +17,7 @@ test('Inspector: follows PC at every step, pins to a chosen row, follows again o
   await openAndAssemble(r, program(r.dir, 'p.s', 'main:\n  li $t0, 5\n  li $t1, 7\n  li $v0, 10\n  syscall\n'));
   const insp = page.locator('.insp');
   await expect(insp.locator('.ihead')).toHaveCount(0); // not started, nothing chosen: the guide
-  await expect(insp).toContainText('한 줄 실행하면');
+  await expect(insp).toContainText('32비트로 나누어 보는 곳');
   await page.keyboard.press('F10');
   await settled(page);
   let pc = await regHex(page, 'PC');

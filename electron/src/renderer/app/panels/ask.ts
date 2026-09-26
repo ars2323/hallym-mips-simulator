@@ -1,7 +1,13 @@
 /* A question in the window's own dialog (not the operating system's
    message box, which looks like another program): Haram on the left, the
-   question and the buttons on the right.  Esc or a click on the backdrop is
-   the same as the cancel button.
+   question and the buttons on the right, the same place and size every
+   time.  Its backdrop darkens everything behind it, the tutorial's card
+   and rings included, and while it is up only its two buttons can be
+   reached (showModal: the rest of the page is inert).  Esc is the cancel
+   button -- the safe side; the other answer is only ever given by its
+   button.  A click outside the dialog does nothing at all: in the tutorial
+   a student clicks about, and a question that went away on such a click
+   would not even be noticed.
 
    A file's name is never part of the sentence (no particle after a name:
    "lab04.s 은" reads wrong whatever the name); it stands on a line of its
@@ -30,9 +36,9 @@ export function ask(q: Question): Promise<boolean> {
     let result = false;
     ok.addEventListener('click', () => { result = true; dialog.close(); });
     cancel.addEventListener('click', () => dialog.close());
-    dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.close(); });
-    dialog.addEventListener('close', () => { dialog.remove(); answer(result); });
+    dialog.addEventListener('close', () => { dialog.remove(); document.body.classList.remove('dialog-open'); answer(result); });
     document.body.append(dialog);
+    document.body.classList.add('dialog-open'); // app.css: the tutorial's own Haram gives way to this one
     dialog.showModal();
     ok.focus();
   });

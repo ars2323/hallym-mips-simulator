@@ -112,7 +112,6 @@ async function main(): Promise<void> {
   // is smaller (a lab PC: 1366x768 at 125% leaves about 1093x582) -- and
   // nothing of its size or place is kept for the next start.
   const area = screen.getPrimaryDisplay().workAreaSize;
-  const small = area.width < 1280 || area.height < 800;
   const win = new BrowserWindow({
     width: Math.min(1280, area.width),
     height: Math.min(800, area.height),
@@ -191,8 +190,22 @@ async function main(): Promise<void> {
   ipcMain.handle('settings:set', (_e, s: Settings) => {
     return setSettings(s);
   });
+  // The caption buttons' patch (titleBarOverlay, drawn by Windows) takes
+  // the colour the page asks for while it is covered (the tutorial's dim, a
+  // dialog's backdrop: src/renderer/app/logic/overlay.ts); null is white
+  // again.  The buttons themselves keep working.  Kept on the window for
+  // the tests to read (Electron has no getter for it).
+  ipcMain.handle('win:overlay', (_e, color: string | null) => {
+    const c = color ?? '#ffffff';
+    (win as BrowserWindow & { overlayColor?: string }).overlayColor = c;
+    try { win.setTitleBarOverlay({ color: c, symbolColor: '#00205b', height: TITLE_BAR_HEIGHT }); } catch { /* no title bar overlay on this platform */ }
+  });
 
-  win.once('ready-to-show', () => { if (small) win.maximize(); win.show(); });
+  // Maximised before it is shown -- every start, whatever the screen, since
+  // nothing is kept: the whole screen is what the panels are laid out for
+  // (the window's own size, 1280x800, is what un-maximising gives).
+  // (maximize() shows a hidden window; show() then gives it focus.)
+  win.once('ready-to-show', () => { win.maximize(); win.show(); });
   await win.loadFile(paths.page);
 }
 

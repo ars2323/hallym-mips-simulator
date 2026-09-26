@@ -26,7 +26,7 @@ import { spawnSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { launch, openAndAssemble, openOnly, root, sample, settled, textRow, type Running } from '../tests/e2e/harness.ts';
+import { launch, openAndAssemble, openOnly, program, root, sample, settled, textRow, type Running } from '../tests/e2e/harness.ts';
 
 const out = process.env.SCREENS_OUT ? path.resolve(process.env.SCREENS_OUT) : path.join(root, 'docs/screens');
 mkdirSync(out, { recursive: true });
@@ -39,6 +39,7 @@ const PINNED = '0x00400054';                    // sra $s1, $t6, 1
 const ERROR = 'tests/samples/lab04.s';          // line 15: srll
 const DATA = 'tests/samples/data-labels.s';
 const DATA_STEPS = 14;                          // past the sw onto the stack
+const TYPO = '        .text\n        .global main            # .globl\nmain:   li      $v0, 10\n        syscall\n';
 const MAX_BYTES = 400 * 1024;
 const MAX_CROP_BYTES = 150 * 1024;
 
@@ -145,6 +146,11 @@ async function lab04(r: Running): Promise<void> {
   await shot(r, 'start-2');
   await openOnly(r, sample(r.dir, LAB04, 'lab04.s'));
   await shot(r, 'split-before');
+  await page.locator('.cm-content').click();
+  await page.keyboard.press('Control+s');
+  await page.waitForSelector('.run-grid:not([hidden])');
+  await page.keyboard.press('Control+Home');
+  await shot(r, 'assembled');
   await lab04(r);
   await shot(r, 'split-running');
   await namedParts(r, '03-panels');
@@ -158,11 +164,27 @@ async function lab04(r: Running): Promise<void> {
   await assembled(r, sample(r.dir, ERROR));
   await page.waitForSelector('.errors .item');
   await shot(r, 'error');
+  await assembled(r, program(r.dir, 'typo.s', TYPO));
+  await page.waitForSelector('.errors .item');
+  await shot(r, 'error-near-miss');
   await assembled(r, sample(r.dir, DATA));
   await steps(r, DATA_STEPS);
   await page.locator('.ptab', { hasText: 'Data' }).click();
   await page.waitForSelector('.drow');
   await shot(r, 'data');
+  await r.close();
+}
+
+// A maximised 1920x1080 screen (1920x1040 under the taskbar): the Editor at
+// what 72 columns need, the rest of the width on the Run side; and the
+// Errors panel there.
+{
+  const r = await launch({ width: 1920, height: 1040 });
+  await lab04(r);
+  await shot(r, 'max-1920');
+  await assembled(r, sample(r.dir, ERROR));
+  await r.page.waitForSelector('.errors .item');
+  await shot(r, 'errors-max');
   await r.close();
 }
 
@@ -205,6 +227,19 @@ async function tutorialStep(r: Running, n: number): Promise<void> {
   const r = await launch({ width: 1280, height: 800 });
   for (const n of [1, 4, 9, 14]) { await tutorialStep(r, n); await shot(r, `tutorial-${String(n).padStart(2, '0')}`); }
   forGuide('tutorial-04', '02-tutorial-04');
+  // The quit question over step 14: Haram in the dialog, the card and rings under the backdrop.
+  await r.page.locator('.tut-card .tut-quit').click();
+  await r.page.waitForSelector('dialog.ask[open]');
+  await shot(r, 'tutorial-quit-ask');
+  await r.page.locator('dialog.ask').getByRole('button', { name: '계속하기' }).click();
+  // Step 18 done: the output pointed at, [다음] awaited.
+  await tutorialStep(r, 18);
+  for (let i = 0; i < 3 && !(await r.page.evaluate(() => (window as unknown as { __tutorial: { shown: { result: boolean } } }).__tutorial.shown.result)); i += 1) {
+    await r.page.keyboard.press('F5');
+    await r.page.waitForTimeout(700);
+  }
+  await r.page.waitForTimeout(600);
+  await shot(r, 'tutorial-18-done');
   await tutorialStep(r, 19);
   await r.page.keyboard.press('Control+s');
   await r.page.waitForFunction(() => (window as unknown as { __tutorial: { shown: { phase: number } } }).__tutorial.shown.phase === 1);
@@ -221,15 +256,11 @@ async function tutorialStep(r: Running, n: number): Promise<void> {
   await r.close();
 }
 
-if (process.platform === 'win32') {
-  const r = await launch();
-  await lab04(r);
-  await r.page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-  await r.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].maximize());
-  await r.page.waitForTimeout(1500);
+// The whole screen, as Windows draws it (the caption buttons included).
+function screen(name: string): void {
   // The real pointer onto the empty right end of the status bar (nothing
   // there reacts to it); CopyFromScreen does not draw the cursor.
-  const file = path.join(out, 'windows-frame.png');
+  const file = path.join(out, `${name}.png`);
   const ps = `Add-Type -AssemblyName System.Windows.Forms,System.Drawing
 $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
 $w = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
@@ -240,7 +271,22 @@ $g = [System.Drawing.Graphics]::FromImage($bmp)
 $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
 $bmp.Save('${file}', [System.Drawing.Imaging.ImageFormat]::Png)`;
   const done = spawnSync('powershell', ['-NoProfile', '-Command', ps], { encoding: 'utf8' });
-  if (done.status !== 0) throw new Error(`windows-frame: ${done.stderr}`);
-  written('windows-frame');
+  if (done.status !== 0) throw new Error(`${name}: ${done.stderr}`);
+  written(name);
+}
+if (process.platform === 'win32') {
+  const r = await launch();
+  await lab04(r);
+  await r.page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await r.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].maximize());
+  await r.page.waitForTimeout(1500);
+  screen('windows-frame');
   await r.close();
+  // The tutorial on, maximised: the caption buttons' patch coloured with the dim.
+  const t = await launch();
+  await tutorialStep(t, 14);
+  await t.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].maximize());
+  await t.page.waitForTimeout(1500);
+  screen('windows-frame-tutorial');
+  await t.close();
 }

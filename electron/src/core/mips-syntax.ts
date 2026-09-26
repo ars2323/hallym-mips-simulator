@@ -41,6 +41,10 @@ export function isMipsInstruction(word: string): boolean {
   return type !== undefined && type !== 'ASM_DIR';
 }
 
+// The names themselves (src/core/near-miss.ts looks for the nearest).
+export const mipsDirectiveNames = (): string[] => [...KEYWORD_TYPES].filter(([, t]) => t === 'ASM_DIR').map(([n]) => n);
+export const mipsInstructionNames = (): string[] => [...KEYWORD_TYPES].filter(([, t]) => t !== 'ASM_DIR').map(([n]) => n);
+
 // CPU/scanner.l: identifiers are [a-zA-Z_.][a-zA-Z0-9_.]*
 const isNameStart = (c: string): boolean => /^[A-Za-z_.]$/.test(c);
 const isNameChar = (c: string): boolean => /^[A-Za-z0-9_.]$/.test(c);

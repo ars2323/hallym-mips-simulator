@@ -27,7 +27,8 @@ test('an assembly error: what to do first, Haram, and a mark unlike a breakpoint
   const panel = page.locator('.errors');
   await expect(panel.locator('h3')).toHaveText('3행을 고친 뒤 다시 Ctrl+S 하면 됩니다');
   await expect(panel.locator('img.char')).toHaveCount(1);
-  await expect(panel.locator('.hint')).toContainText('레지스터 이름');
+  await expect(panel.locator('.hint')).toContainText('혹시'); // the slip named: srll -> srl
+  await expect(panel.locator('.hint .mono').last()).toHaveText('srl');
   await expect(page.locator('.cm-error-gutter .cm-error-mark')).toHaveText('!');
   await expect(page.locator('.cm-bp-dot')).toHaveCount(0);
   await panel.getByRole('button', { name: '3행으로 가기' }).click();

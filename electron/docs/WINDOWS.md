@@ -111,6 +111,9 @@ With the installer from the artifact `HallymMIPS-windows`. On **Korean Windows**
    do not slide under the window buttons.
 9. **Left/right split** — check that at 1366×768, 125%, maximized, Editor and Run are shown side by side; dragging and collapsing the divider; and that when the window is snapped to half the screen
    it switches to Editor / Run tabs.
+10. **Start** — the window opens maximised, with no smaller window seen first; un-maximising gives 1280×800.
+11. **Covered** — with the tutorial on, or a question up, the patch the caption buttons sit on is coloured like the rest
+   (not a white square); the buttons still work, and closing the window from there asks about unsaved changes as usual.
 
 ## After publishing
 

@@ -9,7 +9,8 @@
    run goes on from the syscall.  What was typed stays in the transcript,
    marked as input. */
 
-import { character, h } from '../dom.ts';
+import { h } from '../dom.ts';
+import { notice } from '../notice.ts';
 import { headButton, panelHead, type Head } from '../ui.ts';
 
 const KEEP = 200_000; // characters of output kept on screen
@@ -34,9 +35,8 @@ export class ConsolePanel {
     this.head.aside.append(this.bar);
     this.head.root.addEventListener('dblclick', () => this.setExpanded(!this.expanded));
     this.log = h('pre', { class: 'clog mono' });
-    this.emptyNote = h('div', { class: 'empty' }, character('talk', 96),
-      h('div', { class: 'say' }, h('h3', {}, '아직 출력이 없습니다'),
-        h('p', {}, '프로그램이 출력하거나 입력을 받으면 여기에 나옵니다.')));
+    this.emptyNote = h('div', { class: 'notice-host' },
+      notice({ pose: 'talk', title: '아직 출력이 없습니다', body: '프로그램이 출력하거나 입력을 받으면 여기에 나옵니다.' }));
     this.input = h('input', { class: 'cinput mono', type: 'text', 'aria-label': 'Console input', spellcheck: 'false', autocomplete: 'off' });
     this.input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.isComposing) {

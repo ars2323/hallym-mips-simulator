@@ -943,3 +943,80 @@ main window before every F10.
 **Four widths.** `SPIM_E2E_SIZE` sets the window of every test that does not size its own; `tools/e2e-widths.ts`
 (`npm run e2e:widths`) runs all of them at 1280×800, 1093×582, 1024×728 and 910×505.
 
+---
+
+## 21. Windows in use — the window, the layout, the tutorial's beats, the dialogs, the notices, the hints
+
+After a round of real use of the installed build on Windows.
+
+**Maximised at start.** The window is maximised before it is shown (`win.maximize()` then `show()` on
+`ready-to-show`), every start, whatever the screen: nothing is kept, so every student gets the whole screen every
+time. Un-maximising gives the window's own 1280×800. The e2e harness and the capture tool un-maximise and set the
+size they need, as before. On a Linux display without a window manager maximising is nothing and the window stays
+1280×800 (the tests allow it).
+
+**The default layout: the Editor's cap.** At 1920 the Editor had 755 px (40 % of the split, at most 760) for lines
+of 35 characters, while Text cut its Source column short and the Inspector put 32 bits into 617 px. No share of the
+window is right at every width, so the Editor's default is now *what a line of 72 columns needs and no more*:
+the gutters, the line's padding, 72 × the code font's character width (6.75 px at 13 px), a scroll bar — 586 px at
+the default font (`editor.widthFor(72)`, `EDITOR_COLUMNS` in app.ts; a font-size change moves it). Below that,
+`inner - runLeast` and the 300 px floor work as before, so 1280, 1093, 1024 and 910 are unchanged. Every pixel past
+the cap goes to the Run side, where Registers stays at its most (505 px, Name · Hex · Dec · Bin) and the rest widens
+Text's Source column and the Inspector. On a maximised 1920 screen: Editor 586, Registers 509, Text and Inspector
+793 (were 755 / 509 / 621); no Source cell cut short (the widest needs 176 px, the column has 271); the bit grid at
+its full 15 px size with fields of 140 / 116 px; Bin's eight groups all in; a 72-column line without a scroll bar
+(`tests/e2e/fit.e2e.ts`, "1920x1040").
+
+**The caption buttons' patch.** With `titleBarOverlay` Windows draws the minimise / maximise / close buttons on a
+patch the page cannot paint, so under the tutorial's dim or a dialog's backdrop it stayed a white square. The page
+now asks the main process (`win:overlay`) for the colour white takes under the same layers
+(`logic/overlay.ts`: navy at 26 % for the tutorial, at 35 % for a backdrop, both when both — `#bdc5d4`, `#a6b1c6`,
+`#7b8baa`) and for white again after; a MutationObserver on `body`'s class and on `dialog[open]` keeps it right.
+The buttons keep working throughout. `tests/e2e/window.e2e.ts` reads the colour back from the window.
+
+**One dialog.** Every question the window asks (`panels/ask.ts`) has Haram, in the same place and size — it was
+hidden during the tutorial by the one-Haram rule's CSS, which now exempts a dialog and instead hides the tutorial
+card's Haram while a dialog is up. A click outside the dialog does nothing (it used to close it as cancel; in the
+tutorial a student clicks about, and a question that went away on such a click was not even noticed). Esc is cancel,
+the safe side; the other answer only by its button. The backdrop is navy at 35 % (was 18 %) so a dialog reads as
+modal, and being in the top layer it covers the tutorial's card and rings; `showModal` keeps the keys inside.
+
+**The tutorial's result beats.** A practice step went on the moment the student had done the thing — at step 18 the
+output appeared in the Console and the card was already on to step 19's error file. A practice step whose result is
+something to see now shows it on the same card and waits for [다음]: *told to, done, shown what it did, then on.*
+`Step.result` (title, body, targets, view/tab) is shown when `done` fires (or after [건너뛰기]), the practice keys do
+nothing until [다음], and the step count stays 20. Steps 5 (the register that changed, and the PC's line), 12
+(`total` in the Data tab), 15 (stopped at the breakpoint: the status bar and the line), 16 (stopped: the status
+bar), 17 (the register back to 0, the status bar) and 18 (the Console's output, the status bar) have a beat. Steps 2,
+10 and 14 go straight on: what they did (the Run side lit, the Data tab, the red dot) is what the next step points
+at anyway; step 19's second phase is its beat already.
+
+**Notices.** The Console's empty word was in the middle of its panel; the Inspector's sat at the top, and the Errors
+panel spread its words top-left with Haram in the far corner of a wide panel. One component now (`notice.ts`): the
+words, then the character at the far end (from the Editor, which most of them are about), the two centred in the
+panel both ways, no wider than 640 px (the error list 760), the character 120 px in all four — the Console, the
+Inspector, the card before the first assemble, the error list. A panel too short or narrow for the character (the
+Console in a small window, the Inspector at 1093) keeps the words alone (a container query).
+
+**Words.** The Inspector's empty state said "한 줄 실행하면 여기에 풀려 나옵니다 / F10 키를 누를 때마다 다음에 실행할
+명령의 비트 필드와 하는 일이 여기에 나옵니다. Text 탭에서…"; now what the panel is for and how to get something into
+it: "명령 하나를 32비트로 나누어 보는 곳입니다 / F10 키로 한 줄 실행하거나 Text 탭에서 명령을 누르면 그 명령이 여기에
+나옵니다." The error panel's second line said "어셈블은 여기서 멈췄습니다."; now what went wrong and where to look,
+without repeating the title's what-to-do: "N행에서 어셈블러가 읽지 못한 부분이 있습니다. 아래에 무엇이 문제인지
+적었습니다." The card after an edit: "지금 기계에 있는 것은 고치기 전의 코드입니다. 저장하고 다시 어셈블하면(Ctrl+S) 고친
+코드로 실행합니다." (was "…바뀌기 전의 코드입니다. …새 코드로 여기가 채워집니다."). The practice line: "직접 해 보세요 —
+되면 결과를 짚어 드립니다" (was "되면 저절로 넘어갑니다"), and the beat's "됐습니다 — 결과를 본 뒤 다음으로".
+
+**The hint that names the slip** (`src/core/near-miss.ts`). `.global main` is a syntax error to the core, and the
+hint said "명령 이름, 레지스터 이름(예: $t0), 쉼표를 확인해 보세요". Now, on the line the assembler quotes, the
+statement's first word is compared with the directives (if it starts with a dot) or the instructions, and each
+`$`-word with the register names; a bare word that is a register's name is the register without its `$`. Near means
+Damerau-Levenshtein distance 1 for a word of up to five characters and 2 from six on (one slip per five letters or
+so); a word of two characters or less is never guessed at. Of the names at the least distance, the one sharing the
+longest prefix, then the longest suffix (`.asciz`: `.asciiz`, not `.ascii`); still tied — or nothing within
+reach — no guess, and the general hint stands: a wrong guess is worse than none. A register of a known family with
+a number past it (`$s10`, `$t10`, `$a4`, `$32`) is named with the family's range instead. Labels, numbers, strings
+and comments are not looked at (a label is the student's own name). "`.global` 지시어는 없습니다. 혹시 `.globl`?";
+"`$s10` 레지스터는 없습니다. `$s` 레지스터는 `$s0`–`$s7` 입니다."; "레지스터 이름 앞에는 `$` 기호가 있어야 합니다:
+`t0` → `$t0`." (`tests/core/near-miss.test.ts`; two mutants loosen the rule and the tie).
+

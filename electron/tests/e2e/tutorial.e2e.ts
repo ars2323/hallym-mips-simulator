@@ -15,13 +15,13 @@ import path from 'node:path';
 
 import { launch, openAndAssemble, resize, root, sample, type Running } from './harness.ts';
 
-interface Shown { step: number; phase: number; hits: boolean[]; did: string[]; targets: { left: number; top: number; right: number; bottom: number }[]; card: { left: number; top: number; right: number; bottom: number } | null }
+interface Shown { step: number; phase: number; result: boolean; hits: boolean[]; did: string[]; targets: { left: number; top: number; right: number; bottom: number }[]; card: { left: number; top: number; right: number; bottom: number } | null }
 const shown = (page: Page) => page.evaluate(() => (window as unknown as { __tutorial: { shown: Shown; active: boolean } }).__tutorial.shown);
 const active = (page: Page) => page.evaluate(() => (window as unknown as { __tutorial: { active: boolean } }).__tutorial.active);
 const hash = (name: string) => createHash('sha256').update(readFileSync(path.join(root, 'src/examples', name))).digest('hex');
 
-async function atStep(page: Page, n: number, phase = 0): Promise<Shown> {
-  await expect.poll(async () => { const s = await shown(page); return `${s.step}.${s.phase}`; }, { timeout: 15_000 }).toBe(`${n}.${phase}`);
+async function atStep(page: Page, n: number, phase = 0, result = false): Promise<Shown> {
+  await expect.poll(async () => { const s = await shown(page); return `${s.step}.${s.phase}.${s.result ? 'done' : ''}`; }, { timeout: 15_000 }).toBe(`${n}.${phase}.${result ? 'done' : ''}`);
   // Laid out for this step, and settled (the Data tab and lists redraw).
   let last = '';
   for (let i = 0; i < 40; i += 1) {
@@ -35,9 +35,15 @@ async function atStep(page: Page, n: number, phase = 0): Promise<Shown> {
 
 // What the step points at is on screen and the card is clear of it; the
 // middle of each target is the app's (not the dim layer's, not the card's).
-async function checkStep(page: Page, n: number, phase = 0): Promise<void> {
-  const s = await atStep(page, n, phase);
-  const where = `step ${n}.${phase}`;
+async function checkStep(page: Page, n: number, phase = 0, result = false): Promise<void> {
+  const s = await atStep(page, n, phase, result);
+  const where = `step ${n}.${phase}${result ? ' (result)' : ''}`;
+  // A result beat: the card says it is done, and waits with [다음] (no [건너뛰기]).
+  if (result) {
+    await expect(page.locator('.tut-card.done .tut-done')).toBeVisible();
+    await expect(page.locator('.tut-card .tut-next')).toBeVisible();
+    await expect(page.locator('.tut-card .tut-skip')).toHaveCount(0);
+  }
   if (n < 20) expect(s.targets.length, where).toBeGreaterThan(0);
   // A click in the middle of each target reaches that very target.
   expect(s.hits, `${where}: ${JSON.stringify(s.targets)}`).toEqual(s.targets.map(() => true));
@@ -75,11 +81,23 @@ const next = (page: Page) => page.locator('.tut-card .tut-next').click();
 const skip = async (page: Page) => { await page.locator('.tut-card .tut-skip').click({ timeout: 10_000 }); };
 const middle = (r: { left: number; top: number; right: number; bottom: number }) => [(r.left + r.right) / 2, (r.top + r.bottom) / 2] as const;
 
+// The practice steps whose result is pointed at before the next step
+// (told to, done, shown what it did, then [다음]); the others go straight on.
+const RESULT = new Set([5, 12, 15, 16, 17, 18]);
+
 // Walks steps 1..20: by doing each practice step, or by skipping it.
 async function walk(page: Page, how: 'do' | 'skip'): Promise<void> {
   const practice = async (n: number, act: () => Promise<void>, phase = 0) => {
     await checkStep(page, n, phase);
     if (how === 'skip') await skip(page); else await act();
+    if (RESULT.has(n)) {
+      await checkStep(page, n, phase, true); // the result beat: on screen, waited for
+      // Keys the step asked for do nothing now; → goes on.
+      await page.keyboard.press('F10');
+      await page.waitForTimeout(200);
+      expect((await shown(page)).result, `step ${n}: still on its result`).toBe(true);
+      await next(page);
+    }
   };
   await checkStep(page, 1); await next(page);
   await practice(2, () => page.keyboard.press('Control+s'));
@@ -115,7 +133,7 @@ async function walk(page: Page, how: 'do' | 'skip'): Promise<void> {
   await practice(10, () => page.locator('.textpanel .ptab', { hasText: 'Data' }).click());
   await checkStep(page, 11); await next(page);
   await practice(12, async () => {
-    for (let i = 0; i < 20 && (await shown(page)).step === 12; i += 1) { await page.keyboard.press('F10'); await page.waitForTimeout(150); }
+    for (let i = 0; i < 20; i += 1) { const s = await shown(page); if (s.step !== 12 || s.result) break; await page.keyboard.press('F10'); await page.waitForTimeout(150); }
   });
   await checkStep(page, 13); await next(page);
   await checkStep(page, 14);
@@ -132,7 +150,7 @@ async function walk(page: Page, how: 'do' | 'skip'): Promise<void> {
   });
   await practice(17, () => page.locator('[data-tut="reset"]').click());
   await practice(18, async () => {
-    for (let i = 0; i < 3 && (await shown(page)).step === 18; i += 1) { await page.keyboard.press('F5'); await page.waitForTimeout(600); }
+    for (let i = 0; i < 3; i += 1) { const s = await shown(page); if (s.step !== 18 || s.result) break; await page.keyboard.press('F5'); await page.waitForTimeout(600); }
   });
   await practice(19, () => page.keyboard.press('Control+s'));
   await practice(19, () => page.locator('.run-side .errors').getByRole('button', { name: /행으로 가기/ }).click(), 1);

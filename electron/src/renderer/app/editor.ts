@@ -198,6 +198,10 @@ export interface Editor {
   setBreakpointLines(lines: number[]): void;
   // The tutorial's examples are read-only (breakpoints still set and clear).
   setReadOnly(on: boolean): void;
+  // The width the editor needs to show a line of `columns` characters
+  // without scrolling sideways: the gutters, the line's padding, the
+  // characters, a scroll bar (app.ts sizes the Editor by it).
+  widthFor(columns: number): number;
   // For the tutorial: bring line `n` into view, and where it is on screen
   // (null: not drawn); `gutter` is the breakpoint gutter's cell of the line.
   revealLine(n: number): void;
@@ -256,9 +260,16 @@ export function createEditor(parent: HTMLElement, onSave: () => void, onChange: 
     view.dispatch({ effects });
   };
 
+  const widthFor = (columns: number): number => {
+    const gutters = (view.dom.querySelector('.cm-gutters') as HTMLElement | null)?.offsetWidth || 76;
+    const ch = view.defaultCharacterWidth || 6.75;
+    return Math.ceil(gutters + 8 + columns * ch + 14); // 8: .cm-line's padding; 14: a scroll bar
+  };
+
   return {
     view,
     showPcLine,
+    widthFor,
     breakpointLines: () => breakpointLinesOf(view.state),
     setBreakpointLines: (lines) => view.dispatch({ effects: setBreakpointLines.of(lines) }),
     text: () => view.state.doc.toString(),

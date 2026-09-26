@@ -256,3 +256,54 @@ test.describe(() => {
     expect(await inView('$s0')).toBe(true);
   });
 });
+
+// A maximised 1920 screen (1920x1040 under the taskbar): the Editor stops at
+// what a line of 72 columns needs, and every pixel past that goes to the Run
+// side -- Text's Source column whole, the Inspector's bit grid at its full
+// size, Registers with all of Bin.  (docs/PORTING.md 21)
+test('1920x1040: the Editor stops at 72 columns; Source whole, the bit grid full size, Bin all eight groups', async () => {
+  const r = await launch({ width: 1920, height: 1040 });
+  const { page } = r;
+  try {
+    await lab04(r);
+    await page.waitForTimeout(300);
+    const m = await page.evaluate(() => {
+      const width = (s: string) => Math.round((document.querySelector(s) as HTMLElement).getBoundingClientRect().width);
+      const gutters = (document.querySelector('.cm-gutters') as HTMLElement).offsetWidth;
+      const probe = document.createElement('span');
+      probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre';
+      probe.className = 'cm-content';
+      probe.textContent = '0'.repeat(72);
+      document.querySelector('.cm-scroller')!.append(probe);
+      const chars = probe.getBoundingClientRect().width;
+      probe.remove();
+      const panel = document.querySelector('.editor-panel') as HTMLElement;
+      const chrome = panel.offsetWidth - (document.querySelector('.edhost') as HTMLElement).clientWidth;
+      const srcs = [...document.querySelectorAll('.trow .src')] as HTMLElement[];
+      const bin = document.querySelector('.rrow[data-reg="$t6"] .bin') as HTMLElement;
+      const bit = document.querySelector('.insp .fbits .bit')!;
+      return {
+        editor: width('.editor-panel'), cap: Math.ceil(chrome + gutters + 8 + chars + 14), registers: width('.regs'), right: width('.textpanel'),
+        sourceCut: srcs.filter((e) => e.scrollWidth > e.clientWidth).length, sourceWidth: srcs[0]?.clientWidth ?? 0,
+        inspector: width('.insp'), bitFont: getComputedStyle(bit).fontSize, bitFontFull: getComputedStyle(document.documentElement).getPropertyValue('--fs').trim(),
+        fields: [...document.querySelectorAll('.insp .fbox')].map((e) => Math.round(e.getBoundingClientRect().width)),
+        binDigits: bin.textContent!.replace(/[^01]/g, '').length, binCut: bin.scrollWidth > bin.clientWidth, binShown: getComputedStyle(bin).display !== 'none',
+      };
+    });
+    console.log(`[1920x1040] ${JSON.stringify(m)}`);
+    expect(Math.abs(m.editor - m.cap), 'the Editor at what 72 columns need').toBeLessThanOrEqual(2);
+    expect(m.sourceCut, 'Source cut short').toBe(0);
+    expect(m.bitFont, 'the bit grid at its full size').toBe(`${parseFloat(m.bitFontFull) + 2}px`);
+    expect(m.fields).toHaveLength(6);
+    expect(Math.min(...m.fields)).toBeGreaterThan(100);
+    expect(m.binShown && !m.binCut && m.binDigits === 32, 'Bin: all eight groups (32 bits), none cut').toBe(true);
+    // A line of 72 columns, no scroll bar.
+    await page.locator('.cm-content').click();
+    await page.keyboard.press('Control+End');
+    await page.keyboard.insertText(`\n#${'abcdefghij'.repeat(7)}k`);
+    const scroll = await page.evaluate(() => { const s = document.querySelector('.cm-scroller') as HTMLElement; return { w: s.scrollWidth, c: s.clientWidth }; });
+    expect(scroll.w, '72 columns without scrolling sideways').toBeLessThanOrEqual(scroll.c);
+  } finally {
+    await r.close();
+  }
+});

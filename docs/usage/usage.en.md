@@ -148,8 +148,10 @@ lightly dimmed.
 | 18–20 | Output in the Console, what to do when assembly fails, the end |
 
 - Explanation steps go on with **다음** (next), or the → key.
-- A step that says **"직접 해 보세요"** (try it yourself) goes on by itself when
-  you do what it says (press F10, for example). If it does not work, press
+- A step that says **"직접 해 보세요"** (try it yourself) asks you to do
+  something (press F10, for example). Once you have, the card points at the
+  result (the register that changed, the value in memory, the Console's
+  output …) and waits; **다음** (next) goes on. If it does not work, press
   **건너뛰기** (skip), which appears after a few seconds: the tutorial does it for you.
 - **이전** (back, the ← key) goes back a step; **그만두기** (stop, the Esc key)
   ends the tutorial at any time.

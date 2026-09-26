@@ -35,6 +35,9 @@ import type { TextFileFormat } from '../../node/text-file.ts';
 import type { RunResult } from '../../sim/protocol.ts';
 import './api.ts';
 import { asset, character, code, codeText, h, icon, withHex } from './dom.ts';
+import { overlayColor } from './logic/overlay.ts';
+import { notice } from './notice.ts';
+import { nearMiss } from '../../core/near-miss.ts';
 import { createEditor } from './editor.ts';
 import { shortName } from './logic/names.ts';
 import { stateAfter, stopMessage, textRows, type RegisterValues, type RunState, type TextRow } from './logic/machine.ts';
@@ -185,7 +188,7 @@ const centre = h('div', { class: 'centre' }, text.root, inspector.root, congrats
 // the right: both of those get the whole height (a lab PC has ~480 px).
 const leftCol = h('div', { class: 'leftcol' }, regsHost, consolePanel.root);
 const runGrid = h('div', { class: 'run-grid' }, leftCol, centre);
-const placeholder = h('div', { class: 'run-placeholder' });
+const placeholder = h('div', { class: 'run-placeholder notice-host' });
 const runPanel = h('div', { class: 'run-side' }, placeholder, errorList, runGrid);
 
 // ---- the split -------------------------------------------------------------------------
@@ -266,7 +269,7 @@ function layout(): void {
   sizeRunSide();
   const inner = split.clientWidth - 16 - 8; // the split's padding, the splitter
   if (editorWidth !== null) split.style.setProperty('--editor-w', `${editorWidth}px`);
-  else if (inner > 0) split.style.setProperty('--editor-w', `${Math.round(Math.max(300, Math.min(760, 0.4 * inner, inner - runLeast)))}px`);
+  else if (inner > 0) split.style.setProperty('--editor-w', `${Math.round(Math.max(300, Math.min(editorMost(), inner - runLeast)))}px`);
 
   const shown = machineShown();
   const showErrors = !shown && errors.length > 0;
@@ -277,6 +280,14 @@ function layout(): void {
   runGrid.classList.toggle('console-open', consolePanel.expanded);
   editor.showPcLine(shown && runState !== 'ready' ? pcSourceLine() : null);
 }
+
+// The Editor's width by default: what a line of EDITOR_COLUMNS characters
+// needs (gutters and all), and no more -- a student's longest line is far
+// shorter, and every pixel past that is a pixel the Run side reads with:
+// Text's Source column and the Inspector are what grow with the window.
+// Never a share of the window: a share is right at one width only.
+const EDITOR_COLUMNS = 72;
+const editorMost = (): number => (editorPanel.offsetWidth - editorHost.clientWidth) + editor.widthFor(EDITOR_COLUMNS);
 
 // The Run side's width: what Registers and Text need (their panels say).
 let runLeast = 0;
@@ -295,14 +306,12 @@ function sizeRunSide(): void {
 function renderPlaceholder(): void {
   const changed = assembledText !== null || (lastProgram !== null && dirty);
   const [title, body] = changed
-    ? ['코드가 바뀌었습니다', '지금 기계에 있는 것은 바뀌기 전의 코드입니다. 저장하고 다시 어셈블하면 새 코드로 여기가 채워집니다.']
-    : ['아직 어셈블하지 않았습니다', '어셈블하면 레지스터와 명령, 콘솔 출력을 여기서 볼 수 있습니다.'];
+    ? ['코드가 바뀌었습니다', '지금 기계에 있는 것은 고치기 전의 코드입니다. 저장하고 다시 어셈블하면(Ctrl+S) 고친 코드로 실행합니다.']
+    : ['아직 어셈블하지 않았습니다', '어셈블하면 여기에 레지스터와 명령, 콘솔 출력이 나옵니다.'];
   const go = h('button', { class: 'btn primary', type: 'button' }, icon('hammer'), h('span', {}, 'Assemble'), h('kbd', {}, 'Ctrl+S'));
   go.addEventListener('click', () => void saveAndAssemble());
-  // The text first, then Haram pointing left past it, at the Editor.
-  placeholder.replaceChildren(h('div', { class: 'card' },
-    h('div', { class: 'say' }, h('h3', {}, title), h('p', {}, body), go),
-    character('guide', 150)));
+  // The words first, then Haram at the far end from the Editor they are about.
+  placeholder.replaceChildren(notice({ pose: 'guide', title, body, more: [h('div', { class: 'row' }, go)] }));
   placeholder.dataset.kind = changed ? 'changed' : 'fresh';
 }
 
@@ -774,9 +783,21 @@ async function assemble(source: string, again: boolean): Promise<boolean> {
   }
 }
 
-// What to do about an assembler message, before what went wrong.
-function hintFor(message: string): string {
-  if (/syntax error/i.test(message)) return '명령 이름, 레지스터 이름(예: `$t0`), 쉼표를 확인해 보세요.';
+// What to do about an assembler message, before what went wrong.  For a
+// syntax error, first the slip the line shows when there is one to name
+// (src/core/near-miss.ts): a name a letter or two from one the assembler
+// knows, a register that does not exist, a register without its $.
+function hintFor(message: string, source: string): string {
+  if (/syntax error/i.test(message)) {
+    const near = nearMiss(source);
+    if (near?.why === 'spelling') {
+      const noSuch = { directive: '지시어는 없습니다', instruction: '명령은 없습니다', register: '레지스터는 없습니다' }[near.kind];
+      return `\`${near.token}\` ${noSuch}. 혹시 \`${near.meant}\`?`;
+    }
+    if (near?.why === 'no-such-register') return `\`${near.token}\` 레지스터는 없습니다. \`${near.family}\` 레지스터는 \`${near.range}\` 입니다.`;
+    if (near?.why === 'missing-dollar') return `레지스터 이름 앞에는 \`$\` 기호가 있어야 합니다: \`${near.token}\` → \`${near.meant}\`.`;
+    return '명령 이름, 레지스터 이름(예: `$t0`), 쉼표를 확인해 보세요.';
+  }
   if (/defined for the second time|already defined/i.test(message)) return '같은 이름의 라벨이 두 번 있습니다. 한쪽 이름을 바꾸세요.';
   if (/too large|out of range|immediate/i.test(message)) return '값이 이 명령이 담을 수 있는 크기를 넘었습니다. 먼저 `li` 명령으로 레지스터에 넣어 보세요.';
   if (/undefined|unknown/i.test(message)) return '쓰기 전에 정의하지 않은 이름입니다. 철자와 `.globl` 선언을 확인해 보세요.';
@@ -807,18 +828,17 @@ function renderErrors(): void {
       h('span', { class: 'msg' },
         h('span', { class: 'what' }, withHex(e.message.message)),
         e.message.source ? code(e.message.source, 'src') : null,
-        h('span', { class: 'hint' }, codeText(hintFor(e.message.message)))));
+        h('span', { class: 'hint' }, codeText(hintFor(e.message.message, e.message.source)))));
   });
   errorHead.setMeta(errors.length === 1 ? '1 error' : `${errors.length} errors`);
-  // What to do first, then what went wrong.  Haram once, at the far end:
-  // not between the words and the Editor they are about, and no arrow.
-  errorBody.replaceChildren(h('div', { class: 'errbody' },
-    h('div', { class: 'errtext' },
-      h('h3', {}, lead),
-      h('p', { class: 'sub' }, errors.length > 1 ? `오류가 ${errors.length}개 있습니다. 위에서부터 하나씩 고치면 됩니다.` : '어셈블은 여기서 멈췄습니다.'),
-      h('div', { class: 'items' }, ...items),
-      h('div', { class: 'row' }, go)),
-    character('curious', 120)));
+  // What to do first (the title), then what went wrong, then the errors
+  // themselves.  Haram once, at the far end: not between the words and the
+  // Editor they are about, and no arrow.
+  const sub = errors.length > 1 ? `오류가 ${errors.length}개 있습니다. 위에서부터 하나씩 고치면 됩니다.`
+    : first.line ? `${first.line}행에서 어셈블러가 읽지 못한 부분이 있습니다. 아래에 무엇이 문제인지 적었습니다.`
+      : '어셈블러가 읽지 못한 부분이 있습니다. 아래에 무엇이 문제인지 적었습니다.';
+  errorBody.replaceChildren(h('div', { class: 'notice-host' },
+    notice({ pose: 'curious', title: lead, body: sub, more: [h('div', { class: 'items' }, ...items), h('div', { class: 'row' }, go)] })));
 }
 
 // ---- running ----------------------------------------------------------------------------
@@ -1066,6 +1086,21 @@ function showCongrats(): void {
     h('div', { class: 'say' }, h('h3', {}, '첫 실행 성공!'), h('p', {}, '프로그램이 끝까지 실행되었습니다.'), close));
   congrats.hidden = false;
 }
+
+// ---- the caption buttons' patch -----------------------------------------------------------
+// Windows draws the minimise / maximise / close buttons on a patch the page
+// cannot paint (titleBarOverlay).  While the tutorial dims the window, or a
+// dialog's backdrop covers it, the patch takes the colour white has under
+// the same layers (logic/overlay.ts), or it would stay a bright square at
+// the top right; white again after.  The buttons keep working throughout.
+let overlayNow = '#ffffff';
+function updateOverlay(): void {
+  const c = overlayColor(document.body.classList.contains('tutorial-on'), document.querySelector('dialog[open]') !== null);
+  if (c === overlayNow) return;
+  overlayNow = c;
+  void api.setOverlay(c === '#ffffff' ? null : c);
+}
+new MutationObserver(updateOverlay).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'open'] });
 
 // ---- keys -----------------------------------------------------------------------------------
 

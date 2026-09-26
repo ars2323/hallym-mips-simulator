@@ -13,7 +13,8 @@ import { decode, formatName, type BranchConvention } from '../../../core/decoder
 import { explain } from '../../../core/explain.ts';
 import { hex32 } from '../../../core/format.ts';
 import { instructionDetailLines, instructionNoteLines, meaningOf } from '../../../core/instruction-text.ts';
-import { character, code, codeText, h } from '../dom.ts';
+import { code, codeText, h } from '../dom.ts';
+import { notice } from '../notice.ts';
 import type { TextRow } from '../logic/machine.ts';
 import { headButton, panelHead, type Head } from '../ui.ts';
 
@@ -33,19 +34,21 @@ export class Inspector {
     this.guide();
   }
 
-  // Nothing to show yet: how to fill it.
+  // Nothing to show yet: what this panel is for, and how to get something into it.
   guide(): void {
     this.setMode(null);
-    this.body.replaceChildren(
-      h('div', { class: 'empty' }, character('sign', 96),
-        h('div', { class: 'say' }, h('h3', {}, '한 줄 실행하면 여기에 풀려 나옵니다'),
-          h('p', {}, codeText('`F10` 키를 누를 때마다 다음에 실행할 명령의 비트 필드와 하는 일이 여기에 나옵니다. Text 탭에서 명령을 누르면 그 명령을 봅니다.')))));
+    this.body.classList.add('is-empty');
+    this.body.replaceChildren(h('div', { class: 'notice-host' }, notice({
+      pose: 'sign', title: '명령 하나를 32비트로 나누어 보는 곳입니다',
+      body: codeText('`F10` 키로 한 줄 실행하거나 Text 탭에서 명령을 누르면 그 명령이 여기에 나옵니다.'),
+    })));
   }
 
   // `pinned`: chosen in Text (else the instruction at PC).
   // `convention`: how the machine was assembled (Settings > delayed branches).
   show(row: TextRow, general: readonly number[], pinned: boolean, convention: BranchConvention = 'SpimNoDelaySlot'): void {
     this.setMode(pinned ? row.addr : 'pc');
+    this.body.classList.remove('is-empty');
     const d = decode(row.word, row.addr, convention);
     const fields = d.fields.map((f) => {
       const width = f.high - f.low + 1;
