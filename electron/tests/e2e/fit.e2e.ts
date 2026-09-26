@@ -7,9 +7,9 @@
      word, in a narrow title bar), the speed says what it is, and the first
      screen has no toolbar;
    - the yellow Registers row says what it is: its own "Changed" tag where
-     the panel has the room (from a 1524 px window on; the maximised 1920
-     screen), the status bar's "방금 바뀜: …" at every width -- the panel's
-     head carries no legend;
+     the panel has the room (from a 1651 px window on: 1680x1050, the
+     maximised 1920 screen), the status bar's "방금 바뀜: …" at every width
+     -- the panel's head carries no legend;
    - no Korean word is broken across two lines;
    - a file's name is never followed by a particle;
    - the Editor has no band for the cursor, only the line of PC;
@@ -360,10 +360,11 @@ test('1920x1040: the Editor stops at 72 columns; Source whole, the bit grid full
   }
 });
 
-// The "Changed" tag on the yellow row itself where the Run side has the room
-// for it past what its panels need (a 1524 px window on): 1920x1080 at 125 %
-// and the maximised 1920 screen.  The status bar names it all the same.
-for (const size of [{ name: '1536x864 (1920x1080 at 125%)', width: 1536, height: 864 }, MAXIMISED]) {
+// The "Changed" tag on the yellow row itself where Registers' own width has
+// the room (from a 1651 px window on; tight margins for it up to 1703):
+// 1680x1050 and the maximised 1920 screen.  The status bar names it all the
+// same.
+for (const size of [{ name: '1680x1050', width: 1680, height: 1010 }, MAXIMISED]) {
   test(`${size.name}: the yellow row carries its own "Changed" tag`, async () => {
     const r = await launch(size);
     try {

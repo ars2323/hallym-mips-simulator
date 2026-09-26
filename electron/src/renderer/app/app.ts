@@ -297,13 +297,6 @@ function layout(): void {
   const shown = machineShown();
   const showErrors = !shown && errors.length > 0;
   runGrid.hidden = !shown;
-  // The Registers' "Changed" tag (panels/registers.ts) where the Run side has
-  // that much room past what its panels need: taken from no one -- not the
-  // Editor (it has what the window gives it, up to 72 columns), not Text.
-  if (shown && regsTag > 0) {
-    const spare = runGrid.clientWidth - runLeast;
-    runGrid.style.setProperty('--regs-least', `${regsLeast + (spare >= regsTag ? regsTag : 0)}px`);
-  }
   errorList.hidden = !showErrors;
   placeholder.hidden = shown || showErrors;
   if (!shown && !showErrors) renderPlaceholder();
@@ -327,15 +320,11 @@ const editorMost = (): number => (editorPanel.offsetWidth - editorHost.clientWid
 
 // The Run side's width: what Registers and Text need (their panels say).
 let runLeast = 0;
-let regsLeast = 0; // Registers' least, and what their "Changed" tag adds to it
-let regsTag = 0;
 const fontPx = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fs')) || 13;
 function sizeRunSide(): void {
   if (!registers) return;
   const fs = fontPx();
   const r = registers.widths(fs);
-  regsLeast = r.least;
-  regsTag = r.tag;
   runGrid.style.setProperty('--regs-least', `${r.least}px`);
   runGrid.style.setProperty('--regs-most', `${r.most}px`);
   // Text needs its four columns; Data its four words and the ASCII column --

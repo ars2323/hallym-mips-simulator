@@ -6,13 +6,13 @@
 
    What to look at first:
      - the register that just changed: a yellow row with a bar, flashed
-       once when it changes, and its own "Changed" tag wherever the panel
-       has the room (logic/columns.ts badgeStyle; the layout gives the
-       panel that room first when the Run side has it, app.ts layout) --
-       the panel's head carries no legend; where the tag does not fit, the
-       status bar says "방금 바뀜: …" in the same yellow.  It lifts at the
-       next step.  After a step the list scrolls to it, unless the student
-       is scrolling it (dom.ts userScrolls);
+       once when it changes, and its own "Changed" tag wherever the panel's
+       width has the room (logic/columns.ts badgeStyle; the panel is given
+       no width for it, which would come out of Text or the Editor) -- the
+       panel's head carries no legend; the status bar says "방금 바뀜: …"
+       in the same yellow at every width.  It lifts at the next step.
+       After a step the list scrolls to it, unless the student is
+       scrolling it (dom.ts userScrolls);
      - its value in hexadecimal (the strongest column); decimal quieter,
        binary quietest;
      - groups as bands (Special, Constant, Return values, Arguments,
@@ -94,15 +94,12 @@ export class RegisterPanel {
   }
 
   // The width the panel wants: all of Hex, Dec and Bin with tight margins
-  // (`least`), and with room to spare (`most`); `tag`, what the "Changed"
-  // tag adds to the least.  Scroll bar and border in.
-  widths(fontPx: number): { least: number; most: number; tag: number } {
+  // (`least`), and with room to spare (`most`).  Scroll bar and border in.
+  widths(fontPx: number): { least: number; most: number } {
     const ch = monoCh(fontPx);
     const [normal, tight] = styles(NORMAL, TIGHT, fontPx);
     const chrome = (this.list.offsetWidth - this.list.clientWidth || 12) + 2;
-    const least = Math.ceil(needed(COLUMNS, tight, ch) + chrome);
-    return { least, most: Math.ceil(needed([...COLUMNS, TAG], normal, ch) + chrome),
-             tag: Math.ceil(needed([...COLUMNS, TAG], tight, ch) + chrome) - least };
+    return { least: Math.ceil(needed(COLUMNS, tight, ch) + chrome), most: Math.ceil(needed([...COLUMNS, TAG], normal, ch) + chrome) };
   }
 
   // Columns and style for the width the panel has now.

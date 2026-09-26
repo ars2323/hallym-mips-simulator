@@ -1119,16 +1119,22 @@ changed — three, then "외 N개" (after a run many rows are yellow; the status
 
 **Where the tag fits.** It used to show only with the roomiest margins and nothing given up, which Registers get from
 a 1708 px window on. Now (`logic/columns.ts` `badgeStyle`) it shows wherever it fits beside the columns the width
-keeps, with the tight margins if need be — never in place of a column, never at the cost of the font's pixel — and
-the layout gives Registers the tag's 62 px (the badge, 56, and a gap) first, when the Run side has that much past
-what its panels need (`app.ts` layout). It is taken from no one: not the Editor, which has what the window gives it
-up to 72 columns, not Text. So the tag shows from a 1524 px window on (1920×1080 at 125 %, 1536, has it; the
-maximised 1920 screen has it with the roomy margins). Below 1524 there is not a pixel for it:
+keeps, with the tight margins if need be — never in place of a column, never at the cost of the font's pixel, and in
+the width Registers have anyway: from a 1651 px window on (tight margins up to 1703, the roomy ones from 1704), so
+1680×1050 and the maximised 1920 screen have it. The badge is 56 px now (it was given 62), which leaves Text 6 px
+more at the widest.
+
+Giving Registers the tag's 62 px first when the Run side has them was tried: the tag then shows from 1524 px, 1536
+(1920×1080 at 125 %) included — but the 62 px come out of Text, whose Instruction column then cuts its labels:
+`jal 0x00400024 [main]`, `ori $9, $1, 20 [table]` (Text 439 px wide at 1536 and 503 at 1600, against 492 and 527
+now). The status bar already says what the yellow row is at every width, so no panel gives anything for the tag.
+Below 1651 there is no room for it:
 
 | Window | Editor | Run grid (its panels want 852) | Registers' list | What says what the yellow row is |
 |---|---|---|---|---|
 | 1920×1040, maximised | 586 (72 columns) | 1310 | 486 | the tag and the status bar |
-| 1536×864 | 586 | 926 | 462 | the tag and the status bar |
+| 1680×1010 | 586 | 1070 | 475 | the tag (tight margins) and the status bar |
+| 1536×864 | 586 | 926 | 409 | the status bar (the tag needs 462) |
 | 1280×800 | 404 | 852 | 400 | the status bar |
 | 1093×582 | 300 (its least) | 769 | 400 | the status bar |
 | 1024×728 | 300 | 700 | 400 | the status bar |
@@ -1137,9 +1143,9 @@ maximised 1920 screen has it with the roomy margins). Below 1524 there is not a 
 At the four course widths the list is 400 px and Name, Hex, Dec and Bin with the tight margins take 399.25 of them.
 The tag there would cost a column the course needs or someone's width: at 1280 the Editor's (404 → 342 px); at 1093
 and 1024 the Run side is already 83 and 152 px short of what its panels want (Text gives up columns, Data scrolls
-sideways at 1024); at 910 (the Run tab) 42 px are spare, and the tag needs 62. The status bar is the whole window wide, and
-`tests/e2e/fit.e2e.ts` checks at each width that its "방금 바뀜: …" is whole on screen, and at 1536 and 1920 that the
-tag is.
+sideways at 1024); at 910 (the Run tab) 42 px are spare, and the tag needs 62. The status bar is the whole window
+wide, and `tests/e2e/fit.e2e.ts` checks at each width that its "방금 바뀜: …" is whole on screen, and at 1680 and
+1920 that the tag is.
 
 **Save & Assemble.** The button saves and assembles, and its key is Ctrl+S; "Assemble" said half of it. It is now
 Save & Assemble where it saves, and Assemble where it does not:
