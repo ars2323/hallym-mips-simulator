@@ -265,6 +265,9 @@ test('1920x1040: the Editor stops at 72 columns; Source whole, the bit grid full
   const r = await launch({ width: 1920, height: 1040 });
   const { page } = r;
   try {
+    // A screen this window does not fit on (the Windows CI runner's is 1024x768) cannot show this layout.
+    const fits = await r.app.evaluate(({ screen }) => { const a = screen.getPrimaryDisplay().workAreaSize; return a.width >= 1920 && a.height >= 1040; });
+    test.skip(!fits, 'a screen smaller than 1920x1040');
     await lab04(r);
     await page.waitForTimeout(300);
     const m = await page.evaluate(() => {
