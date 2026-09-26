@@ -136,7 +136,7 @@ any of these opens an issue ("Release v2.x.y failed"). The check also runs by it
 ## Rolling back a release
 
 If the latest 2.x release causes trouble in the labs, it is taken back and the release before it is the latest again
-(after 2.1.0, that is 2.0.0; after 2.0.0, it was 1.2.4). Everything links to `releases/latest` (the README, the user
+(after 2.2.0, that is 2.1.0; after 2.0.0, it was 1.2.4). Everything links to `releases/latest` (the README, the user
 guide), so the links then give the earlier one. Below, `<bad>` is the version taken back and `<previous>` the one
 before it.
 
@@ -174,6 +174,6 @@ before it.
    (Back to 1.2.4: the first line is not needed — 2.x and 1.x are installed apart and do not touch each other — and
    its user guide is [the 1.x guide](https://github.com/ars2323/hallym-mips-simulator/blob/main/docs/GUIDE-ko.md).)
 
-5. The fix goes out as a new version (a patch: 2.1.1 after 2.1.0), never under the tag taken back: a student who
+5. The fix goes out as a new version (a patch: 2.2.1 after 2.2.0), never under the tag taken back: a student who
    downloaded the bad one must be able to tell the two apart. Publishing it by hand (a re-release) runs the
    post-release check by itself; a tag does everything, as for any release.

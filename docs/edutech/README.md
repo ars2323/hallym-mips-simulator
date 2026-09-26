@@ -9,7 +9,7 @@
   그 Qt 화면인 QtSpim(9.1.24). SPIM 의 저작권 표기는 1990–2023 이고 BSD 라이선스입니다
   ([`CPU/`](../../CPU/), [`README`](../../README)). 이 프로젝트의 시뮬레이션 코어가 바로 그 코드입니다.
 - 사용법: [한국어](../usage/usage.ko.md) · [English](../usage/usage.en.md)
-- 이 문서의 숫자와 그림은 **v2.1.0 태그** 기준입니다.
+- 이 문서의 숫자와 그림은 **v2.2.0 태그** 기준입니다.
 
 ---
 
@@ -165,7 +165,7 @@ QtSpim 은 주 창과 Console 창(그림에서 주황 테두리)을 띄우고, �
 
 ## 4. 숫자
 
-저장소에서 확인되는 것만 적습니다. 모두 **v2.1.0 태그** 기준이고, 각 숫자 옆에 확인한 방법을 적습니다.
+저장소에서 확인되는 것만 적습니다. 모두 **v2.2.0 태그** 기준이고, 각 숫자 옆에 확인한 방법을 적습니다.
 
 | 항목 | 값 | 어디서 |
 |---|---|---|
@@ -173,12 +173,12 @@ QtSpim 은 주 창과 Console 창(그림에서 주황 테두리)을 띄우고, �
 | Qt 판에서 옮긴 코어 모듈 | 6개, 990줄 | `electron/src/core/` 의 decoder 468 · registers 141 · format 79 · instruction-text 196 · source-text 26 · symbols 80 (`wc -l`). 목록: `electron/docs/DEVELOPMENT.md` |
 | 같은 결과 확인(나란히 검사) | 29건 중 29건 통과 | Qt 판의 골든과 비교: `electron/tests/golden/qt.test.ts`, 설명 `electron/tests/golden/README.md` |
 | 기본 설정 골든 | 17건 중 17건 통과 | `electron/tests/golden/default.test.ts` |
-| 단위·골든 테스트 | 192개 | `cd electron && npm test` 의 `# tests 192` |
-| 실제 앱 테스트(e2e) | 74개 × 화면 폭 4가지 | `npx playwright test --list` 는 76개(그중 2개는 실제 한국어 IME 용, Windows CI 에서만) · `node tools/e2e-widths.ts`. 가장 좁은 폭(910×505)에서는 73개: 그 폭에는 Editor · Run 쪽 사이의 경계가 없어(두 탭) 그 경계를 끄는 검사가 빠집니다. 최대화한 1920 화면(1920×1040)의 배치 검사도 이 안에 있습니다(`electron/tests/e2e/fit.e2e.ts`) |
+| 단위·골든 테스트 | 194개 | `cd electron && npm test` 의 `# tests 194` |
+| 실제 앱 테스트(e2e) | 82개 × 화면 폭 4가지 | `npx playwright test --list` 는 84개(그중 2개는 실제 한국어 IME 용, Windows CI 에서만) · `node tools/e2e-widths.ts`. 가장 좁은 폭(910×505)에서는 81개: 그 폭에는 Editor · Run 쪽 사이의 경계가 없어(두 탭) 그 경계를 끄는 검사가 빠집니다. 최대화한 1920 화면(1920×1040)의 배치 검사와 1680×1050 · 1920 에서 Registers 의 Changed 표를 보는 검사도 이 안에 있습니다(`electron/tests/e2e/fit.e2e.ts`) |
 | 한글 입력 검사 | 12개 + 실제 입력기 2개 | `electron/tests/e2e/ime.e2e.ts`(입력기 이벤트) · `electron/tests/e2e/ime-real.e2e.ts`(Windows CI 의 Microsoft 한국어 입력기) |
-| 돌연변이 검사 | 131개, 모두 잡힘 | `node tools/mutants.ts` (일부러 틀리게 고친 코드를 테스트가 잡는지) |
+| 돌연변이 검사 | 140개, 모두 잡힘 | `node tools/mutants.ts` (일부러 틀리게 고친 코드를 테스트가 잡는지) |
 | 튜토리얼 | 20단계 | `electron/src/renderer/app/tutorial.ts` 의 `STEPS` |
-| 검사하는 화면 | 4가지 + 1920 | 1280×800 · 1366×768 을 125% 로(1093×582) · 1024×768 · 1366×768 을 150% 로(910×505): `electron/tools/e2e-widths.ts`. 그리고 1920×1080 에서 최대화한 창(1920×1040): 기본 배치를 맞춘 화면. Windows CI 도 화면을 1920×1080 으로 두고 설치본을 검사합니다 |
+| 검사하는 화면 | 4가지 + 1680 · 1920 | 1280×800 · 1366×768 을 125% 로(1093×582) · 1024×768 · 1366×768 을 150% 로(910×505): `electron/tools/e2e-widths.ts`. 그리고 1920×1080 에서 최대화한 창(1920×1040): 기본 배치를 맞춘 화면. 1680×1050: Registers 에 Changed 표가 들어가는 폭. Windows CI 도 화면을 1920×1080 으로 두고 설치본을 검사합니다 |
 | 비교 그림 | 6쌍 | [`docs/compare/`](../compare/README.md) |
 
 ## 5. 수업에서 어떻게 쓰나

@@ -262,7 +262,7 @@ jobs:
           $new = (Get-Content package.json | ConvertFrom-Json).version
           # Between releases main carries the released version (it is raised
           # only in the commit that is released): nothing to upgrade from, and
-          # installing 2.1.0 over 2.1.0 is not a student's case.  On a tag it
+          # installing a version over itself is not a student's case.  On a tag it
           # is a mistake.
           if ($new -eq $old) {
             if ($env:GITHUB_REF_TYPE -eq 'tag') { throw "this build is $new, the version of the latest release: raise the version in the release commit" }

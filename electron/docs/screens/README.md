@@ -101,3 +101,4 @@ Entries before the merge refer to commits of the archived repository ars2323/hal
 - 2.0.0 finish (nothing kept, Data ASCII on, one-line folds, the guide's pictures) — ec3b877 — 2026-09-26
 - Windows in use (maximised start, the Editor's 72-column cap, result beats, one dialog, notices, hints) — b790d6d — 2026-09-26
 - How the window speaks (wording, one-text tutorial cards, the error panel, the Console's height, Windows at 1920×1080) — 51bb424 — 2026-09-26
+- The yellow row names itself, Save & Assemble (no legend in the Registers head, the Changed tag and the status bar's "방금 바뀜", the button's name by the file's state, the title bar's new step) — 9e7bf12 — 2026-09-27
