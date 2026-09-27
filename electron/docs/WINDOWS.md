@@ -47,6 +47,9 @@ Other things CI checks every time:
 - All 15 e2e tests against the **installed** `HallymMIPS.exe` (asar, the addon outside the asar, the bundled worker, license files)
 - That the package is one file, the installer, and that `LICENSE.txt` and `NOTICE.txt` are next to the installed `HallymMIPS.exe`
 - That the installer manifest is `asInvoker` (does not request administrator rights)
+- The installer as a student runs it, with its pages (not `/S`, from 2.4.0): the progress, then the finish page and nothing else
+  (no folder, no "for all users"); the finish page says "설치가 완료되었습니다" with "지금 실행하기" ticked; 마침 starts the
+  program; it goes where `/S` puts it. Pictured: `report/installer/` (`tools/windows/check-installer-ui.ps1`)
 
 ### What showed up only on Windows
 
@@ -92,6 +95,7 @@ With the installer from the artifact `HallymMIPS-windows`. On **Korean Windows**
 
 1. **Install (not administrator)** — double-click the installer. It must install without a UAC prompt appearing. A SmartScreen warning
    ("Windows의 PC 보호", "Windows protected your PC") may appear (not signed): "추가 정보 → 실행" ("More info → Run anyway").
+   Then two screens, in Korean: the progress, and "설치가 완료되었습니다" with "지금 실행하기" ticked; 마침 opens the program.
 2. **Start menu** — one "Hallym MIPS" entry is visible, and if 1.2.4 is installed, it can be told apart from "Hallym MIPS Simulator".
 3. **Korean IME (Microsoft Korean IME)** — the IME's events are tested on every run (`tests/e2e/ime.e2e.ts`, 12 tests,
    CI included), and CI types 한글 + Enter through the real IME on the runner into the installed app

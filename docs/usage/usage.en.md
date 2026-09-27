@@ -96,9 +96,13 @@ installed program from the Start menu later does not show it again.
 
 1. Run the downloaded `HallymMIPS-<version>-win-x64-setup.exe` (for the
    warning, see [the previous section](#getting-past-the-windows-warning)).
-2. It installs straight away, asking nothing; when the progress window
-   closes, it is done. The program does not open by itself.
-3. Open it from **Start menu → Hallym MIPS**. (No desktop shortcut is made.)
+2. It starts installing straight away, asking nothing, and shows a progress
+   bar.
+3. When it says **설치가 완료되었습니다** (installation complete), leave
+   **지금 실행하기** (run now) ticked and click **마침** (Finish): the program
+   opens.
+4. From then on, open it from **Start menu → Hallym MIPS**. (No desktop
+   shortcut is made.)
 
 It is installed in `%LOCALAPPDATA%\Programs\Hallym MIPS`. For a new version,
 just install again: it goes over the old one in the same place.

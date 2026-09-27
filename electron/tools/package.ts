@@ -97,15 +97,22 @@ export const config: Configuration = {
     signAndEditExecutable: true,
   },
   nsis: {
-    oneClick: true,
+    // Two screens, in Korean: the progress, then "설치가 완료되었습니다" with
+    // "지금 실행하기" (packaging/installer.nsh).  Still per user, with no
+    // choice of folder or of "for all users" (either would need an
+    // administrator), and /S still installs silently.
+    oneClick: false,
     perMachine: false,
     allowElevation: false,
+    allowToChangeInstallationDirectory: false,
+    installerLanguages: ['ko_KR'],
+    language: '1042',
     shortcutName: 'Hallym MIPS',
     createDesktopShortcut: false,
     createStartMenuShortcut: true,
     deleteAppDataOnUninstall: false,
-    runAfterFinish: false,
-    include: path.join(root, 'packaging/installer.nsh'), // no copy of the installer kept for an updater
+    runAfterFinish: true, // the finish page's "지금 실행하기", ticked
+    include: path.join(root, 'packaging/installer.nsh'), // its pages; no copy of the installer kept for an updater
     artifactName: 'HallymMIPS-${version}-win-x64-setup.${ext}',
     uninstallDisplayName: 'Hallym MIPS ${version}',
   },

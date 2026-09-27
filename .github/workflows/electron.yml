@@ -19,6 +19,10 @@
 #   7. tools/probe-platform.ts: simulator handles while running/stepping
 #      (the core's waitable timer), screenshots of the native file dialogs;
 #      and the fixed set of screens captured on Windows
+#   7b. the installer as a student runs it, with its pages (not /S): the
+#      progress, then the finish page ("설치가 완료되었습니다", "지금
+#      실행하기" ticked), 마침 starting the program, pictured
+#      (tools/windows/check-installer-ui.ps1)
 #   8. (run by hand, and for a v2.* tag) installing over the latest
 #      published 2.x release (its installer downloaded from its release
 #      page; not run, with a notice, while this build has the released
@@ -169,6 +173,12 @@ jobs:
         if: always() && hashFiles('electron/report/qt-settings-together.reg') != ''
         shell: pwsh
         run: tools/windows/check-side-by-side.ps1 -Phase after -Report report
+
+      - name: The installer with its pages (tools/windows/check-installer-ui.ps1)
+        if: always() && hashFiles('electron/report/qt-settings-together.reg') != ''
+        timeout-minutes: 8
+        shell: pwsh
+        run: tools/windows/check-installer-ui.ps1 -Setup (Get-Item dist/*-setup.exe).FullName -Report report/installer
 
       - name: Upload the installer
         uses: actions/upload-artifact@v4
