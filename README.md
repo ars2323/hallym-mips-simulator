@@ -76,9 +76,9 @@ and a line of messages.
 sound) and a twenty-step tutorial over the real window. QtSpim opens its main
 window, and its Console as a second window.
 
-![The first start: standard QtSpim's two windows and Hallym MIPS's start screen](docs/compare/06-first-start.png)
+![The first start: standard QtSpim's two windows and Hallym MIPS's start screen](docs/compare/06-first-start.jpg)
 
-**Executable image** — the assembled program exported as an `.hmx` text file (its words, data, entry point and labels), which Hallym Circuit Studio loads instead of assembling: [`electron/docs/hmx-format.md`](electron/docs/hmx-format.md).
+**Executable image** — the assembled program exported as an `.hmx` text file (its words, data, entry point and labels), which Hallym Circuit Studio loads instead of assembling: [`docs/hmx-format.md`](docs/hmx-format.md).
 
 Also: opening a file (Ctrl+O) always starts from a clean simulator; Ctrl+S
 saves and assembles as one action and keeps the breakpoints; the panels

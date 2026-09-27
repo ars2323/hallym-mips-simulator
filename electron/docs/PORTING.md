@@ -1323,7 +1323,7 @@ The first screen shows 12 seconds of the university's promotional video behind i
 
 ### The executable image (.hmx)
 
-Hallym Circuit Studio (on Logisim 2.7.1) runs MIPS programs on CPUs the students build. Instead of an assembler of its own, it loads what Hallym MIPS assembled: an **executable image**. It is not an object file, since nothing is left to relocate or link. The format is `docs/hmx-format.md`, the reference, version 1. The icon **Export executable image (.hmx)** is in the title bar's right-hand group; the toolbar on the left is unchanged.
+Hallym Circuit Studio (on Logisim 2.7.1) runs MIPS programs on CPUs the students build. Instead of an assembler of its own, it loads what Hallym MIPS assembled: an **executable image**. It is not an object file, since nothing is left to relocate or link. The format is `docs/hmx-format.md` at the repository root, the reference, version 1. It lives there and not in `electron/docs/`: it is a contract another program reads, not a detail of this edition, and `docs/` holds what is read from outside (the guides, the comparison). Circuit Studio pins its address at a tag, so the path is fixed from `v2.4.0` on. The golden files stay in `electron/tests/hmx/`, the tests that make them. The icon **Export executable image (.hmx)** is in the title bar's right-hand group; the toolbar on the left is unchanged.
 
 Every value comes from a core. `src/sim/image.ts` reads it from the second process (the one that checks assembles, §25), right after assembling the program there. Nothing is taken from the machine on screen, which may have run, and nothing is assumed:
 - `entry` is `main`'s address from the symbol table;

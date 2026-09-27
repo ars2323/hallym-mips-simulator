@@ -1,5 +1,5 @@
 /* A reader of executable images (.hmx), for the tests only: what
-   docs/hmx-format.md asks of a reader, strictly.  The app writes images
+   ../docs/hmx-format.md asks of a reader, strictly.  The app writes images
    (src/core/hmx.ts) and never reads them. */
 
 export interface HmxFile {

@@ -50,9 +50,10 @@ The example files and step counts are written inside the tool, so the same scene
 | `windows-frame.png` | The installed build maximized on **real Windows** (Server 2025, the Windows 11 shell) at 1920×1080: the default layout as a student sees it — the app's bar, the system's window buttons, the taskbar | CI only (`electron.yml` at the repository root; the runner's screen set to 1920×1080 by `tools/windows/screen-1920.ps1`, 1024×768 if that fails — `report/screen.txt`). With the installed build, the same run as `split-running`, then maximized; whole screen (≤ 700 KB) |
 | `windows-frame-tutorial.png` | The same, with the tutorial on: the caption buttons' patch coloured with the dim (`#bdc5d4`), the buttons still there | CI only, like `windows-frame`; step 14, maximized; whole screen |
 
-| `installer-progress.png` | The installer (2.4.0 on), its first page: the progress, in Korean | CI only: `tools/windows/check-installer-ui.ps1`, the installer run with its pages (not `/S`) on the runner; the window alone |
-| `installer-finish.png` | Its finish page, the second and last: "설치가 완료되었습니다", "지금 실행하기" ticked, 마침 | CI only, the same run |
-| `installer-started.jpg` | What 마침 started: the installed program's start screen, its video playing (a live frame, not stopped) | CI only, the same run, 6 s after 마침; the window alone. The CI writes a PNG; it is committed as JPEG (quality 85), like the other start screens |
+| `installer-progress.png` | The installer (2.4.0 on), its first page: the progress, in Korean ("설치하는 중") | CI only: `tools/windows/check-installer-ui.ps1`, the installer run with its pages (not `/S`) on the runner; the window alone. Comes from the release's tag run and is committed right after the tag |
+| `installer-finish.png` | Its finish page, the second and last: "설치가 완료되었습니다", "지금 실행하기" ticked, 마침 | CI only, the same run. Comes from the release's tag run and is committed right after the tag |
+| `installer-started.jpg` | What 마침 started: the installed program's start screen, its video playing (a live frame, not stopped) | CI only, the same run, 6 s after 마침; the window alone. The CI writes a PNG; it is committed as JPEG (quality 85), like the other start screens. Comes from the release's tag run and is committed right after the tag |
+| `uninstaller-finish.png` | The uninstaller's finish page (after its progress page): "제거가 끝났습니다" | CI only, the same run: the uninstaller run with its pages, as Settings > Apps runs it. Comes from the release's tag run and is committed right after the tag |
 
 `windows-frame.png` and `windows-frame-tutorial.png` are taken as is from `report/screens/` in the CI artifact `windows-report`,
 and the three `installer-*` pictures from its `report/installer/`. CI also takes
@@ -93,7 +94,7 @@ and what was done or why it waits. Open items stay until they are fixed.
 The e2e run at each width ends with some tests skipped. These skips are intended, not faults
 waiting for a fix.
 
-- **At 910×505, 88 tests, not 89.** `layout.e2e.ts` *splitter: drag to share the width, fold
+- **At 910×505, 97 tests, not 98.** `layout.e2e.ts` *splitter: drag to share the width, fold
   either side away and back* skips itself when the window shows Editor and Run as tabs. Below
   971 px there is no splitter to drag or fold: one side shows at a time. The tabs are what that
   width has instead, and *narrow windows show one side at a time; 1093 wide (1366 at 125%) keeps

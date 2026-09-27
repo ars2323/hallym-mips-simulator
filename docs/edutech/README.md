@@ -150,7 +150,7 @@ QtSpim 에는 편집기가 없어서, 같은 실수는 "syntax error on line 14"
 
 ### 3-6. 처음 켰을 때
 
-![처음 켰을 때: QtSpim 의 두 창과 Hallym MIPS 의 시작 화면](../compare/06-first-start.png)
+![처음 켰을 때: QtSpim 의 두 창과 Hallym MIPS 의 시작 화면](../compare/06-first-start.jpg)
 
 **무엇이 달라졌나.** 새 판은 시작 화면에서 두 가지를 묻습니다: **튜토리얼 보기**와 **바로 시작**.
 튜토리얼은 예제 프로그램을 열어 두고 **실제 화면**의 한 곳씩을 가리키는 20단계입니다: Editor, Assemble,

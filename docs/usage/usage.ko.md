@@ -217,7 +217,7 @@ F10 · F5 · Reset 도 그 프로그램으로 계속됩니다. 이때 Editor 에
 - 어셈블한 뒤 코드를 고쳤다면 내보내는 것은 **마지막으로 어셈블한 코드**입니다(Run · Step 이 쓰는 것과 같은 프로그램).
   고친 코드를 내보내려면 먼저 Ctrl+S 를 누르세요.
 - `main` 라벨이 없는 프로그램은 내보내지 않습니다.
-- 파일 형식은 [hmx-format.md](../../electron/docs/hmx-format.md)(영어)에 있습니다.
+- 파일 형식은 [hmx-format.md](../hmx-format.md)(영어)에 있습니다.
 
 ---
 

@@ -41,7 +41,7 @@ so that it can be seen.
 | 3 | [03-inspector.png](03-inspector.png) | [originals/03-inspector-qtspim.png](originals/03-inspector-qtspim.png) | [originals/03-inspector-2x.png](originals/03-inspector-2x.png) |
 | 4 | [04-data.png](04-data.png) | [originals/04-data-qtspim.png](originals/04-data-qtspim.png) | [originals/04-data-2x.png](originals/04-data-2x.png) |
 | 5 | [05-editor-errors.png](05-editor-errors.png) | [originals/05-editor-errors-qtspim.png](originals/05-editor-errors-qtspim.png) | [originals/05-editor-errors-2x.png](originals/05-editor-errors-2x.png) |
-| 6 | [06-first-start.png](06-first-start.png) | [originals/06-first-start-qtspim.png](originals/06-first-start-qtspim.png) | [originals/06-first-start-2x.png](originals/06-first-start-2x.png) |
+| 6 | [06-first-start.jpg](06-first-start.jpg) | [originals/06-first-start-qtspim.png](originals/06-first-start-qtspim.png) | [originals/06-first-start-2x.jpg](originals/06-first-start-2x.jpg) |
 
 [window.png](window.png): Hallym MIPS's whole window after the same 13 steps,
 on the Data tab.

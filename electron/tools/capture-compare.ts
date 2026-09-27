@@ -17,7 +17,11 @@
    Writes docs/compare/NN-name.png (the pair, with the conditions under it),
    docs/compare/originals/NN-name-qtspim.png / NN-name-2x.png (each side
    alone, full size, for other material) and docs/compare/window.png (this
-   edition's whole window after the steps, Data tab). */
+   edition's whole window after the steps, Data tab).  The first start
+   (06) has the university's video behind this edition's start screen: it
+   is stopped at a fixed second, and that pair and this edition's side are
+   JPEG (06-first-start.jpg, originals/06-first-start-2x.jpg): as PNG, a
+   video frame is several times the size. */
 
 import { execFileSync, spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -133,7 +137,19 @@ async function panel(r: Running, label: string, file: string): Promise<void> {
 async function whole(r: Running, file: string): Promise<void> {
   await r.page.mouse.move(WIDTH - 2, HEIGHT - 2);
   await r.page.waitForTimeout(400);
-  await r.page.screenshot({ path: file });
+  await r.page.screenshot(file.endsWith('.jpg') ? { path: file, type: 'jpeg', quality: 85 } : { path: file });
+}
+
+// The first screen's video stopped at `t` seconds, that frame on screen
+// (tools/capture-screens.ts takes its start screens at the same second).
+async function videoAt(r: Running, t: number): Promise<void> {
+  await r.page.waitForSelector('.wback.playing');
+  await r.page.evaluate((t) => new Promise<void>((done) => {
+    const v = document.querySelector('.wback video') as HTMLVideoElement;
+    v.pause();
+    v.addEventListener('seeked', () => requestAnimationFrame(() => requestAnimationFrame(() => done())), { once: true });
+    v.currentTime = t;
+  }), t);
 }
 
 // ---- putting a pair together ----------------------------------------------------------------
@@ -141,10 +157,12 @@ async function whole(r: Running, file: string): Promise<void> {
 // Each side under its name; side by side; the conditions under both.  A
 // whole window is shown at half size in the pair (the originals are full).
 // `mark`: a window on QtSpim's side outlined and named (in the pair only).
-function pair(name: string, conditions: string, half = false, mark?: { x: number; y: number; width: number; height: number; label: string }): void {
+// `photo`: this edition's side is a JPEG (the first start, over the video), and so is the pair.
+function pair(name: string, conditions: string, half = false, mark?: { x: number; y: number; width: number; height: number; label: string },
+              photo = false): void {
   const tmp = mkdtempSync(path.join(os.tmpdir(), 'pair-'));
   const side = (which: 'qtspim' | '2x', label: string, colour: string) => {
-    const src = path.join(originals, `${name}-${which}.png`);
+    const src = path.join(originals, `${name}-${which}.${photo && which === '2x' ? 'jpg' : 'png'}`);
     const scaled = path.join(tmp, `${which}.png`);
     const outline = which === 'qtspim' && mark
       ? ['-fill', 'none', '-stroke', '#E8710A', '-strokewidth', '4',
@@ -165,9 +183,9 @@ function pair(name: string, conditions: string, half = false, mark?: { x: number
   const w = Number(execFileSync('identify', ['-format', '%w', both], { encoding: 'utf8' }));
   execFileSync('convert', [both, '(', '-size', `${w}x`, '-background', 'white', '-fill', '#5A5A5A', '-font', FONT,
     '-pointsize', '14', `caption:${conditions}`, ')', '-gravity', 'NorthWest', '-append', '-bordercolor', 'white', '-border', '8',
-    path.join(out, `${name}.png`)]);
+    ...(photo ? ['-quality', '85'] : []), path.join(out, `${name}.${photo ? 'jpg' : 'png'}`)]);
   rmSync(tmp, { recursive: true, force: true });
-  console.log(`written  docs/compare/${name}.png`);
+  console.log(`written  docs/compare/${name}.${photo ? 'jpg' : 'png'}`);
 }
 
 // ---- the six pairs --------------------------------------------------------------------------
@@ -240,10 +258,11 @@ pair('05-editor-errors', `The same file with one mistake on line 14 (4(t1) for 4
   await qt.shot(path.join(originals, '06-first-start-qtspim.png'), undefined, false);
   qt.stop();
   const r = await ours();
-  await whole(r, path.join(originals, '06-first-start-2x.png'));
+  await videoAt(r, 4.2);
+  await whole(r, path.join(originals, '06-first-start-2x.jpg'));
   await r.close();
 }
 pair('06-first-start', `The first start: nothing opened, no saved settings; window ${WIDTH}×${HEIGHT}, ${FONTS}; Linux, Xvfb. QtSpim's Console is a window of its own (800×600, outlined here); with no window manager it opens behind the main window at (0, 0), and it is moved to (780, 270) so it can be seen. Shown at half size.`,
-  true, { x: 780, y: 270, width: 800, height: 600, label: 'Console (a window of its own)' });
+  true, { x: 780, y: 270, width: 800, height: 600, label: 'Console (a window of its own)' }, true);
 
 rmSync(work, { recursive: true, force: true });

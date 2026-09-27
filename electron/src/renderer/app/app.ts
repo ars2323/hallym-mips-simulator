@@ -146,7 +146,7 @@ speedOne.addEventListener('click', () => void setSpeed(speed === 'fast' ? 'slow'
 const speedBox = h('span', { class: 'speedbox' }, h('span', { class: 'speedlabel' }, 'Run speed'), speedSwitch, speedOne);
 const toolbar = h('span', { class: 'toolbar' }, bAssemble, bRun, speedBox, bStep, bRestart);
 const bSettings = iconButton('Settings', 'settings', () => settingsBox.open());
-// The assembled program as an executable image (.hmx, docs/hmx-format.md), for Hallym Circuit Studio.
+// The assembled program as an executable image (.hmx, ../docs/hmx-format.md), for Hallym Circuit Studio.
 const bExport = iconButton('Export executable image (.hmx)', 'file-output', () => void exportImage());
 const viewEditor = h('button', { type: 'button', role: 'tab' }, 'Editor');
 const viewRun = h('button', { type: 'button', role: 'tab' }, 'Run');

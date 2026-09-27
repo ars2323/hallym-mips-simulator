@@ -78,10 +78,18 @@ for again each time.
    as a table:
    - both workflows green on the commit to be released (the Qt build and the Electron build);
    - the unit tests (`cd electron && npm test`);
-   - every e2e test at the four widths (`npm run e2e:widths`: 1280, 1093, 1024, 910), the 1920 test among them;
+   - every e2e test at the four widths (`npm run e2e:widths`: 1280, 1093, 1024, 910), and **the whole suite once
+     more with 1920×1040 as every test's window** (`SPIM_E2E_SIZE=1920x1040 npx playwright test`). "+1920" means that
+     whole run, not only the 1920 checks inside `fit.e2e.ts`: a test that silently assumed a narrower window
+     (`panels.e2e.ts`, found in the 2.4.0 round) showed up only there;
    - Korean input: the CDP tests (in the e2e) and the real Microsoft Korean IME (Windows CI);
    - settings reset to their defaults at every start (in the e2e);
-   - every mutant killed (`node tools/mutants.ts`);
+   - mutants, against a baseline: the last release tag. **Every mutant this round could have touched is killed:**
+     those whose `file`, or one of whose `tests`, changed since the baseline (`git diff --name-only <tag>..HEAD` and
+     `git status --porcelain`), and every mutant added since. **The whole set was killed at the baseline** (for
+     2.4.0: all 151 at `v2.3.0`). And every mutant's `find` occurs exactly once in its `file` (text only, no build),
+     so a skipped mutant's code has not moved; one that does not is run. `node tools/mutants.ts "<module> <what>"`
+     runs one;
    - the Windows CI job's e2e against the installed app, the 1920 test included;
    - installing over 1.2.4 (side by side: Windows CI, every run) and over the latest published 2.x release (the
      workflow's `upgrade` job: run it by hand on the commit to be released, before tagging; on a commit that still

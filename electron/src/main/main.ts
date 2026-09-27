@@ -204,7 +204,7 @@ async function main(): Promise<void> {
       writeFileSync(target, encoded.bytes);
       return { path: target, name: path.basename(target) };
     }));
-  // The executable image (.hmx, docs/hmx-format.md) of the program last
+  // The executable image (.hmx, ../docs/hmx-format.md) of the program last
   // assembled -- not of the Editor's text if it changed since: the source,
   // its options and its file as they were then.  Read in the second
   // process; the machine on screen is not touched.  The hash is of the

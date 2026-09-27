@@ -1,7 +1,7 @@
 HALLYM-EXEC 1
 source        no-data.s
 source-sha256 2922fd03032f8c41351245be365daefd8264590ec125a2da55f58c9de2842d34
-produced-by   Hallym MIPS 2.3.0
+produced-by   Hallym MIPS 2.4.0
 assembled     2026-09-27T19:05+09:00
 endian        little
 

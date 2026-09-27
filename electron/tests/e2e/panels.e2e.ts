@@ -43,6 +43,7 @@ test('Inspector: follows PC at every step, pins to a chosen row, follows again o
 
 test('Registers: the register a step changed is marked, with a tag, until the next step', async () => {
   const { page } = r;
+  await resize(r, { width: 1280, height: 800 }); // at 1280, then at 1920, whatever size the run opens at
   await openAndAssemble(r, program(r.dir, 'p.s', 'main:\n  li $t0, 5\n  li $t1, 7\n  li $v0, 10\n  syscall\n'));
   for (let i = 0; i < 20 && (await regHex(page, '$t0')) === '0x00000000'; i += 1) {
     await page.keyboard.press('F10');

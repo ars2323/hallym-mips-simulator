@@ -1,7 +1,7 @@
 HALLYM-EXEC 1
 source        main-later.s
 source-sha256 26954032968d70b09be4b325499aeb98311e0ba850be86ce43542cc89184d0f4
-produced-by   Hallym MIPS 2.3.0
+produced-by   Hallym MIPS 2.4.0
 assembled     2026-09-27T19:05+09:00
 endian        little
 

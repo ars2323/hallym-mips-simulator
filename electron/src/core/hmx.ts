@@ -2,7 +2,8 @@
    its data, where it begins, its labels -- for a program that runs MIPS code
    without assembling it (Hallym Circuit Studio loads these).  Not an object
    file: nothing is left to link or relocate.  The format is specified in
-   docs/hmx-format.md, which is the reference; this writes version 1.
+   the repository's docs/hmx-format.md, which is the reference; this writes
+   version 1.
 
    Pure: the image is read from the simulator by src/sim/image.ts. */
 

@@ -271,7 +271,7 @@ the same program.
   assembled program**, the one Run and Step use. Press Ctrl+S first to export
   the changed code.
 - A program without a `main` label is not exported.
-- The file format: [hmx-format.md](../../electron/docs/hmx-format.md).
+- The file format: [hmx-format.md](../hmx-format.md).
 
 ---
 

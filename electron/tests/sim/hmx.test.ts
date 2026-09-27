@@ -5,7 +5,7 @@
    1. Golden: the image, made again from the .s on every run, is the .hmx
       committed, line for line -- all but "assembled" (the time) and the
       version in "produced-by".  HMX_UPDATE=1 writes them instead.  These
-      files are the test inputs docs/hmx-format.md points readers to.
+      files are the test inputs ../docs/hmx-format.md points readers to.
    2. Round trip: each .hmx read back (tests/helpers/hmx-read.ts, a strict
       reader) against a fresh core: every word of .text is the core's word at
       that address, the start-up code included; every byte of .data the
@@ -157,8 +157,8 @@ test('a reader refuses a later version and a count that is not the lines\', and 
   assert.deepEqual(readHmx(commented).text, readHmx(good).text);
 });
 
-test('docs/hmx-format.md: its example is the data case, source and image; its table lists every case', () => {
-  const doc = readFileSync(path.join(root, 'docs/hmx-format.md'), 'utf8');
+test('../docs/hmx-format.md: its example is the data case, source and image; its table lists every case', () => {
+  const doc = readFileSync(path.join(root, '..', 'docs/hmx-format.md'), 'utf8');
   const block = (lang: string) => new RegExp('```' + lang + '\\n([\\s\\S]*?)\\n```').exec(doc)![1] + '\n';
   assert.equal(block('asm'), readFileSync(path.join(dir, 'data.s'), 'utf8'));
   assert.deepEqual(comparable(block('text')), comparable(readFileSync(path.join(dir, 'data.hmx'), 'utf8')));

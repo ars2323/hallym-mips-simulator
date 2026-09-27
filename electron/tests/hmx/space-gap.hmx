@@ -1,7 +1,7 @@
 HALLYM-EXEC 1
 source        space-gap.s
 source-sha256 0390a4129caa5eb61ccf602e52e1b0737fbef39db43cab9c33d4354bfad52a4e
-produced-by   Hallym MIPS 2.3.0
+produced-by   Hallym MIPS 2.4.0
 assembled     2026-09-27T19:05+09:00
 endian        little
 

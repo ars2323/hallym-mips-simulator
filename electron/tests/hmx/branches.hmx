@@ -1,7 +1,7 @@
 HALLYM-EXEC 1
 source        branches.s
 source-sha256 d5837bbdbb733b04231adb7cb60deafbdadc4878e44830ac31144d521a97f0ac
-produced-by   Hallym MIPS 2.3.0
+produced-by   Hallym MIPS 2.4.0
 assembled     2026-09-27T19:05+09:00
 endian        little
 

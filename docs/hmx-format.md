@@ -14,7 +14,7 @@ In Hallym MIPS: assemble (Ctrl+S), then click **Export executable image (.hmx)**
 
 ## An example
 
-The program ([`data.s`](../tests/hmx/data.s)):
+The program ([`data.s`](../electron/tests/hmx/data.s)):
 
 ```asm
 # .data used through la and lw: sums an array of words and prints a string.
@@ -43,13 +43,13 @@ next:   lw    $t1, 0($s0)
         syscall
 ```
 
-Its image, as Hallym MIPS writes it with its default settings ([`data.hmx`](../tests/hmx/data.hmx)):
+Its image, as Hallym MIPS writes it with its default settings ([`data.hmx`](../electron/tests/hmx/data.hmx)):
 
 ```text
 HALLYM-EXEC 1
 source        data.s
 source-sha256 36d94771763ea32a07eff0bee79c21ee26903dfb5ff624fee96dd34585392a83
-produced-by   Hallym MIPS 2.3.0
+produced-by   Hallym MIPS 2.4.0
 assembled     2026-09-27T19:05+09:00
 endian        little
 

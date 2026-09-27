@@ -1,7 +1,7 @@
 HALLYM-EXEC 1
 source        pseudo.s
 source-sha256 aea1e48a967aca62436127d9ac83dee3a355a5cecffe011cc02143129da54db5
-produced-by   Hallym MIPS 2.3.0
+produced-by   Hallym MIPS 2.4.0
 assembled     2026-09-27T19:05+09:00
 endian        little
 
