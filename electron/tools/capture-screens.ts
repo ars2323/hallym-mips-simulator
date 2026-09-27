@@ -16,9 +16,9 @@
 
    The first screen has the university's video behind it: those shots stop
    it at a fixed second (the same picture every round) and are JPEG -- as
-   PNG a video frame is 500 KB and more.  start-frame-1..3 are three
-   moments of it; start-<width> and start-2-<width> the two steps at the
-   other widths.
+   PNG a video frame is 500 KB and more.  start-frame-1, start and
+   start-frame-3 are three moments of it; start-<width> and start-2-<width>
+   the two steps at the other widths.
 
    The user guide's three pictures (docs/usage/usage.ko.md, usage.en.md)
    are taken with the set and written to docs/usage/images/: the start
@@ -172,7 +172,8 @@ async function lab04(r: Running): Promise<void> {
 {
   const r = await launch({ width: 1280, height: 800 });
   const { page } = r;
-  for (const [n, t] of [[1, 0.5], [2, 4.2], [3, 8.1]]) { await videoAt(r, t); await photo(r, `start-frame-${n}`); }
+  // Three moments of the video: 0.5 s, start.jpg's own 4.2 s (taken below), 8.1 s.
+  for (const [n, t] of [[1, 0.5], [3, 8.1]]) { await videoAt(r, t); await photo(r, `start-frame-${n}`); }
   await videoAt(r, START_AT);
   await photo(r, 'start');
   forGuide('start', '01-start', 'jpg');

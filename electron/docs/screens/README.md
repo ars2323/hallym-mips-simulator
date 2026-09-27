@@ -15,7 +15,7 @@ The example files and step counts are written inside the tool, so the same scene
 |---|---|---|
 | `start.jpg` | Start screen: Haram (greeting) and the two paths (튜토리얼 보기 / 바로 시작, "View tutorial" / "Start now"), no toolbar; behind the card, the university's video under its blur and navy tint | 1280×800, as started, the video stopped at 4.2 s |
 | `start-2.jpg` | Start screen, second step: 새 파일 / 파일 열기 ("New file" / "Open file"), "← 처음으로" ("← Back to start"); the same video frame behind | 1280×800, 바로 시작 clicked |
-| `start-frame-1.jpg`, `start-frame-2.jpg`, `start-frame-3.jpg` | The start screen at three moments of the video: the city from the air, a campus building, a glass facade. The card is the same picture in all three | 1280×800, the video stopped at 0.5, 4.2 and 8.1 s |
+| `start-frame-1.jpg`, `start.jpg`, `start-frame-3.jpg` | The start screen at three moments of the video: the city from the air, a campus building, a glass facade. The card is the same picture in all three. The middle moment is `start.jpg` itself (there is no `start-frame-2.jpg`: it was the same picture) | 1280×800, the video stopped at 0.5, 4.2 and 8.1 s |
 | `start-1093.jpg`, `start-2-1093.jpg` | The two steps on the lab PC | CSS 1093×582 at 1.25×, 4.2 s |
 | `start-1024.jpg`, `start-2-1024.jpg` | The two steps at 1024×768 | CSS 1024×728, 4.2 s |
 | `start-910.jpg`, `start-2-910.jpg` | The two steps at 1366×768 at 150% (the card loses its character only below 860 px) | CSS 910×505 at 1.5×, 4.2 s |
@@ -89,6 +89,17 @@ and what was done or why it waits. Open items stay until they are fixed.
    Data layout for one band of widths; both are larger than this round. Below 971 px the window
    shows Editor and Run as tabs and Data fits; from 1035 px it fits.
 
+2. **The title bar's narrowest step has no room for another icon.** From 2.4.0 the right-hand
+   group has five icons: Tutorial, New file, Open file, Export executable image, Settings.
+   The fifth took 26 px. In the narrowest step (`tighter`, at 910 px, with a 20-column file name
+   and Windows' caption buttons) the bar came out 25 px short, so before it there was 1 px to spare.
+   That step's icon buttons went from 24 to 20 px with no gap between them, which leaves 9 px.
+   **Does 20 px apply on Windows? Yes:** the `tighter` step is on at 910×505 (1366×768 at 150%)
+   for every file name on every platform, and the +30 px that showed the shortfall stands for
+   Windows' own wider caption buttons (`fit.e2e.ts`). At 1024 px and wider it never engages.
+   *Why it waits:* 20 px is the least an 18-px icon takes, so a sixth icon (or a longer label)
+   needs another step, for example New file and Open file in one menu, not narrower buttons.
+
 ### Skipped tests: intended
 
 The e2e run at each width ends with some tests skipped. These skips are intended, not faults
@@ -137,3 +148,4 @@ Entries before the merge refer to commits of the archived repository ars2323/hal
 - How the window speaks (wording, one-text tutorial cards, the error panel, the Console's height, Windows at 1920×1080) — 51bb424 — 2026-09-26
 - The yellow row names itself, Save & Assemble (no legend in the Registers head, the Changed tag and the status bar's "방금 바뀜", the button's name by the file's state, the title bar's new step) — 9e7bf12 — 2026-09-27
 - Changing the code keeps the machine (the band, the Assemble panel under the Editor, errors that keep the machine) and the tutorial lights whole panels — 79ccb77 — 2026-09-27
+- 2.4.0: the first screen over the university's video (JPEG, both steps at every width, three moments), the title bar's Export icon, the installer's and uninstaller's pages from the tag run — 8c5780d (installer pages: 65c7c58) — 2026-09-27
