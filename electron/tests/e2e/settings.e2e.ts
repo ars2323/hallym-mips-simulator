@@ -95,6 +95,7 @@ test('Advanced: options apply from the next assemble, for this session', async (
     expect(await statusText(page)).toContain('설정이 바뀌었습니다');
     // Reset starts the program again as it was assembled: the old arguments.
     await page.getByRole('button', { name: /Reset/ }).click();
+    await expect(page.locator('.status')).toContainText('Step · '); // Reset done (keys wait while it works)
     await expect(page.locator('.status')).toContainText('설정이 바뀌었습니다');
     await page.keyboard.press('F5');
     await settled(page);
