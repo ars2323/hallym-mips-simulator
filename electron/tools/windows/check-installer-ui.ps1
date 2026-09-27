@@ -185,10 +185,10 @@ if ($finish) {
     Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class Spi { [DllImport("user32.dll")] public static extern bool SystemParametersInfo(uint a, uint b, ref bool c, uint d); }'
     $anim = $false; [void][Spi]::SystemParametersInfo(0x1042, 0, [ref]$anim, 0)
     Note "Windows animation effects (SPI_GETCLIENTAREAANIMATION): $anim -- off means prefers-reduced-motion, the still only"
-    $r = New-Object Ui+RECT; [void][Ui]::GetWindowRect($app.MainWindowHandle, [ref]$r)
-    $grab = { $b = New-Object System.Drawing.Bitmap 400, 120; $g = [System.Drawing.Graphics]::FromImage($b); $g.CopyFromScreen($r.Left + 60, $r.Top + 80, 0, 0, $b.Size); $g.Dispose(); $b }
+    $ar = New-Object Ui+RECT; [void][Ui]::GetWindowRect($app.MainWindowHandle, [ref]$ar)
+    $grab = { $bm = New-Object System.Drawing.Bitmap 400, 120; $gr = [System.Drawing.Graphics]::FromImage($bm); $gr.CopyFromScreen($ar.Left + 60, $ar.Top + 80, 0, 0, $bm.Size); $gr.Dispose(); $bm }
     $a1 = & $grab; Start-Sleep -Seconds 2; $a2 = & $grab
-    $diff = 0; for ($y = 0; $y -lt 120; $y += 4) { for ($x = 0; $x -lt 400; $x += 4) { $p = $a1.GetPixel($x, $y); $q = $a2.GetPixel($x, $y); $diff += [Math]::Abs($p.R - $q.R) + [Math]::Abs($p.G - $q.G) + [Math]::Abs($p.B - $q.B) } }
+    $diff = 0; for ($y = 0; $y -lt 120; $y += 4) { for ($x = 0; $x -lt 400; $x += 4) { $c1 = $a1.GetPixel($x, $y); $c2 = $a2.GetPixel($x, $y); $diff += [Math]::Abs($c1.R - $c2.R) + [Math]::Abs($c1.G - $c2.G) + [Math]::Abs($c1.B - $c2.B) } }
     Note ("the start screen's background over 2 s: mean change {0:N1} per pixel ({1})" -f ($diff / 3000), $(if ($diff / 3000 -gt 2) { 'moving: the video' } else { 'still: no video' }))
     Get-Process HallymMIPS -ErrorAction SilentlyContinue | ForEach-Object { $null = $_.CloseMainWindow() }
     Start-Sleep -Seconds 5

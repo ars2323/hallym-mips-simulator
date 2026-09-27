@@ -1413,7 +1413,7 @@ So nothing changed in how it is drawn. `start.e2e.ts` now asserts both numbers o
 
 Why the picture looked sharp: at 1920 the clip is enlarged 2.1× (1.4× at 1280), and the aerial frame is full of detail. At the clip's own scale the blur is no weaker there (0.266 at 1920 against 0.305 at 1280).
 
-Also in that picture, six seconds after the program started, the clip was still on its first frame. The Windows job now records whether the screen moves, and Windows' "animation effects" setting, which `prefers-reduced-motion` follows. When it is off, a student sees the still, processed the same way.
+Also in that picture, six seconds after the program started, the clip was still on its first frame. The Windows job now records Windows' "animation effects" setting (`SPI_GETCLIENTAREAANIMATION`, which `prefers-reduced-motion` follows) and whether the start screen moves. On the runner the setting is off, and the background did not change over 2 s: a program started there shows the still, processed the same way. Playwright's launches force `no-preference`, so the e2e ran the video. Windows 10 and 11 have animation effects on by default, so a student's PC plays the video; with them off, it shows the still.
 
 **The clip is one aerial shot, 0:00.1–0:02.6 of the source, slowed to a third.** All 336 frames of 2.4.0's clip (0:00–0:12) were looked at (`docs/screens/start-clip-2.4.0-contact.jpg`):
 - "한림대학교" on the gate sculpture (frames 57–101);
