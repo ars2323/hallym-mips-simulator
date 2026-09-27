@@ -10,6 +10,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 
+import { compare, groundRect, rawPixels, readbackPixels, screenPixels } from './backdrop-measure.ts';
 import { launch, type Running } from './harness.ts';
 
 const NAVY = 'rgb(0, 32, 91)';
@@ -122,6 +123,34 @@ test('the card stays readable over the video: it does not change while the video
     }
     expect(new Set(grounds).size).toBe(3); // the video does change behind it
     expect(new Set(cards).size).toBe(1);   // the card does not
+  } finally {
+    await r.close();
+  }
+});
+
+// As the SCREEN shows it, while the video plays (slowed, so that the frame
+// holds while it is captured): the background moved toward the navy by the
+// tint, and blurred -- against the clip's own frame at the same place.  The
+// compositor's readback is not enough: on Windows it had both while the
+// screen had neither (tests/e2e/backdrop-measure.ts).
+test('the background on the screen, while the video plays: tinted toward the navy and blurred, against the raw frame', async () => {
+  const r = await launch();
+  const { page } = r;
+  try {
+    await page.waitForSelector('.wback.playing');
+    await page.mouse.move(-10, -10);
+    await page.evaluate(() => { (document.querySelector('.wback video') as HTMLVideoElement).playbackRate = 0.0625; });
+    await page.waitForTimeout(1500);
+    expect((await clip(page)).paused).toBe(false);
+    const rect = await groundRect(r);
+    const raw = await rawPixels(r, rect);
+    const onScreen = compare(await screenPixels(r, rect), raw);
+    const inReadback = compare(await readbackPixels(r, rect), raw);
+    const said = `screen: toward navy ${onScreen.towardNavy.toFixed(3)}, sharpness ${onScreen.sharpness.toFixed(3)}; ` +
+      `readback: ${inReadback.towardNavy.toFixed(3)}, ${inReadback.sharpness.toFixed(3)}; rect ${JSON.stringify(rect)}`;
+    console.log(said);
+    expect(onScreen.towardNavy, said).toBeGreaterThan(0.4); // the tint: 0.5 at the edges .. 0.78 behind the card
+    expect(onScreen.sharpness, said).toBeLessThan(0.6);     // the blur: about 0.3; unblurred, about 1
   } finally {
     await r.close();
   }

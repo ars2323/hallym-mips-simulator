@@ -6,7 +6,11 @@
         makes a waitable timer on every run_spim() call on Windows
         (CPU/run.cpp start_CP0_timer) and never closes it;
      2. the native file dialogs, as they look: a screenshot of the whole
-        screen while the save and the open dialog are up.
+        screen while the save and the open dialog are up;
+     3. the first screen's background as the SCREEN shows it (blur, tint),
+        against the raw frame, in a few variants of how it is drawn
+        (tests/e2e/backdrop-measure.ts): the variant that works on the
+        platform's display is the one to use.
 
      node tools/probe-platform.ts OUTDIR [--expect-no-leak]
 
@@ -16,6 +20,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { compare, groundRect, rawPixels, readbackPixels, screenPixels } from '../tests/e2e/backdrop-measure.ts';
 import { launch, openAndAssemble, program, settled, type Running } from '../tests/e2e/harness.ts';
 
 const out = path.resolve(process.argv[2] ?? 'build/probe');
@@ -157,6 +162,69 @@ for (const [which, key] of [['save', 'Control+s'], ['open', 'Control+o']] as con
     }
   });
 }
+
+// 3. the first screen's background, on the screen: variants of how it is drawn.
+const VARIANTS: [string, string][] = [
+  ['as is, playing', ''],
+  ['as is, paused', `document.querySelector('.wback video').pause()`],
+  ['the still alone', `document.querySelector('.wback video').style.display = 'none'`],
+  ['a tint div over the playing video, no filter', `{
+    const b = document.querySelector('.wback'); b.classList.add('probe-notint');
+    const st = document.createElement('style'); st.textContent = '.wback.probe-notint::after{display:none} .wback video,.wback img{filter:none!important}'; document.head.append(st);
+    const d = document.createElement('div'); d.style.cssText = 'position:absolute;inset:0;background:rgba(0,32,91,.6)'; b.append(d); }`],
+  ['the filter on the video, a solid tint div above (no ::after)', `{
+    const b = document.querySelector('.wback'); b.classList.add('probe-notint');
+    const st = document.createElement('style'); st.textContent = '.wback.probe-notint::after{display:none}'; document.head.append(st);
+    const d = document.createElement('div'); d.style.cssText = 'position:absolute;inset:0;background:rgba(0,32,91,.6)'; b.append(d); }`],
+  ['the filter on a wrapper around the video, a solid tint div above', `{
+    const b = document.querySelector('.wback'), v = b.querySelector('video'); b.classList.add('probe-notint');
+    const st = document.createElement('style'); st.textContent = '.wback.probe-notint::after{display:none} .wback video{filter:none!important}'; document.head.append(st);
+    const w = document.createElement('div'); w.style.cssText = 'position:absolute;inset:0;filter:blur(3px) saturate(.85)'; v.replaceWith(w); w.append(v); v.play();
+    const d = document.createElement('div'); d.style.cssText = 'position:absolute;inset:0;background:rgba(0,32,91,.6)'; b.append(d); }`],
+  ['a canvas: the frames drawn blurred and tinted, the video hidden', `{
+    const b = document.querySelector('.wback'), v = b.querySelector('video');
+    const c = document.createElement('canvas'); c.style.cssText = 'position:absolute;inset:0;width:100%;height:100%';
+    c.width = 480; c.height = 270; b.append(c); v.style.opacity = '0';
+    const g = c.getContext('2d');
+    const draw = () => { g.filter = 'blur(1.5px)'; g.drawImage(v, 0, 0, 480, 270); g.filter = 'none'; g.fillStyle = 'rgba(0,32,91,.6)'; g.fillRect(0, 0, 480, 270); v.requestVideoFrameCallback(draw); };
+    v.requestVideoFrameCallback(draw); }`],
+];
+await phase('start-screen', 480_000, async () => {
+  const results: Record<string, unknown>[] = [];
+  const gpu = { status: {}, info: {} as unknown };
+  for (const [name, change] of VARIANTS) {
+    const r = await launch({ width: 1280, height: 800 });
+    try {
+      await r.page.waitForSelector('.wback.playing', { timeout: 15000 });
+      if (!results.length) {
+        gpu.status = await r.app.evaluate(({ app }) => app.getGPUFeatureStatus());
+        gpu.info = await r.app.evaluate(async ({ app }) => app.getGPUInfo('basic'));
+      }
+      await r.page.mouse.move(-10, -10);
+      if (change) await r.page.evaluate(change);
+      // Playing, but at 1/16 (Chromium's least): the frame barely moves while the screen is captured
+      // (a PowerShell capture takes about a second) and the raw frame drawn.
+      await r.page.evaluate(() => { (document.querySelector('.wback video') as HTMLVideoElement).playbackRate = 0.0625; });
+      await sleep(2500);
+      const rect = await groundRect(r);
+      const screen = await screenPixels(r, rect);
+      const readback = await readbackPixels(r, rect);
+      const raw = await rawPixels(r, rect);
+      const onScreen = compare(screen, raw), inReadback = compare(readback, raw);
+      const reduced = await r.page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
+      const cls = await r.page.locator('.wback').getAttribute('class');
+      results.push({ variant: name, rect, reducedMotion: reduced, wback: cls,
+        screen: { towardNavy: +onScreen.towardNavy.toFixed(3), sharpness: +onScreen.sharpness.toFixed(3), mean: onScreen.screen.mean.map(Math.round) },
+        readback: { towardNavy: +inReadback.towardNavy.toFixed(3), sharpness: +inReadback.sharpness.toFixed(3) },
+        raw: { mean: onScreen.raw.mean.map(Math.round), relLocalVar: +onScreen.raw.relLocalVar.toFixed(4) } });
+      log(`start-screen: ${name}: screen ${JSON.stringify(results.at(-1)!.screen)} readback ${JSON.stringify(results.at(-1)!.readback)}`);
+      screenshot(path.join(out, `start-${results.length}.png`));
+    } finally {
+      kill(r);
+    }
+  }
+  report.startScreen = { gpu, variants: results };
+});
 
 writeFileSync(path.join(out, 'probe.json'), JSON.stringify(report, null, 1));
 console.log(JSON.stringify(report, null, 1));
