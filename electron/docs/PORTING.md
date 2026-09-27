@@ -1188,3 +1188,106 @@ too). And a window made wider kept the title bar it had when narrow: the room ke
 padding's `env(titlebar-area-*)`) is updated only after the resize and the layout, so the title bar is fitted again
 on the overlay's `geometrychange` (seen when the test for the name widened a 910 window to 1280: 392 px free, the
 name still short).
+
+---
+
+## 25. Changing the code keeps the machine; the Assemble panel; the tutorial lights whole panels
+
+**The Run side stays.** A single character typed after assembling used to cover the whole Run side with a card
+("코드가 바뀌었습니다"): Registers, Text, Data, the Inspector and the Console went away the moment a student began to
+change the code -- and a student changes code because of what those show. Now the Run side shows the last program that
+assembled, from the first assemble on (before it, the card), and a band of one line over it says "지금 보이는 것은
+마지막으로 어셈블한 코드입니다 (hh:mm:ss) · 고친 코드를 어셈블하려면 Ctrl+S". Run, Step and Reset go on with that
+program: the core holds it, and nothing about it is thrown away (`ready()` assembles only when there is no program yet).
+`machineShown()` is "a program in the machine", `current()` "and the Editor's code is that program".
+
+**A program with errors leaves the machine as it was.** The core's assemble starts from an empty machine
+(`initialize_world`), so assembling the student's code with an error in it would have taken the last good program,
+and where it had run to, with it. Every assemble now goes first to a second simulator process (`src/main/main.ts`,
+`sim:check`), which only says whether it assembles and what the errors are; the machine on screen is touched only when
+it does. The same keeps a program that ends the core (a `.err` directive) away from the machine: the second process
+ends, starts again, and its answer is the core's own words (as an answer, not an error: an error's name does not cross
+into the page). Without a second process (it did not start) the window assembles as before.
+
+**The Editor never points at a wrong line (3-1).** The line being executed is marked in the Editor only while the
+Editor's code is the program's; once it has changed, the Editor marks none -- its line numbers are no longer the
+program's, and matching the text of a line is not enough (the same `addi $t0, $t0, 1` one line up after a line was
+added above: `tests/e2e/editing.e2e.ts`) -- and the Text panel alone shows where PC is. After the next assemble the
+mark is back, on the new line numbers. Breakpoints in the Editor move with the text as before; set or cleared in
+changed code, they take effect at the next assemble (the status bar says so); set in Text, they are on the program
+Text shows, at once.
+
+**Reset (3-2)** starts the program in the machine again from the beginning -- the last one that assembled, with the
+options and breakpoints it was assembled with -- whatever the Editor holds; assembling is Save & Assemble's. It used to
+assemble the last program again with the current settings, which made it an assemble in all but name, and it
+re-mapped the breakpoints through the Editor's lines, which is wrong once they have moved. Settings changed since
+(Settings > 고급) now apply at the next Ctrl+S only, as the status bar has always said ("다시 어셈블하면(Ctrl+S)
+적용됩니다"); the settings test says so too. The tutorial's step 17 says what Reset is: "마지막으로 어셈블한
+프로그램을 처음 상태로 되돌립니다. 코드를 고쳤더라도 다시 어셈블하지는 않습니다(어셈블은 Ctrl+S)."
+
+**The Assemble panel** replaces the Errors panel, under the Editor instead of over the Run side: the errors belong
+next to the code they are about. Its name is the button's (Save & Assemble): it says what the last assemble did, not
+only when it failed --
+
+| State | What it says |
+|---|---|
+| before any assemble | "Ctrl+S 키를 누르면 저장하고 어셈블합니다. 결과와 오류가 여기에 나옵니다." |
+| assembled | its time in the head (hh:mm:ss), "어셈블했습니다 · 명령 N개 · 저장됨" |
+| assembled, the code changed since | and "코드가 바뀌었습니다. 실행은 마지막으로 어셈블한 코드로 합니다 — 고친 코드를 어셈블하려면 Ctrl+S 키를 누르세요." |
+| errors | the error list as before (what is wrong, what to do, each line with its hint, "N행으로 가기"), without the character; and, with a program in the machine, "오른쪽에는 마지막으로 어셈블한 코드가 그대로 있습니다." |
+
+It is as tall as its words, up to 40 % of the column (at least 240 px: one error and its button), its list scrolling
+past that; a grip over it (like the Console's) drags its height up to what leaves the Editor six whole lines (its head,
+6 × 22 px, and room for a sideways scroll bar: 188 px at the default font), and a double click puts it back. Nothing of
+it is kept. Heights, Editor / Assemble in px (whole lines of code the Editor shows):
+
+| Window | before any assemble | assembled | code changed | one error | three errors |
+|---|---|---|---|---|---|
+| 1280×800 | 621 / 91 (26) | 641 / 72 (27) | 600 / 113 (25) | 492 / 220 (20) | 424 / 288 (16) |
+| 1093×582 | 403 / 91 (16) | 423 / 72 (17) | 362 / 132 (14) | 274 / 220 (10) | 254 / 240 (9) |
+| 1024×728 | 549 / 91 (23) | 569 / 72 (24) | 508 / 132 (21) | 420 / 220 (17) | 381 / 259 (14) |
+| 910×505 (the Editor tab) | 346 / 72 (13) | 346 / 72 (13) | 324 / 93 (12) | 197 / 220 (7) | 188 / 229 (6) |
+| 1920×1040 | 881 / 72 (38) | 881 / 72 (38) | 840 / 113 (36) | 732 / 220 (31) | 583 / 369 (24) |
+
+The Editor scrolls as before: "N행으로 가기" brings the line in, and a step brings the line being executed in unless
+the student is scrolling the Editor. In a narrow window the errors stay on the Editor tab (they used to switch it to
+the Run tab). Before there is a program, the Run side's card says whether nothing is assembled yet, the first assemble
+had errors ("아직 어셈블된 프로그램이 없습니다", pointing at the Assemble panel) or the simulator stopped. The status bar
+no longer says "코드가 바뀌었습니다" (the band does); after an assemble with errors that kept the machine it says
+"고친 코드에 오류 N개 — Assemble 패널".
+
+**The tutorial lights whole panels.** It used to light the targets alone and dim everything else, which cut panels
+into pieces: at step 3 the card says the 32 registers are grouped by use, while the head and the Temporaries band were
+lit and the other groups dimmed -- the surroundings are what the step teaches. Now it draws two layers: the panel each
+target is in is lit whole (the title bar for a toolbar button, the status bar for its words) and the rest dimmed; a box
+on each target says where to look. Lit is not clickable: a clear layer with holes at the targets alone takes every
+other click. The card never covers a box and keeps off the lit panels where the window has room (at 1280 and 1093
+always; at 1024 and 910 it lies over one at six steps each); Haram is at the card's end away from the first target.
+What each step lights (1280×800):
+
+| Step | Lit |
+|---|---|
+| 1 | Editor |
+| 2 | Toolbar |
+| 3 | Registers |
+| 4 | Editor, Text |
+| 5 / its result | Toolbar, Editor / Registers, Editor |
+| 6, 7 | Registers |
+| 8 | Inspector |
+| 9 | Inspector, Text |
+| 10, 11 | Text (Data) |
+| 12 / its result | Editor, Text / Text |
+| 13 | Text (Data), Registers |
+| 14 | Editor |
+| 15 / its result | Toolbar / status bar, Editor |
+| 16 | Toolbar |
+| 17 / its result | Toolbar / Registers, status bar |
+| 18 / its result | Editor, Console / Console, status bar |
+| 19 / after Assemble | Toolbar / Assemble |
+| 20 | nothing (the card in the middle) |
+
+`tests/e2e/tutorial.e2e.ts` walks the twenty steps at the four widths and checks at each: every target's panel lit
+whole (its corners and middle not dimmed), dark exactly outside the lit areas (a grid of points over the window), a box
+on every target, a spot of each lit area off the targets refusing the click, the card off the boxes (and off the lit
+panels from 1093 on). Step 19 points at the Assemble panel now; the steps on the Editor (1, 5, 12, 14, 18) bring their
+lines into the shorter Editor as before.

@@ -1,8 +1,10 @@
-/* The tutorial (src/renderer/app/tutorial.ts, docs/PORTING.md 18):
+/* The tutorial (src/renderer/app/tutorial.ts, docs/PORTING.md 18, 25):
    - all twenty steps, walked with the real actions, at 1093x582 (a lab PC),
      1024x728 and 910x505 (the narrow window): at every step what it points
      at is on screen, and the card covers none of it (a click at a target's
-     middle reaches the target, not the tutorial);
+     middle reaches the target, not the tutorial); the panel each target is
+     in is lit whole and the rest of the window dimmed; a box on each
+     target;
    - the same walk with [건너뛰기] at every practice step;
    - stopping at step 16 while the slow run goes;
    - the examples on disk unchanged; a student's unsaved file back as it
@@ -15,7 +17,7 @@ import path from 'node:path';
 
 import { launch, openAndAssemble, resize, root, sample, type Running } from './harness.ts';
 
-interface Shown { step: number; phase: number; result: boolean; hits: boolean[]; did: string[]; targets: { left: number; top: number; right: number; bottom: number }[]; card: { left: number; top: number; right: number; bottom: number } | null }
+interface Shown { step: number; phase: number; result: boolean; hits: boolean[]; did: string[]; targets: { left: number; top: number; right: number; bottom: number }[]; lit: { left: number; top: number; right: number; bottom: number }[]; card: { left: number; top: number; right: number; bottom: number } | null }
 const shown = (page: Page) => page.evaluate(() => (window as unknown as { __tutorial: { shown: Shown; active: boolean } }).__tutorial.shown);
 const active = (page: Page) => page.evaluate(() => (window as unknown as { __tutorial: { active: boolean } }).__tutorial.active);
 const hash = (name: string) => createHash('sha256').update(readFileSync(path.join(root, 'src/examples', name))).digest('hex');
@@ -51,6 +53,50 @@ async function checkStep(page: Page, n: number, phase = 0, result = false): Prom
     await expect(page.locator('.tut-card .tut-next'), where).toHaveCount(0);
   }
   if (n < 20) expect(s.targets.length, where).toBeGreaterThan(0);
+  // Lit whole: the panel each target is in (the title bar for a button, the
+  // status bar), not dimmed; everything else dimmed; a box on each target.
+  const light = await page.evaluate(({ targets, lit }) => {
+    const dim = document.querySelector('.tut-dim path.dim') as SVGPathElement;
+    const dark = (x: number, y: number) => dim.isPointInFill(new DOMPoint(x, y));
+    const inside = (r: { left: number; top: number; right: number; bottom: number }, x: number, y: number) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    // The area each target is in, found under the tutorial's layers.
+    const areas = targets.map((t) => {
+      const x = (t.left + t.right) / 2;
+      const y = (t.top + t.bottom) / 2;
+      const area = document.elementsFromPoint(x, y).map((e) => e.closest('.panel, .titlebar, .status')).find((e) => e !== null);
+      return area ? area.getBoundingClientRect().toJSON() as DOMRect : null;
+    });
+    const areaLit = areas.map((a) => !!a && lit.some((l) => l.left <= a.left + 1 && l.top <= a.top + 1 && l.right >= Math.min(a.right, innerWidth) - 1 && l.bottom >= Math.min(a.bottom, innerHeight) - 1)
+      && [[a.left + 3, a.top + 3], [a.right - 3, a.top + 3], [a.left + 3, a.bottom - 3], [a.right - 3, a.bottom - 3], [(a.left + a.right) / 2, (a.top + a.bottom) / 2]]
+        .filter(([x, y]) => y < innerHeight && x < innerWidth).every(([x, y]) => !dark(x, y)));
+    // Every point of a grid: dark exactly where no lit area is.
+    let wrong = 0;
+    const edge = (x: number, y: number) => lit.some((l) => (Math.abs(x - l.left) < 1.5 || Math.abs(x - l.right) < 1.5) && y >= l.top - 1.5 && y <= l.bottom + 1.5
+      || (Math.abs(y - l.top) < 1.5 || Math.abs(y - l.bottom) < 1.5) && x >= l.left - 1.5 && x <= l.right + 1.5);
+    for (let x = 5; x < innerWidth; x += 37) {
+      for (let y = 5; y < innerHeight; y += 29) if (!edge(x, y) && dark(x, y) === lit.some((l) => inside(l, x, y))) wrong += 1;
+    }
+    const rings = [...document.querySelectorAll('.tut-ring')].map((e) => e.getBoundingClientRect());
+    const boxed = targets.map((t) => rings.some((r) => r.left <= t.left + 0.5 && r.top <= t.top + 0.5 && r.right >= t.right - 0.5 && r.bottom >= t.bottom - 0.5));
+    // Lit is not clickable: a spot of each lit area off the targets takes no click.
+    const near = (x: number, y: number) => targets.some((t) => x >= t.left - 6 && x <= t.right + 6 && y >= t.top - 6 && y <= t.bottom + 6);
+    const refused = lit.map((l) => {
+      const spots = [[l.left + 6, l.top + 6], [l.right - 6, l.bottom - 6], [l.right - 6, l.top + 6], [l.left + 6, l.bottom - 6], [(l.left + l.right) / 2, (l.top + l.bottom) / 2]]
+        .filter(([x, y]) => !near(x, y) && x > 0 && y > 0 && x < innerWidth && y < innerHeight);
+      return spots.length === 0 || spots.every(([x, y]) => !!document.elementFromPoint(x, y)?.closest('.tut'));
+    });
+    return { areaLit, wrong, boxed, rings: rings.length, refused };
+  }, { targets: s.targets, lit: s.lit });
+  expect(light.refused, `${where}: a lit panel off the targets takes no click`).toEqual(s.lit.map(() => true));
+  // The card keeps off the lit panels where the window has room (1093 and more; at 1024 and 910 it may lie over one, never over a box).
+  const overLit = s.card ? s.lit.some((l) => s.card!.left < l.right && l.left < s.card!.right && s.card!.top < l.bottom && l.top < s.card!.bottom) : false;
+  const width = await page.evaluate(() => innerWidth);
+  if (overLit) console.log(`[${width}] step ${n}${phase ? `.${phase}` : ''}${result ? ' (result)' : ''}: the card over a lit panel`);
+  if (width >= 1093) expect(overLit, `${where}: the card off the lit panels`).toBe(false);
+  expect(light.areaLit, `${where}: each target's panel lit whole`).toEqual(s.targets.map(() => true));
+  expect(light.wrong, `${where}: dark exactly outside the lit panels`).toBe(0);
+  expect(light.boxed, `${where}: a box on each target`).toEqual(s.targets.map(() => true));
+  expect(light.rings, where).toBe(s.targets.length);
   // A click in the middle of each target reaches that very target.
   expect(s.hits, `${where}: ${JSON.stringify(s.targets)}`).toEqual(s.targets.map(() => true));
   const w = await page.evaluate(() => [window.innerWidth, window.innerHeight]);
@@ -159,12 +205,12 @@ async function walk(page: Page, how: 'do' | 'skip'): Promise<void> {
     for (let i = 0; i < 3; i += 1) { const s = await shown(page); if (s.step !== 18 || s.result) break; await page.keyboard.press('F5'); await page.waitForTimeout(600); }
   });
   await practice(19, () => page.keyboard.press('Control+s'));
-  await practice(19, () => page.locator('.run-side .errors').getByRole('button', { name: /행으로 가기/ }).click(), 1);
+  await practice(19, () => page.locator('.asm').getByRole('button', { name: /행으로 가기/ }).click(), 1);
   await checkStep(page, 20);
   // The end on the example, whole: not on step 19's errors.
   await expect(page.locator('.titlebar .file')).toContainText('tutorial.s');
   await expect(page.locator('.titlebar .file')).not.toContainText('error');
-  await expect(page.locator('.run-side .errors')).toBeHidden();
+  await expect(page.locator('.asm .item')).toHaveCount(0);
   await expect(page.locator('.cm-error-mark')).toHaveCount(0);
   await page.locator('.tut-card .tut-finish').click();
   await expect.poll(() => active(page)).toBe(false);

@@ -14,27 +14,30 @@ The example files and step counts are written inside the tool, so the same scene
 | `start.png` | Start screen: Haram (greeting) and the two paths (튜토리얼 보기 / 바로 시작, "View tutorial" / "Start now"), no toolbar | 1280×800, as started |
 | `start-2.png` | Start screen, second step: 새 파일 / 파일 열기 ("New file" / "Open file"), "← 처음으로" ("← Back to start") | 1280×800, 바로 시작 clicked |
 | `split-before.png` | Left/right split, before assembling: the right side shows the guide card (a notice: the words in the middle, the character at the far end) | 1280×800, `tests/samples/lab04-ok.s` only opened, as `lab04.s` |
-| `assembled.png` | Just assembled, before the first step: the toolbar's Save & Assemble; the Inspector's word in the middle of its panel; the empty Console only as tall as its one-line word, Registers taking the rest, their head without a note; the status bar: F10 Step · F5 Run, 저장됨 | 1280×800, same file, Ctrl+S |
+| `assembled.png` | Just assembled, before the first step: the toolbar's Save & Assemble; under the Editor the Assemble panel, one line ("어셈블했습니다 · 명령 30개 · 저장됨", its time in the head); the Inspector's word in the middle of its panel; the empty Console only as tall as its one-line word, Registers taking the rest, their head without a note; the status bar: F10 Step · F5 Run, 저장됨 | 1280×800, same file, Ctrl+S |
 | `split-running.png` | Left/right split, running: current line highlighted in Editor and Text, Inspector follows the PC; the yellow row named in the status bar, in its yellow ("방금 바뀜: `$t6`": at 1280 Registers have no room for the Changed tag) | 1280×800, same file, Ctrl+S then F10 16 times (PC `0x0040004c`, just changed `$t6`) |
 | `inspector.png` | Inspector pinned to the selected instruction (Pinned) | From the `split-running` state, click `0x00400054` (`sra $s1, $t6, 1`) in Text |
 | `dialog.png` | In-app dialog (Haram): New file from a saved file | From the `inspector` state, New file |
-| `error.png` | Assembly error: the Errors panel on the Run side — what is wrong ("코드에 오류가 있습니다"), what to do ("아래 줄을 고친 뒤 Ctrl+S 키를 다시 누르세요."), the error with its line, the button; the line's number twice, one Haram (curious), `!` in the Editor gutter; the hint names `srl` for `srll` | 1280×800, open `tests/samples/lab04.s` (`srll` on line 15) and Ctrl+S |
+| `edited.png` | The code changed after assembling (a line added at the top): the Run side as it was, with the band over it ("지금 보이는 것은 마지막으로 어셈블한 코드입니다"), no line marked in the Editor, the Assemble panel's second line (코드가 바뀌었습니다 …) | 1280×800, the `split-running` run, then a comment typed on line 1 |
+| `error-kept.png` | An assemble with errors that kept the machine: the error list in the Assemble panel under the Editor, "오른쪽에는 마지막으로 어셈블한 코드가 그대로 있습니다"; the Run side, registers and PC as they were, the band; the status bar's "고친 코드에 오류 1개 — Assemble 패널" | From `edited`, `srll $t7, $t6, 1` added at the end, Ctrl+S |
+| `error.png` | Assembly error, the first assemble of the file: the Assemble panel under the Editor — what is wrong ("코드에 오류가 있습니다"), what to do ("아래 줄을 고친 뒤 Ctrl+S 키를 다시 누르세요."), the error with its line, the button; the line's number twice, `!` in the Editor gutter; the Run side's card (Haram) says nothing has assembled yet; the hint names `srl` for `srll` | 1280×800, open `tests/samples/lab04.s` (`srll` on line 15) and Ctrl+S |
 | `error-several.png` | Several errors: "코드에 오류가 3개 있습니다", "위에서부터 하나씩 고친 뒤 …", each error with its line | 1280×800, `tests/samples/editor-errors.s`, Ctrl+S |
 | `error-near-miss.png` | An error whose hint names the slip: `.global` for `.globl` | 1280×800, a file with `.global main`, Ctrl+S |
 | `max-1920.png` | A maximised 1920 screen: the Editor at what 72 columns need (586 px), the width beyond it on the Run side — Text's Source column whole, the Inspector's bit grid at full size; the empty Console as tall as its word (105 px), Registers the rest of the height (847 px); the yellow `$t6` row with its Changed tag | 1920×1040 (1080 under the taskbar), same run as `split-running` |
-| `errors-max.png` | The Errors panel on a maximised 1920 screen: title, what went wrong, the errors, the button and Haram as one block in the middle | 1920×1040, `tests/samples/lab04.s`, Ctrl+S |
+| `errors-max.png` | The Assemble panel with its errors on a maximised 1920 screen, under the Editor; the Run side's card (nothing assembled yet) | 1920×1040, `tests/samples/lab04.s`, Ctrl+S |
 | `data.png` | Data: areas (User data / Stack), zero runs, label lines, `$gp` and `$sp`, the ASCII column on (as from a 1140 px window), `Hello, MIPS!` read as one run with faint lines between the words | 1280×800, `tests/samples/data-labels.s`, Ctrl+S then F10 14 times, Data tab |
 | `lab-1366x768-125.png` | Lab PC: 1366×768 at 125% scaling, maximized | CSS 1093×582 at 1.25× (`--force-device-scale-factor=1.25`), same run as `split-running` |
 | `narrow.png` | Narrow window: the Editor / Run tabs in the bar, Run side; the toolbar's Assemble ("Save &" gave way), the status bar's "방금 바뀜" | 1366×768 at 150% scaling, CSS 910×505 at 1.5×, same run as `split-running` |
 | `lab-columns.png` | The lab PC's Registers and Text heads, cropped: Name Hex Dec Bin / Address Encoding Format Instruction | Same screen as `lab-1366x768-125`, top 190px of the two panels (150KB or less) |
 | `1024x768.png` | 1024×768 at 100% scaling: left/right split kept, Text shows Format and Source as buttons | CSS 1024×728 (taskbar), same run as `split-running` |
-| `tutorial-01.png` | Tutorial step 1: the Editor head and the first lines, the card and Haram; the example is never saved: Assemble in the toolbar and on the Run side, "어셈블 (Ctrl+S)" in the status bar | 1280×800, 튜토리얼 보기 → step 1 |
+| `tutorial-01.png` | Tutorial step 1: the Editor lit whole, boxes on its head and the first lines, the rest dimmed, the card and Haram; the example is never saved: Assemble in the toolbar and on the Run side, "어셈블 (Ctrl+S)" in the status bar | 1280×800, 튜토리얼 보기 → step 1 |
+| `tutorial-03.png` | Step 3: the Registers panel lit whole (all its groups, the context of what the card says), boxes on its head and the Temporaries band; the card off it | 1280×800, step 3 |
 | `tutorial-04.png` | Step 4: the Text rows where `li $t0, 0x12345678` became the two lines `lui` + `ori` | 1280×800, step 4 via the tutorial's `go()` (up to assembling) |
 | `tutorial-09.png` | Step 9: the bit grid's opcode, rs, rt, rd and the Encoding value in Text | 1280×800, step 9 (starting code and two `li` lines, `add` executed, Inspector pinned) |
 | `tutorial-14.png` | Step 14, a practice step: the gutter (breakpoint column) and its line; the card is one text — what to do, and in its last sentence that the dot moves it on — with no [다음] | 1280×800, step 14 |
 | `tutorial-quit-ask.png` | The quit question over the tutorial: Haram in the dialog, the card and rings under the backdrop, one Haram | 1280×800, step 14, 그만두기 |
 | `tutorial-18-done.png` | Step 18's result beat: the Console's output and the status bar pointed at; the card's text is what just happened, [다음] awaited | 1280×800, step 18, then F5 |
-| `tutorial-19.png` | Step 19: the Errors panel after assembling `tutorial-error.s` | 1280×800, Ctrl+S at step 19 |
+| `tutorial-19.png` | Step 19: the Assemble panel after assembling `tutorial-error.s`, lit whole, three boxes | 1280×800, Ctrl+S at step 19 |
 | `tutorial-20.png` | Step 20: the center card, Haram (congrats) | 1280×800, step 20 |
 | `tutorial-09-narrow.png` | Step 9 in a narrow window (Run side) | 910×505 at 1.5× |
 | `windows-frame.png` | The installed build maximized on **real Windows** (Server 2025, the Windows 11 shell) at 1920×1080: the default layout as a student sees it — the app's bar, the system's window buttons, the taskbar | CI only (`electron.yml` at the repository root; the runner's screen set to 1920×1080 by `tools/windows/screen-1920.ps1`, 1024×768 if that fails — `report/screen.txt`). With the installed build, the same run as `split-running`, then maximized; whole screen (≤ 700 KB) |
@@ -48,7 +51,7 @@ Scenes added in a round are added to this table under names without a round mark
 The user guide's three pictures are taken by the same tool, in the same run, and written to
 [`docs/usage/images/`](../../../docs/usage/images/) at the repository root: `01-start.png` (= `start.png`),
 `02-tutorial-04.png` (= `tutorial-04.png`) and `03-panels.png` (the `split-running` scene with each part
-outlined and named: Toolbar, Editor, Registers, Text · Data, Inspector, Console, Status bar — the names
+outlined and named: Toolbar, Editor, Assemble, Registers, Text · Data, Inspector, Console, Status bar — the names
 are drawn over the page for that picture only).
 
 Links to these screenshots (for example in a round report) have the form

@@ -62,11 +62,15 @@ shows each segment as a text dump.
 ![Data: standard QtSpim and Hallym MIPS side by side](docs/compare/04-data.png)
 
 **Editor and errors** — an editor in the window: Ctrl+S saves and assembles;
-an error is listed on the Run side with what to fix and a button to its line,
-which is marked in the editor. QtSpim has no editor: a file is written
-elsewhere and loaded, and an error is a dialog box and a line of messages.
+an error is listed right under the editor (the Assemble panel) with what to fix
+and a button to its line, which is marked in the editor. Changing the code
+does not take the machine away: the Run side goes on showing the last program
+that assembled (a band over it says so), a program with errors leaves it as it
+was, and Run, Step and Reset go on with it until the next assemble. QtSpim has
+no editor: a file is written elsewhere and loaded, and an error is a dialog box
+and a line of messages.
 
-![The same file with one mistake: standard QtSpim's error dialog and Hallym MIPS's editor and Errors panel](docs/compare/05-editor-errors.png)
+![The same file with one mistake: standard QtSpim's error dialog and Hallym MIPS's editor and Assemble panel](docs/compare/05-editor-errors.png)
 
 **First start** — a start screen and a twenty-step tutorial over the real
 window. QtSpim opens its main window, and its Console as a second window.

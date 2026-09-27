@@ -33,7 +33,7 @@ test('the title bar is the window\'s own: name, logo, a drag region, room for th
   expect(free).toBe(true);
 });
 
-test('Run side: a card before the first assemble, the machine after, another card once the code changes', async () => {
+test('Run side: a card before the first assemble, the machine after -- and still the machine once the code changes, with a band', async () => {
   const { page } = r;
   await page.getByRole('button', { name: /바로 시작/ }).click();
   await page.getByRole('button', { name: /새 파일/ }).first().click();
@@ -51,10 +51,17 @@ test('Run side: a card before the first assemble, the machine after, another car
   await page.locator('.cm-content').click();
   await page.keyboard.press('End');
   await page.keyboard.insertText(' # 바꿈');
-  await expect(card).toHaveAttribute('data-kind', 'changed');
-  await expect(card).toContainText('코드가 바뀌었습니다');
-  await expect(page.locator('.run-grid')).toBeHidden();
+  await expect(card).toBeHidden();
+  await side(page, 'Run');
+  await expect(page.locator('.run-grid')).toBeVisible();
+  const band = page.locator('.run-band');
+  await expect(band).toBeVisible();
+  await expect(band).toContainText('마지막으로 어셈블한 코드');
+  expect(await band.evaluate((e) => e.getBoundingClientRect().height)).toBeLessThanOrEqual(30); // one line, covering nothing
+  await side(page, 'Editor');
+  await page.locator('.cm-content').click();
   await page.keyboard.press('Control+s');
+  await expect(band).toBeHidden();
   await expect(page.locator('.run-grid')).toBeVisible();
 });
 
@@ -147,7 +154,7 @@ test('the Console: as tall as its words while empty, its share with output; the 
   expect(Math.abs(output.console - share), `with output: ${JSON.stringify(output)}`).toBeLessThanOrEqual(2);
   expect(output.registers).toBeLessThan(empty.registers);
   // The grip: 60 px up gives the Console 60 px more; a double click, the share again.
-  const g = (await page.locator('.vgrip').boundingBox())!;
+  const g = (await page.locator('.leftcol > .vgrip').boundingBox())!;
   const [x, y] = [g.x + g.width / 2, g.y + g.height / 2];
   await page.mouse.move(x, y);
   await page.mouse.down();
@@ -156,6 +163,6 @@ test('the Console: as tall as its words while empty, its share with output; the 
   const dragged = await heights();
   expect(Math.abs(dragged.console - (output.console + 60)), `dragged: ${JSON.stringify(dragged)}`).toBeLessThanOrEqual(6);
   expect(Math.abs(dragged.registers + 8 + dragged.console - dragged.column)).toBeLessThanOrEqual(2);
-  await page.locator('.vgrip').dblclick();
+  await page.locator('.leftcol > .vgrip').dblclick();
   expect(Math.abs((await heights()).console - share)).toBeLessThanOrEqual(2);
 });

@@ -196,24 +196,45 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .k-LabelDefinition { color: var(--navy); font-weight: 700; }
 .k-Number { color: var(--purple); }
 
-.errors .ebody { display: flex; overflow: auto; }
-.errors .notice { max-width: 760px; }
-.errors .notice .say > p { margin-bottom: 10px; }
-.errors .notice .row { margin-top: 14px; }
-.errors .item { display: grid; grid-template-columns: 18px 44px minmax(0, 1fr); align-items: baseline; gap: 8px; padding: 8px 0; border-top: 1px solid var(--border); font-size: 14px; }
-.errors .mark, .cm-error-mark { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 3px;
+/* ---- the Assemble panel, under the Editor ------------------------------- */
+/* As tall as its words (a line after a clean assemble, the list after one
+   with errors), at most what leaves the Editor its least (--asm-max, app.ts
+   layout()); the grip over it sets a height of its own (--asm-h). */
+.pane-editor { grid-template-rows: minmax(0, 1fr) 8px auto; }
+.split[data-folded=editor] .pane-editor { grid-template-rows: minmax(0, 1fr); }
+.split[data-folded=editor] .pane-editor > .vgrip { display: none; }
+.asm { height: var(--asm-h, auto); max-height: var(--asm-max, 45%); }
+.asm .abody { display: flex; flex-direction: column; overflow: auto; }
+.asm .asm-state { padding: 8px 14px; font-size: 13px; line-height: 1.5; color: var(--text-2); }
+.asm .asm-state p { margin: 0; }
+.asm .asm-state .ok { color: var(--teal-text); font-weight: 600; }
+.asm .asm-state .warn { color: var(--amber-text); margin-top: 2px; }
+/* The error list: the words alone, from the left, at the panel's own height. */
+.asm .notice-host { container-type: normal; justify-content: flex-start; align-items: flex-start; overflow: visible; flex: none; }
+.asm .notice { margin: 0; padding: 10px 14px 12px; max-width: none; }
+.asm .notice img.char { display: none; }
+.asm .notice .say h3 { font-size: 15px; margin-bottom: 2px; }
+.asm .notice .say > p { margin-bottom: 6px; }
+.asm .notice .row { margin-top: 10px; }
+.asm .item { display: grid; grid-template-columns: 18px 44px minmax(0, 1fr); align-items: baseline; gap: 8px; padding: 6px 0; border-top: 1px solid var(--border); font-size: 14px; }
+.asm .mark, .cm-error-mark { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 3px;
   border: 1.5px solid var(--error); color: var(--error); background: var(--white); font: 800 10px/1 var(--ui); }
-.errors .line { font-weight: 700; color: var(--error-text); white-space: nowrap; text-align: left; }
-.errors .msg { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.errors .msg .what { color: var(--text); }
-.errors .msg .src { color: var(--text-2); }
-.errors .msg .hint { color: var(--teal-text); font-size: 13px; }
+.asm .line { font-weight: 700; color: var(--error-text); white-space: nowrap; text-align: left; }
+.asm .msg { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.asm .msg .what { color: var(--text); }
+.asm .msg .src { color: var(--text-2); }
+.asm .msg .hint { color: var(--teal-text); font-size: 13px; }
 
 /* ---- the Run side -------------------------------------------------------- */
-.run-side { display: grid; min-height: 0; min-width: 0; container-type: inline-size; container-name: run; }
+.run-side { display: grid; min-height: 0; min-width: 0; container-type: inline-size; container-name: run;
+  grid-template-rows: auto minmax(0, 1fr); }
+.run-placeholder, .run-grid { grid-row: 2; }
 .run-placeholder { background: var(--white); border: 1px dashed var(--border); border-radius: 8px; }
 .run-placeholder .notice .row { margin-top: 14px; }
-.run-placeholder[data-kind=changed] h3 { color: var(--amber-text); }
+.run-placeholder[data-kind=failed] h3, .run-placeholder[data-kind=crashed] h3 { color: var(--error-text); }
+/* The Editor's code is not the machine's program: one line, covering nothing. */
+.run-band { grid-row: 1; margin-bottom: 6px; padding: 3px 10px; border-radius: 6px; background: var(--amber-tint); color: var(--amber-text);
+  box-shadow: inset 3px 0 0 var(--amber-text); font-size: 12px; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .run-grid { display: grid; min-height: 0; gap: 8px;
   grid-template-columns: clamp(var(--regs-least, 417px), 46%, var(--regs-most, 505px)) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
 .run-grid .leftcol { grid-row: 1; grid-column: 1; display: grid; min-height: 0; gap: 0; grid-template-rows: minmax(0, 1fr) 8px auto; }
@@ -527,7 +548,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
    white at the far end.  One Haram on screen: the others wait. */
 .tut { position: fixed; inset: 0; z-index: 40; pointer-events: none; }
 .tut-dim { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.tut-dim path { fill: rgba(0, 32, 91, .26); pointer-events: visiblePainted; }
+/* Dark but for the lit panels (clicks go through it); a clear layer over
+   everything but the targets takes the clicks (tutorial.ts). */
+.tut-dim path.dim { fill: rgba(0, 32, 91, .26); pointer-events: none; }
+.tut-dim path.block { fill: rgba(0, 0, 0, 0); pointer-events: visiblePainted; }
 .tut-ring { position: absolute; border: 2px solid var(--blue); border-radius: 6px; box-shadow: 0 0 0 3px rgba(0, 85, 165, .18); pointer-events: none; }
 .tut-ring.tight { border-radius: 4px; box-shadow: none; }
 .tut-card { position: absolute; left: 0; top: 0; width: min(310px, calc(100vw - 32px)); display: flex; align-items: flex-end; gap: 10px;

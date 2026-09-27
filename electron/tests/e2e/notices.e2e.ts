@@ -1,8 +1,9 @@
 /* The notices (src/renderer/app/notice.ts): the Console's word before any
    output, the Inspector's before the first step, the card on the Run side
-   before the first assemble, and the error list -- one shape, in the
-   middle of their panel, the character at the far end and one size, at
-   1280x800 and on a maximised 1920 screen. */
+   before the first assemble -- one shape, in the middle of their panel,
+   the character at the far end and one size, at 1280x800 and on a
+   maximised 1920 screen.  The error list under the Editor (the Assemble
+   panel) is the words alone, from the left, as tall as they are. */
 
 import { expect, test, type Page } from '@playwright/test';
 
@@ -35,6 +36,8 @@ for (const size of [{ name: '1280x800', width: 1280, height: 800 }, { name: '192
         const all = await placed(page);
         expect(all.map((p) => p.where).sort()).toEqual([...expected].sort());
         for (const p of all) {
+          // The error list under the Editor: the words alone, from the left.
+          if (p.where === 'Assemble') { expect(p.char, 'Assemble: the words alone').toBe(false); expect(p.dx, 'Assemble: from the left').toBeLessThan(0); continue; }
           expect(Math.abs(p.dx) <= 8 && Math.abs(p.dy) <= 8, `${p.where}: in the middle (${p.dx}, ${p.dy})`).toBe(true);
           // The Console's empty word is the words alone: the Console is kept as
           // short as they are (the height goes to Registers); the others have the character.
@@ -54,9 +57,9 @@ for (const size of [{ name: '1280x800', width: 1280, height: 800 }, { name: '192
       await openOnly(r, program(r.dir, 'bad.s', '        .text\n        .global main\nmain:   li $v0, 10\n        syscall\n'));
       await page.locator('.cm-content').click();
       await page.keyboard.press('Control+s');
-      await page.waitForSelector('.errors .item');
-      await check(['Errors']);
-      await expect(page.locator('.errors .hint')).toContainText('혹시');
+      await page.waitForSelector('.asm .item');
+      await check(['Assemble', 'run-placeholder']);
+      await expect(page.locator('.asm .hint')).toContainText('혹시');
     } finally {
       await r.close();
     }

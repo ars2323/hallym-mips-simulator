@@ -222,7 +222,7 @@ pair('04-data', `${SAME} QtSpim: the Data panel. Hallym MIPS: the Data tab.`);
   qt.stop();
   const r = await ours();
   await openAndAssemble(r, broken);
-  await r.page.waitForSelector('.errors .item');
+  await r.page.waitForSelector('.asm .item');
   await whole(r, path.join(originals, '05-editor-errors-2x.png'));
   await r.close();
 }

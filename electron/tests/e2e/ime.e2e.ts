@@ -194,9 +194,10 @@ test('clicking another panel while composing commits the syllable, whole and onc
   const cdp = await ime(page);
   await syllable(cdp, ['ㅁ', '메', '멤']);
   for (const s of ['ㅗ', '모']) await compose(cdp, s);
-  // The Run side (after an edit it says the code has changed).
+  // The Run side (after an edit it still shows the machine, under a band).
   await side(page, 'Run');
-  await page.locator('.run-placeholder h3').click();
+  await expect(page.locator('.run-band')).toBeVisible();
+  await page.locator('.regs .phead').click();
   await page.waitForTimeout(200);
   expect((await lines())[0]).toBe(`${first} # 멤모`);
   // Typing again in the Editor does not bring the old composition back.

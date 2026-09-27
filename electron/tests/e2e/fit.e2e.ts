@@ -129,7 +129,7 @@ for (const size of SIZES) {
       expect(await brokenWords(page)).toEqual([]);
       await page.keyboard.press('Escape');
       await openAndAssemble(r, sample(r.dir, 'tests/samples/lab04.s'));
-      await expect(page.locator('.run-side .errors')).toBeVisible();
+      await expect(page.locator('.pane-editor .asm .item')).toBeVisible();
       expect(await brokenWords(page)).toEqual([]);
     } finally {
       await r.close();
@@ -248,20 +248,20 @@ test.describe(() => {
     await expect(page.locator('.cm-pc-line')).toHaveCount(1);
   });
 
-  test('assembly errors: on the Run side, Haram once and no arrow; a narrow window shows them on the Run tab', async () => {
+  test('assembly errors: under the Editor, in the Assemble panel; Haram once (the Run side); a narrow window keeps them on the Editor tab', async () => {
     const { page } = r;
     await openAndAssemble(r, sample(r.dir, 'tests/samples/lab04.s'));
-    await expect(page.locator('.run-side .errors')).toBeVisible();
-    await expect(page.locator('.editor-panel .errors')).toHaveCount(0);
-    await expect(page.locator('.run-placeholder')).toBeHidden();
+    await expect(page.locator('.pane-editor .asm .item')).toBeVisible();
+    await expect(page.locator('.run-side .asm')).toHaveCount(0);
+    await expect(page.locator('.run-placeholder')).toHaveAttribute('data-kind', 'failed'); // nothing assembled yet
     expect(await page.locator('img.char').evaluateAll((els) => els.filter((e) => e.checkVisibility()).length)).toBe(1);
 
     await resize(r, { width: 910, height: 505 });
     await page.locator('.viewswitch button', { hasText: 'Editor' }).click();
     await page.locator('.cm-content').click();
     await page.keyboard.press('Control+s');
-    await expect(page.locator('.run-side .errors')).toBeVisible();
-    await expect(page.locator('.editor-panel')).toBeHidden();
+    await expect(page.locator('.asm .item')).toBeVisible();
+    await expect(page.locator('.editor-panel')).toBeVisible();
     await page.getByRole('button', { name: '15행으로 가기' }).click();
     await expect(page.locator('.editor-panel')).toBeVisible();
     expect(await page.evaluate(() => document.getSelection()?.anchorNode?.parentElement?.closest('.cm-line')?.textContent?.trim()))

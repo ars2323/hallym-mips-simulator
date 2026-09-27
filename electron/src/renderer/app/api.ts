@@ -7,6 +7,9 @@ import type { CallName, Calls } from '../../sim/protocol.ts';
 export interface AppApi {
   call<M extends CallName>(method: M, ...args: Calls[M][0]): Promise<Calls[M][1]>;
   stop(): Promise<'stopped' | 'idle' | 'killed'>;
+  // Assembles in a second process, the machine on screen untouched: does it assemble?
+  // `crashed`: the core ended while assembling it (a .err directive), in that process only.
+  check(source: string, options?: Calls['assemble'][0][1]): Promise<Calls['assemble'][1] & { crashed?: string }>;
   onConsole(listener: (text: string) => void): void;
   onProgress(listener: (p: { pc: number; instructions: number }) => void): void;
   onCrashed(listener: (message: string, detail: string) => void): void;

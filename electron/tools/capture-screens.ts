@@ -87,7 +87,8 @@ function forGuide(from: string, name: string): void {
 
 // The running window with each part outlined and named, for the guide.
 const PARTS: [string, string][] = [
-  ['.titlebar .toolbar', 'Toolbar'], ['section[aria-label="Editor"]', 'Editor'], ['section[aria-label="Registers"]', 'Registers'],
+  ['.titlebar .toolbar', 'Toolbar'], ['section[aria-label="Editor"]', 'Editor'], ['section[aria-label="Assemble"]', 'Assemble'],
+  ['section[aria-label="Registers"]', 'Registers'],
   ['section[aria-label="Text"]', 'Text · Data'], ['section[aria-label="Inspector"]', 'Inspector'],
   ['section[aria-label="Console"]', 'Console'], ['footer.status', 'Status bar'],
 ];
@@ -162,14 +163,29 @@ async function lab04(r: Running): Promise<void> {
   await page.waitForSelector('dialog.ask');
   await shot(r, 'dialog');
   await page.keyboard.press('Escape');
+  // The code changed after assembling (a line added at the top): the machine
+  // stays, the band over it, the Assemble panel says so; then an error in
+  // the changed code, assembled: the list under the Editor, the machine kept.
+  await lab04(r);
+  await page.locator('.cm-content').click();
+  await page.keyboard.press('Control+Home');
+  await page.keyboard.insertText('# 고쳐 보는 중\n');
+  await page.waitForSelector('.run-band:not([hidden])');
+  await shot(r, 'edited');
+  await page.keyboard.press('Control+End');
+  await page.keyboard.insertText('        srll $t7, $t6, 1\n');
+  await page.keyboard.press('Control+s');
+  await page.waitForSelector('.asm[data-state=errors]');
+  await page.keyboard.press('Control+Home');
+  await shot(r, 'error-kept');
   await assembled(r, sample(r.dir, ERROR));
-  await page.waitForSelector('.errors .item');
+  await page.waitForSelector('.asm .item');
   await shot(r, 'error');
   await assembled(r, program(r.dir, 'typo.s', TYPO));
-  await page.waitForSelector('.errors .item');
+  await page.waitForSelector('.asm .item');
   await shot(r, 'error-near-miss');
   await assembled(r, sample(r.dir, 'tests/samples/editor-errors.s'));
-  await page.waitForSelector('.errors .item + .item');
+  await page.waitForSelector('.asm .item + .item');
   await shot(r, 'error-several');
   await assembled(r, sample(r.dir, DATA));
   await steps(r, DATA_STEPS);
@@ -187,7 +203,7 @@ async function lab04(r: Running): Promise<void> {
   await lab04(r);
   await shot(r, 'max-1920');
   await assembled(r, sample(r.dir, ERROR));
-  await r.page.waitForSelector('.errors .item');
+  await r.page.waitForSelector('.asm .item');
   await shot(r, 'errors-max');
   await r.close();
 }
@@ -214,8 +230,9 @@ for (const [name, size, scale] of [
   await r.close();
 }
 
-// The tutorial (docs/PORTING.md 18): steps 1, 4 (lui + ori), 9 (bits =
-// Encoding), 14 (the gutter), 19 (the Errors panel, after Assemble), 20;
+// The tutorial (docs/PORTING.md 18, 25): steps 1, 3 (Registers lit whole),
+// 4 (lui + ori), 9 (bits = Encoding), 14 (the gutter), 19 (the Assemble
+// panel, after Assemble), 20;
 // step 9 again in the narrow window.  Each step is entered as the tutorial
 // enters it (its go()), which sets the machine up the same way every time.
 async function tutorialStep(r: Running, n: number): Promise<void> {
@@ -229,7 +246,7 @@ async function tutorialStep(r: Running, n: number): Promise<void> {
 }
 {
   const r = await launch({ width: 1280, height: 800 });
-  for (const n of [1, 4, 9, 14]) { await tutorialStep(r, n); await shot(r, `tutorial-${String(n).padStart(2, '0')}`); }
+  for (const n of [1, 3, 4, 9, 14]) { await tutorialStep(r, n); await shot(r, `tutorial-${String(n).padStart(2, '0')}`); }
   forGuide('tutorial-04', '02-tutorial-04');
   // The quit question over step 14: Haram in the dialog, the card and rings under the backdrop.
   await r.page.locator('.tut-card .tut-quit').click();

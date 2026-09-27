@@ -3,14 +3,22 @@
      title bar   logo, name, file, the toolbar; the system's own caption
                  buttons on the right (titleBarOverlay, src/main/main.ts)
      work        the first screen (welcome.ts), then Editor | Run side by
-                 side: a splitter between them, either side can be folded
+                 side: a splitter between them, either side can be folded;
+                 under the Editor the Assemble panel (what the last assemble
+                 did: its time and what it made, or its errors)
      status bar
 
-   The Run side shows the machine only while it holds the program in the
-   Editor.  Before the first assemble, or once the code has changed, it shows
-   a card that says so instead of a wall of stale panels.  While a program
-   runs, the Editor marks the line being executed (the Text panel's line
-   column: the core's own PC -> source mapping).
+   The Run side shows the last program that assembled, from the first
+   assemble on (before it, a card that says so).  Changing the code does not
+   take it away -- the student changes code because of what the registers
+   and the memory show: a band over the Run side says that what it shows is
+   the last assembled code, and Run, Step and Reset go on with that program
+   until the next assemble.  A program with errors is assembled first in a
+   second process (main.ts, sim:check), so its errors leave the machine on
+   screen as it was.  While the Editor holds the program in the machine, it
+   marks the line being executed (the Text panel's line column: the core's
+   own PC -> source mapping); once the code has changed it marks none (its
+   lines are no longer the program's), and Text alone shows where PC is.
 
    Narrow windows (under NARROW_PX CSS pixels) show one side at a time, with
    Editor / Run tabs in the title bar.
@@ -67,11 +75,13 @@ let open = false;                      // a document is open (past the first scr
 // `example`: one of the tutorial's, read-only, never saved.
 let file: { name: string; path: string | null; format: TextFileFormat | null; example?: Example } = { name: UNTITLED, path: null, format: null };
 let dirty = false;  // changes not saved (the title bar's dot)
-let edited = false; // the Editor's text is not what was last assembled: the Run side shows no machine
+let edited = false; // the Editor's text is not the program in the machine (the band, no PC line)
 let settings: Settings = { fontSize: 13, dataBase: 16 };
 let zoom = 0;                          // Ctrl+/-: this session only
 let assembledText: string | null = null; // the program the machine holds
-let lastProgram: string | null = null;   // the last one assembled, for 처음으로 (also after a crash)
+// The last program that assembled and how (Reset loads it again, also after a crash).
+let lastGood: { source: string; options: ReturnType<typeof assembleOptions> } | null = null;
+let lastAssembly: { at: Date; instructions: number } | null = null; // for the Assemble panel
 let runState: RunState = 'ready';
 let busy = false;                      // a call is on its way; keys wait
 let steps = 0;
@@ -94,6 +104,7 @@ let narrow = false;
 let view: 'editor' | 'run' = 'editor'; // narrow windows: the side on show
 let editorWidth: number | null = null; // px, from the splitter; null: the default share
 let consoleHeight: number | null = null; // px, from the grip over the Console; null: the default
+let asmHeight: number | null = null;     // px, from the grip over the Assemble panel; null: its words'
 let speed: 'fast' | 'slow' = 'fast';   // this session only
 let slow: { cancel(): void } | null = null; // a slow run going on
 let switchTo: 'fast' | 'slow' | null = null; // a run being switched to the other speed
@@ -162,10 +173,11 @@ const stageWelcome = h('div', { class: 'stage-welcome' }, welcome({
 // ---- the Editor side -------------------------------------------------------------------
 
 const editorHost = h('div', { class: 'pbody edhost' });
-// Assembly errors: on the Run side, the larger one (renderErrors).
-const errorHead = panelHead('Errors');
-const errorBody = h('div', { class: 'pbody ebody' });
-const errorList = h('section', { class: 'panel errors', 'aria-label': 'Errors', hidden: true }, errorHead.root, errorBody);
+// Under the Editor: what the last assemble did (renderAssemble).  Named after
+// the button that fills it (Save & Assemble): not only errors.
+const asmHead = panelHead('Assemble');
+const asmBody = h('div', { class: 'pbody abody' });
+const asmPanel = h('section', { class: 'panel asm', 'aria-label': 'Assemble' }, asmHead.root, asmBody);
 const editor = createEditor(editorHost, () => void saveAndAssemble(), () => {
   if (!dirty || !edited) { dirty = true; edited = true; renderChrome(); }
 }, (line, on) => void editorBreakpoint(line, on));
@@ -197,7 +209,10 @@ const consoleGrip = h('div', { class: 'vgrip', role: 'separator', 'aria-orientat
 const leftCol = h('div', { class: 'leftcol' }, regsHost, consoleGrip, consolePanel.root);
 const runGrid = h('div', { class: 'run-grid' }, leftCol, centre);
 const placeholder = h('div', { class: 'run-placeholder notice-host' });
-const runPanel = h('div', { class: 'run-side' }, placeholder, errorList, runGrid);
+// Once the code in the Editor is not the program in the machine: one line
+// over the Run side, covering nothing.
+const runBand = h('div', { class: 'run-band', role: 'status', hidden: true });
+const runPanel = h('div', { class: 'run-side' }, runBand, placeholder, runGrid);
 
 // ---- the split -------------------------------------------------------------------------
 
@@ -213,7 +228,10 @@ foldEditor.addEventListener('click', () => fold('editor'));
 foldRun.addEventListener('click', () => fold('run'));
 const splitter = h('div', { class: 'splitter', role: 'separator', 'aria-orientation': 'vertical', title: '끌어서 폭 조절 · 두 번 눌러 되돌리기' },
   foldEditor, h('span', { class: 'grip' }), foldRun);
-const paneEditor = h('div', { class: 'pane pane-editor' }, editorPanel, railEditor);
+// Between the Editor and the Assemble panel, a grip like the Console's.
+const asmGrip = h('div', { class: 'vgrip', role: 'separator', 'aria-orientation': 'horizontal', title: '끌어서 높이 조절 · 두 번 눌러 되돌리기' },
+  h('span', { class: 'grip' }));
+const paneEditor = h('div', { class: 'pane pane-editor' }, editorPanel, asmGrip, asmPanel, railEditor);
 const paneRun = h('div', { class: 'pane pane-run' }, runPanel, railRun);
 const split = h('div', { class: 'split' }, paneEditor, splitter, paneRun);
 const work = h('main', { class: 'work' }, stageWelcome, split);
@@ -254,6 +272,20 @@ consoleGrip.addEventListener('pointerdown', (e) => {
 });
 consoleGrip.addEventListener('dblclick', () => { consoleHeight = null; layout(); });
 
+asmGrip.addEventListener('pointerdown', (e) => {
+  asmGrip.setPointerCapture(e.pointerId);
+  const bottom = paneEditor.getBoundingClientRect().bottom;
+  const move = (m: PointerEvent) => {
+    // At least the panel's head and a line; the Editor keeps its least (layout()).
+    asmHeight = Math.round(Math.max(ASM_LEAST, Math.min(asmRoom(), bottom - m.clientY)));
+    layout();
+  };
+  const up = () => { asmGrip.removeEventListener('pointermove', move); asmGrip.removeEventListener('pointerup', up); };
+  asmGrip.addEventListener('pointermove', move);
+  asmGrip.addEventListener('pointerup', up);
+});
+asmGrip.addEventListener('dblclick', () => { asmHeight = null; layout(); });
+
 function showView(v: 'editor' | 'run'): void {
   view = v;
   layout();
@@ -277,8 +309,26 @@ function buildRegisters(): void {
   regsHost.replaceChildren(registers.root);
 }
 
-// The Run side shows the machine only while it holds the Editor's program.
-const machineShown = () => assembledText !== null && !edited;
+// The Run side shows the machine from the first assemble on; the Editor's
+// code is the machine's program only until it changes.
+const machineShown = () => assembledText !== null;
+const current = () => assembledText !== null && !edited;
+
+// Heights on the Editor side: the Editor keeps EDITOR_LEAST_LINES whole
+// lines of code (and its head) whatever the Assemble panel says.  The panel
+// is as tall as its words -- up to ASM_SHARE of the column (never less than
+// ASM_AUTO: one error and its button), the list scrolling past that -- and
+// the grip may make it as tall as leaves the Editor its least.
+const EDITOR_LEAST_LINES = 6;
+const ASM_LEAST = 64;
+const ASM_AUTO = 240;
+const ASM_SHARE = 0.4;
+const editorLeast = (): number => {
+  const head = (editorPanel.querySelector('.phead') as HTMLElement).offsetHeight || 36;
+  const line = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--row')) || 22;
+  return Math.ceil(head + EDITOR_LEAST_LINES * line + 22); // 22: borders, the text's top padding, a sideways scroll bar
+};
+const asmRoom = (): number => Math.max(ASM_LEAST, paneEditor.clientHeight - editorLeast() - 8);
 
 function layout(): void {
   stageWelcome.hidden = open;
@@ -295,15 +345,22 @@ function layout(): void {
   else if (inner > 0) split.style.setProperty('--editor-w', `${Math.round(Math.max(300, Math.min(editorMost(), inner - runLeast)))}px`);
 
   const shown = machineShown();
-  const showErrors = !shown && errors.length > 0;
   runGrid.hidden = !shown;
-  errorList.hidden = !showErrors;
-  placeholder.hidden = shown || showErrors;
-  if (!shown && !showErrors) renderPlaceholder();
+  placeholder.hidden = shown;
+  if (!shown) renderPlaceholder();
+  renderBand();
+  renderAssemble();
   runGrid.classList.toggle('console-open', consolePanel.expanded);
   if (consoleHeight === null) leftCol.style.removeProperty('--console-h');
   else leftCol.style.setProperty('--console-h', `${consoleHeight}px`);
-  editor.showPcLine(shown && runState !== 'ready' ? pcSourceLine() : null);
+  const room = asmRoom();
+  const cap = asmHeight === null ? Math.min(room, Math.max(ASM_AUTO, Math.round(ASM_SHARE * paneEditor.clientHeight))) : room;
+  paneEditor.style.setProperty('--asm-max', `${cap}px`);
+  if (asmHeight === null) paneEditor.style.removeProperty('--asm-h');
+  else paneEditor.style.setProperty('--asm-h', `${Math.min(asmHeight, room)}px`);
+  // The line being executed, in the Editor only while its code is the
+  // program's: once it has changed its lines are not the program's lines.
+  editor.showPcLine(current() && runState !== 'ready' ? pcSourceLine() : null);
 }
 
 // The Editor's width by default: what a line of EDITOR_COLUMNS characters
@@ -332,16 +389,63 @@ function sizeRunSide(): void {
   runLeast = r.least + 8 + Math.max(text.leastWidth(fs), text.data.leastWidth(fs));
 }
 
+// The Run side before there is a program to show: not assembled yet, the
+// first assemble had errors, or the simulator stopped (a crash).
 function renderPlaceholder(): void {
-  const changed = assembledText !== null || (lastProgram !== null && edited);
-  const [title, body] = changed
-    ? ['코드가 바뀌었습니다', '지금 실행되는 것은 고치기 전의 코드입니다. 다시 어셈블해서 고친 코드로 바꾸세요.']
+  const kind = crashNote ? 'crashed' : errors.length ? 'failed' : 'fresh';
+  const where = narrow ? 'Editor 탭 아래쪽의 Assemble 패널' : '편집기 아래 Assemble 패널';
+  const [title, body] = kind === 'crashed' ? ['시뮬레이터가 멈췄습니다', 'Reset 버튼이나 Ctrl+S 키로 다시 시작하세요.']
+    : kind === 'failed' ? ['아직 어셈블된 프로그램이 없습니다', `${where}에 나온 오류를 고친 뒤 Ctrl+S 키를 다시 누르세요.`]
     : ['아직 어셈블하지 않았습니다', '어셈블하면 여기에 레지스터와 명령, 콘솔 출력이 나옵니다.'];
+  const key = JSON.stringify([kind, title, body, assembleName(false)]);
+  if (placeholder.dataset.key === key) return;
+  placeholder.dataset.key = key;
   const go = h('button', { class: 'btn primary', type: 'button' }, icon('hammer'), h('span', {}, assembleName(false)), h('kbd', {}, 'Ctrl+S'));
   go.addEventListener('click', () => void saveAndAssemble());
   // The words first, then Haram at the far end from the Editor they are about.
   placeholder.replaceChildren(notice({ pose: 'guide', title, body, more: [h('div', { class: 'row' }, go)] }));
-  placeholder.dataset.kind = changed ? 'changed' : 'fresh';
+  placeholder.dataset.kind = kind;
+}
+
+// The time of an assemble, as the Assemble panel and the band say it.
+const clock = (d: Date) => d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+
+// Over the Run side while the Editor's code is not the machine's program.
+function renderBand(): void {
+  const on = machineShown() && edited;
+  runBand.hidden = !on;
+  if (!on) return;
+  const at = lastAssembly ? ` (${clock(lastAssembly.at)})` : '';
+  const text = `지금 보이는 것은 마지막으로 어셈블한 코드입니다${at} · 고친 코드를 어셈블하려면 Ctrl+S`;
+  if (runBand.textContent !== text) { runBand.textContent = text; runBand.title = text; }
+}
+
+// The Assemble panel: the last assemble's errors; or when it was and what it
+// made, with a line once the code has changed since; or, before any, what
+// Ctrl+S will do.  Drawn again only when what it says changes (a list the
+// student has scrolled stays where it is).
+let asmKey = '';
+function renderAssemble(): void {
+  const key = JSON.stringify([errors.map((e) => [e.line, e.message.message, e.message.source]), lastAssembly?.at.getTime() ?? null,
+    lastAssembly?.instructions ?? null, edited, machineShown(), saveNote, saves(), narrow]);
+  if (key === asmKey) return;
+  asmKey = key;
+  asmPanel.dataset.state = errors.length ? 'errors' : lastAssembly ? (edited ? 'changed' : 'ok') : 'fresh';
+  if (errors.length) {
+    asmHead.setMeta(errors.length === 1 ? '1 error' : `${errors.length} errors`);
+    asmBody.replaceChildren(errorNotice());
+    return;
+  }
+  if (lastAssembly) {
+    asmHead.setMeta(clock(lastAssembly.at));
+    const said = [h('p', { class: 'ok' }, `어셈블했습니다 · 명령 ${lastAssembly.instructions}개${saveNote ? ` · ${saveNote}` : ''}`)];
+    if (edited) said.push(h('p', { class: 'warn' }, '코드가 바뀌었습니다. 실행은 마지막으로 어셈블한 코드로 합니다 — 고친 코드를 어셈블하려면 Ctrl+S 키를 누르세요.'));
+    asmBody.replaceChildren(h('div', { class: 'asm-state' }, ...said));
+    return;
+  }
+  asmHead.setMeta('');
+  asmBody.replaceChildren(h('div', { class: 'asm-state' },
+    h('p', {}, `Ctrl+S 키를 누르면 ${saves() ? '저장하고 ' : ''}어셈블합니다. 결과와 오류가 여기에 나옵니다.`)));
 }
 
 // The Editor line of PC: the Text row's line, or that of the source line a
@@ -430,13 +534,13 @@ function renderChrome(): void {
     b.disabled = !on;
     b.classList.toggle('primary', primary && on);
   };
-  setBtn(bAssemble, open && !running, !machineShown());
+  setBtn(bAssemble, open && !running, !current());
   bRun.replaceChildren(icon(running ? 'square' : 'play'), h('span', { class: 'label' }, running ? 'Stop' : 'Run'),
     h('kbd', {}, running ? 'Esc' : 'F5'));
   bRun.title = running ? 'Stop (Esc)' : 'Run (F5)';
   setBtn(bRun, open && (running || (runState !== 'finished' && runState !== 'input')), running);
-  setBtn(bStep, open && !running && runState !== 'finished', machineShown() && !running);
-  setBtn(bRestart, lastProgram !== null && !busy, false);
+  setBtn(bStep, open && !running && runState !== 'finished', current() && !running);
+  setBtn(bRestart, lastGood !== null && !busy, false);
   speedFast.classList.toggle('on', speed === 'fast');
   speedSlow.classList.toggle('on', speed === 'slow');
   speedFast.setAttribute('aria-checked', String(speed === 'fast'));
@@ -551,7 +655,8 @@ function renderStatus(): void {
       if (changedNow.length) parts.push(changedPart());
       if (selected >= 0) parts.push(span('', '고른 명령 ', code(hex32(selected))));
     }
-    if (edited) parts.push(span('warn', '코드가 바뀌었습니다 — 다시 어셈블 (Ctrl+S)'));
+    // A later assemble that failed (the machine keeps the last program).
+    if (errors.length) parts.push(span('err', `고친 코드에 오류 ${errors.length}개 — Assemble 패널`));
     else if (!sameAdvanced(advanced, applied)) parts.push(span('warn', '설정이 바뀌었습니다 — 다시 어셈블하면(Ctrl+S) 적용됩니다'));
   }
   if (note) parts.push(span('warn', note));
@@ -650,11 +755,11 @@ const tutorial = new Tutorial({
   open: async (name) => { await load(await api.openExample(name), name); },
   example: () => file.example ?? null,
   source: () => editor.text(),
-  assembled: () => machineShown(),
+  assembled: () => current(),
   assemble: () => saveAndAssemble(),
   step: () => step(),
   runUntil: async (addr) => {
-    if (!machineShown() && !(await saveAndAssemble())) return;
+    if (!current() && !(await saveAndAssemble())) return;
     for (let i = 0; i < 500 && lastRegs && lastRegs.pc !== addr && runState !== 'finished' && runState !== 'input'; i += 1) {
       resumeWith = 'step';
       await go(() => api.call('step', 1));
@@ -725,7 +830,9 @@ const tutorial = new Tutorial({
 async function forgetMachine(): Promise<void> {
   if (runState === 'running') await api.stop();
   assembledText = null;
-  lastProgram = null;
+  lastGood = null;
+  lastAssembly = null;
+  edited = false;
   runState = 'ready';
   breakpoints.clear();
   rows = [];
@@ -744,7 +851,7 @@ async function saveAndAssemble(): Promise<boolean> {
   saveWarn = false;
   if (file.example) {
     saveNote = '예제라서 저장하지 않습니다';
-    return assemble(source, false);
+    return assemble(source);
   }
   try {
     const saved = await api.saveFile({ path: file.path, name: file.name, text: source, format: file.format });
@@ -757,50 +864,64 @@ async function saveAndAssemble(): Promise<boolean> {
   } catch (e) {
     [saveNote, saveWarn] = [(e as Error).message, true];
   }
-  return assemble(source, false);
+  return assemble(source);
 }
 
-// Assembles `source` into a fresh machine.  `again`: the same program as
-// before (처음으로), so its breakpoints stay.
-async function assemble(source: string, again: boolean): Promise<boolean> {
+// Assembles `source` into a fresh machine -- after assembling it in a second
+// process first (main.ts, sim:check): a program with errors leaves the
+// machine on screen as it was, the program in it and where it had run to.
+async function assemble(source: string): Promise<boolean> {
   busy = true;
   let after: Signal | null = null;
   note = '';
   congrats.hidden = true;
+  const options = assembleOptions(advanced);
+  const lines = source.split('\n');
+  const parsed = (raw: string[]) => raw.map((line) => {
+    const message = parseAssemblerMessage(line);
+    return { message, line: resolveMessageLine(message, lines) };
+  });
+  // Errors: in the Assemble panel and the Editor's margin; the machine as it was.
+  const failed = (list: typeof errors): false => {
+    errors = list;
+    edited = editor.text() !== assembledText;
+    renderErrors();
+    if (narrow) view = 'editor'; // the errors are under the Editor
+    after = { kind: 'assembled', ok: false };
+    return false;
+  };
   try {
-    if (runState === 'running') await api.stop();
-    const same = again || source === lastProgram;
+    if (runState === 'running') { slow?.cancel(); await api.stop(); await waitWhileRunning(); }
+    // The core ended while assembling it (a .err directive): the second
+    // process did, the machine on screen is untouched.  No second process at
+    // all (it did not start): assemble on the machine itself, as before.
+    const check = await api.check(source, options).catch(() => null);
+    if (check?.crashed) return failed([{ message: parseAssemblerMessage(check.crashed), line: 0 }]);
+    if (check && !check.ok) return failed(parsed(check.errors));
+    const same = source === assembledText;
     let r: Awaited<ReturnType<typeof api.call<'assemble'>>>;
     try {
-      r = await api.call('assemble', source, assembleOptions(advanced));
+      r = await api.call('assemble', source, options);
     } catch {
-      return false; // the process died (a .err directive): onCrashed says so
+      return false; // the process died: onCrashed says so
     }
     crashNote = '';
-    edited = editor.text() !== source; // typed on while it assembled
+    if (!r.ok) { // (checked above; only without a second process)
+      assembledText = null;
+      runState = 'ready';
+      return failed(parsed(r.errors));
+    }
     consolePanel.clear();
     steps = 0;
     progress = null;
     changedNow = [];
     lastReason = 'limit';
-    const lines = source.split('\n');
-    errors = r.ok ? [] : r.errors.map((raw) => {
-      const message = parseAssemblerMessage(raw);
-      return { message, line: resolveMessageLine(message, lines) };
-    });
-    renderErrors();
-    if (!r.ok) {
-      assembledText = null;
-      runState = 'ready';
-      view = 'run'; // a narrow window: the errors are on the Run side
-      after = { kind: 'assembled', ok: false };
-      return false;
-    }
+    errors = [];
     rows = textRows(await api.call('textSegment'));
     // Breakpoints: the Editor's lines, mapped to this program's words, and
     // (for the same program) those set in Text on words with no line of the
     // Editor's, such as the start-up code.
-    const kept = same ? [...breakpoints].filter((a) => lineOf(a) === null && rows.some((r) => r.addr === a)) : [];
+    const kept = same ? [...breakpoints].filter((a) => lineOf(a) === null && rows.some((x) => x.addr === a)) : [];
     const mapped = editor.breakpointLines().map((n) => [n, addressOfLine(n)] as const);
     const dropped = mapped.filter(([, a]) => a === null).map(([n]) => n);
     if (dropped.length) {
@@ -810,9 +931,12 @@ async function assemble(source: string, again: boolean): Promise<boolean> {
     breakpoints.clear();
     for (const a of [...kept, ...mapped.map(([, a]) => a).filter((a): a is number => a !== null)]) breakpoints.add(a);
     for (const a of breakpoints) await api.call('setBreakpoint', a);
-    for (const r of rows) r.breakpoint = breakpoints.has(r.addr);
+    for (const x of rows) x.breakpoint = breakpoints.has(x.addr);
     assembledText = source;
-    lastProgram = source;
+    edited = editor.text() !== source; // typed on while it assembled
+    lastGood = { source, options };
+    lastAssembly = { at: new Date(), instructions: rows.filter((x) => !x.kernel).length };
+    renderErrors();
     labels.clear();
     for (const sym of parseSymbolListing(r.symbols)) labels.add(sym.name, sym.address);
     applied = structuredClone(advanced);
@@ -824,8 +948,7 @@ async function assemble(source: string, again: boolean): Promise<boolean> {
     text.setPc(regs.pc);
     if (selected >= 0 && !rows.some((x) => x.addr === selected)) clearSelection();
     else showInspector();
-    if (!again) text.setTab('text');
-    if (text.tab === 'data') void refreshData();
+    text.setTab('text');
     if (narrow) view = 'run';
     after = { kind: 'assembled', ok: true };
     return true;
@@ -865,9 +988,15 @@ function goToErrorLine(n: number): void {
   emit({ kind: 'goto', line: n });
 }
 
+// The errors of the last assemble: marked in the Editor's margin, listed in
+// the Assemble panel (renderAssemble).
 function renderErrors(): void {
   editor.showErrors(errors.map((e) => e.line).filter((n) => n > 0));
-  if (!errors.length) { errorBody.replaceChildren(); return; }
+  asmKey = '';
+  renderAssemble();
+}
+
+function errorNotice(): HTMLElement {
   const toLine = (n: number) => goToErrorLine(n);
   const first = errors.find((e) => e.line > 0) ?? errors[0];
   const go = h('button', { class: 'btn primary', type: 'button' }, first.line ? `${first.line}행으로 가기` : '고치러 가기');
@@ -881,24 +1010,25 @@ function renderErrors(): void {
         e.message.source ? code(e.message.source, 'src') : null,
         ((hint) => (hint ? h('span', { class: 'hint' }, codeText(hint)) : null))(hintFor(e.message.message, e.message.source))));
   });
-  errorHead.setMeta(errors.length === 1 ? '1 error' : `${errors.length} errors`);
   // What is wrong (the title), what to do (the line under it), then the
   // errors, each with its line; the button goes to the first.  The line's
-  // number is said twice at most: in the error and on the button.  Haram
-  // once, at the far end: not between the words and the Editor they are
-  // about, and no arrow.
+  // number is said twice at most: in the error and on the button.  Right
+  // under the Editor: no character (the panel is as tall as its words).
+  // With a program in the machine, it is still there: the Run side says so.
   const title = errors.length > 1 ? `코드에 오류가 ${errors.length}개 있습니다` : '코드에 오류가 있습니다';
-  const todo = errors.length > 1 ? '위에서부터 하나씩 고친 뒤 Ctrl+S 키를 다시 누르세요.' : '아래 줄을 고친 뒤 Ctrl+S 키를 다시 누르세요.';
-  errorBody.replaceChildren(h('div', { class: 'notice-host' },
-    notice({ pose: 'curious', title, body: todo, more: [h('div', { class: 'items' }, ...items), h('div', { class: 'row' }, go)] })));
+  const todo = (errors.length > 1 ? '위에서부터 하나씩 고친 뒤 Ctrl+S 키를 다시 누르세요.' : '아래 줄을 고친 뒤 Ctrl+S 키를 다시 누르세요.')
+    + (machineShown() ? ` ${narrow ? 'Run 탭' : '오른쪽'}에는 마지막으로 어셈블한 코드가 그대로 있습니다.` : '');
+  return h('div', { class: 'notice-host' },
+    notice({ pose: 'curious', title, body: todo, more: [h('div', { class: 'items' }, ...items), h('div', { class: 'row' }, go)] }));
 }
 
 // ---- running ----------------------------------------------------------------------------
 
-// Before F5 or F10: the program on screen has to be the one in the machine.
+// Before F5 or F10: a program in the machine -- the last that assembled,
+// changed code or not (the band says which); before the first, assemble.
 async function ready(): Promise<boolean> {
   if (busy) return false;
-  if (assembledText === null || edited) {
+  if (assembledText === null) {
     if (!open) return false;
     return saveAndAssemble();
   }
@@ -1033,11 +1163,50 @@ async function stop(): Promise<void> {
   await api.stop(); // the run's own answer ('stopped') updates the window
 }
 
+// Reset: the program in the machine back to its start -- the last one that
+// assembled, as it was assembled (its options, its breakpoints), whatever the
+// Editor holds now: assembling is Save & Assemble's.  Also after a crash.
 async function restart(): Promise<void> {
-  if (busy || lastProgram === null) return;
+  if (busy || lastGood === null) return;
+  const good = lastGood;
+  busy = true;
+  note = '';
+  congrats.hidden = true;
   [saveNote, saveWarn] = ['', false]; // Reset saves nothing
-  await assemble(lastProgram, true);
-  emit({ kind: 'reset' });
+  try {
+    if (runState === 'running') { slow?.cancel(); await api.stop(); await waitWhileRunning(); }
+    let r: Awaited<ReturnType<typeof api.call<'assemble'>>>;
+    try {
+      r = await api.call('assemble', good.source, good.options);
+    } catch {
+      return; // the process died: onCrashed says so
+    }
+    if (!r.ok) return; // it assembled before, with the same options
+    crashNote = '';
+    assembledText = good.source;
+    edited = editor.text() !== good.source;
+    consolePanel.clear();
+    steps = 0;
+    progress = null;
+    changedNow = [];
+    lastReason = 'limit';
+    rows = textRows(await api.call('textSegment'));
+    for (const a of breakpoints) await api.call('setBreakpoint', a);
+    for (const x of rows) x.breakpoint = breakpoints.has(x.addr);
+    runState = 'ready';
+    text.setRows(rows);
+    const regs = await api.call('registers');
+    registers?.update(regs, null);
+    lastRegs = regs;
+    text.setPc(regs.pc);
+    if (selected >= 0 && !rows.some((x) => x.addr === selected)) clearSelection();
+    else showInspector();
+    if (text.tab === 'data') void refreshData();
+  } finally {
+    busy = false;
+    renderChrome();
+    emit({ kind: 'reset' });
+  }
 }
 
 async function giveInput(line: string): Promise<void> {
@@ -1049,11 +1218,12 @@ async function giveInput(line: string): Promise<void> {
   else await step();
 }
 
-// A breakpoint set or cleared in Text: the machine, and the Editor's gutter.
+// A breakpoint set or cleared in Text: the machine (Text shows its program),
+// and the Editor's gutter while the Editor's code is that program.
 async function toggleBreakpoint(addr: number): Promise<void> {
   const on = !breakpoints.has(addr);
   await setBreakpoint(addr, on);
-  const line = lineOf(addr);
+  const line = current() ? lineOf(addr) : null;
   if (line !== null) {
     const lines = new Set(editor.breakpointLines());
     if (on) lines.add(line); else if (![...breakpoints].some((a) => lineOf(a) === line)) lines.delete(line);
@@ -1067,11 +1237,15 @@ async function setBreakpoint(addr: number, on: boolean): Promise<void> {
   text.setBreakpoint(addr, on);
 }
 
-// A breakpoint set or cleared in the Editor's gutter.  Before an assemble
-// (or with changed code) it is only kept by line, for the next assemble.
+// A breakpoint set or cleared in the Editor's gutter.  Before an assemble,
+// or with changed code, it is only kept by line (the dot moves with the
+// text): it takes effect at the next assemble.
 async function editorBreakpoint(line: number, on: boolean): Promise<void> {
   emit({ kind: 'breakpoint', line, on });
-  if (!machineShown()) return;
+  if (!current()) {
+    if (machineShown()) { note = '고친 코드의 브레이크포인트는 다시 어셈블하면(Ctrl+S) 적용됩니다'; renderStatus(); }
+    return;
+  }
   const addr = addressOfLine(line);
   if (addr === null) {
     editor.setBreakpointLines(editor.breakpointLines().filter((n) => n !== line));

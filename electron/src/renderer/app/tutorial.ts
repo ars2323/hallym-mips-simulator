@@ -19,11 +19,15 @@
    no separate line of instructions under it.  No [다음] on the card is the
    other sign that it waits for the student.
 
-   What a step points at is ringed, the rest of the window only lightly
-   dimmed (the surroundings are what the student is learning); clicks
-   outside the targets do nothing.  The card goes beside the targets, never
-   over them (logic/placement.ts), with Haram at its far end: never between
-   the words and what they are about, always on the card's white.  Before
+   Two layers.  The panel a target is in is lit whole (not dimmed: the
+   rest of the Registers around Temporaries, the Text around two rows, is
+   what the student is learning), the toolbar's area for a button, the
+   status bar for its words; the rest of the window is dimmed.  Inside, a
+   box on each target says where to look.  Lit is not clickable: only the
+   targets take a click.  The card never covers a box, and keeps off the
+   lit panels where the window has room (logic/placement.ts), with Haram
+   at its far end: never between the words and what they are about, always
+   on the card's white.  Before
    drawing, a step makes its targets really visible: the right side of a
    narrow window, the right tab, the line scrolled in, a column the width
    took away turned back on, the Console opened.
@@ -135,7 +139,8 @@ export class Tutorial {
   private busy = false;
   private readonly forced: ['regs' | 'text', string][] = [];
   private root: HTMLElement | null = null;
-  private dim: SVGPathElement | null = null;
+  private dim: SVGPathElement | null = null;   // dark, but over the lit panels
+  private block: SVGPathElement | null = null; // clicks, but on the targets
   private rings: HTMLElement | null = null;
   private card: HTMLElement | null = null;
   private skipTimer = 0;
@@ -145,7 +150,7 @@ export class Tutorial {
   private lastReveal = 0;
   private advanceTimer = 0;
   // The last layout, for the tests: what is pointed at and where the card is.
-  shown: { step: number; phase: number; result: boolean; targets: Rect[]; card: Rect | null; hits: boolean[]; did: string[] } = { step: 0, phase: 0, result: false, targets: [], card: null, hits: [], did: [] };
+  shown: { step: number; phase: number; result: boolean; targets: Rect[]; lit: Rect[]; card: Rect | null; hits: boolean[]; did: string[] } = { step: 0, phase: 0, result: false, targets: [], lit: [], card: null, hits: [], did: [] };
   // What this step had to do to show its targets (for the report and tests).
   did: string[] = [];
 
@@ -300,7 +305,8 @@ export class Tutorial {
     const verdict = STEPS[this.index].done?.(this, s) ?? null;
     if (verdict === 'phase') {
       this.phase += 1;
-      if (STEPS[this.index].view && this.host.narrow()) this.host.showView('run');
+      const side = STEPS[this.index].view; // (step 19: the Assemble panel is under the Editor)
+      if (side && this.host.narrow()) this.host.showView(side);
       this.renderCard();
       this.armSkip();
     } else if (verdict === 'next') {
@@ -333,7 +339,7 @@ export class Tutorial {
     }
     if (e.key === 'ArrowLeft' && !(e.target as HTMLElement).closest?.('input')) { take(); this.back(); return true; }
     if (key) {
-      if (this.phase > 0 && this.index === 18) return take(); // the file is assembled: now the Errors panel
+      if (this.phase > 0 && this.index === 18) return take(); // the file is assembled: now the Assemble panel
       if (this.result) return take();                       // done: the result is what to look at
       return allowed.has(key) ? false : take();
     }
@@ -348,7 +354,11 @@ export class Tutorial {
     svg.setAttribute('class', 'tut-dim');
     this.dim = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     this.dim.setAttribute('fill-rule', 'evenodd');
-    svg.append(this.dim);
+    this.dim.setAttribute('class', 'dim');
+    this.block = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    this.block.setAttribute('fill-rule', 'evenodd');
+    this.block.setAttribute('class', 'block');
+    svg.append(this.dim, this.block);
     this.rings = h('div', { class: 'tut-rings' });
     this.card = h('div', { class: 'tut-card', role: 'dialog', 'aria-label': 'Tutorial' });
     this.root = h('div', { class: 'tut' }, svg as unknown as HTMLElement, this.rings, this.card);
@@ -362,7 +372,7 @@ export class Tutorial {
     clearTimeout(this.skipTimer);
     clearTimeout(this.advanceTimer);
     this.root?.remove();
-    this.root = this.dim = this.rings = this.card = null;
+    this.root = this.dim = this.block = this.rings = this.card = null;
   }
 
   private renderCard(): void {
@@ -396,7 +406,7 @@ export class Tutorial {
   // Every frame: where the targets are now; the dimmed layer, the rings and
   // the card follow them (the Data tab redraws itself, lists scroll...).
   private layout(): void {
-    if (!this.card || !this.dim || !this.rings || this.busy) return;
+    if (!this.card || !this.dim || !this.block || !this.rings || this.busy) return;
     const step = STEPS[this.index];
     const now: { targets(t: Tutorial): Target[]; reveal?(t: Tutorial): void } = this.result ? step.result! : step;
     const rects = targetRects(now.targets(this));
@@ -408,11 +418,16 @@ export class Tutorial {
     }
     const w = window.innerWidth;
     const hh = window.innerHeight;
-    const key = JSON.stringify([rects.list, w, hh, this.card.offsetWidth, this.card.offsetHeight, this.index, this.phase, this.result]);
+    // The areas lit whole: each target's panel (the toolbar's area, the
+    // status bar), cut to the window.
+    const lit = merge(litAreas(rects.owners).map((r) => ({ left: Math.max(0, r.left), top: Math.max(0, r.top),
+      right: Math.min(w, r.right), bottom: Math.min(hh, r.bottom) })), 0);
+    const key = JSON.stringify([rects.list, lit, w, hh, this.card.offsetWidth, this.card.offsetHeight, this.index, this.phase, this.result]);
     if (key === this.lastLayout) return;
     this.lastLayout = key;
-    const holes = merge(rects.list.map((r) => grow(r, 4)));
-    this.dim.setAttribute('d', `M0 0H${w}V${hh}H0Z ${holes.map((r) => `M${r.left} ${r.top}H${r.right}V${r.bottom}H${r.left}Z`).join(' ')}`);
+    const path = (holes: Rect[]) => `M0 0H${w}V${hh}H0Z ${holes.map((r) => `M${r.left} ${r.top}H${r.right}V${r.bottom}H${r.left}Z`).join(' ')}`;
+    this.dim.setAttribute('d', path(lit));
+    this.block.setAttribute('d', path(merge(rects.list.map((r) => grow(r, 4)))));
     // A ring 4 px around its target, or closer when another target is near:
     // neighbours (the bit fields) keep a ring each, never one fused outline.
     this.rings.replaceChildren(...rects.list.map((r, i) => {
@@ -426,21 +441,23 @@ export class Tutorial {
     const size = { width: this.card.offsetWidth, height: this.card.offsetHeight };
     // Below the title bar: the card never hides the toolbar.
     const view = { left: 0, top: ($('.titlebar')?.getBoundingClientRect().bottom ?? 0), right: w, bottom: hh };
-    // Beside the targets and off what the step keeps off; failing that,
-    // beside the targets alone (over what was kept off: the Editor at step
-    // 19, whose line is worth seeing but not what the card talks about);
-    // never over a target.
+    // Beside the targets, off the lit panels and off what the step keeps
+    // off; failing that, off the targets and what is kept off (over a lit
+    // panel: a narrow window); then off the targets alone (over what was
+    // kept off: the Editor at step 19, whose line is worth seeing but not
+    // what the card talks about); never over a target's box.
     const keepOff = targetRects(step.avoid?.(this) ?? []).list;
     const grown = rects.list.map((r) => grow(r, 4));
     const at = step.kind === 'end' || rects.list.length === 0
       ? { left: (w - size.width) / 2, top: (hh - size.height) / 2, side: null }
-      : place([...grown, ...keepOff], size, view) ?? place(grown, size, view) ?? { left: w - size.width - 8, top: hh - size.height - 8, side: null };
+      : place([...grown, ...keepOff, ...lit], size, view) ?? place([...grown, ...keepOff], size, view) ?? place(grown, size, view)
+        ?? { left: w - size.width - 8, top: hh - size.height - 8, side: null };
     this.card.style.left = `${Math.round(at.left)}px`;
     this.card.style.top = `${Math.round(at.top)}px`;
-    // Haram at the card's far end from the targets.
+    // Haram at the card's far end from the targets (from the first target:
+    // the side place() names may be a lit panel's).
     const first = rects.list[0];
-    const far = at.side === 'left' ? 'left' : at.side === 'right' ? 'right'
-      : first && (first.left + first.right) / 2 > at.left + size.width / 2 ? 'left' : 'right';
+    const far = first && (first.left + first.right) / 2 > at.left + size.width / 2 ? 'left' : 'right';
     this.card.classList.toggle('haram-left', far === 'left');
     // A click in the middle of each target reaches it (not the card, not
     // something else drawn over it).
@@ -449,10 +466,21 @@ export class Tutorial {
       return !!hit && !!rects.owners[i]?.contains(hit);
     });
     this.shown = {
-      step: this.index + 1, phase: this.phase, result: this.result, targets: rects.list, hits, did: [...this.did],
+      step: this.index + 1, phase: this.phase, result: this.result, targets: rects.list, lit, hits, did: [...this.did],
       card: { left: at.left, top: at.top, right: at.left + size.width, bottom: at.top + size.height },
     };
   }
+}
+
+// What is lit whole around the targets: the panel each is in -- or, for a
+// toolbar button, the title bar; for the status bar's words, the status bar.
+function litAreas(owners: Element[]): Rect[] {
+  const areas = new Set<Element>();
+  for (const o of owners) {
+    const area = o.closest('.panel, .titlebar, .status');
+    if (area) areas.add(area);
+  }
+  return [...areas].map((a) => { const r = a.getBoundingClientRect(); return { left: r.left, top: r.top, right: r.right, bottom: r.bottom }; });
 }
 
 // The gap between two boxes (0 when they touch or overlap).
@@ -551,7 +579,7 @@ export const STEPS: Step[] = [
     prepare: async (t) => { if (t.host.running()) await t.host.stop(); } },
   { kind: 'practice', file: 'tutorial.s', keys: ['Ctrl+S'],
     title: () => 'Assemble: 코드를 기계어로',
-    body: () => '쓴 코드를 기계어로 바꾸는 것이 어셈블입니다. Assemble 버튼을 누르거나 Ctrl+S 키를 눌러 보세요. 내 파일에서는 이 버튼이 저장도 함께 합니다(Save & Assemble 버튼). 어셈블이 끝나면 오른쪽 Run 쪽이 켜지고 다음 단계로 넘어갑니다.',
+    body: () => '쓴 코드를 기계어로 바꾸는 것이 어셈블입니다. Assemble 버튼을 누르거나 Ctrl+S 키를 눌러 보세요. 내 파일에서는 이 버튼이 저장도 함께 합니다(Save & Assemble 버튼). 어셈블이 끝나면 편집기 아래 Assemble 패널에 결과가, Run 쪽에 레지스터와 명령이 나오고 다음 단계로 넘어갑니다.',
     targets: () => [button('assemble')],
     done: (_t, s) => (s.kind === 'assembled' && s.ok ? 'next' : null),
     skip: async (t) => { await t.host.assemble(); } },
@@ -692,7 +720,7 @@ export const STEPS: Step[] = [
     leave: async (t) => { if (t.host.running()) await t.host.stop(); await t.host.setSpeed('fast'); } },
   { kind: 'practice', file: 'tutorial.s',
     title: () => 'Reset: 처음으로',
-    body: () => 'Reset 버튼은 프로그램을 다시 어셈블해 처음부터 실행할 수 있게 합니다. Reset 버튼을 눌러 보세요. 무엇이 처음으로 돌아가는지 보여 드립니다.',
+    body: () => 'Reset 버튼은 마지막으로 어셈블한 프로그램을 처음 상태로 되돌립니다. 코드를 고쳤더라도 다시 어셈블하지는 않습니다(어셈블은 Ctrl+S). Reset 버튼을 눌러 보세요. 무엇이 처음으로 돌아가는지 보여 드립니다.',
     targets: () => [button('reset')],
     prepare: async (t) => { if (!t.host.assembled()) await t.host.assemble(); },
     done: (_t, s) => (s.kind === 'reset' ? 'next' : null),
@@ -716,12 +744,13 @@ export const STEPS: Step[] = [
       targets: () => [$('.console .clog'), status()] },
     skip: async (t) => { for (let i = 0; i < 3 && !t.host.finished(); i += 1) await t.host.run(); } },
   { kind: 'practice', file: 'tutorial-error.s', view: 'editor', keys: ['Ctrl+S'], pose: 'curious',
-    title: (t) => (t.phase === 0 ? '오류가 나면' : 'Errors 패널'),
+    title: (t) => (t.phase === 0 ? '오류가 나면' : 'Assemble 패널'),
     body: (t) => (t.phase === 0
       ? '이번에는 일부러 한 줄을 틀리게 쓴 예제입니다. Assemble 버튼(또는 Ctrl+S 키)을 눌러 보세요. 오류가 어디에 어떻게 나오는지 이어서 보여 드립니다.'
-      : `맨 위에 무엇이 잘못됐는지와 할 일이, 그 아래에 틀린 줄과 고치는 요령이 있습니다. ${t.host.errorLine() ?? ''}행으로 가기 버튼을 누르면 Editor 패널의 그 줄로 가고, 튜토리얼도 다음으로 넘어갑니다.`),
+      : `편집기 아래 Assemble 패널에 무엇이 잘못됐는지와 할 일, 틀린 줄과 고치는 요령이 나옵니다. ${t.host.errorLine() ?? ''}행으로 가기 버튼을 누르면 Editor 패널의 그 줄로 가고, 튜토리얼도 다음으로 넘어갑니다.`),
     targets: (t) => (t.phase === 0 ? [button('assemble')]
-      : [textOf($('.run-side .errors .notice h3')), textOf($('.run-side .errors .item')), $('.run-side .errors .row .btn')]),
+      : [textOf($('.asm .notice h3')), textOf($('.asm .item')), $('.asm .row .btn')]),
+    reveal: () => scrollIn($('.asm .row .btn')),
     // The Editor's line with the error is part of what to look at.
     avoid: (t) => (t.phase === 1 && !t.host.narrow() ? [$('.editor-panel')] : []),
     prepare: async (t) => { t.host.showView('editor'); },

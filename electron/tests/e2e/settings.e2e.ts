@@ -93,8 +93,17 @@ test('Advanced: options apply from the next assemble, for this session', async (
     await dialog.getByLabel('Program arguments').press('Tab');
     await dialog.getByRole('button', { name: 'Close' }).click();
     expect(await statusText(page)).toContain('설정이 바뀌었습니다');
+    // Reset starts the program again as it was assembled: the old arguments.
     await page.getByRole('button', { name: /Reset/ }).click();
-    await expect(page.locator('.status')).not.toContainText('설정이 바뀌었습니다'); // assembled with them
+    await expect(page.locator('.status')).toContainText('설정이 바뀌었습니다');
+    await page.keyboard.press('F5');
+    await settled(page);
+    await expect(page.locator('.clog')).toHaveText('1');
+    // Save & Assemble applies them.
+    await side(page, 'Editor');
+    await page.locator('.cm-content').click();
+    await page.keyboard.press('Control+s');
+    await expect(page.locator('.status')).not.toContainText('설정이 바뀌었습니다');
     await page.keyboard.press('F5');
     await settled(page);
     await expect(page.locator('.clog')).toHaveText('3');
@@ -106,7 +115,7 @@ test('Advanced: options apply from the next assemble, for this session', async (
     await side(page, 'Editor');
     await page.locator('.cm-content').click();
     await page.keyboard.press('Control+s');
-    await expect(page.locator('.errors .item').first()).toContainText('syntax error');
+    await expect(page.locator('.asm .item').first()).toContainText('syntax error');
   } finally {
     await r.close();
   }

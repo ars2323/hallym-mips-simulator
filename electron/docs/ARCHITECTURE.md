@@ -3,6 +3,10 @@
 The host is Electron's main process (`src/main/main.ts`), which starts the simulator process as a `utilityProcess`.
 In Node tests the same host starts it with `child_process.fork()`. The only difference between the two is inside `transport.ts` (section 4).
 
+The app starts two of them, the same code: the machine on screen, and a second one that only assembles, to see
+whether a program assembles before the machine on screen is touched (`sim:check`: the core's assemble starts from an
+empty machine, so a program with errors would otherwise take the last good one with it; docs/PORTING.md 25).
+
 ```text
 ┌─ Host process (Electron main / Node tests) ────────────────────────────────┐
 │  src/sim/host.ts        Simulator: request/response pairing, events,       │

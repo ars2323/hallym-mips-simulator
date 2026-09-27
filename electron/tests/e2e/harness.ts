@@ -100,7 +100,7 @@ export async function openAndAssemble(r: Running, file: string): Promise<void> {
   await openOnly(r, file);
   await r.page.locator('.cm-content').click();
   await r.page.keyboard.press('Control+s');
-  await r.page.waitForSelector('.run-grid:not([hidden]), .errors:not([hidden]), .status .err');
+  await r.page.waitForSelector('.run-grid:not([hidden]), .asm[data-state=errors], .status .err');
 }
 
 // A narrow window shows the Editor and the Run side one at a time (the

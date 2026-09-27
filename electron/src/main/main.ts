@@ -25,8 +25,10 @@ import path from 'node:path';
 
 import { decodeTextFile, encodeTextFile, NEW_FILE_FORMAT, type TextFileFormat } from '../node/text-file.ts';
 import { LICENSES, paths, version } from './paths.ts';
-import { Simulator } from '../sim/host.ts';
-import type { CallName } from '../sim/protocol.ts';
+import { Simulator, SimulatorCrashed } from '../sim/host.ts';
+import type { CallName, Calls } from '../sim/protocol.ts';
+
+type AssembleOptions = Calls['assemble'][0][1];
 import { utilityTransport } from '../sim/transport.ts';
 
 app.setName('Hallym MIPS');
@@ -107,6 +109,14 @@ async function main(): Promise<void> {
   Menu.setApplicationMenu(null); // no default zoom/reload accelerators; the window has its own keys
   await app.whenReady();
   const sim = await Simulator.start({ transport: () => utilityTransport() });
+  // A second simulator process, for assembling a program first to see whether
+  // it assembles, without touching the machine on screen: the core's own
+  // assemble starts from an empty machine, so a program with errors would
+  // otherwise take the last good one -- and where it had run to -- with it.
+  // Its crashes are its own (a .err directive ends the core): it starts
+  // again, and the call that crashed it answers SimulatorCrashed.
+  const checker = Simulator.start({ transport: () => utilityTransport() });
+  checker.catch(() => {}); // not started: the window assembles as before (app.ts assemble)
 
   // The window starts at a fixed size -- or fills the screen when the screen
   // is smaller (a lab PC: 1366x768 at 125% leaves about 1093x582) -- and
@@ -141,6 +151,16 @@ async function main(): Promise<void> {
   ipcMain.handle('sim:call', (_e, method: CallName, args: unknown[]) =>
     answer(() => (method === 'run' ? sim.run() : (sim.call as (m: CallName, ...a: unknown[]) => Promise<unknown>)(method, ...args))));
   ipcMain.handle('sim:stop', () => answer(() => sim.stop()));
+  // A crash is an answer here, not an error (an error's name does not
+  // cross into the page): { ok: false, crashed: what the core said }.
+  ipcMain.handle('sim:check', (_e, source: string, options: AssembleOptions) => answer(async () => {
+    try {
+      return await (await checker).assemble(source, options);
+    } catch (e) {
+      if (e instanceof SimulatorCrashed) return { ok: false, errors: [], symbols: '', format: null, crashed: e.message };
+      throw e;
+    }
+  }));
   sim.on('console', (text) => win.webContents.send('sim:console', text));
   sim.on('progress', (p) => win.webContents.send('sim:progress', p));
   sim.on('crashed', (report) => win.webContents.send('sim:crashed', report.message, report.error.message));

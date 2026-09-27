@@ -136,8 +136,9 @@ says hello. There are two choices:
 ### The twenty-step tutorial
 
 The tutorial opens an example program (`tutorial.s`) and points at the real
-window, one place at a time: what it points at is outlined in blue, the rest
-lightly dimmed.
+window, one place at a time: the panel it is about stays bright, whole, with a
+blue box on what to look at; the rest of the window is lightly dimmed. Only
+what is boxed takes a click.
 
 | Steps | What you learn |
 |---|---|
@@ -173,7 +174,7 @@ it became in the Text panel (`lui`, `ori`), together.
 
 With a file open, the **Editor** is on the left and the **Run** side on the right.
 
-![The window while running, each part named: Toolbar, Editor, Registers, Text · Data, Inspector, Console, Status bar](images/03-panels.png)
+![The window while running, each part named: Toolbar, Editor, Assemble, Registers, Text · Data, Inspector, Console, Status bar](images/03-panels.png)
 
 | Name | What |
 |---|---|
@@ -184,7 +185,7 @@ With a file open, the **Editor** is on the left and the **Run** side on the righ
 | **Data** | The tab next to Text. Memory (what you wrote in `.data`, the stack) in 4-byte words, four to a row; label names above their addresses, and where `$sp` and `$gp` point. A run of zero words is one line. The **ASCII** column shows the same bytes as characters (in a narrow window it is turned on with **+ ASCII**) |
 | **Inspector** | One instruction taken apart into its 32 bits: opcode · rs · rt · rd … in colours per field, each field's value and meaning, and one sentence (in Korean) saying what the instruction does |
 | **Console** | Your program's output (syscalls). A syscall that reads input shows an input field here. While there is no output it is only as tall as its one-line note; it grows when output comes |
-| **Errors** | Shown on the Run side when assembly fails: first what is wrong and what to do, then each wrong line with a hint, and a **N행으로 가기** (go to line N) button |
+| **Assemble** | Under the Editor: what the last assemble did. When it worked, when it was and how many instructions it made (and whether the file was saved); when it failed, what is wrong and what to do, each wrong line with a hint, and a **N행으로 가기** (go to line N) button. It also says when the code has changed since. Drag its top border to change its height (a double click puts it back) |
 | **Status bar** | At the bottom: what just happened (e.g. *한 줄 실행했습니다*, one line run; *브레이크포인트에서 멈췄습니다*, stopped at a breakpoint), the step count, the registers that just changed (in yellow, *방금 바뀜: …*); after Ctrl+S, whether the file was saved (*저장됨*, saved; *예제라서 저장하지 않습니다*, an example: not saved) |
 
 In a narrow window (a laptop with a large display scale, for example), the
@@ -192,9 +193,9 @@ Editor and the Run side are shown one at a time; switch with the **Editor | Run*
 tabs in the top bar. A column hidden for lack of width comes back with a button
 in the panel's head, such as **+ Bin** or **+ Source**.
 
-The border between the Editor and the Run side, and the one between Registers
-and the Console, can be dragged to make one side bigger. A double click on a
-border puts it back.
+The border between the Editor and the Run side, the one between the Editor and
+the Assemble panel, and the one between Registers and the Console can be
+dragged to make one side bigger. A double click on a border puts it back.
 
 ---
 
@@ -221,8 +222,8 @@ border puts it back.
 
 2. Press **Ctrl+S** (or the toolbar's **Save & Assemble**): it saves and assembles in one go (the first time, it asks
    where to save; closing that window assembles without saving). When it succeeds, Registers, Text, the Inspector and the
-   Console appear on the right; when it fails, **Errors** does
-   ([where students get stuck](#where-students-get-stuck)).
+   Console appear on the right, and the **Assemble** panel under the Editor says so; when it fails, the Assemble panel
+   lists the errors ([where students get stuck](#where-students-get-stuck)).
 3. Each **F10** (Step) runs one line. The blue band in the Editor is the line
    about to run; the yellow row in Registers is the register that just changed.
    After the `add`, `$t2` is 12 (`0x0000000c`). For the first few presses there
@@ -230,10 +231,17 @@ border puts it back.
    running.
 4. **F5** (Run) runs to the end. `hello` appears in the Console, and the status
    bar says *프로그램이 끝났습니다* (the program has finished).
-5. **Reset** starts again from the beginning.
+5. **Reset** starts the last assembled program again from the beginning (it does
+   not assemble again).
 
-If you change the code, the Run side says *코드가 바뀌었습니다* (the code has
-changed): press **Ctrl+S** again to assemble the new code.
+**Changing the code leaves the right side as it is.** So that you can fix code
+while looking at the registers and memory, the right side goes on showing the
+last assembled program, with one line over it: *지금 보이는 것은 마지막으로
+어셈블한 코드입니다* (what you see is the last assembled code). F10, F5 and Reset
+go on with that program. The Editor then has no blue band (the lines of the
+changed code are not the running program's lines): see where it is in the Text
+tab. **Ctrl+S** assembles the changed code; if it has errors, they appear in the
+Assemble panel and the right side stays as it was.
 
 ---
 
@@ -242,7 +250,7 @@ changed): press **Ctrl+S** again to assemble the new code.
 **The program does not open / a blue warning appears** — see
 [getting past the Windows warning](#getting-past-the-windows-warning).
 
-**It does not assemble** — look at **Errors**, on the right: each wrong line
+**It does not assemble** — look at the **Assemble** panel, under the Editor: each wrong line
 comes with what is wrong and a hint. **N행으로 가기** takes you to the line,
 which has a `!` beside it in the Editor. Fix it and press **Ctrl+S** again. Common causes: a misspelt instruction (`srll` → `srl`), a register
 without its `$` (`t0` → `$t0`), a missing comma.
@@ -259,14 +267,16 @@ presses and you are at the first line of `main`.
 
 **A breakpoint does not stop the program / cannot be set** — lines without an
 instruction (empty lines, comments, a label alone) cannot have one: set it on a
-line with an instruction. A breakpoint set before assembling takes effect at
-the next assemble (Ctrl+S); one set after assembling takes effect at once.
+line with an instruction. A breakpoint set before assembling, or after changing
+the code, takes effect at the next assemble (Ctrl+S); one set while the code is
+the assembled code takes effect at once.
 
 **The right side is empty / *아직 어셈블하지 않았습니다* (not assembled yet)** —
 press **Ctrl+S** (or **Save & Assemble**).
 
-**코드가 바뀌었습니다 (the code has changed)** — you edited the code after
-assembling it; **Ctrl+S** assembles it again.
+***지금 보이는 것은 마지막으로 어셈블한 코드입니다* (what you see is the last
+assembled code)** — you edited the code after assembling it: the right side and
+what runs are the code before your changes. **Ctrl+S** assembles the new code.
 
 **The binary (Bin) or Encoding column is missing** — the window is too narrow
 for it. Widen the window, or press **+ Bin** / **+ Encoding** in the panel's head.

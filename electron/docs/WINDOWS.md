@@ -31,7 +31,7 @@ Workflow: `.github/workflows/electron.yml` at the repository root (it runs for c
 
 | # | Item | How | Result |
 |---|---|---|---|
-| 1 | utilityProcess — start, kill with `.err`, restart | **Automatic**: e2e `flows.e2e.ts` "the simulator process dies" against the installed build | Pass |
+| 1 | utilityProcess — start, kill with `.err`, restart | **Automatic**: e2e `flows.e2e.ts` and `editing.e2e.ts` (a `.err` ends the second process, which starts again; the machine on screen goes on) against the installed build | Pass |
 | 2 | Stop an endless loop → read registers → continue running | **Automatic**: installed-build e2e "an endless loop", Node `process.test.ts` 1 | Pass |
 | 3 | Breakpoint → stop → continue | **Automatic**: installed-build e2e "breakpoint", Node `run-control.test.ts` | Pass |
 | 4 | Console input rewind (PC, `$v0`, `$f0`) | **Automatic**: Node `console-input.test.ts` (6 tests, including `$f0`), installed-build e2e "console input" | Pass |

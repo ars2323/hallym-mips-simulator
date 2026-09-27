@@ -25,20 +25,21 @@ test('first screen -> new file -> paste -> Ctrl+S -> errors -> fix -> Ctrl+S -> 
   const saved = path.join(r.dir, 'week1.s');
   await answerSave(app, saved);
   await page.keyboard.press('Control+s');
-  const item = page.locator('.errors .item');
+  const item = page.locator('.asm .item');
   await expect(item).toHaveCount(1);
   await expect(item.locator('.line')).toHaveText('3행');
   await expect(page.locator('.cm-error-line')).toHaveCount(1);
   await expect(page.locator('.titlebar .file')).toContainText('week1.s');
 
-  await page.locator('.errors').getByRole('button', { name: '3행으로 가기' }).click();
+  await page.locator('.asm').getByRole('button', { name: '3행으로 가기' }).click();
   await page.keyboard.press('Shift+End');
   await page.keyboard.insertText('  srl  $t1, $t0, 1');
   await page.keyboard.press('Control+s');
 
   await expect(page.locator('.run-grid')).toBeVisible();
   await expect(page.locator('.ptab.on')).toHaveText('Text');
-  await expect(page.locator('.errors')).toBeHidden();
+  await expect(page.locator('.asm')).toHaveAttribute('data-state', 'ok');
+  await expect(page.locator('.asm .item')).toHaveCount(0);
   await expect(page.locator('.trow .src', { hasText: 'srl  $t1, $t0, 1' })).toHaveCount(1);
 });
 
@@ -154,10 +155,11 @@ test('console input: the run waits, Enter goes on', async () => {
   await expect(input).toBeHidden();
 });
 
-test('the simulator process dies (.err): the window says so and goes on with a fresh one', async () => {
+test('the core ends on a .err directive: in the second process, which says so; the next file assembles', async () => {
   const { page } = r;
   await openAndAssemble(r, program(r.dir, 'err.s', '  .text\nmain:\n  .err\n'));
-  await expect(page.locator('.status .err')).toContainText('시뮬레이터가 중단되었습니다');
+  await expect(page.locator('.asm .item')).toContainText('시뮬레이터가 중단되었습니다');
+  await expect(page.locator('.status .err')).toContainText('오류 1개');
   await openAndAssemble(r, program(r.dir, 'ok.s', 'main:\n  li $t0, 7\n  li $v0, 10\n  syscall\n'));
   await page.keyboard.press('F5');
   await settled(page);

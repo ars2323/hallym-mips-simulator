@@ -15,6 +15,7 @@ const unwrap = (r) => {
 contextBridge.exposeInMainWorld('app', {
   call: (method, ...args) => ipcRenderer.invoke('sim:call', method, args).then(unwrap),
   stop: () => ipcRenderer.invoke('sim:stop').then(unwrap),
+  check: (source, options) => ipcRenderer.invoke('sim:check', source, options).then(unwrap),
   onConsole: (listener) => ipcRenderer.on('sim:console', (_e, text) => listener(text)),
   onProgress: (listener) => ipcRenderer.on('sim:progress', (_e, p) => listener(p)),
   onCrashed: (listener) => ipcRenderer.on('sim:crashed', (_e, message, detail) => listener(message, detail)),
