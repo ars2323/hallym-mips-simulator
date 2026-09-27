@@ -30,6 +30,26 @@
   !insertmacro MUI_PAGE_FINISH
 !macroend
 
+; The progress pages' words, and the uninstaller's.  NSIS's own Korean ones
+; put a particle after the program's name ("Hallym MIPS(을)를 설치하는 동안
+; ..."), which this program never does.  MUI_PAGE_HEADER_* apply to the next
+; page inserted: each macro below comes just before its page.
+!macro customPageAfterChangeDir
+  !define MUI_PAGE_HEADER_TEXT "설치하는 중"
+  !define MUI_PAGE_HEADER_SUBTEXT "잠시 기다려 주세요. 끝나면 바로 실행할 수 있습니다."
+!macroend
+
+; The uninstaller, like the installer: its progress, then its finish page --
+; no welcome page (this macro takes its place and inserts none).
+!macro customUnWelcomePage
+  !define MUI_PAGE_HEADER_TEXT "제거하는 중"
+  !define MUI_PAGE_HEADER_SUBTEXT "잠시 기다려 주세요."
+!macroend
+!macro customUninstallPage
+  !define MUI_FINISHPAGE_TITLE "제거가 끝났습니다"
+  !define MUI_FINISHPAGE_TEXT "Hallym MIPS 제거를 마쳤습니다.$\r$\n$\r$\n직접 저장한 .s 파일은 그대로 있습니다."
+!macroend
+
 ; electron-builder's installer keeps a copy of itself (the whole
 ; installer, over 100 MB) in %LOCALAPPDATA%\<name>-updater for electron-updater's
 ; differential updates.  This program has no auto-updater: remove the copy.

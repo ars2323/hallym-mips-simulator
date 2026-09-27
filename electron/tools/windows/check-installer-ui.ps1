@@ -11,10 +11,12 @@
     - 마침, with it ticked, starts the program
     - installed where /S installs: %LOCALAPPDATA%\Programs\Hallym MIPS, the
       Start menu's Hallym MIPS, the uninstall entry "Hallym MIPS <version>"
-  then uninstalls it (silently).  Pictures, in <Report>:
+  then uninstalls it with the uninstaller's pages (the progress, then "제거가
+  끝났습니다"), as Settings > Apps does.  Pictures, in <Report>:
     installer-progress.png  the progress page
     installer-finish.png    the finish page
     installer-started.png   the program 마침 started (its first screen)
+    uninstaller-finish.png  the uninstaller's finish page
 
   Usage (CI, with nothing of ours installed):
     check-installer-ui.ps1 -Setup s.exe -Report dir
@@ -53,6 +55,11 @@ public static class Ui {
   [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
   public static string Text(IntPtr h) { var s = new StringBuilder(1024); GetWindowText(h, s, s.Capacity); return s.ToString(); }
   public static string Class(IntPtr h) { var s = new StringBuilder(256); GetClassName(h, s, s.Capacity); return s.ToString(); }
+  public static IntPtr[] AllTops() {
+    var list = new List<IntPtr>();
+    EnumWindows((h, l) => { if (IsWindowVisible(h)) list.Add(h); return true; }, IntPtr.Zero);
+    return list.ToArray();
+  }
   public static IntPtr[] Tops(uint pid) {
     var list = new List<IntPtr>();
     EnumWindows((h, l) => { uint p; GetWindowThreadProcessId(h, out p); if (p == pid && IsWindowVisible(h)) list.Add(h); return true; }, IntPtr.Zero);
@@ -80,12 +87,15 @@ function Shot([IntPtr]$h, [string]$name) {
   $g.Dispose(); $bmp.Dispose()
   Note "picture: $name (${w}x${hgt})"
 }
-# The installer's window and what it shows now: which page, its controls.
-function Page([System.Diagnostics.Process]$p) {
-  $top = [Ui]::Tops([uint32]$p.Id) | Where-Object { [Ui]::Class($_) -eq '#32770' } | Select-Object -First 1
+# The installer's (or uninstaller's) window and what it shows now: which
+# page, its controls.  The uninstaller runs as a copy of itself from %TEMP%,
+# so it is found by its title, not by the process started.
+function Page($p, [string]$finishTitle = '설치가 완료되었습니다') {
+  $tops = if ($p -is [System.Diagnostics.Process]) { [Ui]::Tops([uint32]$p.Id) } else { [Ui]::AllTops() | Where-Object { [Ui]::Text($_) -like 'Hallym MIPS*' } }
+  $top = $tops | Where-Object { [Ui]::Class($_) -eq '#32770' } | Select-Object -First 1
   if (-not $top) { return $null }
   $controls = @([Ui]::Children($top) | ForEach-Object { [pscustomobject]@{ H = $_; Class = [Ui]::Class($_); Text = [Ui]::Text($_) } })
-  $kind = if ($controls | Where-Object { $_.Text -eq '설치가 완료되었습니다' }) { 'finish' }
+  $kind = if ($controls | Where-Object { $_.Text -eq $finishTitle }) { 'finish' }
           elseif ($controls | Where-Object { $_.Class -eq 'msctls_progress32' }) { 'progress' }
           else { 'other' }
   return [pscustomobject]@{ Top = $top; Kind = $kind; Controls = $controls; Title = [Ui]::Text($top) }
@@ -160,18 +170,48 @@ Check ($null -ne $entry) 'uninstall entry under HKCU (per user)'
 if ($entry) {
   Note "uninstall entry: $($entry.DisplayName) $($entry.DisplayVersion); $($entry.UninstallString)"
   Check ($entry.DisplayName -match '^Hallym MIPS 2\.\d+\.\d+$') "uninstall entry named ""$($entry.DisplayName)"""
-  Check ($entry.InstallLocation -eq "$env:LOCALAPPDATA\Programs\Hallym MIPS") "installed in $($entry.InstallLocation)"
+  # The uninstall key has no InstallLocation: the folder is the uninstaller's (as check-side-by-side.ps1 reads it).
+  $dir = $entry.InstallLocation
+  if (-not $dir) { $dir = Split-Path -Parent ($entry.UninstallString -replace '"', '' -replace ' /currentuser', '') }
+  Check ($dir -eq "$env:LOCALAPPDATA\Programs\Hallym MIPS") "installed in $dir"
+  Check (Test-Path (Join-Path $dir 'HallymMIPS.exe')) 'HallymMIPS.exe there'
   Check (Test-Path (Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Hallym MIPS.lnk')) 'Start menu: Hallym MIPS'
   Check (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Hallym MIPS.lnk'))) 'no desktop shortcut'
 
-  Write-Host '== uninstall (silent)'
-  $un = ($entry.QuietUninstallString, $entry.UninstallString | Where-Object { $_ } | Select-Object -First 1)
+  Write-Host '== uninstall, with its pages (as Settings > Apps runs it)'
+  $un = $entry.UninstallString
   $exe = [regex]::Match($un, '"([^"]+)"').Groups[1].Value
   $uargs = ($un -replace '"[^"]+"', '').Trim()
-  if ($uargs -notmatch '/S') { $uargs = "$uargs /S" }
-  $u = Start-Process $exe -ArgumentList $uargs -Wait -PassThru
+  $u = Start-Process $exe -ArgumentList $uargs -PassThru
+  $upages = New-Object System.Collections.Generic.List[string]
+  $ufinish = $null
+  $deadline = (Get-Date).AddMinutes(3)
+  while ((Get-Date) -lt $deadline) {
+    $page = Page 'uninstaller' '제거가 끝났습니다'
+    if ($page) {
+      if ($upages.Count -eq 0 -or $upages[$upages.Count - 1] -ne $page.Kind) {
+        $upages.Add($page.Kind)
+        Note "uninstaller page $($upages.Count): $($page.Kind) -- window ""$($page.Title)"": $(($page.Controls | Where-Object { $_.Text } | ForEach-Object { $_.Text }) -join ' | ')"
+      }
+      if ($page.Kind -eq 'finish') { $ufinish = $page; break }
+    }
+    Start-Sleep -Milliseconds 150
+  }
+  Check (($upages -join ',') -eq 'progress,finish') "the uninstaller's pages: $($upages -join ', ') (the progress, then the finish page)"
+  if ($ufinish) {
+    Start-Sleep -Milliseconds 500
+    $ufinish = Page 'uninstaller' '제거가 끝났습니다'
+    Shot $ufinish.Top 'uninstaller-finish.png'
+    $done = $ufinish.Controls | Where-Object { $_.Class -eq 'Button' -and $_.Text -like '마침*' } | Select-Object -First 1
+    if ($done) { [void][Ui]::SendMessage($done.H, $BM_CLICK, [IntPtr]0, [IntPtr]0) }
+  }
   Start-Sleep -Seconds 5
-  Check ($null -eq (Ours)) "uninstalled (exit $($u.ExitCode))"
+  Check ($null -eq (Ours)) 'uninstalled: the entry gone'
+  Check (-not (Test-Path (Join-Path $dir 'HallymMIPS.exe'))) 'uninstalled: the program gone'
+  if (Ours) {
+    # Leave the runner clean whatever happened above.
+    $q = Start-Process $exe -ArgumentList "$uargs /S" -Wait -PassThru
+  }
 }
 
 if ($script:failures -gt 0) { Write-Host "$($script:failures) failed"; exit 1 }

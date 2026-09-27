@@ -7,12 +7,19 @@ The example files and step counts are written inside the tool, so the same scene
 - Default: the whole window at 1280×800. No mouse cursor, tooltips or hover (the pointer is moved outside the window and `:hover` is checked to be 0).
   Focus is also cleared before capturing.
 - Size: whole window 400KB or less, crops 150KB or less. Metadata (ancillary PNG chunks) is stripped. No lossy compression. If a limit is exceeded, the tool stops.
+- The start screen is the exception: the university's video is behind it, and a PNG of a video frame is 500KB or more.
+  Those shots are JPEG (quality 85, 250KB or less). The video is stopped at a fixed second first, so every round takes the same picture.
 - The window buttons (minimize, maximize, close) are drawn by the system, so they are not in the page capture, and their place is empty. What they look like can be seen in `windows-frame.png`.
 
 | File | What | Capture conditions |
 |---|---|---|
-| `start.png` | Start screen: Haram (greeting) and the two paths (튜토리얼 보기 / 바로 시작, "View tutorial" / "Start now"), no toolbar | 1280×800, as started |
-| `start-2.png` | Start screen, second step: 새 파일 / 파일 열기 ("New file" / "Open file"), "← 처음으로" ("← Back to start") | 1280×800, 바로 시작 clicked |
+| `start.jpg` | Start screen: Haram (greeting) and the two paths (튜토리얼 보기 / 바로 시작, "View tutorial" / "Start now"), no toolbar; behind the card, the university's video under its blur and navy tint | 1280×800, as started, the video stopped at 4.2 s |
+| `start-2.jpg` | Start screen, second step: 새 파일 / 파일 열기 ("New file" / "Open file"), "← 처음으로" ("← Back to start"); the same video frame behind | 1280×800, 바로 시작 clicked |
+| `start-frame-1.jpg`, `start-frame-2.jpg`, `start-frame-3.jpg` | The start screen at three moments of the video: the city from the air, a campus building, a glass facade. The card is the same picture in all three | 1280×800, the video stopped at 0.5, 4.2 and 8.1 s |
+| `start-1093.jpg`, `start-2-1093.jpg` | The two steps on the lab PC | CSS 1093×582 at 1.25×, 4.2 s |
+| `start-1024.jpg`, `start-2-1024.jpg` | The two steps at 1024×768 | CSS 1024×728, 4.2 s |
+| `start-910.jpg`, `start-2-910.jpg` | The two steps at 1366×768 at 150% (the card loses its character only below 860 px) | CSS 910×505 at 1.5×, 4.2 s |
+| `start-1920.jpg`, `start-2-1920.jpg` | The two steps on a maximised 1920 screen | 1920×1040, 4.2 s |
 | `split-before.png` | Left/right split, before assembling: the right side shows the guide card (a notice: the words in the middle, the character at the far end) | 1280×800, `tests/samples/lab04-ok.s` only opened, as `lab04.s` |
 | `assembled.png` | Just assembled, before the first step: the toolbar's Save & Assemble; under the Editor the Assemble panel, one line ("어셈블했습니다 · 명령 30개 · 저장됨", its time in the head); the Inspector's word in the middle of its panel; the empty Console only as tall as its one-line word, Registers taking the rest, their head without a note; the status bar: F10 Step · F5 Run, 저장됨 | 1280×800, same file, Ctrl+S |
 | `split-running.png` | Left/right split, running: current line highlighted in Editor and Text, Inspector follows the PC; the yellow row named in the status bar, in its yellow ("방금 바뀜: `$t6`": at 1280 Registers have no room for the Changed tag) | 1280×800, same file, Ctrl+S then F10 16 times (PC `0x0040004c`, just changed `$t6`) |
@@ -43,13 +50,18 @@ The example files and step counts are written inside the tool, so the same scene
 | `windows-frame.png` | The installed build maximized on **real Windows** (Server 2025, the Windows 11 shell) at 1920×1080: the default layout as a student sees it — the app's bar, the system's window buttons, the taskbar | CI only (`electron.yml` at the repository root; the runner's screen set to 1920×1080 by `tools/windows/screen-1920.ps1`, 1024×768 if that fails — `report/screen.txt`). With the installed build, the same run as `split-running`, then maximized; whole screen (≤ 700 KB) |
 | `windows-frame-tutorial.png` | The same, with the tutorial on: the caption buttons' patch coloured with the dim (`#bdc5d4`), the buttons still there | CI only, like `windows-frame`; step 14, maximized; whole screen |
 
-`windows-frame.png` and `windows-frame-tutorial.png` are taken as is from `report/screens/` in the CI artifact `windows-report`. CI also takes
+| `installer-progress.png` | The installer (2.4.0 on), its first page: the progress, in Korean | CI only: `tools/windows/check-installer-ui.ps1`, the installer run with its pages (not `/S`) on the runner; the window alone |
+| `installer-finish.png` | Its finish page, the second and last: "설치가 완료되었습니다", "지금 실행하기" ticked, 마침 | CI only, the same run |
+| `installer-started.jpg` | What 마침 started: the installed program's start screen, its video playing (a live frame, not stopped) | CI only, the same run, 6 s after 마침; the window alone. The CI writes a PNG; it is committed as JPEG (quality 85), like the other start screens |
+
+`windows-frame.png` and `windows-frame-tutorial.png` are taken as is from `report/screens/` in the CI artifact `windows-report`,
+and the three `installer-*` pictures from its `report/installer/`. CI also takes
 the rest on Windows with the same tool and puts them in `report/screens/` (they are not committed here).
 
 Scenes added in a round are added to this table under names without a round marker.
 
 The user guide's three pictures are taken by the same tool, in the same run, and written to
-[`docs/usage/images/`](../../../docs/usage/images/) at the repository root: `01-start.png` (= `start.png`),
+[`docs/usage/images/`](../../../docs/usage/images/) at the repository root: `01-start.jpg` (= `start.jpg`),
 `02-tutorial-04.png` (= `tutorial-04.png`) and `03-panels.png` (the `split-running` scene with each part
 outlined and named: Toolbar, Editor, Assemble, Registers, Text · Data, Inspector, Console, Status bar — the names
 are drawn over the page for that picture only).
@@ -75,6 +87,24 @@ and what was done or why it waits. Open items stay until they are fixed.
    four words. Making room means giving up one of those earlier decisions, or a two-words-a-row
    Data layout for one band of widths; both are larger than this round. Below 971 px the window
    shows Editor and Run as tabs and Data fits; from 1035 px it fits.
+
+### Skipped tests: intended
+
+The e2e run at each width ends with some tests skipped. These skips are intended, not faults
+waiting for a fix.
+
+- **At 910×505, 88 tests, not 89.** `layout.e2e.ts` *splitter: drag to share the width, fold
+  either side away and back* skips itself when the window shows Editor and Run as tabs. Below
+  971 px there is no splitter to drag or fold: one side shows at a time. The tabs are what that
+  width has instead, and *narrow windows show one side at a time; 1093 wide (1366 at 125%) keeps
+  both* (`layout.e2e.ts`) and `fit.e2e.ts` at 910×505 test them. At the other widths the
+  splitter test runs.
+- **At every width, 2 skipped.** The two tests of `ime-real.e2e.ts` (*the editor: 한글 typed
+  with the Windows IME, Enter, then saved*, and *the Console: 한글 typed with the Windows IME into
+  syscall 8, Enter*) type through the real Microsoft Korean IME. That IME exists only on the
+  Windows runner, where the Windows job installs it (`tools/windows/korean-ime.ps1`) and runs
+  them against the installed app, with `SPIM_REAL_IME=1`. Elsewhere, `ime.e2e.ts` drives the
+  IME's events through CDP at every width.
 
 ### Closed in the 2.0.0 round
 

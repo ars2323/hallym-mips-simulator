@@ -138,7 +138,7 @@ two choices:
 - **바로 시작** (start right away) — then **새 파일** (new file) or **파일 열기**
   (open a file, Ctrl+O).
 
-![The start screen: Haram says hello, with two choices, 튜토리얼 보기 and 바로 시작](images/01-start.png)
+![The start screen: Haram says hello, with two choices, 튜토리얼 보기 and 바로 시작](images/01-start.jpg)
 
 ### The twenty-step tutorial
 

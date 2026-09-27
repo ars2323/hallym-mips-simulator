@@ -14,6 +14,12 @@
    the whole screen with the window maximised -- the caption buttons are the
    system's and a page capture has none.
 
+   The first screen has the university's video behind it: those shots stop
+   it at a fixed second (the same picture every round) and are JPEG -- as
+   PNG a video frame is 500 KB and more.  start-frame-1..3 are three
+   moments of it; start-<width> and start-2-<width> the two steps at the
+   other widths.
+
    The user guide's three pictures (docs/usage/usage.ko.md, usage.en.md)
    are taken with the set and written to docs/usage/images/: the start
    screen, tutorial step 4, and the running window with each part named
@@ -43,6 +49,8 @@ const TYPO = '        .text\n        .global main            # .globl\nmain:   l
 const MAX_BYTES = 400 * 1024;
 const MAX_SCREEN_BYTES = 700 * 1024; // a whole Windows screen, up to 1920x1080
 const MAX_CROP_BYTES = 150 * 1024;
+const MAX_PHOTO_BYTES = 250 * 1024; // a JPEG over the first screen's video
+const START_AT = 4.2;               // the video's second in start.jpg and the other widths' shots
 
 // PNG without its ancillary chunks: the signature, then IHDR, PLTE, tRNS,
 // IDAT and IEND only.  The pixels are untouched.
@@ -67,7 +75,7 @@ function written(name: string, max = MAX_BYTES): void {
   if (bytes > max) throw new Error(`${name}.png is ${bytes} bytes, over ${max}: crop it`);
 }
 
-async function shot(r: Running, name: string, clip?: { x: number; y: number; width: number; height: number }): Promise<void> {
+async function still(r: Running, name: string): Promise<void> {
   const { page } = r;
   await page.mouse.move(-10, -10); // out of the window: no hover, no tooltip
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
@@ -75,14 +83,36 @@ async function shot(r: Running, name: string, clip?: { x: number; y: number; wid
   await page.waitForTimeout(1100); // past the registers' flash
   const hovered = await page.evaluate(() => document.querySelectorAll(':hover').length);
   if (hovered) throw new Error(`${name}: ${hovered} elements still hovered`);
-  await page.screenshot({ path: path.join(out, `${name}.png`), clip });
+}
+async function shot(r: Running, name: string, clip?: { x: number; y: number; width: number; height: number }): Promise<void> {
+  await still(r, name);
+  await r.page.screenshot({ path: path.join(out, `${name}.png`), clip });
   written(name, clip ? MAX_CROP_BYTES : MAX_BYTES);
+}
+// Over the first screen's video: JPEG.
+async function photo(r: Running, name: string): Promise<void> {
+  await still(r, name);
+  const file = path.join(out, `${name}.jpg`);
+  await r.page.screenshot({ path: file, type: 'jpeg', quality: 85 });
+  const bytes = readFileSync(file).length;
+  console.log(`wrote ${path.relative(root, file)} (${Math.round(bytes / 1024)} KB)`);
+  if (bytes > MAX_PHOTO_BYTES) throw new Error(`${name}.jpg is ${bytes} bytes, over ${MAX_PHOTO_BYTES}`);
+}
+// The first screen's video, stopped at `t` seconds, that frame on screen.
+async function videoAt(r: Running, t: number): Promise<void> {
+  await r.page.waitForSelector('.wback.playing');
+  await r.page.evaluate((t) => new Promise<void>((done) => {
+    const v = document.querySelector('.wback video') as HTMLVideoElement;
+    v.pause();
+    v.addEventListener('seeked', () => requestAnimationFrame(() => requestAnimationFrame(() => done())), { once: true });
+    v.currentTime = t;
+  }), t);
 }
 
 // A shot of the set, also as one of the guide's pictures.
-function forGuide(from: string, name: string): void {
-  copyFileSync(path.join(out, `${from}.png`), path.join(guide, `${name}.png`));
-  console.log(`wrote ${path.relative(root, path.join(guide, `${name}.png`))} (= ${from}.png)`);
+function forGuide(from: string, name: string, ext = 'png'): void {
+  copyFileSync(path.join(out, `${from}.${ext}`), path.join(guide, `${name}.${ext}`));
+  console.log(`wrote ${path.relative(root, path.join(guide, `${name}.${ext}`))} (= ${from}.${ext})`);
 }
 
 // The running window with each part outlined and named, for the guide.
@@ -142,10 +172,12 @@ async function lab04(r: Running): Promise<void> {
 {
   const r = await launch({ width: 1280, height: 800 });
   const { page } = r;
-  await shot(r, 'start');
-  forGuide('start', '01-start');
+  for (const [n, t] of [[1, 0.5], [2, 4.2], [3, 8.1]]) { await videoAt(r, t); await photo(r, `start-frame-${n}`); }
+  await videoAt(r, START_AT);
+  await photo(r, 'start');
+  forGuide('start', '01-start', 'jpg');
   await page.getByRole('button', { name: /바로 시작/ }).click();
-  await shot(r, 'start-2');
+  await photo(r, 'start-2');
   await openOnly(r, sample(r.dir, LAB04, 'lab04.s'));
   await shot(r, 'split-before');
   await page.locator('.cm-content').click();
@@ -192,6 +224,22 @@ async function lab04(r: Running): Promise<void> {
   await page.locator('.ptab', { hasText: 'Data' }).click();
   await page.waitForSelector('.drow');
   await shot(r, 'data');
+  await r.close();
+}
+
+// The first screen's two steps at the other widths: the lab PC (1093x582
+// at 125%), 1024x768, 1366x768 at 150% (910x505) and the maximised 1920.
+for (const [name, size, scale] of [
+  ['1093', { width: 1093, height: 582 }, '1.25'],
+  ['1024', { width: 1024, height: 728 }, '1'],
+  ['910', { width: 910, height: 505 }, '1.5'],
+  ['1920', { width: 1920, height: 1040 }, '1'],
+] as const) {
+  const r = await launch(size, { switches: [`--force-device-scale-factor=${scale}`] });
+  await videoAt(r, START_AT);
+  await photo(r, `start-${name}`);
+  await r.page.getByRole('button', { name: /바로 시작/ }).click();
+  await photo(r, `start-2-${name}`);
   await r.close();
 }
 

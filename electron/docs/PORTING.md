@@ -1291,3 +1291,97 @@ whole (its corners and middle not dimmed), dark exactly outside the lit areas (a
 on every target, a spot of each lit area off the targets refusing the click, the card off the boxes (and off the lit
 panels from 1093 on). Step 19 points at the Assemble panel now; the steps on the Editor (1, 5, 12, 14, 18) bring their
 lines into the shorter Editor as before.
+
+## 26. The first screen's video; the executable image (.hmx); the installer's finish page
+
+Three changes, released together in 2.4.0.
+
+### The first screen's video
+
+The first screen shows 12 seconds of the university's promotional video behind its card. The source is "[Official Video] 한림대학교 홍보영상｜The New Hallym 대학의 내일을 열다", from the official channel @HALLYMNEWS. It plays without sound and loops.
+
+**The file** is `src/renderer/assets/hallym/start/start.webm`, made by `tools/start-video.ts`:
+- only the video track was fetched (yt-dlp, 1080p VP9);
+- it holds 0:00–0:12 at 960×540, 30 fps, VP9 in WebM (CRF 40), 1,584,476 bytes;
+- there is no sound track at all (`-an`), and `tests/renderer/start-clip.test.ts` reads the WebM's track list to check this.
+
+**The seam.** The clip's last 0.8 s show the source's last 0.8 s crossfading into its first, and the clip starts where that fade ends. So the clip is 11.2 s long, and its last frame leads into its first as any two neighbouring frames do (PSNR 23.6 dB across the seam, against 10.8 dB for a plain cut from 12 s back to 0 s). The `loop` attribute does the rest. The still `start.jpg` (114,708 bytes) is the clip's first frame.
+
+**On screen** (`src/renderer/app/panels/backdrop.ts`):
+- The still is there at once, and the clip fades in over it (0.6 s) once it plays. The window never waits for the video.
+- Under `prefers-reduced-motion`, only the still is shown and the clip is not even loaded; a change of the setting takes effect at once.
+- If the clip cannot play (an `error` event, or `play()` refused), both the still and the clip go, leaving the brand's navy. There is no message, and it is never white.
+- Off the first screen the clip is unloaded, not only paused. It comes back with the first screen, as after a tutorial started from it.
+- It is one element for both steps of the first screen, and a step changes only the card's buttons, so the video runs on from one step to the other.
+- The page's CSP gained `media-src 'self'`: only the app's own file is played. Nothing is fetched while it plays.
+
+**Readable.** The video is blurred (3 px) and slightly desaturated, under a navy tint: 78 % behind the card, 50 % at the edges. The card stays opaque white with a soft shadow. Haram stands on the card's white, never on the video (assets README, "How this program keeps them"). `tests/e2e/start.e2e.ts` checks at three moments of the video that:
+- the card's pixels do not change while the ground's do;
+- the ground's luminance stays under 0.4, and the card's over 0.85.
+
+**To use another video**, such as the university's own master, run `node tools/start-video.ts <file>`. It rewrites the clip and its still. The blur and the tint are CSS, so nothing else changes (`docs/ARCHITECTURE.md`). NOTICE section 8 names the video with the marks and characters.
+
+### The executable image (.hmx)
+
+Hallym Circuit Studio (on Logisim 2.7.1) runs MIPS programs on CPUs the students build. Instead of an assembler of its own, it loads what Hallym MIPS assembled: an **executable image**. It is not an object file, since nothing is left to relocate or link. The format is `docs/hmx-format.md`, the reference, version 1. The icon **Export executable image (.hmx)** is in the title bar's right-hand group; the toolbar on the left is unchanged.
+
+Every value comes from a core. `src/sim/image.ts` reads it from the second process (the one that checks assembles, §25), right after assembling the program there. Nothing is taken from the machine on screen, which may have run, and nothing is assumed:
+- `entry` is `main`'s address from the symbol table;
+- `$sp` and `$gp` are the registers as assembling left them;
+- `endian` is the order in which the word at `$sp` (`argc`) lies in memory;
+- `.text` is the user text segment from its first to its last instruction, the start-up code included;
+- the data range is what the assembler filled. The addon's `assemble` now reports it (`data: { start, end }`: `next_data_pc` before the handler and after the program; `native/src/addon.cc`).
+
+Four decisions:
+
+1. **The Editor changed since the last assemble: the image is of the last assembled program.** That is the program Run and Step use (§25), and `source-sha256` is its source's hash. The button stays usable, and the status bar says "마지막으로 어셈블한 코드를 실행 이미지로 저장했습니다". Refusing would send the student to assemble code that may not assemble yet. Exporting the Editor's text would give an image of a program nobody has run, whose words the Text panel does not show.
+2. **Labels are the program's own**, global or local, in its text or data. Left out are:
+   - the exception handler's labels (`__start`, `__eoth`, its kernel labels), found by assembling the handler alone with an empty program;
+   - labels in the kernel segments.
+
+   They are sorted by address, then name. Without the handler, a program's own `__start` is its own label, and is listed.
+3. **`.data` runs from where the assembler put the first datum to where it would put the next**, so a trailing `.space` is included. It is widened to any other byte that is not zero (data put elsewhere by `.data <addr>`), and there is none when that is empty. The `$gp` area below it and the kernel's data are left out unless the program wrote there. Runs of 16 zero bytes or more are written `zero <count>`. So the file is small, and a reader can still tell how big the program's data is.
+4. **The dialog** is the system's save dialog, titled "Export executable image (.hmx)", with the filter `.hmx`. It offers `<name>.hmx` in the source's folder (an unsaved program: `untitled.hmx` in the dialog's own default folder). The image is made before the dialog opens. A program that cannot give one (no `main`) gets a status-bar line instead of a dialog.
+
+`source-sha256` is taken over the source as its file holds it: its encoding, BOM and line ends, through the same `encodeTextFile` that saves it. A file saved by the assemble (Ctrl+S) therefore has exactly this `sha256sum`.
+
+**Tests.**
+- `tests/hmx/` holds seven pairs of `.s` and `.hmx`, the golden images:
+  - branches;
+  - `.data` through `la`/`lw`;
+  - `main` after a function;
+  - pseudo-instructions;
+  - no `.data`;
+  - a 4096-byte `.space` gap and a trailing `.space`;
+  - without the exception handler.
+- `tests/sim/hmx.test.ts` makes each image again and compares it with its golden, all but the `assembled` time and the version in `produced-by`. It reads each golden back with a strict reader (`tests/helpers/hmx-read.ts`) against a fresh core, word by word and byte by byte. It also checks that the same program gives the same image, that the reader refuses a later version and a wrong count, and that the example in `docs/hmx-format.md` is the `data` case.
+- `tests/e2e/export.e2e.ts` exports from the window and checks:
+  - the file is the golden;
+  - its words are the Text panel's, address for address;
+  - after an edit it is still the assembled program, with that program's hash.
+- The settings test's program without the handler exports `entry 0x00400000` (with the handler, `main` is at `0x00400024`, after the start-up code).
+- Nine mutants cover the image: a wrong address, a wrong count, the byte order reversed, the Editor's text exported, the start-up code left out, the handler's labels listed, a fixed entry, a trailing `.space` dropped, and Export before an assemble.
+
+**The title bar** carries a fifth icon. In its tightest step (§21) the icon buttons are 20 px wide with no gap, so a long file name still keeps 10 columns at 910 px beside the program's name.
+
+### The installer: the progress, then the finish page
+
+2.0.0–2.3.0 used electron-builder's one-click installer: a progress window that closed, and the program did not start. From 2.4.0 it is the assisted installer (`oneClick: false`), in Korean (`installerLanguages: ['ko_KR']`), and it has two pages:
+1. the progress;
+2. **설치가 완료되었습니다**, with **지금 실행하기** ticked and 마침 (`packaging/installer.nsh`, `customFinishPage`).
+
+Nothing else is asked:
+- the folder cannot be chosen (`allowToChangeInstallationDirectory: false`);
+- the "for all users / only for me" page is answered before it shows (`customInstallMode` forces the current user), since all users would need an administrator.
+
+It installs per user, as before, into `%LOCALAPPDATA%\Programs\Hallym MIPS`. The uninstall entry ("Hallym MIPS <version>", under HKCU, the same key) and the Start menu's "Hallym MIPS" are unchanged. `/S` still installs silently and starts nothing, so the CI's silent install, the side-by-side check with 1.2.4 and the upgrade over 2.3.0 run as they did.
+
+`tools/windows/check-installer-ui.ps1` runs the installer on the Windows runner as a student does, with its pages. It checks that:
+- there are exactly two pages;
+- the finish page has its title and the ticked checkbox;
+- 마침 starts the program;
+- the program went where `/S` puts it.
+
+It pictures the progress page, the finish page and the started program, then uninstalls it.
+
+On Linux, electron-builder needs wine to make the uninstaller. To compile the installer script without it (to catch NSIS errors before CI), point `isMacOsCatalina()` at its pure-JavaScript uninstaller reader. This is a scratch-build trick, not part of `tools/package.ts`.
