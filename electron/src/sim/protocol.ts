@@ -29,7 +29,7 @@ export interface RunResult {
    consistent machine. */
 export interface Calls {
   assemble: [[source: Uint8Array | string, options?: AssembleOptions],
-             { ok: boolean; errors: string[]; symbols: string; format: unknown }];
+             { ok: boolean; errors: string[]; symbols: string; format: unknown; data: import('../../native/index.ts').DataRange }];
   run: [[], RunResult];
   step: [[count?: number], RunResult];
   stop: [[], { wasRunning: boolean }];

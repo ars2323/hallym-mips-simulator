@@ -211,8 +211,13 @@ static void readAssemblyBytes(const std::string &bytes, const std::string &name,
 // there are repeated here.  Its closing initialize_scanner(stdin) is repeated
 // too; its delete_all_breakpoints() is static to the core, and the handler
 // load adds no breakpoints for it to delete.
+// Where the user data segment's first datum goes, as initialize_world()
+// leaves it (before the handler, whose user data belongs to the program too).
+static mem_addr userDataStart;
+
 static void initializeWorld(const std::string &handler) {
   initialize_world(NULL, false);
+  userDataStart = current_data_pc();  // the user segment: initialize_world() leaves data there
 
   // No handler: nothing to read (flex cannot scan an empty buffer, and
   // QtSpim with "Load exception handler" unticked reads no file either).
@@ -297,7 +302,10 @@ static Napi::Value throwType(Napi::Env env, const char *usage) {
 //                    quiet }: QtSpim's Settings, each defaulting to QtSpim's
 //                    default.  The bare machine is never on (QtSpim/menu.cpp
 //                    sim_Settings, "EDU": this course does not use it).
-// -> { ok, errors: string[], symbols: string }
+// -> { ok, errors: string[], symbols: string, data: { start, end } }
+//   data  the user data segment the assembler filled: from where its first
+//         datum went to where the next would go (a trailing .space
+//         included).  For the executable image (src/sim/image.ts).
 //
 // What QtSpim's load does: reinitialize (world + handler), build the stack,
 // read the file.
@@ -342,6 +350,12 @@ static Napi::Value Assemble(const Napi::CallbackInfo &info) {
   initializeStack();
   std::string symbols;
   readAssemblyBytes(bytesOf(info[0]), bytesOf(info[4]), &symbols);
+  // The next datum's address in the user segment.  current_data_pc() answers
+  // for the segment the last .data / .kdata chose (the handler ends in
+  // .kdata), so choose the user's; nothing reads the choice after the file
+  // has been read, and the next assemble starts it over.
+  user_kernel_data_segment(false);
+  mem_addr userDataEnd = current_data_pc();
 
   Napi::Array list = Napi::Array::New(env, errors.size());
   for (size_t i = 0; i < errors.size(); i++) list[i] = stringOf(env, errors[i]);
@@ -349,6 +363,10 @@ static Napi::Value Assemble(const Napi::CallbackInfo &info) {
   result["ok"] = !parse_error_occurred && handler_errors == 0;
   result["errors"] = list;
   result["symbols"] = stringOf(env, symbols);
+  Napi::Object data = Napi::Object::New(env);
+  data["start"] = Napi::Number::New(env, userDataStart);
+  data["end"] = Napi::Number::New(env, userDataEnd);
+  result["data"] = data;
   return result;
 }
 

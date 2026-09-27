@@ -1,0 +1,17 @@
+HALLYM-EXEC 1
+source        no-handler.s
+source-sha256 5454e2ecb0d1c575005f693dad9eb67df9dd14b9abe89f2d4ab940c8939f91b5
+produced-by   Hallym MIPS 2.3.0
+assembled     2026-09-27T19:05+09:00
+endian        little
+
+entry         0x00400000
+reg $sp       0x7fffffe4
+reg $gp       0x10008000
+
+symbol __start 0x00400000
+
+.text 0x00400000 words 3
+34080009
+3402000a
+0000000c

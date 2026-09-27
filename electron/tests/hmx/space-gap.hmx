@@ -1,0 +1,41 @@
+HALLYM-EXEC 1
+source        space-gap.s
+source-sha256 0390a4129caa5eb61ccf602e52e1b0737fbef39db43cab9c33d4354bfad52a4e
+produced-by   Hallym MIPS 2.3.0
+assembled     2026-09-27T19:05+09:00
+endian        little
+
+entry         0x00400024
+reg $sp       0x7fffffe4
+reg $gp       0x10008000
+
+symbol main   0x00400024
+symbol first  0x10010000
+symbol buffer 0x10010004
+symbol last   0x10011004
+symbol tail   0x10011008
+
+.text 0x00400000 words 17
+8fa40000
+27a50004
+24a60004
+00041080
+00c23021
+0c100009
+00000000
+3402000a
+0000000c
+3c011001
+34280004
+3409007f
+a1090000
+3c011001
+8c2a1004
+3402000a
+0000000c
+
+.data 0x10010000 bytes 4168
+11 11 11 11
+zero 4096
+22 22 22 22
+zero 64

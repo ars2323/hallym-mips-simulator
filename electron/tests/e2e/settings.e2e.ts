@@ -8,6 +8,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, statSync } from 'no
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
+import { readHmx } from '../helpers/hmx-read.ts';
 import { launch, openAndAssemble, program, regHex, root, sample, settled, side, statusText } from './harness.ts';
 
 const VERSION = (JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')) as { version: string }).version;
@@ -133,6 +134,17 @@ test('no exception handler: the program brings its own __start', async () => {
     await dialog.getByRole('button', { name: 'Close' }).click();
     await openAndAssemble(r, program(r.dir, 'start.s', '  .globl __start\n__start:\n  li $t0, 9\n  li $v0, 10\n  syscall\n'));
     await expect(page.locator('.textpanel .fold')).toBeHidden(); // no kernel text to fold
+    // Its executable image: no start-up code, so the entry is the program's
+    // own __start at the text's first word (with the handler, main comes
+    // after the start-up code: export.e2e.ts, 0x00400024).
+    const out = path.join(r.dir, 'start.hmx');
+    await r.app.evaluate(({ dialog }, f) => { dialog.showSaveDialog = (async () => ({ canceled: false, filePath: f })) as typeof dialog.showSaveDialog; }, out);
+    await page.getByTitle('Export executable image (.hmx)').click();
+    await expect(page.locator('.status')).toContainText('실행 이미지로 저장했습니다');
+    const image = readHmx(readFileSync(out, 'utf8'));
+    expect(image.entry).toBe(0x00400000);
+    expect(image.text).toEqual({ addr: 0x00400000, words: [0x34080009, 0x3402000a, 0x0000000c] });
+    expect(image.symbols).toEqual([{ name: '__start', addr: 0x00400000 }]);
     await page.keyboard.press('F5');
     await settled(page);
     expect(await regHex(page, '$t0')).toBe('0x00000009');

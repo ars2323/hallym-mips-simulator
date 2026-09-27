@@ -19,13 +19,16 @@
 
 import { app, BrowserWindow, dialog, ipcMain, Menu, screen, shell } from 'electron';
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
 import { decodeTextFile, encodeTextFile, NEW_FILE_FORMAT, type TextFileFormat } from '../node/text-file.ts';
 import { LICENSES, paths, version } from './paths.ts';
+import { formatHmx, hmxTime } from '../core/hmx.ts';
 import { Simulator, SimulatorCrashed } from '../sim/host.ts';
+import { ImageError, readImage } from '../sim/image.ts';
 import type { CallName, Calls } from '../sim/protocol.ts';
 
 type AssembleOptions = Calls['assemble'][0][1];
@@ -83,6 +86,16 @@ function setSettings(s: Partial<Settings>): Settings {
 
 // ---- files ------------------------------------------------------------------
 
+// What the window asks an export for: the program it last assembled, as it was then.
+export interface ImageJob {
+  source: string;
+  options: AssembleOptions;
+  name: string;                       // the file's name then ("untitled.s" if never saved)
+  path: string | null;                // where it was; the .hmx is offered next to it
+  format: TextFileFormat | null;      // how that file is written (null: a new file's)
+  assembled: number;                  // when, in ms since the epoch
+}
+
 export interface OpenedFile {
   name: string;
   path: string | null;
@@ -117,6 +130,13 @@ async function main(): Promise<void> {
   // again, and the call that crashed it answers SimulatorCrashed.
   const checker = Simulator.start({ transport: () => utilityTransport() });
   checker.catch(() => {}); // not started: the window assembles as before (app.ts assemble)
+  // One job at a time there: an export assembles twice and reads in between.
+  let checkerTurn: Promise<unknown> = Promise.resolve();
+  const onChecker = <T>(job: (c: Simulator) => Promise<T>): Promise<T> => {
+    const turn = checkerTurn.then(async () => job(await checker));
+    checkerTurn = turn.catch(() => {});
+    return turn;
+  };
 
   // The window starts at a fixed size -- or fills the screen when the screen
   // is smaller (a lab PC: 1366x768 at 125% leaves about 1093x582) -- and
@@ -155,9 +175,9 @@ async function main(): Promise<void> {
   // cross into the page): { ok: false, crashed: what the core said }.
   ipcMain.handle('sim:check', (_e, source: string, options: AssembleOptions) => answer(async () => {
     try {
-      return await (await checker).assemble(source, options);
+      return await onChecker((c) => c.assemble(source, options));
     } catch (e) {
-      if (e instanceof SimulatorCrashed) return { ok: false, errors: [], symbols: '', format: null, crashed: e.message };
+      if (e instanceof SimulatorCrashed) return { ok: false, errors: [], symbols: '', format: null, data: { start: 0, end: 0 }, crashed: e.message };
       throw e;
     }
   }));
@@ -184,6 +204,36 @@ async function main(): Promise<void> {
       writeFileSync(target, encoded.bytes);
       return { path: target, name: path.basename(target) };
     }));
+  // The executable image (.hmx, docs/hmx-format.md) of the program last
+  // assembled -- not of the Editor's text if it changed since: the source,
+  // its options and its file as they were then.  Read in the second
+  // process; the machine on screen is not touched.  The hash is of the
+  // source as its file holds it (its encoding, BOM and line ends): for a
+  // file saved when it was assembled, the file's own SHA-256.
+  ipcMain.handle('file:exportImage', (_e, job: ImageJob) => answer(async () => {
+    let machine;
+    try {
+      machine = await onChecker((c) => readImage((m, ...a) => c.call(m, ...a), job.source, job.options));
+    } catch (e) {
+      if (e instanceof ImageError) return { error: e.message };
+      if (e instanceof SimulatorCrashed) return { error: '실행 이미지를 만드는 중에 시뮬레이터가 멈췄습니다' };
+      throw e;
+    }
+    const encoded = encodeTextFile(job.source, job.format ?? NEW_FILE_FORMAT);
+    const bytes = encoded.ok ? encoded.bytes : new TextEncoder().encode(job.source);
+    const text = formatHmx({
+      ...machine, source: job.name, sourceSha256: createHash('sha256').update(bytes).digest('hex'),
+      producedBy: `Hallym MIPS ${version}`, assembled: hmxTime(new Date(job.assembled)),
+    });
+    const name = `${job.name.replace(/\.(s|asm)$/i, '')}.hmx`;
+    const r = await dialog.showSaveDialog(win, {
+      title: 'Export executable image (.hmx)', defaultPath: job.path ? path.join(path.dirname(job.path), name) : name,
+      filters: [{ name: 'Hallym executable image', extensions: ['hmx'] }],
+    });
+    if (r.canceled || !r.filePath) return null;
+    writeFileSync(r.filePath, text);
+    return { path: r.filePath, name: path.basename(r.filePath) };
+  }));
   ipcMain.handle('example:open', (_e, name: string) => answer(() => {
     if (!/^[a-z0-9-]+\.s$/.test(name)) throw new Error(`no example ${name}`);
     return openBytes(readFileSync(path.join(paths.examples, name)), name, null);

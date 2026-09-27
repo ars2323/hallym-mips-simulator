@@ -80,7 +80,8 @@ let settings: Settings = { fontSize: 13, dataBase: 16 };
 let zoom = 0;                          // Ctrl+/-: this session only
 let assembledText: string | null = null; // the program the machine holds
 // The last program that assembled and how (Reset loads it again, also after a crash).
-let lastGood: { source: string; options: ReturnType<typeof assembleOptions> } | null = null;
+// The program on the machine, as it was assembled: Reset reloads it, Export writes its image.
+let lastGood: { source: string; options: ReturnType<typeof assembleOptions>; name: string; path: string | null; format: TextFileFormat | null } | null = null;
 let lastAssembly: { at: Date; instructions: number } | null = null; // for the Assemble panel
 let runState: RunState = 'ready';
 let busy = false;                      // a call is on its way; keys wait
@@ -96,6 +97,7 @@ let errors: { message: AssemblerMessage; line: number }[] = [];
 let saveNote = '';     // what Ctrl+S did with the file: shown until the first step
 let saveWarn = false;  // ...and whether it is a warning (not saved)
 let note = '';                          // a one-off word in the status bar (breakpoints)
+let exportNote = '';                    // the same, for an export that went well
 let crashNote = '';
 let progress: { pc: number; instructions: number } | null = null;
 let lastReason: RunResult['reason'] = 'limit';
@@ -144,6 +146,8 @@ speedOne.addEventListener('click', () => void setSpeed(speed === 'fast' ? 'slow'
 const speedBox = h('span', { class: 'speedbox' }, h('span', { class: 'speedlabel' }, 'Run speed'), speedSwitch, speedOne);
 const toolbar = h('span', { class: 'toolbar' }, bAssemble, bRun, speedBox, bStep, bRestart);
 const bSettings = iconButton('Settings', 'settings', () => settingsBox.open());
+// The assembled program as an executable image (.hmx, docs/hmx-format.md), for Hallym Circuit Studio.
+const bExport = iconButton('Export executable image (.hmx)', 'file-output', () => void exportImage());
 const viewEditor = h('button', { type: 'button', role: 'tab' }, 'Editor');
 const viewRun = h('button', { type: 'button', role: 'tab' }, 'Run');
 viewEditor.addEventListener('click', () => showView('editor'));
@@ -161,6 +165,7 @@ const titlebar = h('header', { class: 'titlebar' },
     iconButton('Tutorial', 'circle-question-mark', () => void startTutorial()),
     iconButton('New file', 'file-plus', () => void newFile()),
     iconButton('Open file (Ctrl+O)', 'folder-open', () => void openFile()),
+    bExport,
     bSettings));
 const status = h('footer', { class: 'status' });
 
@@ -543,6 +548,8 @@ function renderChrome(): void {
   setBtn(bRun, open && (running || (runState !== 'finished' && runState !== 'input')), running);
   setBtn(bStep, open && !running && runState !== 'finished', current() && !running);
   setBtn(bRestart, lastGood !== null && !busy, false);
+  bExport.hidden = !open;
+  bExport.disabled = lastGood === null || busy;
   speedFast.classList.toggle('on', speed === 'fast');
   speedSlow.classList.toggle('on', speed === 'slow');
   speedFast.setAttribute('aria-checked', String(speed === 'fast'));
@@ -662,12 +669,28 @@ function renderStatus(): void {
     else if (!sameAdvanced(advanced, applied)) parts.push(span('warn', '설정이 바뀌었습니다 — 다시 어셈블하면(Ctrl+S) 적용됩니다'));
   }
   if (note) parts.push(span('warn', note));
+  else if (exportNote) parts.push(span('ok', exportNote));
   status.replaceChildren(...parts);
 }
 const stopMessageFor = (reason: RunResult['reason'], pc: string) =>
   reason === 'exit' ? '프로그램이 끝났습니다 — 다시 하려면 Reset' : reason === 'error' ? '실행 오류로 멈췄습니다 — 콘솔을 보세요' : stopMessage(reason, pc);
 
 // ---- files -------------------------------------------------------------------------
+
+// The program on the machine -- the last assembled, which Run and Step go
+// on with -- as an executable image, even when the Editor has changed since
+// (then the note says so).  Its source-sha256 is of that program's source.
+async function exportImage(): Promise<void> {
+  if (lastGood === null || busy) return;
+  const good = lastGood;
+  const changed = editor.text() !== good.source;
+  const r = await api.exportImage({ source: good.source, options: good.options, name: good.name, path: good.path, format: good.format,
+                                    assembled: (lastAssembly?.at ?? new Date()).getTime() }).catch((e: Error) => ({ error: e.message }));
+  if (r === null) return;
+  if ('error' in r) note = r.error;
+  else { note = ''; exportNote = `${changed ? '마지막으로 어셈블한 코드를 ' : ''}실행 이미지로 저장했습니다 — ${r.name}`; }
+  renderStatus();
+}
 
 // Before another file takes the Editor's place.  Unsaved changes are always
 // asked about; a new file is asked about even when everything is saved --
@@ -876,6 +899,7 @@ async function assemble(source: string): Promise<boolean> {
   busy = true;
   let after: Signal | null = null;
   note = '';
+  exportNote = '';
   congrats.hidden = true;
   const options = assembleOptions(advanced);
   const lines = source.split('\n');
@@ -938,7 +962,7 @@ async function assemble(source: string): Promise<boolean> {
     for (const x of rows) x.breakpoint = breakpoints.has(x.addr);
     assembledText = source;
     edited = editor.text() !== source; // typed on while it assembled
-    lastGood = { source, options };
+    lastGood = { source, options, name: file.name, path: file.path, format: file.format };
     lastAssembly = { at: new Date(), instructions: rows.filter((x) => !x.kernel).length };
     editor.showErrors([]);
     labels.clear();
@@ -1069,6 +1093,7 @@ async function step(): Promise<void> {
 async function go(call: () => Promise<RunResult>): Promise<RunResult | null> {
   busy = true;
   note = '';
+  exportNote = '';
   congrats.hidden = true;
   const before = lastRegs;
   let result: RunResult;
@@ -1175,6 +1200,7 @@ async function restart(): Promise<void> {
   const good = lastGood;
   busy = true;
   note = '';
+  exportNote = '';
   congrats.hidden = true;
   [saveNote, saveWarn] = ['', false]; // Reset saves nothing
   try {

@@ -1,0 +1,40 @@
+HALLYM-EXEC 1
+source        branches.s
+source-sha256 d5837bbdbb733b04231adb7cb60deafbdadc4878e44830ac31144d521a97f0ac
+produced-by   Hallym MIPS 2.3.0
+assembled     2026-09-27T19:05+09:00
+endian        little
+
+entry         0x00400024
+reg $sp       0x7fffffe4
+reg $gp       0x10008000
+
+symbol main   0x00400024
+symbol loop   0x00400030
+symbol done   0x00400040
+symbol double 0x00400054
+
+.text 0x00400000 words 23
+8fa40000
+27a50004
+24a60004
+00041080
+00c23021
+0c100009
+00000000
+3402000a
+0000000c
+34080000
+34090001
+340a0006
+112a0004
+01094020
+21290001
+0810000c
+00082021
+0c100015
+00028021
+3402000a
+0000000c
+00841020
+03e00008

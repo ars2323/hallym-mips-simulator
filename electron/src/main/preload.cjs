@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('app', {
   onCrashed: (listener) => ipcRenderer.on('sim:crashed', (_e, message, detail) => listener(message, detail)),
   openFile: () => ipcRenderer.invoke('file:open').then(unwrap),
   saveFile: (file) => ipcRenderer.invoke('file:save', file).then(unwrap),
+  exportImage: (job) => ipcRenderer.invoke('file:exportImage', job).then(unwrap),
   openExample: (name) => ipcRenderer.invoke('example:open', name).then(unwrap),
   openHandler: () => ipcRenderer.invoke('file:openHandler').then(unwrap),
   about: () => ipcRenderer.invoke('about:info'),

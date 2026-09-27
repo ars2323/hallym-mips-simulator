@@ -463,6 +463,25 @@ const MUTANTS: Mutant[] = [
   { module: 'first screen', file: 'src/renderer/app/app.css', what: 'the card see-through',
     find: '  background: var(--white); border: 1px solid var(--border); border-radius: 14px; padding: 36px 40px;',
     replace: '  background: rgba(255,255,255,.82); border: 1px solid var(--border); border-radius: 14px; padding: 36px 40px;', tests: ['tests/e2e/start.e2e.ts'] },
+  // ---- the executable image (.hmx: src/core/hmx.ts, src/sim/image.ts)
+  { module: 'hmx', file: 'src/core/hmx.ts', what: '.text written at the wrong address',
+    find: 'lines.push(`.text ${hex32(text.addr)} words', replace: 'lines.push(`.text ${hex32(text.addr + 4)} words', tests: ['tests/sim/hmx.test.ts'] },
+  { module: 'hmx', file: 'src/core/hmx.ts', what: '.data with the wrong count',
+    find: 'bytes ${data.bytes.length}`', replace: 'bytes ${data.bytes.length - 1}`', tests: ['tests/sim/hmx.test.ts'] },
+  { module: 'hmx', file: 'src/sim/image.ts', what: 'the byte order the other way round',
+    find: "endian: little ? 'little' : 'big',", replace: "endian: little ? 'big' : 'little',", tests: ['tests/sim/hmx.test.ts'] },
+  { module: 'hmx', file: 'src/renderer/app/app.ts', what: "the hash (and image) of the Editor's text, not of the assembled program",
+    find: 'api.exportImage({ source: good.source,', replace: 'api.exportImage({ source: editor.text(),', tests: ['tests/e2e/export.e2e.ts'] },
+  { module: 'hmx', file: 'src/sim/image.ts', what: 'the start-up code left out of .text',
+    find: '.filter((w) => w.addr >= seg.textBot && w.addr < seg.textTop);', replace: '.filter((w) => w.addr >= seg.textBot + 0x24 && w.addr < seg.textTop);', tests: ['tests/sim/hmx.test.ts'] },
+  { module: 'hmx', file: 'src/sim/image.ts', what: "the handler's labels listed as the program's",
+    find: 'const own = listed.filter((s) => !handlerNames.has(s.name) &&', replace: 'const own = listed.filter((s) =>', tests: ['tests/sim/hmx.test.ts'] },
+  { module: 'hmx', file: 'src/sim/image.ts', what: 'entry written as 0x00400024 whatever the program',
+    find: 'entry: main.address >>> 0,', replace: 'entry: 0x00400024,', tests: ['tests/sim/hmx.test.ts', 'tests/e2e/settings.e2e.ts'] },
+  { module: 'hmx', file: 'src/sim/image.ts', what: 'a trailing .space left out of .data',
+    find: 'let lo = r.data.start, hi = r.data.end;', replace: 'let lo = r.data.start, hi = r.data.start;', tests: ['tests/sim/hmx.test.ts'] },
+  { module: 'hmx', file: 'src/renderer/app/app.ts', what: 'Export before anything is assembled',
+    find: '  bExport.disabled = lastGood === null || busy;', replace: '  bExport.disabled = busy;', tests: ['tests/e2e/export.e2e.ts'] },
 ];
 
 function copyTree(dir: string, linkBuild: boolean): void {

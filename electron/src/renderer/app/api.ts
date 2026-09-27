@@ -1,6 +1,6 @@
 /* window.app, as src/main/preload.cjs exposes it. */
 
-import type { OpenedFile, Settings } from '../../main/main.ts';
+import type { ImageJob, OpenedFile, Settings } from '../../main/main.ts';
 import type { TextFileFormat } from '../../node/text-file.ts';
 import type { CallName, Calls } from '../../sim/protocol.ts';
 
@@ -16,6 +16,9 @@ export interface AppApi {
   openFile(): Promise<OpenedFile | null>;
   saveFile(file: { path: string | null; name: string; text: string; format: TextFileFormat | null }):
     Promise<{ path: string; name: string } | null>;
+  // The last assembled program as an executable image (.hmx): the save
+  // dialog, then the file.  null: cancelled; { error }: no image (why, for the student).
+  exportImage(job: ImageJob): Promise<{ path: string; name: string } | { error: string } | null>;
   openExample(name: string): Promise<OpenedFile>;
   openHandler(): Promise<{ name: string; text: string } | null>;
   about(): Promise<AboutInfo>;

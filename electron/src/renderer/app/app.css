@@ -103,7 +103,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .titlebar.onespeed .speedone { display: inline-flex; }
 .titlebar.tighter { gap: 3px; }
 .titlebar.tighter .viewswitch button { padding: 2px 6px; }
-.titlebar.tighter .iconbtn { width: 24px; }
+.titlebar.tighter .iconbtn { width: 20px; } /* 18 px icons: five of them since the export (2.4.0) */
+.titlebar.tighter .tools { gap: 0; }
 .titlebar.tighter .toolbar .btn { padding: 0 7px; }
 .titlebar.tighter .drag { min-width: 4px; }
 .titlebar.noapp .appname { display: none; }

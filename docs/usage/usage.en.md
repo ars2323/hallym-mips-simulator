@@ -16,9 +16,10 @@ students get stuck at section 2, the Windows warning.
 4. [The first time: the start screen and the tutorial](#the-first-time-the-start-screen-and-the-tutorial)
 5. [A tour of the window](#a-tour-of-the-window)
 6. [Your first program](#your-first-program)
-7. [Where students get stuck](#where-students-get-stuck)
-8. [Keys](#keys)
-9. [The previous version (1.x)](#the-previous-version-1x)
+7. [Exporting the executable image (.hmx)](#exporting-the-executable-image-hmx)
+8. [Where students get stuck](#where-students-get-stuck)
+9. [Keys](#keys)
+10. [The previous version (1.x)](#the-previous-version-1x)
 
 The program's screens use English names (Editor, Registers, Save & Assemble …) and
 speak to you in Korean; this guide quotes the Korean where you will see it.
@@ -124,7 +125,9 @@ whoever opens it.
 ## The first time: the start screen and the tutorial
 
 The program opens on a start screen where Haram, the university's character,
-says hello. There are two choices:
+says hello, over the university's promotional video playing without sound (a
+still picture on a PC with Windows' animation effects turned off). There are
+two choices:
 
 - **튜토리얼 보기** (see the tutorial) — for your first time. Twenty steps point
   at one part of the window after another.
@@ -178,7 +181,7 @@ With a file open, the **Editor** is on the left and the **Run** side on the righ
 
 | Name | What |
 |---|---|
-| **Toolbar** | **Save & Assemble** (Ctrl+S: saves, then assembles; **Assemble** on the tutorial's examples, which are never saved, and in a narrow window) · **Run** (F5; **Stop** while running) · **Run speed** (Instant / 1 line/s) · **Step** (F10) · **Reset**. At the right: the tutorial (?) · new file · open file · settings |
+| **Toolbar** | **Save & Assemble** (Ctrl+S: saves, then assembles; **Assemble** on the tutorial's examples, which are never saved, and in a narrow window) · **Run** (F5; **Stop** while running) · **Run speed** (Instant / 1 line/s) · **Step** (F10) · **Reset**. At the right: the tutorial (?) · new file · open file · export the executable image (.hmx) · settings |
 | **Editor** | Where you write assembly. Clicking the column left of the line numbers sets a **breakpoint** (a red dot). While a program runs, the line about to run has a **blue band** |
 | **Registers** | The 32 registers and PC, HI, LO, grouped by use (Arguments, Temporaries, Saved …). The register that just changed is a **yellow row** (in a wide window with a **Changed** tag at its end); the status bar names it too, in the same yellow (*방금 바뀜*, just changed). **Hex** · **Dec** · **Bin** are the same value in hexadecimal, decimal and binary |
 | **Text** | The assembled machine instructions: **Address** · **Encoding** (the 32 bits in hex) · **Format** (R/I/J) · **Instruction**. A source line that became several instructions has several rows. Clicking a row shows that instruction in the Inspector |
@@ -242,6 +245,29 @@ go on with that program. The Editor then has no blue band (the lines of the
 changed code are not the running program's lines): see where it is in the Text
 tab. **Ctrl+S** assembles the changed code; if it has errors, they appear in the
 Assemble panel and the right side stays as it was.
+
+---
+
+## Exporting the executable image (.hmx)
+
+An assembled program can be saved as an **executable image**, an `.hmx` file:
+a text file with its instruction words, its data, where it starts and its
+labels. **Hallym Circuit Studio** loads it into a CPU you built there and runs
+the same program.
+
+1. Assemble with **Ctrl+S**.
+2. Click **Export executable image (.hmx)**, the button at the top right (a
+   page with an arrow coming out).
+3. The save window offers an `.hmx` with the source file's name, next to it.
+   Once saved, the status bar says *실행 이미지로 저장했습니다* (saved as an
+   executable image).
+
+- It cannot be clicked before the program has been assembled.
+- If you changed the code after assembling, what is exported is **the last
+  assembled program**, the one Run and Step use. Press Ctrl+S first to export
+  the changed code.
+- A program without a `main` label is not exported.
+- The file format: [hmx-format.md](../../electron/docs/hmx-format.md).
 
 ---
 

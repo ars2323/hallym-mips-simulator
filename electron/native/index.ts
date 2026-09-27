@@ -49,7 +49,7 @@ export interface Segments {
 
 interface NativeCore {
   assemble(source: Uint8Array, handler: Uint8Array, argv: Uint8Array[],
-           env: Uint8Array[], fileName: Uint8Array, options: MachineOptions): { ok: boolean; errors: string[]; symbols: string };
+           env: Uint8Array[], fileName: Uint8Array, options: MachineOptions): { ok: boolean; errors: string[]; symbols: string; data: DataRange };
   run(steps: number): RunStop;
   consoleOutput(): Uint8Array;
   provideInput(bytes: Uint8Array): void;
@@ -120,10 +120,15 @@ export interface AssembleOptions {
   handler?: Uint8Array | string | null;
 }
 
+// The user data segment the assembler filled: [start, end), end being where
+// the next datum would go (a trailing .space included).
+export interface DataRange { start: number; end: number }
+
 export interface AssembleResult {
   ok: boolean;
   errors: string[];   // the core's messages, in order
   symbols: string;    // print_symbols() before local labels are dropped
+  data: DataRange;
   // How the source bytes were read; null when the source was a string.
   format: TextFileFormat | null;
 }

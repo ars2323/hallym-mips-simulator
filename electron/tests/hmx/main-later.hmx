@@ -1,0 +1,31 @@
+HALLYM-EXEC 1
+source        main-later.s
+source-sha256 26954032968d70b09be4b325499aeb98311e0ba850be86ce43542cc89184d0f4
+produced-by   Hallym MIPS 2.3.0
+assembled     2026-09-27T19:05+09:00
+endian        little
+
+entry         0x0040002c
+reg $sp       0x7fffffe4
+reg $gp       0x10008000
+
+symbol square 0x00400024
+symbol main   0x0040002c
+
+.text 0x00400000 words 16
+8fa40000
+27a50004
+24a60004
+00041080
+00c23021
+0c10000b
+00000000
+3402000a
+0000000c
+70841002
+03e00008
+3404000c
+0c100009
+00028021
+3402000a
+0000000c
