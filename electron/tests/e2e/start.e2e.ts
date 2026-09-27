@@ -48,7 +48,7 @@ test('the first screen: the university video behind the card, from the app\'s ow
     const c = await clip(page);
     expect(c.src).toMatch(/^file:.*\/assets\/hallym\/start\/start\.webm$/); // no network: the program's own file
     expect([c.width, c.height]).toEqual([960, 540]);
-    expect(c.duration).toBeGreaterThan(10);
+    expect(c.duration).toBeGreaterThan(6); // 6.7 s: 0:00.1-0:02.6 of the source, slowed to a third
     expect(c.muted).toBe(true);
     const t0 = c.time;
     await page.waitForTimeout(1200);
@@ -113,7 +113,7 @@ test('the card stays readable over the video: it does not change while the video
       ? { x: stage.x, y: stage.y, width: stage.width, height: card.y - stage.y - 30 }
       : { x: stage.x, y: stage.y, width: Math.max(24, card.x - stage.x - 30), height: stage.height };
     const cards: string[] = [], grounds: string[] = [];
-    for (const t of [0.5, 4.2, 8.1]) {
+    for (const t of [0.5, 3.0, 5.5]) {
       await at(page, t);
       const c = await pixels(r, inner), g = await pixels(r, ground);
       cards.push(c.hash);

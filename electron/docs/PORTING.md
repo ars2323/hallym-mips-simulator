@@ -1385,3 +1385,56 @@ It installs per user, as before, into `%LOCALAPPDATA%\Programs\Hallym MIPS`. The
 It pictures the progress page, the finish page and the started program, then uninstalls it.
 
 On Linux, electron-builder needs wine to make the uninstaller. To compile the installer script without it (to catch NSIS errors before CI), point `isMacOsCatalina()` at its pure-JavaScript uninstaller reader. This is a scratch-build trick, not part of `tools/package.ts`.
+
+## 27. The first screen, measured on the screen; a clip with nothing written in it; the installer in the app's colours
+
+**The background reaches the screen processed, on Windows too.** A picture of the installed program on Windows (`installer-started.jpg`, 2.4.0) looked sharp and untinted, so the processing was measured.
+
+It is not `backdrop-filter`: it is `filter: blur(3px) saturate(.85)` on the `<video>` and the still themselves, and a semi-transparent navy `::after` over them. `tests/e2e/backdrop-measure.ts` takes the background's pixels from the screen: `CopyFromScreen` on Windows, which is what DWM shows; the X server's on Linux. It compares them with the clip's own frame, drawn with no filter at the same geometry:
+- **tint:** how far the mean colour moved toward the navy;
+- **blur:** the relative local variance (mean 3×3 variance over the region's variance, so the tint's dimming cancels out), screen over raw.
+
+With the processing it measures about 0.6 and 0.3; without it, 0.0 and 1.0.
+
+| Where | Tint (toward navy) | Blur (local variance / raw) |
+|---|---|---|
+| Linux, 1280 / 1093 / 1024 / 910 / 1920, playing | 0.614 / 0.598 / 0.611 / 0.593 / 0.625 | 0.315 / 0.311 / 0.308 / 0.202 / 0.226 |
+| Windows runner, installed app, e2e, playing | 0.598 | 0.306 |
+| Windows runner, the program 마침 started (`installer-started.png`) | 0.603 | 0.254 |
+
+The Windows runner composites in software (`gpu_compositing: disabled_software`). There the screen equals the compositor's readback in every variant the probe tried (`tools/probe-platform.ts`, phase 3):
+- as is, playing and paused;
+- the still alone;
+- a tint `div` without the filter (tint 0.600, blur 0.995: no blur);
+- the filter on a wrapper;
+- a canvas.
+
+So nothing changed in how it is drawn. `start.e2e.ts` now asserts both numbers on the screen while the video plays (tint > 0.4, blur < 0.6), at every width and in the Windows job's e2e against the installed app.
+
+Why the picture looked sharp: at 1920 the clip is enlarged 2.1× (1.4× at 1280), and the aerial frame is full of detail. At the clip's own scale the blur is no weaker there (0.266 at 1920 against 0.305 at 1280).
+
+Also in that picture, six seconds after the program started, the clip was still on its first frame. The Windows job now records whether the screen moves, and Windows' "animation effects" setting, which `prefers-reduced-motion` follows. When it is off, a student sees the still, processed the same way.
+
+**The clip is one aerial shot, 0:00.1–0:02.6 of the source, slowed to a third.** All 336 frames of 2.4.0's clip (0:00–0:12) were looked at (`docs/screens/start-clip-2.4.0-contact.jpg`):
+- "한림대학교" on the gate sculpture (frames 57–101);
+- a building sign with the symbol and Korean (102–138);
+- "HALLYM REC CENTER" (139–168);
+- a Korean building sign (169–201);
+- motion graphics over the last aerial shot (248–319);
+- six hard cuts (scene score above 0.4 at 57, 102, 139, 169, 202 and 248).
+
+The whole source (217 s, 110 cuts) has no shot longer than 5.3 s. Every long shot carries captions, signs, logos, graphics or people. The one clean shot is the opening aerial pass (0:00–0:02.7).
+
+`tools/start-video.ts` gained `--slow`: `minterpolate` (motion-compensated) makes the frames in between. The loop's end still crossfades into its start. The clip:
+- 6.7 s, 201 frames, 786,024 bytes (2.4.0's: 1,584,476);
+- no cut (highest scene score 0.082, inside the crossfade);
+- the seam's PSNR 30.3 dB, against 34.2 dB between neighbouring frames.
+
+The still is its first frame. The three pictures of moments are now at 0.5, 3.0 and 5.5 s. `docs/screens/start-clip-contact.jpg` shows every frame.
+
+**The installer in the app's colours.**
+- The finish pages' band is `packaging/installerSidebar.bmp` and `uninstallerSidebar.bmp` (`tools/installer-art.py`, 164×314): the navy, the symbol unaltered on a white plate, "Hallym MIPS" in Pretendard. It replaces electron-builder's light-blue drawing.
+- The progress bar is the app's blue (#0055A5) on a pale track, not Windows' green. The common control takes colours only without its visual style, so the progress page's show function takes the style off (`SetWindowTheme`) and sends `PBM_SETBARCOLOR` / `PBM_SETBKCOLOR`. The bar is then flat, as the app's own bars are.
+- `check-installer-ui.ps1` samples both from the screen.
+
+**Checkouts:** `docs/**` is `-text` at the repository root, as `electron/` is in `electron/.gitattributes`: 2.4.0's Windows checkout gave the spec CRLF, and a test broke on it.

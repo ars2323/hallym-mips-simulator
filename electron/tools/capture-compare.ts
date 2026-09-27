@@ -258,7 +258,7 @@ pair('05-editor-errors', `The same file with one mistake on line 14 (4(t1) for 4
   await qt.shot(path.join(originals, '06-first-start-qtspim.png'), undefined, false);
   qt.stop();
   const r = await ours();
-  await videoAt(r, 4.2);
+  await videoAt(r, 3.0);
   await whole(r, path.join(originals, '06-first-start-2x.jpg'));
   await r.close();
 }

@@ -50,7 +50,7 @@ const MAX_BYTES = 400 * 1024;
 const MAX_SCREEN_BYTES = 700 * 1024; // a whole Windows screen, up to 1920x1080
 const MAX_CROP_BYTES = 150 * 1024;
 const MAX_PHOTO_BYTES = 250 * 1024; // a JPEG over the first screen's video
-const START_AT = 4.2;               // the video's second in start.jpg and the other widths' shots
+const START_AT = 3.0;               // the video's second in start.jpg and the other widths' shots
 
 // PNG without its ancillary chunks: the signature, then IHDR, PLTE, tRNS,
 // IDAT and IEND only.  The pixels are untouched.
@@ -172,8 +172,8 @@ async function lab04(r: Running): Promise<void> {
 {
   const r = await launch({ width: 1280, height: 800 });
   const { page } = r;
-  // Three moments of the video: 0.5 s, start.jpg's own 4.2 s (taken below), 8.1 s.
-  for (const [n, t] of [[1, 0.5], [3, 8.1]]) { await videoAt(r, t); await photo(r, `start-frame-${n}`); }
+  // Three moments of the video: 0.5 s, start.jpg's own 3.0 s (taken below), 5.5 s.
+  for (const [n, t] of [[1, 0.5], [3, 5.5]]) { await videoAt(r, t); await photo(r, `start-frame-${n}`); }
   await videoAt(r, START_AT);
   await photo(r, 'start');
   forGuide('start', '01-start', 'jpg');

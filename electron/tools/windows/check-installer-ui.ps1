@@ -87,6 +87,15 @@ function Shot([IntPtr]$h, [string]$name) {
   $g.Dispose(); $bmp.Dispose()
   Note "picture: $name (${w}x${hgt})"
 }
+# One pixel of the screen, as the display shows it.
+function PixelAt([int]$x, [int]$y) {
+  $b = New-Object System.Drawing.Bitmap 1, 1
+  $g = [System.Drawing.Graphics]::FromImage($b)
+  $g.CopyFromScreen($x, $y, 0, 0, $b.Size)
+  $c = $b.GetPixel(0, 0); $g.Dispose(); $b.Dispose()
+  return $c
+}
+
 # The installer's (or uninstaller's) window and what it shows now: which
 # page, its controls.  The uninstaller runs as a copy of itself from %TEMP%,
 # so it is found by its title, not by the process started.
@@ -126,7 +135,14 @@ while ((Get-Date) -lt $deadline -and -not $p.HasExited) {
       $bar = ($page.Controls | Where-Object { $_.Class -eq 'msctls_progress32' } | Select-Object -First 1).H
       $max = [Ui]::SendMessage($bar, $PBM_GETRANGE, [IntPtr]0, [IntPtr]0).ToInt64()
       $pos = [Ui]::SendMessage($bar, $PBM_GETPOS, [IntPtr]0, [IntPtr]0).ToInt64()
-      if ($max -gt 0 -and $pos -ge $max * 0.25) { Shot $page.Top 'installer-progress.png'; $shotProgress = $true }
+      if ($max -gt 0 -and $pos -ge $max * 0.25) {
+        Shot $page.Top 'installer-progress.png'; $shotProgress = $true
+        # The filled part of the bar, as the screen shows it: the app's blue (#0055A5), not Windows' green.
+        $br = New-Object Ui+RECT; [void][Ui]::GetWindowRect($bar, [ref]$br)
+        $c = PixelAt ($br.Left + 6) ([int](($br.Top + $br.Bottom) / 2))
+        Note "the progress bar's filled part: rgb($($c.R), $($c.G), $($c.B))"
+        $script:barBlue = ($c.B -gt 140 -and $c.R -lt 60 -and $c.G -lt 130)
+      }
     }
     if ($page.Kind -eq 'finish') { $finish = $page; break }
   }
@@ -135,10 +151,16 @@ while ((Get-Date) -lt $deadline -and -not $p.HasExited) {
 Check ($null -ne $finish) 'the finish page came'
 Check (($pages -join ',') -eq 'progress,finish') "the pages: $($pages -join ', ') (the progress, then the finish page, nothing else)"
 Check $shotProgress 'the progress page, pictured'
+Check ([bool]$script:barBlue) "the progress bar in the app's blue, not Windows' green"
 if ($finish) {
   Start-Sleep -Milliseconds 500
   $finish = Page $p
   Shot $finish.Top 'installer-finish.png'
+  # The band on the left (packaging/installerSidebar.bmp): the app's navy, not electron-builder's light blue.
+  $wr = New-Object Ui+RECT; [void][Ui]::GetWindowRect($finish.Top, [ref]$wr)
+  $c = PixelAt ($wr.Left + 20) ($wr.Top + 260)
+  Note "the finish page's band: rgb($($c.R), $($c.G), $($c.B))"
+  Check ($c.R -lt 40 -and $c.G -lt 80 -and $c.B -gt 70 -and $c.B -lt 160) "the finish page's band in the app's navy"
   $texts = @($finish.Controls | ForEach-Object { $_.Text })
   Check ($texts -contains '설치가 완료되었습니다') 'finish page: 설치가 완료되었습니다'
   $run = $finish.Controls | Where-Object { $_.Class -eq 'Button' -and $_.Text -eq '지금 실행하기' } | Select-Object -First 1
@@ -157,6 +179,17 @@ if ($finish) {
     Start-Sleep -Seconds 6 # the first screen's video playing
     $app.Refresh()
     Shot $app.MainWindowHandle 'installer-started.png'
+    # What this launch shows behind the card -- the video, or the still:
+    # Windows' "animation effects" (SPI_GETCLIENTAREAANIMATION) is what
+    # prefers-reduced-motion follows; and whether the picture moves.
+    Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class Spi { [DllImport("user32.dll")] public static extern bool SystemParametersInfo(uint a, uint b, ref bool c, uint d); }'
+    $anim = $false; [void][Spi]::SystemParametersInfo(0x1042, 0, [ref]$anim, 0)
+    Note "Windows animation effects (SPI_GETCLIENTAREAANIMATION): $anim -- off means prefers-reduced-motion, the still only"
+    $r = New-Object Ui+RECT; [void][Ui]::GetWindowRect($app.MainWindowHandle, [ref]$r)
+    $grab = { $b = New-Object System.Drawing.Bitmap 400, 120; $g = [System.Drawing.Graphics]::FromImage($b); $g.CopyFromScreen($r.Left + 60, $r.Top + 80, 0, 0, $b.Size); $g.Dispose(); $b }
+    $a1 = & $grab; Start-Sleep -Seconds 2; $a2 = & $grab
+    $diff = 0; for ($y = 0; $y -lt 120; $y += 4) { for ($x = 0; $x -lt 400; $x += 4) { $p = $a1.GetPixel($x, $y); $q = $a2.GetPixel($x, $y); $diff += [Math]::Abs($p.R - $q.R) + [Math]::Abs($p.G - $q.G) + [Math]::Abs($p.B - $q.B) } }
+    Note ("the start screen's background over 2 s: mean change {0:N1} per pixel ({1})" -f ($diff / 3000), $(if ($diff / 3000 -gt 2) { 'moving: the video' } else { 'still: no video' }))
     Get-Process HallymMIPS -ErrorAction SilentlyContinue | ForEach-Object { $null = $_.CloseMainWindow() }
     Start-Sleep -Seconds 5
     Get-Process HallymMIPS -ErrorAction SilentlyContinue | Stop-Process -Force

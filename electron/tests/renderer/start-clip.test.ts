@@ -68,7 +68,7 @@ test('the clip is small (under 3 MB), its still under 200 kB and the same size',
   assert.deepEqual([jpg.readUInt16BE(at + 7), jpg.readUInt16BE(at + 5)], [960, 540]);
 });
 
-test('tools/start-video.ts writes no sound: -an, no audio codec; the loop fades its end into its start', () => {
+test('tools/start-video.ts writes no sound: -an, no audio codec; the loop fades its end into its start; the cut in use is slowed', () => {
   const args = clipArgs('in.mp4', 'out.webm', 0, 12);
   assert.ok(args.includes('-an'));
   assert.ok(!args.some((a) => /^-(c:a|acodec|b:a)$/.test(a)));
@@ -76,4 +76,10 @@ test('tools/start-video.ts writes no sound: -an, no audio codec; the loop fades 
   assert.match(filter, /trim=0:12,/);
   assert.match(filter, /xfade=transition=fade:duration=0\.8:offset=10\.400/);
   assert.throws(() => clipArgs('in.mp4', 'out.webm', 0, 1.5));
+  // The cut in use: 0:00.1-0:02.6 slowed to a third (7.5 s), frames in between interpolated.
+  const used = clipArgs('in.mp4', 'out.webm', 0.1, 2.6, 3);
+  const f = used[used.indexOf('-filter_complex') + 1];
+  assert.match(f, /trim=0\.1:2\.6,.*setpts=3\*PTS,minterpolate=fps=30:mi_mode=mci/);
+  assert.match(f, /xfade=transition=fade:duration=0\.8:offset=5\.900/);
+  assert.ok(used.includes('-an'));
 });

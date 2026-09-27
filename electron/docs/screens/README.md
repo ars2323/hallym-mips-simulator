@@ -13,13 +13,13 @@ The example files and step counts are written inside the tool, so the same scene
 
 | File | What | Capture conditions |
 |---|---|---|
-| `start.jpg` | Start screen: Haram (greeting) and the two paths (튜토리얼 보기 / 바로 시작, "View tutorial" / "Start now"), no toolbar; behind the card, the university's video under its blur and navy tint | 1280×800, as started, the video stopped at 4.2 s |
+| `start.jpg` | Start screen: Haram (greeting) and the two paths (튜토리얼 보기 / 바로 시작, "View tutorial" / "Start now"), no toolbar; behind the card, the university's video under its blur and navy tint | 1280×800, as started, the video stopped at 3.0 s |
 | `start-2.jpg` | Start screen, second step: 새 파일 / 파일 열기 ("New file" / "Open file"), "← 처음으로" ("← Back to start"); the same video frame behind | 1280×800, 바로 시작 clicked |
-| `start-frame-1.jpg`, `start.jpg`, `start-frame-3.jpg` | The start screen at three moments of the video: the city from the air, a campus building, a glass facade. The card is the same picture in all three. The middle moment is `start.jpg` itself (there is no `start-frame-2.jpg`: it was the same picture) | 1280×800, the video stopped at 0.5, 4.2 and 8.1 s |
-| `start-1093.jpg`, `start-2-1093.jpg` | The two steps on the lab PC | CSS 1093×582 at 1.25×, 4.2 s |
-| `start-1024.jpg`, `start-2-1024.jpg` | The two steps at 1024×768 | CSS 1024×728, 4.2 s |
-| `start-910.jpg`, `start-2-910.jpg` | The two steps at 1366×768 at 150% (the card loses its character only below 860 px) | CSS 910×505 at 1.5×, 4.2 s |
-| `start-1920.jpg`, `start-2-1920.jpg` | The two steps on a maximised 1920 screen | 1920×1040, 4.2 s |
+| `start-frame-1.jpg`, `start.jpg`, `start-frame-3.jpg` | The start screen at three moments of the video, one slow aerial pass over the city, the campus and the mountain. The card is the same picture in all three. The middle moment is `start.jpg` itself (there is no `start-frame-2.jpg`: it was the same picture) | 1280×800, the video stopped at 0.5, 3.0 and 5.5 s |
+| `start-1093.jpg`, `start-2-1093.jpg` | The two steps on the lab PC | CSS 1093×582 at 1.25×, 3.0 s |
+| `start-1024.jpg`, `start-2-1024.jpg` | The two steps at 1024×768 | CSS 1024×728, 3.0 s |
+| `start-910.jpg`, `start-2-910.jpg` | The two steps at 1366×768 at 150% (the card loses its character only below 860 px) | CSS 910×505 at 1.5×, 3.0 s |
+| `start-1920.jpg`, `start-2-1920.jpg` | The two steps on a maximised 1920 screen | 1920×1040, 3.0 s |
 | `split-before.png` | Left/right split, before assembling: the right side shows the guide card (a notice: the words in the middle, the character at the far end) | 1280×800, `tests/samples/lab04-ok.s` only opened, as `lab04.s` |
 | `assembled.png` | Just assembled, before the first step: the toolbar's Save & Assemble; under the Editor the Assemble panel, one line ("어셈블했습니다 · 명령 30개 · 저장됨", its time in the head); the Inspector's word in the middle of its panel; the empty Console only as tall as its one-line word, Registers taking the rest, their head without a note; the status bar: F10 Step · F5 Run, 저장됨 | 1280×800, same file, Ctrl+S |
 | `split-running.png` | Left/right split, running: current line highlighted in Editor and Text, Inspector follows the PC; the yellow row named in the status bar, in its yellow ("방금 바뀜: `$t6`": at 1280 Registers have no room for the Changed tag) | 1280×800, same file, Ctrl+S then F10 16 times (PC `0x0040004c`, just changed `$t6`) |
@@ -50,10 +50,12 @@ The example files and step counts are written inside the tool, so the same scene
 | `windows-frame.png` | The installed build maximized on **real Windows** (Server 2025, the Windows 11 shell) at 1920×1080: the default layout as a student sees it — the app's bar, the system's window buttons, the taskbar | CI only (`electron.yml` at the repository root; the runner's screen set to 1920×1080 by `tools/windows/screen-1920.ps1`, 1024×768 if that fails — `report/screen.txt`). With the installed build, the same run as `split-running`, then maximized; whole screen (≤ 700 KB) |
 | `windows-frame-tutorial.png` | The same, with the tutorial on: the caption buttons' patch coloured with the dim (`#bdc5d4`), the buttons still there | CI only, like `windows-frame`; step 14, maximized; whole screen |
 
-| `installer-progress.png` | The installer (2.4.0 on), its first page: the progress, in Korean ("설치하는 중") | CI only: `tools/windows/check-installer-ui.ps1`, the installer run with its pages (not `/S`) on the runner; the window alone. Comes from the release's tag run and is committed right after the tag |
-| `installer-finish.png` | Its finish page, the second and last: "설치가 완료되었습니다", "지금 실행하기" ticked, 마침 | CI only, the same run. Comes from the release's tag run and is committed right after the tag |
+| `installer-progress.png` | The installer (2.4.0 on), its first page: the progress, in Korean ("설치하는 중"); from 2.5.0 the bar in the app's blue, not Windows' green | CI only: `tools/windows/check-installer-ui.ps1`, the installer run with its pages (not `/S`) on the runner; the window alone. Comes from the release's tag run and is committed right after the tag |
+| `installer-finish.png` | Its finish page, the second and last: "설치가 완료되었습니다", "지금 실행하기" ticked, 마침; from 2.5.0 the band on the left in the app's navy with the symbol (`packaging/installerSidebar.bmp`, `tools/installer-art.py`) | CI only, the same run. Comes from the release's tag run and is committed right after the tag |
 | `installer-started.jpg` | What 마침 started: the installed program's start screen, its video playing (a live frame, not stopped) | CI only, the same run, 6 s after 마침; the window alone. The CI writes a PNG; it is committed as JPEG (quality 85), like the other start screens. Comes from the release's tag run and is committed right after the tag |
-| `uninstaller-finish.png` | The uninstaller's finish page (after its progress page): "제거가 끝났습니다" | CI only, the same run: the uninstaller run with its pages, as Settings > Apps runs it. Comes from the release's tag run and is committed right after the tag |
+| `uninstaller-finish.png` | The uninstaller's finish page (after its progress page): "제거가 끝났습니다", the same band |
+| `start-clip-contact.jpg` | Every frame of the first screen's clip, numbered, on one sheet (201: one aerial pass, the last 15 the crossfade into the first): no text, logo, graphics or cut | `ffmpeg … tile` of `src/renderer/assets/hallym/start/start.webm`, 200 px a frame; made again with the clip |
+| `start-clip-2.4.0-contact.jpg` | The same for 2.4.0's clip (336 frames, 0:00–0:12 of the source), kept for what it shows: "한림대학교" on the gate sculpture (57–101), building signs (102–201), graphics over the aerial shot (248–319), six cuts | The same, of the clip at `v2.4.0` | CI only, the same run: the uninstaller run with its pages, as Settings > Apps runs it. Comes from the release's tag run and is committed right after the tag |
 
 `windows-frame.png` and `windows-frame-tutorial.png` are taken as is from `report/screens/` in the CI artifact `windows-report`,
 and the three `installer-*` pictures from its `report/installer/`. CI also takes

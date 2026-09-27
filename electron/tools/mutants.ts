@@ -482,6 +482,11 @@ const MUTANTS: Mutant[] = [
     find: 'let lo = r.data.start, hi = r.data.end;', replace: 'let lo = r.data.start, hi = r.data.start;', tests: ['tests/sim/hmx.test.ts'] },
   { module: 'hmx', file: 'src/renderer/app/app.ts', what: 'Export before anything is assembled',
     find: '  bExport.disabled = lastGood === null || busy;', replace: '  bExport.disabled = busy;', tests: ['tests/e2e/export.e2e.ts'] },
+  // ---- the first screen as the screen shows it, and the cut of the clip (2.5.0)
+  { module: 'first screen', file: 'src/renderer/app/app.css', what: 'the video unblurred',
+    find: 'object-fit: cover; filter: blur(3px) saturate(.85);', replace: 'object-fit: cover;', tests: ['tests/e2e/start.e2e.ts'] },
+  { module: 'first screen', file: 'tools/start-video.ts', what: 'the slowed clip without the frames in between',
+    find: 'minterpolate=fps=${FPS}:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1', replace: 'fps=${FPS}', tests: ['tests/renderer/start-clip.test.ts'] },
 ];
 
 function copyTree(dir: string, linkBuild: boolean): void {

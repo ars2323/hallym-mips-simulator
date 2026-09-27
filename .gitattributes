@@ -1,0 +1,5 @@
+# docs/ is checked out byte for byte on every platform, as electron/ is
+# (electron/.gitattributes): the Electron edition's tests read
+# docs/hmx-format.md and compare its example with golden files.  Only docs/:
+# the Qt edition's sources keep git's defaults.
+docs/** -text

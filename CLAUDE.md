@@ -99,7 +99,7 @@ for again each time.
      excepted);
    - `slides/` unchanged (file count and combined hash).
 4. **How to release.** The version bump (`electron/package.json`, `electron/package-lock.json`) and the release
-   notes, `electron/docs/releases/<version>.md`, go in the commit that is released (rule 7). The notes are in
+   notes, `electron/docs/releases/<version>.md`, go in the commit that starts the release (rule 7). The notes are in
    English, for students: the Korean user guide's link first; what they will see that is different; that the
    program is unsigned and how to get past the Windows warning (link); links back to the previous 2.x release and
    to 1.2.4; no video links. Push that commit, wait for both workflows and run the checks above, then push the tag
@@ -109,8 +109,14 @@ for again each time.
 5. **It is released only when the post-release check has passed:** the installer downloaded from the public release
    address, its SHA-256 the one in the notes, installed on a clean runner, every e2e test run against it, every link
    and picture of the published documents opening, the release Latest, the earlier releases still there. Check its
-   result and report it with the release's address and the hash.
+   result and report it with the release's address and the hash. **Only the published asset's size and SHA-256 mean
+   anything:** the installer is not byte-reproducible (NSIS writes the build time into it), so a build of the same
+   commit elsewhere never matches it. In 2.4.0, main's build of the tagged commit was 109,639,153 bytes and the
+   published one 109,639,124; that difference is not a bug to chase.
 6. **Never delete an old release.** 1.2.4 is the Qt edition's last; the earlier 2.x releases are where to go back.
    The notes link back to them; rolling back is in `electron/docs/WINDOWS.md`, "Rolling back a release".
-7. **The version is raised only in the commit that is released,** never in the middle of a round.
+7. **The version is raised once, at the end of a round, in the commit that starts the release,** never in the middle
+   of a round. The tag goes on that commit, or on a green descendant of it that changes no version and only fixes
+   what a check found there. Both 2.3.0 and 2.4.0 met a Windows-only failure after the bump. Every check of rule 3
+   runs on the commit the tag goes on, and the report names both commits.
 

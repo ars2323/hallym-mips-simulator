@@ -37,6 +37,23 @@
 !macro customPageAfterChangeDir
   !define MUI_PAGE_HEADER_TEXT "설치하는 중"
   !define MUI_PAGE_HEADER_SUBTEXT "잠시 기다려 주세요. 끝나면 바로 실행할 수 있습니다."
+  !define MUI_PAGE_CUSTOMFUNCTION_SHOW HallymProgressColour
+  Function HallymProgressColour
+    !insertmacro HallymProgressBar
+  FunctionEnd
+!macroend
+
+; The progress bar in the app's blue (#0055A5) on a pale track, not Windows'
+; green: the control takes colours only without its visual style, so that is
+; taken off it first (SetWindowTheme), then PBM_SETBARCOLOR and
+; PBM_SETBKCOLOR (COLORREF: 0x00BBGGRR).  1004 is the progress bar's id on
+; the instfiles page.
+!macro HallymProgressBar
+  FindWindow $0 "#32770" "" $HWNDPARENT
+  GetDlgItem $0 $0 1004
+  System::Call 'uxtheme::SetWindowTheme(p r0, w "", w "")'
+  SendMessage $0 0x409 0 0xA55500
+  SendMessage $0 0x2001 0 0xF5EEE8
 !macroend
 
 ; The uninstaller, like the installer: its progress, then its finish page --
@@ -44,6 +61,10 @@
 !macro customUnWelcomePage
   !define MUI_PAGE_HEADER_TEXT "제거하는 중"
   !define MUI_PAGE_HEADER_SUBTEXT "잠시 기다려 주세요."
+  !define MUI_PAGE_CUSTOMFUNCTION_SHOW un.HallymProgressColour
+  Function un.HallymProgressColour
+    !insertmacro HallymProgressBar
+  FunctionEnd
 !macroend
 !macro customUninstallPage
   !define MUI_FINISHPAGE_TITLE "제거가 끝났습니다"

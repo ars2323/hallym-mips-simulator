@@ -112,6 +112,9 @@ export const config: Configuration = {
     createStartMenuShortcut: true,
     deleteAppDataOnUninstall: false,
     runAfterFinish: true, // the finish page's "지금 실행하기", ticked
+    // The finish pages' band in the app's navy with the symbol (tools/installer-art.py), not electron-builder's drawing.
+    installerSidebar: path.join(root, 'packaging/installerSidebar.bmp'),
+    uninstallerSidebar: path.join(root, 'packaging/uninstallerSidebar.bmp'),
     include: path.join(root, 'packaging/installer.nsh'), // its pages; no copy of the installer kept for an updater
     artifactName: 'HallymMIPS-${version}-win-x64-setup.${ext}',
     uninstallDisplayName: 'Hallym MIPS ${version}',
