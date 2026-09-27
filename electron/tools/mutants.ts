@@ -294,7 +294,7 @@ const MUTANTS: Mutant[] = [
     find: '        this.onInput(line);\n', replace: '', tests: ['tests/e2e/flows.e2e.ts'] },
   { module: 'window', file: 'src/renderer/app/app.ts', what: 'breakpoints not given to the new machine',
     find: '    for (const a of breakpoints) await api.call(\'setBreakpoint\', a);\n    for (const x of rows) x.breakpoint = breakpoints.has(x.addr);\n    assembledText = source;',
-    replace: '    for (const x of rows) x.breakpoint = breakpoints.has(x.addr);\n    assembledText = source;', tests: ['tests/e2e/flows.e2e.ts'] },
+    replace: '    for (const x of rows) x.breakpoint = breakpoints.has(x.addr);\n    assembledText = source;', tests: ['tests/e2e/editing.e2e.ts', 'tests/e2e/editor.e2e.ts'] },
   { module: 'window', file: 'src/renderer/app/app.ts', what: 'Reset drops the breakpoints',
     find: "    rows = textRows(await api.call('textSegment'));\n    for (const a of breakpoints) await api.call('setBreakpoint', a);",
     replace: "    rows = textRows(await api.call('textSegment'));", tests: ['tests/e2e/flows.e2e.ts'] },

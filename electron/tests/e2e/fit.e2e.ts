@@ -254,7 +254,9 @@ test.describe(() => {
     await expect(page.locator('.pane-editor .asm .item')).toBeVisible();
     await expect(page.locator('.run-side .asm')).toHaveCount(0);
     await expect(page.locator('.run-placeholder')).toHaveAttribute('data-kind', 'failed'); // nothing assembled yet
+    await side(page, 'Run'); // (a narrow window: the card is on the Run tab)
     expect(await page.locator('img.char').evaluateAll((els) => els.filter((e) => e.checkVisibility()).length)).toBe(1);
+    await side(page, 'Editor');
 
     await resize(r, { width: 910, height: 505 });
     await page.locator('.viewswitch button', { hasText: 'Editor' }).click();

@@ -52,9 +52,10 @@ test('changed code: the machine stays; Step and Run go on with the last program;
   expect(await regHex(page, '$t0')).toBe('0x00000001');
 
   await typeAt(page, 'top', '# 고침\n');
-  await expect(page.locator('.run-band')).toBeVisible();
   await expect(pcLines(page)).toHaveCount(0);              // its lines are not the program's
   await expect(page.locator('.asm')).toHaveAttribute('data-state', 'changed');
+  await side(page, 'Run');                                 // (a narrow window: the Run tab)
+  await expect(page.locator('.run-band')).toBeVisible();
   await expect(page.locator('.run-grid')).toBeVisible();
 
   await page.keyboard.press('F10');                         // the program in the machine, one line on
@@ -147,7 +148,7 @@ test('a breakpoint set in changed code takes effect at the next assemble', async
   await settled(page);
   expect(await statusText(page)).toContain('프로그램이 끝났습니다'); // not yet
   await page.keyboard.press('Control+s');
-  await expect(page.locator('.run-band')).toBeHidden(); // assembled (keys wait while it does)
+  await expect(page.locator('.asm')).toHaveAttribute('data-state', 'ok'); // assembled (keys wait while it does)
   await page.keyboard.press('F5');
   await settled(page);
   expect(await statusText(page)).toContain('브레이크포인트');
