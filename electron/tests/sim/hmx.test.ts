@@ -158,7 +158,8 @@ test('a reader refuses a later version and a count that is not the lines\', and 
 });
 
 test('../docs/hmx-format.md: its example is the data case, source and image; its table lists every case', () => {
-  const doc = readFileSync(path.join(root, '..', 'docs/hmx-format.md'), 'utf8');
+  // Outside electron/, so not under its byte-for-byte .gitattributes: a Windows checkout has CRLF.
+  const doc = readFileSync(path.join(root, '..', 'docs/hmx-format.md'), 'utf8').replace(/\r\n/g, '\n');
   const block = (lang: string) => new RegExp('```' + lang + '\\n([\\s\\S]*?)\\n```').exec(doc)![1] + '\n';
   assert.equal(block('asm'), readFileSync(path.join(dir, 'data.s'), 'utf8'));
   assert.deepEqual(comparable(block('text')), comparable(readFileSync(path.join(dir, 'data.hmx'), 'utf8')));
