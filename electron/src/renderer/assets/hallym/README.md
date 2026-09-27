@@ -31,6 +31,8 @@ product of Hallym University.
   colour carries meaning.
 - Nothing is written on the board held in `sign.png`; the message goes beside
   the character.
+- The first screen's video runs behind the card, blurred and under navy; the
+  character stands on the card's opaque white, never on the video.
 
 ## Files
 
@@ -70,6 +72,18 @@ product of Hallym University.
 | logotype-ko-en.svg | Korean-English logotype |
 | signature-h-ko-en.svg | Korean-English horizontal signature |
 | symbol-basic.svg | The symbol (basic form): the logo on the window's top bar. Byte for byte the Qt edition's `QtSpim/edu/theme/brand/symbol-basic.svg` |
+
+### start/ — the first screen's background
+
+| File | What |
+|---|---|
+| start.webm | 0:00–0:12 of the university's promotional video, "[Official Video] 한림대학교 홍보영상｜The New Hallym 대학의 내일을 열다" (official YouTube channel @HALLYMNEWS, `RG5SE2GWIm4`). VP9, 960×540, 30 fps, 11.2 s, **no sound track**; its last 0.8 s fade into its first, so it loops without a seam. |
+| start.jpg | its first frame: shown at once, before the clip plays, and instead of it under prefers-reduced-motion |
+
+Both are made by `tools/start-video.ts` from the source video (the video
+track only, taken as 1080p VP9 with yt-dlp). To use the university's own
+master instead, run that script on it; the blur and the tint are app.css's,
+so nothing else changes.
 
 ## Where they come from
 

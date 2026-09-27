@@ -176,8 +176,9 @@ applies to: SPIM and QtSpim (both), Qt under the LGPL v3 (the Qt edition only),
 Electron, Chromium and Node.js (the Electron edition only), the fonts
 Pretendard and D2Coding (SIL OFL 1.1) and the Lucide icons (ISC).
 
-The Hallym University marks and the characters Haram and Hari belong to
-Hallym University. They are not covered by this project's license and may not
+The Hallym University marks, the characters Haram and Hari, and the
+university's promotional video on the Electron edition's first screen belong
+to Hallym University. They are not covered by this project's license and may not
 be taken from here and used elsewhere (see [`NOTICE`](NOTICE)).
 
 Developed by Hakhyeon Kim, AIAC Lab, Hallym University, as a personal

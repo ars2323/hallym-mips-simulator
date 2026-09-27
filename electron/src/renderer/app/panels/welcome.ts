@@ -5,9 +5,11 @@
    Both steps have the same shape: the card has a fixed width, each choice
    a fixed size with its line break written in, and the "← 처음으로" row is
    there in both (hidden in the first), so going from one step to the other
-   moves nothing but the words. */
+   moves nothing but the words.  Behind the card, the same for both steps:
+   the university's video (backdrop.ts), which a step never restarts. */
 
 import { character, h, icon } from '../dom.ts';
+import { backdrop } from './backdrop.ts';
 
 export interface WelcomeEvents {
   tutorial(): void;
@@ -22,7 +24,7 @@ function action(label: string, lines: [string, string], ic: string, onClick: () 
   return b;
 }
 
-export function welcome(events: WelcomeEvents): HTMLElement {
+export function welcome(events: WelcomeEvents): { root: HTMLElement; show(on: boolean): void } {
   const actions = h('div', { class: 'actions' });
   const back = h('button', { class: 'linkbtn back', type: 'button' }, '← 처음으로');
   const first = () => {
@@ -40,9 +42,11 @@ export function welcome(events: WelcomeEvents): HTMLElement {
   };
   back.addEventListener('click', first);
   first();
-  return h('div', { class: 'welcome' }, h('div', { class: 'wcard' },
+  const start = backdrop();
+  const card = h('div', { class: 'wcard' },
     character('hello', 200),
     h('div', { class: 'wbody' }, h('h1', {}, '안녕하세요!'),
       h('p', { class: 'lead' }, 'MIPS 어셈블리를 쓰고, 어셈블하고,', h('br'), '한 줄씩 실행해 보는 곳입니다.'),
-      actions, back)));
+      actions, back));
+  return { root: h('div', { class: 'welcome' }, start.root, card), show: start.show };
 }

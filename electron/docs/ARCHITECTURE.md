@@ -181,7 +181,7 @@ src/renderer/app/
   ui.ts                 One panel head (panelHead) and one tab head (tabsHead): every head comes from here
   editor.ts             CodeMirror 6: colors, error line and `!`, breakpoint gutter, running line, Tab = 4 spaces, Ctrl+S during composition
   panels/               registers · text (virtual list) · data (Data table) · inspector · console · welcome ·
-                        ask (in-app dialog) · settings · about
+                        backdrop (the first screen's video) · ask (in-app dialog) · settings · about
   logic/                Pure: register rows and what changed, Text rows, stop → state, visible row range, columns by width (columns.ts)
   perf.ts               Records panel update costs (window.__perf, read by tools/measure-ui.ts)
 ```
@@ -192,6 +192,7 @@ src/renderer/app/
 - **State is not restored.** Window size, panels, recent files, open files and breakpoints all start from fixed defaults
   every time (lab PCs are shared by many people). The settings file (`userData/settings.json`) holds only the font size and the Data number base.
   Ctrl + / Ctrl − apply only to the current run.
+- **The first screen's video** is one file: to use another (say, the university's own master), run `node tools/start-video.ts <file>`, which rewrites `src/renderer/assets/hallym/start/start.webm` and its still `start.jpg`; nothing else changes.
 - The register panel creates one DOM row per register once, and on every stop updates only the cells whose text changed and the rows whose highlight changed.
   Text keeps only the visible rows plus 10 rows before and after in the DOM. Measurements for both are in `docs/UI-ROUND1.md`.
 

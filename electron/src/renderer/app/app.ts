@@ -166,9 +166,10 @@ const status = h('footer', { class: 'status' });
 
 // ---- the first screen ------------------------------------------------------------
 
-const stageWelcome = h('div', { class: 'stage-welcome' }, welcome({
+const firstScreen = welcome({
   tutorial: () => void startTutorial(), newFile: () => void newFile(), openFile: () => void openFile(),
-}));
+});
+const stageWelcome = h('div', { class: 'stage-welcome' }, firstScreen.root);
 
 // ---- the Editor side -------------------------------------------------------------------
 
@@ -332,6 +333,7 @@ const asmRoom = (): number => Math.max(ASM_LEAST, paneEditor.clientHeight - edit
 
 function layout(): void {
   stageWelcome.hidden = open;
+  firstScreen.show(!open); // the video plays on the first screen only
   split.hidden = !open;
   viewSwitch.hidden = !open || !narrow;
   split.classList.toggle('narrow', narrow);

@@ -443,6 +443,26 @@ const MUTANTS: Mutant[] = [
     find: '      dirty = back.dirty;', replace: '', tests: ['tests/e2e/tutorial.e2e.ts'] },
   { module: 'window', file: 'src/renderer/app/app.css', what: 'a narrow Inspector scrolls sideways',
     find: '@container (max-width: 480px) {\n  .ihead', replace: '@container (max-width: 200px) {\n  .ihead', tests: ['tests/e2e/fit.e2e.ts'] },
+  // ---- the first screen's video (panels/backdrop.ts, tools/start-video.ts)
+  { module: 'first screen', file: 'src/renderer/app/panels/welcome.ts', what: 'each step builds its own background',
+    find: '  const second = () => {\n', replace: '  const second = () => {\n    start.root.replaceWith(backdrop().root);\n', tests: ['tests/e2e/start.e2e.ts'] },
+  { module: 'first screen', file: 'src/renderer/app/panels/backdrop.ts', what: 'the video\'s sound back',
+    find: '  clip.muted = true;\n', replace: '  clip.muted = false;\n', tests: ['tests/e2e/start.e2e.ts'] },
+  { module: 'first screen', file: 'tools/start-video.ts', what: 'the clip made with the source\'s sound',
+    find: "'-map', '[v]', '-an',", replace: "'-map', '[v]', '-map', '0:a?',", tests: ['tests/renderer/start-clip.test.ts'] },
+  { module: 'first screen', file: 'src/renderer/app/panels/backdrop.ts', what: 'the video under prefers-reduced-motion',
+    find: 'if (!shown || reduce.matches ||', replace: 'if (!shown ||', tests: ['tests/e2e/start.e2e.ts'] },
+  { module: 'first screen', file: 'src/renderer/app/panels/backdrop.ts', what: 'the video goes on under the Editor',
+    find: 'if (on !== shown) { shown = on; update(); }', replace: 'if (on) { shown = on; update(); }', tests: ['tests/e2e/start.e2e.ts'] },
+  { module: 'first screen', file: 'src/renderer/app/app.css', what: 'a clip that cannot play leaves the still',
+    find: '.wback.failed img, .wback.failed video,', replace: '.wback.failed video,', tests: ['tests/e2e/start.e2e.ts'] },
+  { module: 'first screen', file: 'src/renderer/app/app.css', what: 'white under the video',
+    find: 'pointer-events: none; background: var(--navy); }', replace: 'pointer-events: none; background: var(--white); }', tests: ['tests/e2e/start.e2e.ts'] },
+  { module: 'first screen', file: 'src/renderer/app/app.css', what: 'the video untinted',
+    find: ".wback::after { content: '';", replace: ".wback::after { display: none; content: '';", tests: ['tests/e2e/start.e2e.ts'] },
+  { module: 'first screen', file: 'src/renderer/app/app.css', what: 'the card see-through',
+    find: '  background: var(--white); border: 1px solid var(--border); border-radius: 14px; padding: 36px 40px;',
+    replace: '  background: rgba(255,255,255,.82); border: 1px solid var(--border); border-radius: 14px; padding: 36px 40px;', tests: ['tests/e2e/start.e2e.ts'] },
 ];
 
 function copyTree(dir: string, linkBuild: boolean): void {
