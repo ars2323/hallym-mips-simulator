@@ -882,10 +882,12 @@ async function assemble(source: string): Promise<boolean> {
     return { message, line: resolveMessageLine(message, lines) };
   });
   // Errors: in the Assemble panel and the Editor's margin; the machine as it was.
+  // (The panel says what happened once it is over: renderChrome() below,
+  // when keys work again.)
   const failed = (list: typeof errors): false => {
     errors = list;
     edited = editor.text() !== assembledText;
-    renderErrors();
+    editor.showErrors(errors.map((e) => e.line).filter((n) => n > 0));
     if (narrow) view = 'editor'; // the errors are under the Editor
     after = { kind: 'assembled', ok: false };
     return false;
@@ -936,7 +938,7 @@ async function assemble(source: string): Promise<boolean> {
     edited = editor.text() !== source; // typed on while it assembled
     lastGood = { source, options };
     lastAssembly = { at: new Date(), instructions: rows.filter((x) => !x.kernel).length };
-    renderErrors();
+    editor.showErrors([]);
     labels.clear();
     for (const sym of parseSymbolListing(r.symbols)) labels.add(sym.name, sym.address);
     applied = structuredClone(advanced);
