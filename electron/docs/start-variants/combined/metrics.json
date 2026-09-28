@@ -1,0 +1,726 @@
+[
+ {
+  "variant": "A-window-glass",
+  "size": "1920",
+  "frames": 13,
+  "card": {
+   "width": 722,
+   "height": 273
+  },
+  "ground": {
+   "on": {
+    "towardNavy": [
+     0.44,
+     0.444
+    ],
+    "sharpness": [
+     0.096,
+     0.138
+    ],
+    "blueLean": [
+     7.9,
+     8.1
+    ],
+    "greenLean": [
+     -1,
+     -1
+    ],
+    "light": [
+     0.7,
+     0.7
+    ]
+   },
+   "off": {
+    "towardNavy": [
+     -0.005,
+     0.003
+    ],
+    "sharpness": [
+     0.97,
+     1.003
+    ]
+   }
+  },
+  "glass": {
+   "on": [
+    0.026,
+    0.033
+   ],
+   "off": [
+    0.068,
+    0.092
+   ],
+   "ratio": [
+    0.295,
+    0.408
+   ]
+  },
+  "contrastWorst": {
+   "lead": 4.21,
+   "sub, main button": 5.08,
+   "sub, other button": 5.63,
+   "heading": 10.86,
+   "button label": 14.52
+  }
+ },
+ {
+  "variant": "A-window-glass",
+  "size": "910",
+  "frames": 13,
+  "card": {
+   "width": 721,
+   "height": 273
+  },
+  "ground": {
+   "on": {
+    "towardNavy": [
+     0.405,
+     0.406
+    ],
+    "sharpness": [
+     0.17,
+     0.272
+    ],
+    "blueLean": [
+     6.2,
+     6.3
+    ],
+    "greenLean": [
+     -0.8,
+     -0.7
+    ],
+    "light": [
+     0.69,
+     0.7
+    ]
+   },
+   "off": {
+    "towardNavy": [
+     -0.011,
+     -0.011
+    ],
+    "sharpness": [
+     0.988,
+     0.995
+    ]
+   }
+  },
+  "glass": {
+   "on": [
+    0.071,
+    0.139
+   ],
+   "off": [
+    0.117,
+    0.288
+   ],
+   "ratio": [
+    0.484,
+    0.641
+   ]
+  },
+  "contrastWorst": {
+   "lead": 4.24,
+   "sub, main button": 5.08,
+   "sub, other button": 5.59,
+   "heading": 10.94,
+   "button label": 14.52
+  }
+ },
+ {
+  "variant": "B-window-glass-colour",
+  "size": "1920",
+  "frames": 13,
+  "card": {
+   "width": 722,
+   "height": 273
+  },
+  "ground": {
+   "on": {
+    "towardNavy": [
+     0.44,
+     0.446
+    ],
+    "sharpness": [
+     0.096,
+     0.137
+    ],
+    "blueLean": [
+     6.6,
+     6.7
+    ],
+    "greenLean": [
+     0,
+     0
+    ],
+    "light": [
+     0.69,
+     0.7
+    ]
+   },
+   "off": {
+    "towardNavy": [
+     -0.005,
+     0.003
+    ],
+    "sharpness": [
+     0.97,
+     1.003
+    ]
+   }
+  },
+  "glass": {
+   "on": [
+    0.025,
+    0.031
+   ],
+   "off": [
+    0.068,
+    0.098
+   ],
+   "ratio": [
+    0.298,
+    0.387
+   ]
+  },
+  "contrastWorst": {
+   "lead": 4.21,
+   "sub, main button": 5.08,
+   "sub, other button": 5.64,
+   "heading": 10.86,
+   "button label": 14.52
+  }
+ },
+ {
+  "variant": "B-window-glass-colour",
+  "size": "910",
+  "frames": 13,
+  "card": {
+   "width": 721,
+   "height": 273
+  },
+  "ground": {
+   "on": {
+    "towardNavy": [
+     0.406,
+     0.409
+    ],
+    "sharpness": [
+     0.171,
+     0.272
+    ],
+    "blueLean": [
+     5,
+     5
+    ],
+    "greenLean": [
+     0.2,
+     0.3
+    ],
+    "light": [
+     0.69,
+     0.69
+    ]
+   },
+   "off": {
+    "towardNavy": [
+     -0.011,
+     -0.011
+    ],
+    "sharpness": [
+     0.988,
+     0.995
+    ]
+   }
+  },
+  "glass": {
+   "on": [
+    0.069,
+    0.145
+   ],
+   "off": [
+    0.124,
+    0.3
+   ],
+   "ratio": [
+    0.485,
+    0.72
+   ]
+  },
+  "contrastWorst": {
+   "lead": 4.24,
+   "sub, main button": 5.08,
+   "sub, other button": 5.59,
+   "heading": 10.94,
+   "button label": 14.51
+  }
+ },
+ {
+  "variant": "C-window-opaque-colour",
+  "size": "1920",
+  "frames": 13,
+  "card": {
+   "width": 722,
+   "height": 273
+  },
+  "ground": {
+   "on": {
+    "towardNavy": [
+     0.44,
+     0.446
+    ],
+    "sharpness": [
+     0.096,
+     0.137
+    ],
+    "blueLean": [
+     6.6,
+     6.7
+    ],
+    "greenLean": [
+     0,
+     0
+    ],
+    "light": [
+     0.69,
+     0.7
+    ]
+   },
+   "off": {
+    "towardNavy": [
+     -0.005,
+     0.003
+    ],
+    "sharpness": [
+     0.97,
+     1.003
+    ]
+   }
+  },
+  "contrastWorst": {
+   "lead": 6,
+   "sub, main button": 5.23,
+   "sub, other button": 6,
+   "heading": 15.47,
+   "button label": 15.47
+  }
+ },
+ {
+  "variant": "C-window-opaque-colour",
+  "size": "910",
+  "frames": 13,
+  "card": {
+   "width": 721,
+   "height": 273
+  },
+  "ground": {
+   "on": {
+    "towardNavy": [
+     0.406,
+     0.409
+    ],
+    "sharpness": [
+     0.172,
+     0.274
+    ],
+    "blueLean": [
+     5,
+     5
+    ],
+    "greenLean": [
+     0.2,
+     0.3
+    ],
+    "light": [
+     0.69,
+     0.69
+    ]
+   },
+   "off": {
+    "towardNavy": [
+     -0.011,
+     -0.01
+    ],
+    "sharpness": [
+     0.986,
+     0.993
+    ]
+   }
+  },
+  "contrastWorst": {
+   "lead": 6,
+   "sub, main button": 5.23,
+   "sub, other button": 6,
+   "heading": 15.47,
+   "button label": 15.47
+  }
+ },
+ {
+  "variant": "D-window-glass-colour-90",
+  "size": "1920",
+  "frames": 13,
+  "card": {
+   "width": 722,
+   "height": 273
+  },
+  "ground": {
+   "on": {
+    "towardNavy": [
+     0.44,
+     0.446
+    ],
+    "sharpness": [
+     0.096,
+     0.137
+    ],
+    "blueLean": [
+     6.6,
+     6.7
+    ],
+    "greenLean": [
+     0,
+     0
+    ],
+    "light": [
+     0.69,
+     0.7
+    ]
+   },
+   "off": {
+    "towardNavy": [
+     -0.005,
+     0.003
+    ],
+    "sharpness": [
+     0.97,
+     1.003
+    ]
+   }
+  },
+  "glass": {
+   "on": [
+    0.026,
+    0.051
+   ],
+   "off": [
+    0.104,
+    0.145
+   ],
+   "ratio": [
+    0.232,
+    0.432
+   ]
+  },
+  "contrastWorst": {
+   "lead": 5,
+   "sub, main button": 5.19,
+   "sub, other button": 5.79,
+   "heading": 12.89,
+   "button label": 14.92
+  }
+ },
+ {
+  "variant": "D-window-glass-colour-90",
+  "size": "910",
+  "frames": 13,
+  "card": {
+   "width": 721,
+   "height": 273
+  },
+  "ground": {
+   "on": {
+    "towardNavy": [
+     0.406,
+     0.409
+    ],
+    "sharpness": [
+     0.171,
+     0.272
+    ],
+    "blueLean": [
+     5,
+     5
+    ],
+    "greenLean": [
+     0.2,
+     0.3
+    ],
+    "light": [
+     0.69,
+     0.69
+    ]
+   },
+   "off": {
+    "towardNavy": [
+     -0.011,
+     -0.011
+    ],
+    "sharpness": [
+     0.988,
+     0.995
+    ]
+   }
+  },
+  "glass": {
+   "on": [
+    0.133,
+    0.271
+   ],
+   "off": [
+    0.203,
+    0.457
+   ],
+   "ratio": [
+    0.573,
+    0.693
+   ]
+  },
+  "contrastWorst": {
+   "lead": 5,
+   "sub, main button": 5.19,
+   "sub, other button": 5.79,
+   "heading": 12.89,
+   "button label": 14.92
+  }
+ },
+ {
+  "variant": "B-86",
+  "size": "1920",
+  "frames": 13,
+  "card": {
+   "width": 722,
+   "height": 273
+  },
+  "glass": {
+   "on": [
+    0.03,
+    0.037
+   ],
+   "off": [
+    0.084,
+    0.115
+   ],
+   "ratio": [
+    0.28,
+    0.371
+   ]
+  },
+  "contrastWorst": {
+   "lead": 4.59,
+   "sub, main button": 5.17,
+   "sub, other button": 5.69,
+   "heading": 11.85,
+   "button label": 14.7
+  }
+ },
+ {
+  "variant": "B-86",
+  "size": "910",
+  "frames": 13,
+  "card": {
+   "width": 721,
+   "height": 273
+  },
+  "glass": {
+   "on": [
+    0.083,
+    0.188
+   ],
+   "off": [
+    0.149,
+    0.37
+   ],
+   "ratio": [
+    0.508,
+    0.708
+   ]
+  },
+  "contrastWorst": {
+   "lead": 4.59,
+   "sub, main button": 5.17,
+   "sub, other button": 5.69,
+   "heading": 11.85,
+   "button label": 14.67
+  }
+ },
+ {
+  "variant": "B-dark-text",
+  "size": "1920",
+  "frames": 13,
+  "card": {
+   "width": 722,
+   "height": 273
+  },
+  "glass": {
+   "on": [
+    0.025,
+    0.031
+   ],
+   "off": [
+    0.068,
+    0.098
+   ],
+   "ratio": [
+    0.298,
+    0.387
+   ]
+  },
+  "contrastWorst": {
+   "lead": 5.31,
+   "sub, main button": 6.4,
+   "sub, other button": 7.1,
+   "heading": 10.86,
+   "button label": 14.52
+  }
+ },
+ {
+  "variant": "B-dark-text",
+  "size": "910",
+  "frames": 13,
+  "card": {
+   "width": 721,
+   "height": 273
+  },
+  "glass": {
+   "on": [
+    0.069,
+    0.145
+   ],
+   "off": [
+    0.124,
+    0.3
+   ],
+   "ratio": [
+    0.485,
+    0.72
+   ]
+  },
+  "contrastWorst": {
+   "lead": 5.35,
+   "sub, main button": 6.4,
+   "sub, other button": 7.05,
+   "heading": 10.94,
+   "button label": 14.51
+  }
+ },
+ {
+  "variant": "B-86-dark-text",
+  "size": "1920",
+  "frames": 13,
+  "card": {
+   "width": 722,
+   "height": 273
+  },
+  "glass": {
+   "on": [
+    0.03,
+    0.037
+   ],
+   "off": [
+    0.084,
+    0.115
+   ],
+   "ratio": [
+    0.28,
+    0.371
+   ]
+  },
+  "contrastWorst": {
+   "lead": 5.79,
+   "sub, main button": 6.51,
+   "sub, other button": 7.17,
+   "heading": 11.85,
+   "button label": 14.7
+  }
+ },
+ {
+  "variant": "B-86-dark-text",
+  "size": "910",
+  "frames": 13,
+  "card": {
+   "width": 721,
+   "height": 273
+  },
+  "glass": {
+   "on": [
+    0.083,
+    0.188
+   ],
+   "off": [
+    0.149,
+    0.37
+   ],
+   "ratio": [
+    0.508,
+    0.708
+   ]
+  },
+  "contrastWorst": {
+   "lead": 5.79,
+   "sub, main button": 6.51,
+   "sub, other button": 7.17,
+   "heading": 11.85,
+   "button label": 14.67
+  }
+ },
+ {
+  "variant": "B-72",
+  "size": "1920",
+  "frames": 13,
+  "card": {
+   "width": 722,
+   "height": 273
+  },
+  "glass": {
+   "on": [
+    0.017,
+    0.02
+   ],
+   "off": [
+    0.05,
+    0.067
+   ],
+   "ratio": [
+    0.283,
+    0.34
+   ]
+  },
+  "contrastWorst": {
+   "lead": 3.42,
+   "sub, main button": 4.98,
+   "sub, other button": 5.44,
+   "heading": 8.81,
+   "button label": 14.02
+  }
+ },
+ {
+  "variant": "B-72",
+  "size": "910",
+  "frames": 13,
+  "card": {
+   "width": 721,
+   "height": 273
+  },
+  "glass": {
+   "on": [
+    0.049,
+    0.085
+   ],
+   "off": [
+    0.089,
+    0.219
+   ],
+   "ratio": [
+    0.39,
+    0.649
+   ]
+  },
+  "contrastWorst": {
+   "lead": 3.42,
+   "sub, main button": 4.99,
+   "sub, other button": 5.4,
+   "heading": 8.81,
+   "button label": 14.02
+  }
+ }
+]

@@ -79,24 +79,19 @@ async function videoAt(r: Running, t: number): Promise<void> {
   }), t);
 }
 
-async function withStyle<T>(r: Running, css: string, body: () => Promise<T>): Promise<T> {
+// One extra style for a whole pass over the frames, then a second for it to reach the screen:
+// switched per frame, a capture could come before the compositor had drawn the switch (a B row
+// read every text at about 1:1 -- the text not yet hidden -- and the glass off as on).
+async function setExtra(r: Running, css: string): Promise<void> {
   await r.page.evaluate((css) => new Promise<void>((done) => {
+    document.getElementById('measure-extra')?.remove();
     const st = document.createElement('style');
     st.id = 'measure-extra';
     st.textContent = css;
     document.head.append(st);
     requestAnimationFrame(() => requestAnimationFrame(() => done()));
   }), css);
-  await r.page.waitForTimeout(150);
-  try {
-    return await body();
-  } finally {
-    await r.page.evaluate(() => new Promise<void>((done) => {
-      document.getElementById('measure-extra')?.remove();
-      requestAnimationFrame(() => requestAnimationFrame(() => done()));
-    }));
-    await r.page.waitForTimeout(150);
-  }
+  await r.page.waitForTimeout(1000);
 }
 
 // Inside the card, above its heading: what the card shows of the ground (the glass).
@@ -106,19 +101,24 @@ async function cardRect(r: Running): Promise<Rect> {
   return { x: card.x + 24, y: card.y + 4, width: card.width - 48, height: Math.max(8, h1.y - card.y - 10) };
 }
 
-// Each text's contrast against what is behind it: the card captured with the text hidden,
-// the darkest 1% of the pixels under the text's box (the backgrounds are lighter than the texts).
-async function contrasts(r: Running): Promise<Record<string, number>> {
-  const card = (await r.page.locator('.wcard').boundingBox())!;
-  const texts = await r.page.evaluate((sels) => sels.map(([name, sel]) => {
+// The card's texts: where, and their colours (read before the pass that hides them).
+interface Text { name: string; x: number; y: number; width: number; height: number; color: string }
+async function texts(r: Running): Promise<Text[]> {
+  return r.page.evaluate((sels) => sels.map(([name, sel]) => {
     const e = document.querySelector(sel)!;
     const b = e.getBoundingClientRect();
     return { name, x: b.x, y: b.y, width: b.width, height: b.height, color: getComputedStyle(e).color };
   }), TEXTS);
-  const shot = await withStyle(r, HIDE_TEXT, () => screenPixels(r, card));
+}
+
+// Each text's contrast against what is behind it, the texts hidden (HIDE_TEXT on for the pass):
+// the darkest 1% of the pixels under its box (the backgrounds are lighter than the texts).
+async function contrasts(r: Running, ts: Text[]): Promise<Record<string, number>> {
+  const card = (await r.page.locator('.wcard').boundingBox())!;
+  const shot = await screenPixels(r, card);
   const k = shot.width / card.width;
   const result: Record<string, number> = {};
-  for (const t of texts) {
+  for (const t of ts) {
     const fg = t.color.match(/[\d.]+/g)!.slice(0, 3).map(Number) as RGB;
     const x0 = Math.round((t.x - card.x) * k), y0 = Math.round((t.y - card.y) * k);
     const x1 = Math.round((t.x + t.width - card.x) * k), y1 = Math.round((t.y + t.height - card.y) * k);
@@ -129,7 +129,10 @@ async function contrasts(r: Running): Promise<Record<string, number>> {
     }
     if (!ls.length) throw new Error(`${t.name}: no pixels under it`);
     ls.sort((a, b) => a - b);
-    result[t.name] = +ratio(lum(fg), ls[Math.floor(ls.length * 0.01)]).toFixed(2);
+    const c = ratio(lum(fg), ls[Math.floor(ls.length * 0.01)]);
+    // No design here puts a text on its own colour: under 1.5 the text was still on the screen.
+    if (c < 1.5) throw new Error(`${t.name}: ${c.toFixed(2)}:1 -- the text not hidden on the screen yet`);
+    result[t.name] = +c.toFixed(2);
   }
   return result;
 }
@@ -232,29 +235,57 @@ for (const v of set) {
       const off: { towardNavy: number; sharpness: number }[] = [];
       const glassOn: number[] = [], glassOff: number[] = [];
       const worst: Record<string, number> = {};
+      const ts = await texts(r);
+      const at = async (t: number) => { await videoAt(r, t); await r.page.waitForTimeout(200); };
+      // Pass 1, the design (its texts hidden): the ground, the glass, the contrasts.
+      await setExtra(r, HIDE_TEXT);
       for (const t of FRAMES) {
-        await videoAt(r, t);
+        await at(t);
         if (!v.probe) {
           const ground = await groundRect(r);
-          const raw = await rawPixels(r, ground);
-          const g = compare(await screenPixels(r, ground), raw);
+          const g = compare(await screenPixels(r, ground), await rawPixels(r, ground));
           on.push({ towardNavy: g.towardNavy, sharpness: g.sharpness, ...colour(g.screen.mean, g.raw.mean) });
-          const o = await withStyle(r, OFF, async () => compare(await screenPixels(r, ground), raw));
-          off.push({ towardNavy: o.towardNavy, sharpness: o.sharpness });
         }
         if (v.glass) {
           const cr = await cardRect(r);
-          const raw = await rawPixels(r, cr);
-          glassOn.push(compare(await screenPixels(r, cr), raw).sharpness);
-          glassOff.push(await withStyle(r, GLASS_OFF, async () => compare(await screenPixels(r, cr), raw).sharpness));
+          glassOn.push(compare(await screenPixels(r, cr), await rawPixels(r, cr)).sharpness);
         }
-        for (const [name, c] of Object.entries(await contrasts(r))) worst[name] = Math.min(worst[name] ?? Infinity, c);
+        for (const [name, c] of Object.entries(await contrasts(r, ts))) worst[name] = Math.min(worst[name] ?? Infinity, c);
       }
+      // Pass 2, the card's backdrop-filter removed.
+      if (v.glass) {
+        await setExtra(r, HIDE_TEXT + GLASS_OFF);
+        for (const t of FRAMES) {
+          await at(t);
+          const cr = await cardRect(r);
+          glassOff.push(compare(await screenPixels(r, cr), await rawPixels(r, cr)).sharpness);
+        }
+      }
+      // Pass 3, the ground's treatment removed (no filter, no veil).
+      if (!v.probe) {
+        await setExtra(r, HIDE_TEXT + OFF);
+        for (const t of FRAMES) {
+          await at(t);
+          const ground = await groundRect(r);
+          const o = compare(await screenPixels(r, ground), await rawPixels(r, ground));
+          off.push({ towardNavy: o.towardNavy, sharpness: o.sharpness });
+        }
+      }
+      // Where the window is on the screen: a strip partly off the screen captures black.
+      const geometry = await r.app.evaluate(({ BrowserWindow, screen }) => {
+        const w = BrowserWindow.getAllWindows()[0], d = screen.getPrimaryDisplay();
+        return { window: w.getBounds(), content: w.getContentBounds(), screen: d.bounds, workArea: d.workArea, scale: d.scaleFactor };
+      });
+      // The first design's screen as it is at the end (the ground's treatment off), for when the numbers say something is wrong.
+      if (process.platform === 'win32' && v === set[0]) wholeScreen(path.join(out, `windows-screen-${v.id}-${s.name}.png`));
       const row = {
-        variant: v.id, size: s.name, frames: FRAMES.length,
+        variant: v.id, size: s.name, frames: FRAMES.length, geometry,
         card: { width: Math.round(card.width), height: Math.round(card.height) },
         ...(on.length ? {
           ground: {
+            // With the treatment off the screen must be the raw frame (tint about 0, sharpness about 1);
+            // if not, the strip holds something else and neither end of the row is a measurement.
+            valid: Math.max(...off.map((m) => Math.abs(m.towardNavy))) < 0.1 && Math.min(...off.map((m) => m.sharpness)) > 0.8,
             on: { towardNavy: range(on.map((m) => m.towardNavy)), sharpness: range(on.map((m) => m.sharpness)),
                   blueLean: range(on.map((m) => m.blueLean)), greenLean: range(on.map((m) => m.greenLean)), light: range(on.map((m) => m.light)) },
             off: { towardNavy: range(off.map((m) => m.towardNavy)), sharpness: range(off.map((m) => m.sharpness)) },

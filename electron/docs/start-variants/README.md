@@ -3,8 +3,10 @@
 Designs for the first screen, for choosing one. They are not the app's screens (those are in `../screens/`), and the app does not change until one is chosen. Each design is CSS laid over the app as it is, at run time: `tools/start-variants-list.ts` holds the designs and `tools/start-variants.ts` takes the pictures.
 
 ```
-xvfb-run -a -s '-screen 0 2400x1400x24' node tools/start-variants.ts
+xvfb-run -a -s '-screen 0 2400x1400x24' node tools/start-variants.ts first
 ```
+
+This page is the first round: seven designs, pictured and measured with the tool as of commit 3dab049, at one frame (3.0 s). The second round combines 5 and 4, measures across the clip's frames, and covers the caption buttons on Windows: [combined/README.md](combined/README.md).
 
 Each design is pictured at two sizes: 1920×1040 (a maximised 1920×1080 screen) and 910×505 (1366×768 at 150%, the lab's narrow case). The video is stopped at 3.0 s and the clock is fixed at 10:00. `sheet.jpg` puts all of them side by side, and `metrics.json` holds the numbers below. The Windows run (`electron.yml`, the step "Candidate first screens") takes the same pictures on the real screen, into the report artifact's `start-variants/`.
 
