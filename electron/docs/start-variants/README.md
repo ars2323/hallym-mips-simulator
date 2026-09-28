@@ -20,6 +20,20 @@ Each design is pictured at two sizes: 1920×1040 (a maximised 1920×1080 screen)
 
 "Smaller card" means a 168 px character column, a 28 px gap and 28/32 padding. That makes the card 722×273 instead of 780×289.
 
+## Pictures
+
+All of them side by side: [sheet.jpg](sheet.jpg).
+
+| | 1920×1040 | 910×505 (150%) |
+|---|---|---|
+| 1 | [1920×1040](1-current-1920.jpg) | [910×505](1-current-910.jpg) |
+| 2 | [1920×1040](2-light-tint-1920.jpg) | [910×505](2-light-tint-910.jpg) |
+| 3 | [1920×1040](3-smeared-1920.jpg) | [910×505](3-smeared-910.jpg) |
+| 4 | [1920×1040](4-glass-1920.jpg) | [910×505](4-glass-910.jpg) |
+| 5 | [1920×1040](5-whole-window-1920.jpg) | [910×505](5-whole-window-910.jpg) |
+| 6 | [1920×1040](6-neutral-1920.jpg) | [910×505](6-neutral-910.jpg) |
+| 7 | [1920×1040](7-no-video-1920.jpg) | [910×505](7-no-video-910.jpg) |
+
 ## Numbers (Linux, Xvfb)
 
 All measurements are taken on the ground strip above the card: the screen is compared with the raw video frame at the same place (`tests/e2e/backdrop-measure.ts`).
