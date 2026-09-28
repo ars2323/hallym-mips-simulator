@@ -1485,6 +1485,16 @@ Now:
 - 48e645c's installer, which never changes, is built once and kept in the Actions cache.
 - The installer pictures come from the release commit's run and are committed before the tag, whose own run then checks that commit. So a tag carries its own pictures: v2.5.0's `installer-finish.png` was 2.4.0's, byte for byte, because the new ones were committed after the tag.
 
+Per release, measured (2.5.0's runs, then this round's with the cache):
+
+| | Before | After |
+|---|---|---|
+| Windows build-and-test jobs | 3 (15.9 + 16.4 + 16.8 min) | 2: the release commit's, the pictures commit's (about 15.5 min each) |
+| Upgrade jobs | 2 × 5.7 min (3.8 of it rebuilding 48e645c) | 2 × 1.1 min (cache hit) |
+| Tag run | build 16.8 + upgrade 5.7 + publish 0.3 + post-release check 7.2 | pick the checked installer (seconds) + publish 0.3 + post-release check 7.2 |
+| Qt workflow | 9.0 min (a root document in the release commit ran it) | 0, unless a Qt input changed |
+| CI minutes | 77.0 | about 41 |
+
 **The Qt workflow** runs only when one of its inputs changes (`paths` in `ci.yml`): `QtSpim/`, `tests/`, `Tests/`, `tools/`, `Setup/`, `CPU/`, SPIM's `README`, the guides `docs/GUIDE*.md` and `docs/images/`, and `ci.yml` itself. Rule 3 asks it to be green on the last commit that changed one of them. It had been dispatched by hand on Electron-only release commits, which proved nothing about an unchanged Qt edition. `CPU/` is shared, so a change there still runs both.
 
 **Screens:** `tools/capture-screens.ts` fixes the windows' clock (`page.clock.setFixedTime`). The Assemble panel shows the assemble's time, which made every retake differ in about 300 pixels by 100 levels and more. A capture is kept only when it differs from the file on disk:
