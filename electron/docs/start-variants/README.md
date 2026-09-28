@@ -70,3 +70,34 @@ The glass (design 4) is measured on the card's top strip, above its heading, wit
 | 910 | `blur(18px) saturate(1.2)` | 0.126 | 0.224 |
 
 The first-screen e2e test (`tests/e2e/start.e2e.ts`) requires tint > 0.4 and sharpness < 0.6. Those thresholds were calibrated on design 1. Designs 2 and 4 fail its tint check even though they are doing what they were designed to do. Design 6 passes it, but only because darkening counts as navy, so the check would no longer guard what it names. Whichever design is chosen, the test is recalibrated: measure with the treatment on and off, then place the threshold between the two with a margin.
+
+## Numbers on Windows
+
+These come from run [36431343709](https://github.com/ars2323/hallym-mips-simulator/actions/runs/36431343709): the installed app on the runner's real 1920×1080 screen, captured with `CopyFromScreen`, animations on.
+
+| design | 910 tint | 910 sharpness | 910 blue | 1920 tint | 1920 sharpness |
+|---|---|---|---|---|---|
+| 1-current | 0.587 | 0.218 | +7.0 | 0.726 | 0.304 |
+| 2-light-tint | 0.286 | 0.436 | +2.4 | 0.453 | 0.307 |
+| 3-smeared | 0.487 | 0.051 | +6.9 | 0.576 | 0.189 |
+| 4-glass | 0.355 | 0.208 | +4.5 | 0.519 | 0.235 |
+| 5-whole-window | 0.439 | 0.127 | +6.2 | 0.600 | 0.213 |
+| 6-neutral | 0.597 | 0.225 | −3.2 | 0.643 | 0.231 |
+
+At 910 the Windows numbers match Linux to within about 0.01. At 1920 they do not: every design reads darker (light 0.42–0.68 against 0.49–0.80 on Linux) and sharper. The smeared design, for example, measures 0.189 where Linux measures 0.030.
+
+The glass strip in the middle of the card does match at 1920 (below). The ground strip is the one that spans almost the whole screen width. A cause that fits is a window placed partly off the screen, putting black pixels into the capture. This run saved no picture of the screen, so that is not confirmed, and the Windows 1920 ground numbers should not be used for calibration until it is.
+
+The glass card on Windows:
+
+| size | computed | sharpness with the filter | sharpness without it | strip mean, with / without |
+|---|---|---|---|---|
+| 1920 | `blur(18px) saturate(1.2)` | 0.025 | 0.082 | 213,219,223 / 214,219,221 |
+| 910 | `blur(18px) saturate(1.2)` | 0.128 | 0.228 | 213,222,232 / 214,222,230 |
+
+The backdrop-filter works on the real Windows screen. It lowers what the card shows of the ground to about a third of its sharpness at 1920, and to a little over half at 910. The Linux figures are the same.
+
+Two things these pictures do not show:
+
+- **Design 5's caption buttons.** They are drawn by Windows, not the page, so screenshots of the page leave them out. The design sets their patch to transparent (`#00000000`) with white symbols. Whether Windows honours the transparency has not been seen.
+- **The glass card's text contrast.** The secondary text (#5a6472) on the glass strip's mean measures 4.3–4.4:1 over the sky (213,219,223 and 213,222,232). That is under AA's 4.5:1; the same text on the opaque card is 6.0:1. Over darker ground it would be lower still.
