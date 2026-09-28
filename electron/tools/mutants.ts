@@ -7,8 +7,9 @@
        --jobs N          N mutants at a time (default: a third of the cores, 1 to 6); those that
                          rebuild the addon run one at a time, after the others
        --shard I/N       the I-th of N parts of the selection (CI: .github/workflows/mutants.yml)
-       --control         first run the selection's tests with no mutant: a failure there would make
-                         every kill meaningless, so the run stops
+       --no-control      skip the control (on by default): first the selection's tests are run with
+                         no mutant, since a failure there would make every kill meaningless (a test
+                         failing on its own reads as a kill), so the run stops
        --json FILE       the results: each mutant, killed or not, by which test, in how many seconds
      node tools/mutants.ts --check             every mutant's `find` exactly once in its `file`; nothing built or run
      node tools/mutants.ts --merge OUT IN...   one result from the shards' JSON; fails unless every mutant is in it, killed
@@ -487,9 +488,12 @@ const MUTANTS: Mutant[] = [
     find: 'pointer-events: none; background: var(--navy); }', replace: 'pointer-events: none; background: var(--white); }', tests: ['tests/e2e/start.e2e.ts'] },
   { module: 'first screen', file: 'src/renderer/app/app.css', what: 'the video untinted',
     find: ".wback::after { content: '';", replace: ".wback::after { display: none; content: '';", tests: ['tests/e2e/start.e2e.ts'] },
-  { module: 'first screen', file: 'src/renderer/app/app.css', what: 'the card see-through',
-    find: '  background: var(--white); border: 1px solid var(--border); border-radius: 14px; padding: 36px 40px;',
-    replace: '  background: rgba(255,255,255,.82); border: 1px solid var(--border); border-radius: 14px; padding: 36px 40px;', tests: ['tests/e2e/start.e2e.ts'] },
+  // The card is glass (2.6.0, docs/PORTING.md 29): what must hold is its texts' contrast over every
+  // frame, and that it blurs what it shows -- not that it is opaque.
+  { module: 'first screen', file: 'src/renderer/app/app.css', what: "the glass card thinner than its texts' contrast allows",
+    find: '  background: rgba(255,255,255,.82); backdrop-filter:', replace: '  background: rgba(255,255,255,.72); backdrop-filter:', tests: ['tests/e2e/start.e2e.ts'] },
+  { module: 'first screen', file: 'src/renderer/app/app.css', what: 'the glass card without its blur',
+    find: 'backdrop-filter: blur(18px) saturate(1.2);', replace: 'backdrop-filter: none;', tests: ['tests/e2e/start.e2e.ts'] },
   // ---- the executable image (.hmx: src/core/hmx.ts, src/sim/image.ts)
   { module: 'hmx', file: 'src/core/hmx.ts', what: '.text written at the wrong address',
     find: 'lines.push(`.text ${hex32(text.addr)} words', replace: 'lines.push(`.text ${hex32(text.addr + 4)} words', tests: ['tests/sim/hmx.test.ts'] },
@@ -511,7 +515,7 @@ const MUTANTS: Mutant[] = [
     find: '  bExport.disabled = lastGood === null || busy;', replace: '  bExport.disabled = busy;', tests: ['tests/e2e/export.e2e.ts'] },
   // ---- the first screen as the screen shows it, and the cut of the clip (2.5.0)
   { module: 'first screen', file: 'src/renderer/app/app.css', what: 'the video unblurred',
-    find: 'object-fit: cover; filter: blur(3px) saturate(.85);', replace: 'object-fit: cover;', tests: ['tests/e2e/start.e2e.ts'] },
+    find: 'object-fit: cover; filter: blur(8px) saturate(1.25) sepia(.1) hue-rotate(-6deg);', replace: 'object-fit: cover;', tests: ['tests/e2e/start.e2e.ts'] },
   { module: 'first screen', file: 'tools/start-video.ts', what: 'the slowed clip without the frames in between',
     find: 'minterpolate=fps=${FPS}:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1', replace: 'fps=${FPS}', tests: ['tests/renderer/start-clip.test.ts'] },
 ];
@@ -774,11 +778,12 @@ function verifySelector(): boolean {
 
 const { values: opt, positionals } = parseArgs({
   allowPositionals: true,
+  allowNegative: true, // --no-control
   options: {
     changed: { type: 'boolean', default: false },
     list: { type: 'boolean', default: false },
     check: { type: 'boolean', default: false },
-    control: { type: 'boolean', default: false },
+    control: { type: 'boolean', default: true },
     jobs: { type: 'string' },
     shard: { type: 'string' },
     json: { type: 'string' },

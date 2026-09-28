@@ -10,7 +10,7 @@
 #
 #   shards   the mutants dealt into SHARDS parts (the addon-rebuilding ones
 #            spread over them); each part first runs its tests with no
-#            mutant (--control: a failing test there would make every kill
+#            mutant (the control, on by default: a failing test there would make every kill
 #            meaningless), then its mutants, two at a time, each on its own
 #            Xvfb display
 #   summary  the parts merged: every mutant present once and killed, or it
@@ -61,7 +61,7 @@ jobs:
         run: node tools/build-electron.ts
 
       - name: The mutants of part ${{ matrix.shard }}
-        run: node tools/mutants.ts --shard ${{ matrix.shard }}/$SHARDS --jobs 2 --control --json results-${{ matrix.shard }}.json
+        run: node tools/mutants.ts --shard ${{ matrix.shard }}/$SHARDS --jobs 2 --json results-${{ matrix.shard }}.json
 
       - name: Upload part ${{ matrix.shard }}
         if: always()

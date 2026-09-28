@@ -43,7 +43,7 @@ import type { TextFileFormat } from '../../node/text-file.ts';
 import type { RunResult } from '../../sim/protocol.ts';
 import './api.ts';
 import { asset, character, code, codeText, h, icon, monoCh, withHex } from './dom.ts';
-import { overlayColor } from './logic/overlay.ts';
+import { captionPatch, WHITE_PATCH } from './logic/overlay.ts';
 import { notice } from './notice.ts';
 import { nearMiss } from '../../core/near-miss.ts';
 import { createEditor } from './editor.ts';
@@ -338,6 +338,7 @@ const asmRoom = (): number => Math.max(ASM_LEAST, paneEditor.clientHeight - edit
 
 function layout(): void {
   stageWelcome.hidden = open;
+  document.body.classList.toggle('first-screen', !open); // its bars over the photo (app.css), the caption patch (updateOverlay)
   firstScreen.show(!open); // the video plays on the first screen only
   split.hidden = !open;
   viewSwitch.hidden = !open || !narrow;
@@ -1347,18 +1348,22 @@ function showCongrats(): void {
 
 // ---- the caption buttons' patch -----------------------------------------------------------
 // Windows draws the minimise / maximise / close buttons on a patch the page
-// cannot paint (titleBarOverlay).  While the tutorial dims the window, or a
-// dialog's backdrop covers it, the patch takes the colour white has under
-// the same layers (logic/overlay.ts), or it would stay a bright square at
-// the top right; white again after.  The buttons keep working throughout.
-let overlayNow = '#ffffff';
+// cannot paint (titleBarOverlay).  On the first screen, whose title bar is
+// dark glass over the photo, the patch is transparent and the symbols white.
+// Elsewhere, while the tutorial dims the window, or a dialog's backdrop
+// covers it, the patch takes the colour white has under the same layers
+// (logic/overlay.ts), or it would stay a bright square at the top right;
+// white again after.  The buttons keep working throughout.
+let overlayNow = `${WHITE_PATCH.color} ${WHITE_PATCH.symbolColor}`; // the window's own at its start (src/main/main.ts)
 function updateOverlay(): void {
-  const c = overlayColor(document.body.classList.contains('tutorial-on'), document.querySelector('dialog[open]') !== null);
-  if (c === overlayNow) return;
-  overlayNow = c;
-  void api.setOverlay(c === '#ffffff' ? null : c);
+  const b = document.body.classList;
+  const p = captionPatch(b.contains('first-screen'), b.contains('tutorial-on'), document.querySelector('dialog[open]') !== null);
+  if (`${p.color} ${p.symbolColor}` === overlayNow) return;
+  overlayNow = `${p.color} ${p.symbolColor}`;
+  void api.setOverlay(p);
 }
 new MutationObserver(updateOverlay).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'open'] });
+updateOverlay(); // the first screen is up before anything is watched
 
 // ---- keys -----------------------------------------------------------------------------------
 

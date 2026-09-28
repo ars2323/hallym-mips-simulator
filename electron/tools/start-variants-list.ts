@@ -173,7 +173,16 @@ export const CONTRAST_PROBES: Variant[] = [
   { id: 'B-72', name: 'B, card .72 (a mutant\'s state)', glass: true, probe: true, what: 'B with the card at .72: too thin.', css: WHOLE_WINDOW + GROUND_2 + glassCard(.72) + SMALLER_CARD },
 ];
 
-export const SETS: Record<string, Variant[]> = { first: VARIANTS, combined: [...COMBINED, ...CONTRAST_PROBES] };
+// ---- The app as built (2.6.0: B with #4b5563), and the states its mutants make, for the thresholds.
+export const APP: Variant[] = [
+  { id: 'app', name: 'The app', glass: true, what: 'The first screen as the app draws it: nothing laid over it.', css: '' },
+  { id: 'app-72', name: 'The app, card .72', glass: true, probe: true, what: 'The card thinner (a mutant).',
+    css: '.wcard { background: rgba(255,255,255,.72) !important; }' },
+  { id: 'app-65', name: 'The app, card .65', glass: true, probe: true, what: 'Thinner still, in case .72 keeps 4.5:1.',
+    css: '.wcard { background: rgba(255,255,255,.65) !important; }' },
+];
+
+export const SETS: Record<string, Variant[]> = { first: VARIANTS, combined: [...COMBINED, ...CONTRAST_PROBES], app: APP };
 
 // Lays a design over the running app (its style replaces any earlier one's).
 export async function applyVariant(r: Running, v: Variant, overlay: Overlay | undefined = v.titlebarOverlay): Promise<void> {

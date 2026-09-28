@@ -26,6 +26,7 @@ import path from 'node:path';
 import type { Running } from './harness.ts';
 
 export const NAVY = [0, 32, 91] as const;
+type RGB = [number, number, number];
 export interface Rect { x: number; y: number; width: number; height: number }
 export interface Pixels { width: number; height: number; rgba: Uint8Array }
 
@@ -139,4 +140,101 @@ export async function groundRect(r: Running): Promise<Rect> {
   const above = { x: stage.x + 20, y: stage.y + 10, width: stage.width - 40, height: card.y - stage.y - 30 };
   const beside = { x: stage.x + 10, y: stage.y + 20, width: card.x - stage.x - 30, height: stage.height - 40 };
   return above.width * above.height >= beside.width * beside.height ? above : beside;
+}
+
+// ---- the first screen's card: its glass and its texts' contrast (2.6.0) -------------------
+
+// The treatment of the ground taken off (the raw photo on the screen); the card's
+// backdrop-filter taken off; the card's texts hidden (what is behind them left).
+export const TREATMENT_OFF = '.wback img, .wback video { filter: none !important; } .wback::after { display: none !important; }';
+export const GLASS_OFF = '.wcard { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }';
+export const HIDE_TEXT = '.wcard h1, .wcard p.lead, .action b, .action .sub { color: transparent !important; }';
+export const TEXTS: [string, string][] = [
+  ['lead', '.wcard p.lead'], ['sub, main button', '.action.main .sub'], ['sub, other button', '.action:not(.main) .sub'],
+  ['heading', '.wcard h1'], ['button label', '.action:not(.main) b'],
+];
+
+// WCAG 2 relative luminance and contrast ratio.
+const lin = (v: number) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+export const lum = (c: RGB) => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
+export const ratio = (a: number, b: number) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+
+// One extra style for a whole pass over the frames, then a second for it to reach the screen:
+// switched per frame, a capture could come before the compositor had drawn the switch (one row of
+// tools/start-variants.ts read every text at about 1:1 -- the text not yet hidden).
+export async function setExtra(r: Running, css: string): Promise<void> {
+  await r.page.evaluate((css) => new Promise<void>((done) => {
+    document.getElementById('measure-extra')?.remove();
+    const st = document.createElement('style');
+    st.id = 'measure-extra';
+    st.textContent = css;
+    document.head.append(st);
+    requestAnimationFrame(() => requestAnimationFrame(() => done()));
+  }), css);
+  await r.page.waitForTimeout(1000);
+}
+
+// The glass: with everything on it hidden (CARD_EMPTY), the whole card is what it shows of the
+// ground -- inside its rounded corners and border.  (The strip above the heading alone, about 20
+// px, read up to 0.75 at 910x505, too near what no filter reads: docs/PORTING.md 29.)
+export const CARD_EMPTY = '.wcard > * { visibility: hidden !important; }';
+
+// The glass's sharpness, screen over raw, on 4x4-pixel block means: the ground under the card is
+// blurred already (8 px), so at the pixel's own scale both states sit near the noise floor (the
+// design read 0.58-0.60 of no filter at the 3x3 scale); the card's 18 px more show at a coarser
+// one (0.36-0.37 at every e2e size; docs/PORTING.md 29).
+export function glassSharpness(screen: Pixels, raw: Pixels): number {
+  return compare(blocks(screen, 4), blocks(raw, 4)).sharpness;
+}
+export function blocks(p: Pixels, k: number): Pixels {
+  const w = Math.floor(p.width / k), h = Math.floor(p.height / k), rgba = new Uint8Array(w * h * 4);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    for (let c = 0; c < 3; c++) {
+      let sum = 0;
+      for (let j = 0; j < k; j++) for (let i = 0; i < k; i++) sum += p.rgba[((y * k + j) * p.width + x * k + i) * 4 + c];
+      rgba[(y * w + x) * 4 + c] = Math.round(sum / (k * k));
+    }
+    rgba[(y * w + x) * 4 + 3] = 255;
+  }
+  return { width: w, height: h, rgba };
+}
+export async function glassRect(r: Running): Promise<Rect> {
+  const card = (await r.page.locator('.wcard').boundingBox())!;
+  return { x: card.x + 18, y: card.y + 18, width: card.width - 36, height: card.height - 36 };
+}
+
+// The card's texts: where, and their colours (read before the pass that hides them).
+export interface Text { name: string; x: number; y: number; width: number; height: number; color: string }
+export async function cardTexts(r: Running): Promise<Text[]> {
+  return r.page.evaluate((sels) => sels.map(([name, sel]) => {
+    const e = document.querySelector(sel)!;
+    const b = e.getBoundingClientRect();
+    return { name, x: b.x, y: b.y, width: b.width, height: b.height, color: getComputedStyle(e).color };
+  }), TEXTS);
+}
+
+// Each text's contrast against what is behind it, the texts hidden (HIDE_TEXT on for the pass):
+// the darkest 1% of the pixels under its box (the backgrounds are lighter than the texts).
+export async function textContrasts(r: Running, ts: Text[]): Promise<Record<string, number>> {
+  const card = (await r.page.locator('.wcard').boundingBox())!;
+  const shot = await screenPixels(r, card);
+  const k = shot.width / card.width;
+  const result: Record<string, number> = {};
+  for (const t of ts) {
+    const fg = t.color.match(/[\d.]+/g)!.slice(0, 3).map(Number) as RGB;
+    const x0 = Math.round((t.x - card.x) * k), y0 = Math.round((t.y - card.y) * k);
+    const x1 = Math.round((t.x + t.width - card.x) * k), y1 = Math.round((t.y + t.height - card.y) * k);
+    const ls: number[] = [];
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+      const i = (y * shot.width + x) * 4;
+      ls.push(lum([shot.rgba[i], shot.rgba[i + 1], shot.rgba[i + 2]]));
+    }
+    if (!ls.length) throw new Error(`${t.name}: no pixels under it`);
+    ls.sort((a, b) => a - b);
+    const c = ratio(lum(fg), ls[Math.floor(ls.length * 0.01)]);
+    // No design here puts a text on its own colour: under 1.5 the text was still on the screen.
+    if (c < 1.5) throw new Error(`${t.name}: ${c.toFixed(2)}:1 -- the text not hidden on the screen yet`);
+    result[t.name] = +c.toFixed(2);
+  }
+  return result;
 }

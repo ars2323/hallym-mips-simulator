@@ -29,5 +29,5 @@ contextBridge.exposeInMainWorld('app', {
   openCredits: () => ipcRenderer.invoke('about:openCredits').then(unwrap),
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setSettings: (s) => ipcRenderer.invoke('settings:set', s),
-  setOverlay: (color) => ipcRenderer.invoke('win:overlay', color),
+  setOverlay: (patch) => ipcRenderer.invoke('win:overlay', patch),
 });

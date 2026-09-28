@@ -260,15 +260,16 @@ async function main(): Promise<void> {
   ipcMain.handle('settings:set', (_e, s: Settings) => {
     return setSettings(s);
   });
-  // The caption buttons' patch (titleBarOverlay, drawn by Windows) takes
-  // the colour the page asks for while it is covered (the tutorial's dim, a
-  // dialog's backdrop: src/renderer/app/logic/overlay.ts); null is white
-  // again.  The buttons themselves keep working.  Kept on the window for
-  // the tests to read (Electron has no getter for it).
-  ipcMain.handle('win:overlay', (_e, color: string | null) => {
-    const c = color ?? '#ffffff';
-    (win as BrowserWindow & { overlayColor?: string }).overlayColor = c;
-    try { win.setTitleBarOverlay({ color: c, symbolColor: '#00205b', height: TITLE_BAR_HEIGHT }); } catch { /* no title bar overlay on this platform */ }
+  // The caption buttons' patch (titleBarOverlay, drawn by Windows) and
+  // their symbols take the colours the page asks for: transparent and white
+  // on the first screen, white or white under what covers the page (the
+  // tutorial's dim, a dialog's backdrop) elsewhere
+  // (src/renderer/app/logic/overlay.ts).  The buttons themselves keep
+  // working.  Kept on the window for the tests to read (Electron has no
+  // getter for it).
+  ipcMain.handle('win:overlay', (_e, patch: { color: string; symbolColor: string }) => {
+    Object.assign(win, { overlayColor: patch.color, overlaySymbol: patch.symbolColor });
+    try { win.setTitleBarOverlay({ color: patch.color, symbolColor: patch.symbolColor, height: TITLE_BAR_HEIGHT }); } catch { /* no title bar overlay on this platform */ }
   });
 
   // Maximised before it is shown -- every start, whatever the screen, since

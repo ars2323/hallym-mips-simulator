@@ -28,11 +28,16 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { compare, groundRect, rawPixels, screenPixels, type Pixels, type Rect } from '../tests/e2e/backdrop-measure.ts';
+import {
+  CARD_EMPTY, cardTexts, compare, GLASS_OFF, glassRect, glassSharpness, groundRect, HIDE_TEXT, rawPixels, screenPixels, setExtra, textContrasts, TREATMENT_OFF, type Pixels,
+} from '../tests/e2e/backdrop-measure.ts';
 import { launch, root, type Running } from '../tests/e2e/harness.ts';
 import { applyVariant, OVERLAYS, SETS, VARIANTS } from './start-variants-list.ts';
 
-const setName = process.argv[2] ?? 'combined';
+// [set] [--size default|variants] [--frames N|all]
+const args = process.argv.slice(2);
+const flag = (name: string, dflt: string) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : dflt; };
+const setName = args.find((a, i) => !a.startsWith('--') && !args[i - 1]?.startsWith('--')) ?? 'combined';
 const set = SETS[setName];
 if (!set) throw new Error(`no set ${setName}: ${Object.keys(SETS).join(', ')}`);
 const out = process.env.START_VARIANTS_OUT ? path.resolve(process.env.START_VARIANTS_OUT)
@@ -40,18 +45,23 @@ const out = process.env.START_VARIANTS_OUT ? path.resolve(process.env.START_VARI
 mkdirSync(out, { recursive: true });
 const FIXED_TIME = new Date('2026-09-28T10:00:00+09:00');
 const AT = 3.0;
-const FRAMES = Array.from({ length: 13 }, (_, i) => 0.25 + i * 0.5); // 0.25 .. 6.25 of 6.7 s
-const SIZES = [
-  { name: '1920', size: { width: 1920, height: 1040 }, scale: '1' },
-  { name: '910', size: { width: 910, height: 505 }, scale: '1.5' },
-];
-const OFF = '.wback img, .wback video { filter: none !important; } .wback::after { display: none !important; }';
-const GLASS_OFF = '.wcard { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }';
-const HIDE_TEXT = '.wcard h1, .wcard p.lead, .action b, .action .sub { color: transparent !important; }';
-const TEXTS: [string, string][] = [
-  ['lead', '.wcard p.lead'], ['sub, main button', '.action.main .sub'], ['sub, other button', '.action:not(.main) .sub'],
-  ['heading', '.wcard h1'], ['button label', '.action:not(.main) b'],
-];
+// The clip is 201 frames at 30/s (6.7 s): `all` takes each at its middle; N, N evenly from 0.25 to 6.25 s.
+const framesArg = flag('--frames', '13');
+const FRAMES = framesArg === 'all' ? Array.from({ length: 201 }, (_, i) => (i + 0.5) / 30)
+  : Array.from({ length: Number(framesArg) }, (_, i) => 0.25 + i * (6 / Math.max(1, Number(framesArg) - 1)));
+if (!FRAMES.length || FRAMES.some((t) => !(t >= 0 && t < 6.7))) throw new Error(`--frames ${framesArg}`);
+// `default`: the harness's own window (1280x800, SPIM_E2E_SIZE aside), the one the e2e measure in;
+// or sizes, WxH,WxH (at 100%: the e2e's widths, tools/e2e-widths.ts, and 1920x1040).
+const sizeArg = flag('--size', 'variants');
+const SIZES = sizeArg === 'default' ? [{ name: 'default', size: undefined as { width: number; height: number } | undefined, scale: '1' }]
+  : sizeArg !== 'variants' ? sizeArg.split(',').map((wh) => {
+    const m = /^(\d+)x(\d+)$/.exec(wh);
+    if (!m) throw new Error(`--size ${wh}`);
+    return { name: wh, size: { width: Number(m[1]), height: Number(m[2]) } as { width: number; height: number } | undefined, scale: '1' };
+  }) : [
+    { name: '1920', size: { width: 1920, height: 1040 } as { width: number; height: number } | undefined, scale: '1' },
+    { name: '910', size: { width: 910, height: 505 } as { width: number; height: number } | undefined, scale: '1.5' },
+  ];
 
 type RGB = [number, number, number];
 // The blue and green channels' shares of the total, screen against the frame, in percentage
@@ -64,11 +74,6 @@ export function colour(screen: RGB, raw: RGB) {
            light: +(sum(screen) / sum(raw)).toFixed(2) };
 }
 
-// WCAG 2 relative luminance and contrast ratio.
-const lin = (v: number) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
-const lum = (c: RGB) => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
-const ratio = (a: number, b: number) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
-
 async function videoAt(r: Running, t: number): Promise<void> {
   await r.page.waitForSelector('.wback.playing');
   await r.page.evaluate((t) => new Promise<void>((done) => {
@@ -77,64 +82,6 @@ async function videoAt(r: Running, t: number): Promise<void> {
     v.addEventListener('seeked', () => requestAnimationFrame(() => requestAnimationFrame(() => done())), { once: true });
     v.currentTime = t;
   }), t);
-}
-
-// One extra style for a whole pass over the frames, then a second for it to reach the screen:
-// switched per frame, a capture could come before the compositor had drawn the switch (a B row
-// read every text at about 1:1 -- the text not yet hidden -- and the glass off as on).
-async function setExtra(r: Running, css: string): Promise<void> {
-  await r.page.evaluate((css) => new Promise<void>((done) => {
-    document.getElementById('measure-extra')?.remove();
-    const st = document.createElement('style');
-    st.id = 'measure-extra';
-    st.textContent = css;
-    document.head.append(st);
-    requestAnimationFrame(() => requestAnimationFrame(() => done()));
-  }), css);
-  await r.page.waitForTimeout(1000);
-}
-
-// Inside the card, above its heading: what the card shows of the ground (the glass).
-async function cardRect(r: Running): Promise<Rect> {
-  const card = (await r.page.locator('.wcard').boundingBox())!;
-  const h1 = (await r.page.locator('.wcard h1').boundingBox())!;
-  return { x: card.x + 24, y: card.y + 4, width: card.width - 48, height: Math.max(8, h1.y - card.y - 10) };
-}
-
-// The card's texts: where, and their colours (read before the pass that hides them).
-interface Text { name: string; x: number; y: number; width: number; height: number; color: string }
-async function texts(r: Running): Promise<Text[]> {
-  return r.page.evaluate((sels) => sels.map(([name, sel]) => {
-    const e = document.querySelector(sel)!;
-    const b = e.getBoundingClientRect();
-    return { name, x: b.x, y: b.y, width: b.width, height: b.height, color: getComputedStyle(e).color };
-  }), TEXTS);
-}
-
-// Each text's contrast against what is behind it, the texts hidden (HIDE_TEXT on for the pass):
-// the darkest 1% of the pixels under its box (the backgrounds are lighter than the texts).
-async function contrasts(r: Running, ts: Text[]): Promise<Record<string, number>> {
-  const card = (await r.page.locator('.wcard').boundingBox())!;
-  const shot = await screenPixels(r, card);
-  const k = shot.width / card.width;
-  const result: Record<string, number> = {};
-  for (const t of ts) {
-    const fg = t.color.match(/[\d.]+/g)!.slice(0, 3).map(Number) as RGB;
-    const x0 = Math.round((t.x - card.x) * k), y0 = Math.round((t.y - card.y) * k);
-    const x1 = Math.round((t.x + t.width - card.x) * k), y1 = Math.round((t.y + t.height - card.y) * k);
-    const ls: number[] = [];
-    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
-      const i = (y * shot.width + x) * 4;
-      ls.push(lum([shot.rgba[i], shot.rgba[i + 1], shot.rgba[i + 2]]));
-    }
-    if (!ls.length) throw new Error(`${t.name}: no pixels under it`);
-    ls.sort((a, b) => a - b);
-    const c = ratio(lum(fg), ls[Math.floor(ls.length * 0.01)]);
-    // No design here puts a text on its own colour: under 1.5 the text was still on the screen.
-    if (c < 1.5) throw new Error(`${t.name}: ${c.toFixed(2)}:1 -- the text not hidden on the screen yet`);
-    result[t.name] = +c.toFixed(2);
-  }
-  return result;
 }
 
 // ---- Windows first: the whole screen, the caption buttons included (does the dark bar hold?) ----
@@ -172,10 +119,13 @@ function meanAt(p: Pixels, x: number, y: number, w: number, h: number): number[]
 }
 
 if (process.platform === 'win32') {
-  const withBars = [VARIANTS.find((v) => v.id === '5-whole-window')!, ...set.filter((v) => v.titlebarOverlay && !v.probe)];
+  // The app as built sets its own patch (`own`); a candidate is pictured with each of OVERLAYS.
+  const withBars = setName === 'app' ? [set[0]]
+    : [VARIANTS.find((v) => v.id === '5-whole-window')!, ...set.filter((v) => v.titlebarOverlay && !v.probe)];
+  const overlays = setName === 'app' ? { own: undefined } : OVERLAYS;
   const frames: Record<string, unknown>[] = [];
   for (const v of withBars) {
-    for (const [oname, overlay] of Object.entries(OVERLAYS)) {
+    for (const [oname, overlay] of Object.entries(overlays)) {
       const r = await launch();
       try {
         await r.page.clock.setFixedTime(FIXED_TIME);
@@ -239,9 +189,9 @@ for (const v of set) {
       const off: { towardNavy: number; sharpness: number }[] = [];
       const glassOn: number[] = [], glassOff: number[] = [];
       const worst: Record<string, number> = {};
-      const ts = await texts(r);
+      const ts = await cardTexts(r);
       const at = async (t: number) => { await videoAt(r, t); await r.page.waitForTimeout(200); };
-      // Pass 1, the design (its texts hidden): the ground, the glass, the contrasts.
+      // Pass 1, the design (its texts hidden): the ground, the contrasts.
       await setExtra(r, HIDE_TEXT);
       for (const t of FRAMES) {
         await at(t);
@@ -250,24 +200,26 @@ for (const v of set) {
           const g = compare(await screenPixels(r, ground), await rawPixels(r, ground));
           on.push({ towardNavy: g.towardNavy, sharpness: g.sharpness, ...colour(g.screen.mean, g.raw.mean) });
         }
-        if (v.glass) {
-          const cr = await cardRect(r);
-          glassOn.push(compare(await screenPixels(r, cr), await rawPixels(r, cr)).sharpness);
-        }
-        for (const [name, c] of Object.entries(await contrasts(r, ts))) worst[name] = Math.min(worst[name] ?? Infinity, c);
+        for (const [name, c] of Object.entries(await textContrasts(r, ts))) worst[name] = Math.min(worst[name] ?? Infinity, c);
       }
-      // Pass 2, the card's backdrop-filter removed.
+      // Pass 2, the card emptied: all of it is glass; pass 3, the same without its backdrop-filter.
       if (v.glass) {
-        await setExtra(r, HIDE_TEXT + GLASS_OFF);
+        await setExtra(r, CARD_EMPTY);
         for (const t of FRAMES) {
           await at(t);
-          const cr = await cardRect(r);
-          glassOff.push(compare(await screenPixels(r, cr), await rawPixels(r, cr)).sharpness);
+          const cr = await glassRect(r);
+          glassOn.push(glassSharpness(await screenPixels(r, cr), await rawPixels(r, cr)));
+        }
+        await setExtra(r, CARD_EMPTY + GLASS_OFF);
+        for (const t of FRAMES) {
+          await at(t);
+          const cr = await glassRect(r);
+          glassOff.push(glassSharpness(await screenPixels(r, cr), await rawPixels(r, cr)));
         }
       }
-      // Pass 3, the ground's treatment removed (no filter, no veil).
+      // Pass 4, the ground's treatment removed (no filter, no veil).
       if (!v.probe) {
-        await setExtra(r, HIDE_TEXT + OFF);
+        await setExtra(r, HIDE_TEXT + TREATMENT_OFF);
         for (const t of FRAMES) {
           await at(t);
           const ground = await groundRect(r);

@@ -13,9 +13,9 @@ The example files and step counts are written inside the tool, so the same scene
 
 | File | What | Capture conditions |
 |---|---|---|
-| `start.jpg` | Start screen: Haram (greeting) and the two paths (튜토리얼 보기 / 바로 시작, "View tutorial" / "Start now"), no toolbar; behind the card, the university's video under its blur and navy tint | 1280×800, as started, the video stopped at 3.0 s |
+| `start.jpg` | Start screen: Haram (greeting) and the two paths (튜토리얼 보기 / 바로 시작, "View tutorial" / "Start now"), no toolbar. The university's video, under its blur and navy tint, fills the whole window; the title bar and the status bar are dark glass over it, and the card is glass too (white at .82, blurring what it shows: `docs/PORTING.md` 29) | 1280×800, as started, the video stopped at 3.0 s |
 | `start-2.jpg` | Start screen, second step: 새 파일 / 파일 열기 ("New file" / "Open file"), "← 처음으로" ("← Back to start"); the same video frame behind | 1280×800, 바로 시작 clicked |
-| `start-frame-1.jpg`, `start.jpg`, `start-frame-3.jpg` | The start screen at three moments of the video, one slow aerial pass over the city, the campus and the mountain. The card is the same picture in all three. The middle moment is `start.jpg` itself (there is no `start-frame-2.jpg`: it was the same picture) | 1280×800, the video stopped at 0.5, 3.0 and 5.5 s |
+| `start-frame-1.jpg`, `start.jpg`, `start-frame-3.jpg` | The start screen at three moments of the video, one slow aerial pass over the city, the campus and the mountain. The glass card takes a little of each moment's colour; its words read the same (4.5:1 or better at every frame). The middle moment is `start.jpg` itself (there is no `start-frame-2.jpg`: it was the same picture) | 1280×800, the video stopped at 0.5, 3.0 and 5.5 s |
 | `start-1093.jpg`, `start-2-1093.jpg` | The two steps on the lab PC | CSS 1093×582 at 1.25×, 3.0 s |
 | `start-1024.jpg`, `start-2-1024.jpg` | The two steps at 1024×768 | CSS 1024×728, 3.0 s |
 | `start-910.jpg`, `start-2-910.jpg` | The two steps at 1366×768 at 150% (the card loses its character only below 860 px) | CSS 910×505 at 1.5×, 3.0 s |
@@ -119,6 +119,22 @@ waiting for a fix.
   Windows runner, where the Windows job installs it (`tools/windows/korean-ime.ps1`) and runs
   them against the installed app, with `SPIM_REAL_IME=1`. Elsewhere, `ime.e2e.ts` drives the
   IME's events through CDP at every width.
+
+### Closed in the 2.6.0 round
+
+- **The first screen measured on Windows at 1920 did not agree with Linux** (raised while choosing
+  the design, `docs/start-variants/`). The ground read darker and sharper there than on Linux and
+  at 910: tint 0.73 against 0.62, the blurred design 0.19 against 0.03. With the treatment off, where
+  the screen should equal the raw frame, it read tint 0.22 and sharpness 0.6.
+  *Cause:* Windows centres a new window, so a 1920×1040 window sat at (320,116) on the 1920×1080
+  screen, its right 320 px off the screen. The ground strip spans the window's width, and its end
+  was captured black. The whole screen at the end of such a measurement shows it:
+  `docs/start-variants/combined/windows-1920-off-screen.jpg`.
+  *Fixed:* `tools/start-variants.ts` puts the window at (0,0) on every launch, and every row carries
+  its own control: with the treatment off the ground must read as the raw frame (tint under 0.1,
+  sharpness over 0.8), or the row says `valid: false`. Measured again (run 36454678242), every
+  Windows row is valid and within 0.02 of Linux. The e2e never measured there: they run at the
+  harness's size, which fits the screen.
 
 ### Closed in the 2.0.0 round
 

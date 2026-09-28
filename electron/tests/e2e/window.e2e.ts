@@ -1,7 +1,8 @@
 /* The window as it opens and while it is covered: maximised at start; the
    caption buttons' patch (titleBarOverlay: Windows draws the buttons on it)
-   coloured under the tutorial's dim and a dialog's backdrop, white again
-   after; the question dialogs (panels/ask.ts): Haram every time, a click
+   see-through with white symbols on the first screen, elsewhere coloured
+   under the tutorial's dim and a dialog's backdrop, white again after (what
+   the screen shows of it: start.e2e.ts, on Windows); the question dialogs (panels/ask.ts): Haram every time, a click
    outside does nothing, Esc is cancel, the backdrop covers the tutorial's
    card, the keys stay inside. */
 
@@ -11,6 +12,7 @@ import { launch, openAndAssemble, program, type Running } from './harness.ts';
 
 const PROGRAM = 'main:\n  li $v0, 10\n  syscall\n';
 const overlay = (r: Running) => r.app.evaluate(({ BrowserWindow }) => (BrowserWindow.getAllWindows()[0] as unknown as { overlayColor?: string }).overlayColor ?? '#ffffff');
+const symbols = (r: Running) => r.app.evaluate(({ BrowserWindow }) => (BrowserWindow.getAllWindows()[0] as unknown as { overlaySymbol?: string }).overlaySymbol ?? '#00205b');
 const visibleHarams = (r: Running) => r.page.evaluate(() => [...document.querySelectorAll('img.char')]
   .filter((e) => e.checkVisibility({ visibilityProperty: true })).map((e) => (e.closest('dialog') ? 'dialog' : e.closest('.tut-card') ? 'card' : 'panel')));
 
@@ -25,17 +27,49 @@ test('opens maximised (Windows), at its own 1280x800 where nothing maximises it'
   }
 });
 
-test('the caption buttons\' patch follows the tutorial\'s dim and a dialog\'s backdrop, and is white again after', async () => {
+test('the caption buttons\' patch: see-through with white symbols on the first screen, whatever covers it', async () => {
   const r = await launch();
   const { page } = r;
   try {
-    expect(await overlay(r)).toBe('#ffffff');
+    // Its title bar is dark glass over the photo: the patch shows it (and a dialog's backdrop) through.
+    await expect.poll(() => overlay(r)).toBe('#00000000');
+    expect(await symbols(r)).toBe('#ffffff');
+    await page.getByTitle('Settings').click();
+    await expect(page.locator('dialog.settings')).toBeVisible();
+    await page.waitForTimeout(200);
+    expect(await overlay(r)).toBe('#00000000');
+    await page.locator('dialog.settings').getByRole('button', { name: 'Close' }).click();
+    // A file open: the white title bar, the patch white with navy symbols.
+    await openAndAssemble(r, program(r.dir, 'p.s', PROGRAM));
+    await expect.poll(() => overlay(r)).toBe('#ffffff');
+    expect(await symbols(r)).toBe('#00205b');
+  } finally {
+    await r.close();
+  }
+});
+
+test('the caption buttons\' patch follows a dialog\'s backdrop in the Editor, and is white again after', async () => {
+  const r = await launch();
+  const { page } = r;
+  try {
+    await openAndAssemble(r, program(r.dir, 'p.s', PROGRAM));
+    await expect.poll(() => overlay(r)).toBe('#ffffff');
     await page.getByTitle('Settings').click();
     await expect.poll(() => overlay(r)).toBe('#a6b1c6');   // white under navy at 35 %
     await page.locator('dialog.settings').getByRole('button', { name: 'Close' }).click();
     await expect.poll(() => overlay(r)).toBe('#ffffff');
+  } finally {
+    await r.close();
+  }
+});
+
+test('the caption buttons\' patch follows the tutorial\'s dim, and both, and is the first screen\'s again after', async () => {
+  const r = await launch();
+  const { page } = r;
+  try {
     await page.getByRole('button', { name: /튜토리얼 보기/ }).click();
     await expect.poll(() => overlay(r)).toBe('#bdc5d4');   // under navy at 26 %
+    expect(await symbols(r)).toBe('#00205b');
     await page.keyboard.press('Escape');
     await expect(page.locator('dialog.ask')).toBeVisible();
     await expect.poll(() => overlay(r)).toBe('#7b8baa');   // both
@@ -43,7 +77,8 @@ test('the caption buttons\' patch follows the tutorial\'s dim and a dialog\'s ba
     await expect.poll(() => overlay(r)).toBe('#bdc5d4');
     await page.keyboard.press('Escape');
     await page.locator('dialog.ask').getByRole('button', { name: '그만두기' }).click();
-    await expect.poll(() => overlay(r)).toBe('#ffffff');
+    await expect(page.locator('.wcard')).toBeVisible();
+    await expect.poll(() => overlay(r)).toBe('#00000000'); // back on the first screen
   } finally {
     await r.close();
   }

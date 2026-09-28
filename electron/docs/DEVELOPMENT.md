@@ -107,6 +107,7 @@ npm run typecheck      # tsc --noEmit
 npm test               # all tests (the Qt goldens and the default goldens too)
 npm run test:mutants   # each mutant makes its tests fail (all of them; tools/mutants.ts has the options)
 node tools/mutants.ts --changed   # only those the changes since tools/mutants-baseline.json could touch
+                                  # (each run first runs its tests with no mutant: the control; --no-control skips it)
 npm run spike          # the first spike's checks 1 and 2
 npm run build:electron # the addon against Electron's headers (N-API: the Node build opens in Electron too)
 npm run build:ui       # bundles the window's script (electron, e2e and screens call it first)

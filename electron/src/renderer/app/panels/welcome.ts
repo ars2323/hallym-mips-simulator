@@ -44,7 +44,7 @@ export function welcome(events: WelcomeEvents): { root: HTMLElement; show(on: bo
   first();
   const start = backdrop();
   const card = h('div', { class: 'wcard' },
-    character('hello', 200),
+    character('hello', 168),
     h('div', { class: 'wbody' }, h('h1', {}, '안녕하세요!'),
       h('p', { class: 'lead' }, 'MIPS 어셈블리를 쓰고, 어셈블하고,', h('br'), '한 줄씩 실행해 보는 곳입니다.'),
       actions, back));

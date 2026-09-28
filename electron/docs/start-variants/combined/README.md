@@ -1,5 +1,7 @@
 # Candidate first screens: the combinations
 
+**Chosen:** B, with the secondary text darker (#4b5563) instead of a thicker card; in the app from 2.6.0. The reasons and the measurements it was implemented against are in `docs/PORTING.md` §29, which supersedes the thresholds and mutants proposed at the end of this page.
+
 The second round narrows the choice. Design 5 (the photo under the whole window) and design 4 (the glass card) each solve a different problem, so these candidates combine them, with design 2's colour correction added. As in the first round (`../README.md`), each design is CSS laid over the app at run time and the app does not change.
 
 ```

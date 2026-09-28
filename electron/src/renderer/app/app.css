@@ -20,6 +20,7 @@
   --navy: #00205b; --blue: #0055a5; --teal: #00a9a5; --gray: #bcbec0;
   --white: #ffffff; --window: #f5f7fa; --border: #e1e5ea; --hover: #f3f6f9;
   --text: #1f2933; --text-2: #5a6472; --muted: #65707e; --dim: #a9b1bb;
+  --text-2-glass: #4b5563; /* --text-2 on the first screen's glass card: 4.5:1 over every frame (docs/PORTING.md 29) */
   --blue-tint: #e8f0f9; --blue-tint2: #d3e2f3; --teal-tint: #e6f6f5; --teal-text: #00736f;
   --amber-tint: #fdf3e1; --amber-text: #8a5a00; --purple: #6b4c9a; --cp0-tint: #eef0f2; --cp0-text: #4a5560;
   --error: #c0392b; --error-tint: #fbeae8; --error-text: #8e2a1f;
@@ -491,29 +492,48 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 /* ---- first screen: one fixed shape for both steps ------------------------ */
 .welcome { display: contents; }
-.wcard { display: grid; grid-template-columns: 200px 460px; gap: 0 40px; align-items: center; width: 780px; max-width: calc(100vw - 48px);
-  background: var(--white); border: 1px solid var(--border); border-radius: 14px; padding: 36px 40px; box-shadow: 0 18px 60px rgba(0,16,46,.45); }
+/* The card is glass: white at .82 over the photo, which it blurs
+   (backdrop-filter), so the ground's colour comes through and the card
+   sits on the screen instead of floating over it.  Its secondary text is
+   --text-2-glass, darker than --text-2, which keeps every text at 4.5:1
+   or better over every frame of the clip (docs/PORTING.md 29: why not a
+   thicker card). */
+.wcard { display: grid; grid-template-columns: 168px 460px; gap: 0 28px; align-items: center; width: auto; max-width: calc(100vw - 48px);
+  background: rgba(255,255,255,.82); backdrop-filter: blur(18px) saturate(1.2);
+  border: 1px solid rgba(255,255,255,.55); border-radius: 16px; padding: 28px 32px; box-shadow: 0 10px 40px rgba(0,16,46,.25); }
 /* Behind the card (panels/backdrop.ts): the video, blurred and under navy,
-   so it moves without competing -- the card itself is opaque white, the
-   characters' ground.  Navy underneath: the colour until the still has
-   loaded, and the fallback when the clip cannot play. */
-.wback { position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; background: var(--navy); }
-.wback img, .wback video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(3px) saturate(.85); transform: scale(1.03); }
+   under the whole window -- the title bar and the status bar are dark glass
+   over it on this screen (below), one piece instead of three bands.  Navy
+   underneath: the colour until the still has loaded, and the fallback when
+   the clip cannot play. */
+.wback { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; background: var(--navy); }
+.wback img, .wback video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(8px) saturate(1.25) sepia(.1) hue-rotate(-6deg); transform: scale(1.06); }
 .wback video { opacity: 0; transition: opacity .6s ease; }
 .wback.playing video { opacity: 1; }
-.wback::after { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse 70% 70% at 50% 50%, rgba(0,32,91,.78), rgba(0,32,91,.5)); }
+.wback::after { content: ''; position: absolute; inset: 0;
+  background: linear-gradient(rgba(0,20,56,.35), transparent 12%, transparent 88%, rgba(0,20,56,.35)), rgba(0,32,91,.4); }
 .wback.failed img, .wback.failed video, .wback.nostill img { display: none; }
 .wcard h1 { margin: 0 0 6px; font-size: 24px; font-weight: 700; color: var(--navy); }
-.wcard p.lead { margin: 0 0 20px; color: var(--text-2); font-size: 14px; white-space: nowrap; }
+.wcard p.lead { margin: 0 0 20px; color: var(--text-2-glass); font-size: 14px; white-space: nowrap; }
 .actions { display: grid; grid-template-columns: 220px 220px; gap: 12px; }
-.action { display: flex; gap: 12px; align-items: flex-start; width: 220px; height: 84px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--white); text-align: left; }
+.action { display: flex; gap: 12px; align-items: flex-start; width: 220px; height: 84px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: rgba(255,255,255,.8); text-align: left; }
 .action:hover { border-color: var(--blue); }
 .action img { width: 20px; height: 20px; margin-top: 2px; opacity: .8; flex: none; }
 .action b { display: block; color: var(--navy); font-weight: 600; margin-bottom: 2px; }
-.action .sub { display: block; color: var(--text-2); font-size: 12px; line-height: 1.45; white-space: nowrap; }
-.action.main { border-color: var(--blue); background: var(--blue-tint); }
+.action .sub { display: block; color: var(--text-2-glass); font-size: 12px; line-height: 1.45; white-space: nowrap; }
+.action.main { border-color: var(--blue); background: rgba(232,240,249,.85); }
 .wbody .back { display: block; margin-top: 12px; font-size: 12px; height: 18px; }
 @media (max-width: 860px) { .wcard { grid-template-columns: 460px; justify-content: center; } .wcard img.char { display: none; } }
+/* The bars on the first screen (body.first-screen, app.ts): dark glass over
+   the photo, white words and icons, no dividing lines.  The caption
+   buttons' patch is transparent here, their symbols white (app.ts,
+   updateOverlay).  The symbol mark keeps its own colours. */
+body.first-screen .work { background: transparent; }
+body.first-screen .titlebar, body.first-screen .status { position: relative; z-index: 2; background: rgba(0,20,56,.3); border-color: transparent; backdrop-filter: blur(16px); }
+body.first-screen .titlebar .appname { color: var(--white); }
+body.first-screen .titlebar .iconbtn img { filter: brightness(0) invert(1); opacity: .9; }
+body.first-screen .titlebar .iconbtn:hover { background: rgba(255,255,255,.14); }
+body.first-screen .status { color: rgba(255,255,255,.85); }
 
 /* ---- dialogs ------------------------------------------------------------ */
 .modal { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto; padding: 20px 22px; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 16px 48px rgba(0,32,91,.20); color: var(--text); }

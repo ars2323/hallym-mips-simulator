@@ -1471,7 +1471,7 @@ The find check (every `find` exactly once in its `file`, text only) runs first i
 3. A blank line added to `tests/e2e/fit.e2e.ts`, a test file only, picks exactly the 18 mutants on other files that it runs.
 
 **The full pass in CI:** `.github/workflows/mutants.yml`, weekly (Monday 03:00 in Korea) and by hand, never on push or tags.
-- Six shards on Linux, each two at a time. Each first runs its tests with no mutant (`--control`), since a test failing on the runner would make every kill meaningless.
+- Six shards on Linux, each two at a time. Each first runs its tests with no mutant (the control), since a test failing on the runner would make every kill meaningless. From 2.6.0 every run of `tools/mutants.ts` does, `--changed` included; `--no-control` skips it (§29).
 - A merge job publishes each mutant's result, killing test and seconds as the `mutants` artifact and the run's summary. It fails unless every mutant is there once and killed, and it prints the baseline that pass makes.
 - A person commits that baseline; CI does not write to the repository.
 
@@ -1506,3 +1506,76 @@ The rest is anti-aliasing noise (one pixel by 3 levels, seen twice). A second an
 **The runner's animation effects** are turned on (`tools/windows/animations-on.ps1`, `SPI_SETCLIENTAREAANIMATION`), as on the students' PCs. With them off, `prefers-reduced-motion` held and the program the installer's 마침 started showed its still.
 
 **What the blur measure compares with** (`tests/e2e/backdrop-measure.ts`): the frame the video has decoded at that moment (or the still, before it loads), drawn with no filter at the same geometry, taken anew at every measurement. It is not a stored value, so a new clip keeps the test meaningful.
+
+## 29. The first screen as one picture: the photo under the whole window, a glass card (2.6.0)
+
+**What changed, and why.** 2.5.0's first screen was rejected:
+- the card floated over the background instead of sitting on it;
+- a navy tint of up to .78 made the photo one blue, with every green gone;
+- the white title and status bars cut the screen into three pieces;
+- the card was larger than its content.
+
+Seven designs were pictured and measured (`docs/start-variants/`). Design 5 (the photo under the whole window) and design 4 (the glass card) each solved one of the problems, so four combinations were tried next (`docs/start-variants/combined/`). The one chosen is combination B, with the secondary text darker:
+
+- **The photo fills the window.** `.wback` is `position: fixed`, under the title bar and the status bar too.
+  - On the first screen (`body.first-screen`, set in `layout()`), both bars are dark glass over it: navy at .3 with `backdrop-filter: blur(16px)`, white words and icons, no dividing lines.
+  - The symbol mark keeps its own colours.
+- **The photo's treatment.**
+  - The filter is `blur(8px) saturate(1.25) sepia(.1) hue-rotate(-6deg)` (was `blur(3px) saturate(.85)`).
+  - The veil is an even navy .4 (was .5–.78), a shade darker at the top and bottom for the bars.
+  - The colour-share figures moved from +10.8 points of blue and −2.6 of green to about +6.2 and 0.
+- **The card is glass and smaller.**
+  - White at .82 with `backdrop-filter: blur(18px) saturate(1.2)`; buttons white at .8 (the main one at .85).
+  - 722×273 (was 780×289): a 168 px character, a 28 px gap, 28/32 padding.
+  - Its secondary text (`.lead`, `.action .sub`) is `--text-2-glass`, #4b5563: 7.56:1 on white, where `--text-2` (#5a6472) is 6.0:1.
+- **The caption buttons' patch is transparent on the first screen**, with white symbols (`logic/overlay.ts`, `captionPatch`). The bar shows through it, and so does a dialog's backdrop over the first screen.
+  - Elsewhere it is as before: white, or white under the tutorial's dim or a dialog's backdrop, with navy symbols.
+  - The IPC now carries both colours (`win:overlay`, `{ color, symbolColor }`).
+  - Windows takes the alpha: on the runner's screen the patch read 46,71,109 and the bar beside it 46,71,109 (run 36439439685). An opaque patch left a visible rectangle.
+
+**Why .82 with darker text, not a thicker card.** The secondary text on the glass at .82 was 4.21:1 at its worst frame, under WCAG AA's 4.5:1. There were two ways to lift it, both measured over 13 frames at two sizes, on Linux and on the Windows runner:
+
+| | lead text, worst (Linux / Windows) | how much of the ground the card lets through |
+|---|---|---|
+| .82, #5a6472 (the design as first drawn) | 4.21 / 4.17 — under 4.5 | the most |
+| .86, #5a6472 | 4.59 / 4.55 — over by 0.05 | less |
+| .90, #5a6472 | 5.00 / 4.95 | the least: a white card again, nearly |
+| **.82, #4b5563 (chosen)** | **5.31 / 5.26** | the most, unchanged |
+| .86, #4b5563 | 5.79 / 5.73 | less |
+
+Darker text is better on both counts: more contrast than .90, and the card keeps all of its glass. A thicker card buys contrast by giving up the thing the card was changed for.
+
+The fallback was set in advance: if the worst frame over the whole clip came under 4.8, the card would go to .86 with #4b5563. Over all 201 frames at the harness's size the worst is 5.34, so it stays at .82.
+
+**Measured before the thresholds were placed**, with `tools/start-variants.ts app` (the app as built, nothing laid over it). The measurements are taken as the screen shows them:
+- over the clip: every frame at 1280×800, 25 frames at each of the other e2e sizes;
+- with the ground's treatment on and off (the off state must read as the raw frame, or the row is marked invalid);
+- with the card's backdrop-filter on and off.
+
+| e2e size | tint, on | tint, off | sharpness, on | sharpness, off | glass, on/off | worst text |
+|---|---|---|---|---|---|---|
+| 1280×800 (201 frames; the glass 25) | 0.428–0.431 | −0.004 | 0.105–0.172 | 1.005–1.022 | 0.364–0.416 | 5.34 |
+| 1093×582 | 0.411–0.412 | −0.013 | 0.165–0.244 | 0.969–0.984 | 0.354–0.417 | 5.34 |
+| 1024×728 | 0.427–0.429 | −0.003 | 0.110–0.174 | 1.007–1.015 | 0.356–0.418 | 5.34 |
+| 910×505 | 0.402–0.405 | −0.017 | 0.183–0.279 | 0.981–1.007 | 0.338–0.419 (201 frames) | 5.35 |
+| 1920×1040 | 0.442–0.444 | −0.002 | 0.096–0.139 | 1.000–1.015 | 0.396–0.414 | 5.31 |
+
+The thresholds (`tests/e2e/start.e2e.ts`) and what each guards:
+- **Tint > 0.2** (was 0.4). It guards the navy veil. The design reads 0.402 at its lowest and the treatment off −0.002 at its highest, so 0.2 is the middle. The old 0.4 was 0.002 from the design's own lowest value.
+- **Sharpness < 0.6** (unchanged). It guards the blur: at most 0.279 with it, at least 0.969 without.
+- **Every text on the card ≥ 4.5:1** against what is behind it, at seven moments of the clip. It guards readability; the threshold is WCAG's, not a calibrated one. It replaces "the card does not change while the video does, and the ground around it is dark": a glass card is meant to change with the video.
+- **Glass ≤ 0.85**: the card's sharpness with its backdrop-filter over the same without it, in the same frame. It guards the glass; with no filter the ratio is 1.
+- **The caption patch on Windows' screen**: equal to the bar beside it within 3 levels, and the bar dark, on the first screen; white in the Editor. A white patch on the first screen would differ by about 200.
+
+**The glass measure was changed, not its threshold.** At first it was the strip above the heading, about 20 px high, at the pixel's own 3×3 scale. At 910×505 that read up to 0.749, 0.10 under 0.85 (0.477–0.749 over 25 frames). Two changes widened the separation:
+- **The whole card, emptied** (`CARD_EMPTY`: everything on it hidden), inside its corners: many times the area, and more varied ground under it. That alone read 0.58–0.60 at every size, steady but no lower: the ground is already blurred by 8 px, so at the 3×3 scale both states sit near the noise floor.
+- **4×4 block means** (`glassSharpness`), where the card's 18 px more of blur shows. It now reads 0.338–0.419 at every size, 0.43 under the threshold (at 910 over all 201 frames).
+
+**Mutants** (`tools/mutants.ts`):
+- `first screen: the card see-through` asserted an opaque card. It is rewritten, not deleted, as **`first screen: the glass card thinner than its texts' contrast allows`**: `.82` to `.72`. With the darker text, .72 reads 4.30 at every one of the 201 frames and at every size (.65 would read 3.64). The contrast test kills it at each of its seven moments.
+- **`first screen: the glass card without its blur`** (new): `backdrop-filter: blur(18px) saturate(1.2)` to `none`. The glass test kills it (a ratio of about 1 against 0.85).
+- `first screen: the video unblurred` follows the new filter.
+- The caption patch has no mutant: the page does not draw it, and only the Windows e2e can see it.
+- **The control is on by default** (`--no-control` skips it). Every run first runs the selection's tests with no mutant. It was already what made the weekly full pass trustworthy: a test failing on its own reads as a kill.
+
+**Closed:** the first screen measured on Windows at 1920 did not agree with Linux. The window was centred at (320,116), 320 px of it off the screen. `docs/screens/README.md`, "Closed in the 2.6.0 round", has the details.

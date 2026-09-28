@@ -1,8 +1,10 @@
 /* The first screen's background (panels/backdrop.ts): the university's
    video, silent, looping, from the app's own files; one video for both
-   steps, running on from one to the other; the card readable over it (the
-   card does not change while the video does, and the ground around it is
-   dark); the still only under prefers-reduced-motion; nothing of it once a
+   steps, running on from one to the other; the glass card readable over it
+   (every text 4.5:1 at every moment of the clip) and blurring what it shows;
+   on the screen, the ground tinted and blurred; on Windows, the caption
+   buttons' patch showing the dark bar through; the still only under
+   prefers-reduced-motion; nothing of it once a
    file is open; the brand's navy, quietly, when the clip cannot play.
 
    Run by the Windows job against the installed program too: there the clip
@@ -10,8 +12,10 @@
 
 import { expect, test, type Page } from '@playwright/test';
 
-import { compare, groundRect, rawPixels, readbackPixels, screenPixels } from './backdrop-measure.ts';
-import { launch, type Running } from './harness.ts';
+import {
+  CARD_EMPTY, cardTexts, compare, GLASS_OFF, glassRect, glassSharpness, groundRect, HIDE_TEXT, rawPixels, readbackPixels, screenPixels, setExtra, stats, textContrasts,
+} from './backdrop-measure.ts';
+import { launch, openAndAssemble, program, type Running } from './harness.ts';
 
 const NAVY = 'rgb(0, 32, 91)';
 const clip = (page: Page) => page.evaluate(() => {
@@ -100,29 +104,101 @@ test('both steps of the first screen: one background, which runs on from one to 
   }
 });
 
-test('the card stays readable over the video: it does not change while the video does, and the ground around it is dark', async () => {
+// The card is glass (2.6.0): it shows the ground, blurred, so it changes
+// with the video -- what must hold is that every text on it stays readable,
+// 4.5:1 (WCAG AA) against what is behind it, at every moment of the clip.
+// Measured as the screen shows it, the texts hidden, the darkest 1% under
+// each text's box (backdrop-measure.ts); the moments cover the clip, whose
+// worst frame of all 201 is in docs/PORTING.md 29.
+const MOMENTS = [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5];
+test('every text on the card at least 4.5:1 against what is behind it, at every moment of the clip; the video changes behind it', async () => {
   const r = await launch();
   const { page } = r;
   try {
     await page.waitForSelector('.wback.playing');
-    const card = (await page.locator('.wcard').boundingBox())!;
-    const stage = (await page.locator('.stage-welcome').boundingBox())!;
-    const inner = { x: card.x + 16, y: card.y + 16, width: card.width - 32, height: card.height - 32 }; // inside the rounded corners
-    // A strip of the ground: above the card, or (a short window) beside it.
-    const ground = card.y - stage.y > 60
-      ? { x: stage.x, y: stage.y, width: stage.width, height: card.y - stage.y - 30 }
-      : { x: stage.x, y: stage.y, width: Math.max(24, card.x - stage.x - 30), height: stage.height };
-    const cards: string[] = [], grounds: string[] = [];
-    for (const t of [0.5, 3.0, 5.5]) {
+    await page.mouse.move(-10, -10);
+    const texts = await cardTexts(r);
+    const ground = await groundRect(r);
+    await setExtra(r, HIDE_TEXT);
+    const grounds = new Set<string>();
+    const worst: string[] = [];
+    for (const t of MOMENTS) {
       await at(page, t);
-      const c = await pixels(r, inner), g = await pixels(r, ground);
-      cards.push(c.hash);
-      grounds.push(g.hash);
-      expect(g.luminance, `the ground at ${t} s`).toBeLessThan(0.4);
-      expect(c.luminance, `the card at ${t} s`).toBeGreaterThan(0.85);
+      grounds.add((await pixels(r, ground)).hash);
+      for (const [name, c] of Object.entries(await textContrasts(r, texts))) {
+        worst.push(`${name} ${c} at ${t} s`);
+        expect(c, `${name} at ${t} s`).toBeGreaterThanOrEqual(4.5);
+      }
     }
-    expect(new Set(grounds).size).toBe(3); // the video does change behind it
-    expect(new Set(cards).size).toBe(1);   // the card does not
+    console.log(worst.sort((a, b) => parseFloat(a.split(' ').at(-4)!) - parseFloat(b.split(' ').at(-4)!)).slice(0, 3).join('; '));
+    expect(grounds.size).toBe(MOMENTS.length); // the video does change behind it
+  } finally {
+    await r.close();
+  }
+});
+
+// The glass: the card blurs what it shows of the ground.  The card emptied
+// (all of it glass) against the raw frame, on 4x4 blocks (glassSharpness),
+// with the card's backdrop-filter and without it, in the same frame; the
+// ratio of the two sharpnesses is the measure (across frames the two ranges can overlap, in one frame not).
+// With no filter it is 1; the design's, at every e2e size, is in
+// docs/PORTING.md 29.
+test('the glass card blurs what it shows of the ground', async () => {
+  const r = await launch();
+  const { page } = r;
+  try {
+    await page.waitForSelector('.wback.playing');
+    await page.mouse.move(-10, -10);
+    const strip = await glassRect(r);
+    const moments = [0.5, 3.0, 5.5];
+    const on: number[] = [];
+    await setExtra(r, CARD_EMPTY);
+    for (const t of moments) { await at(page, t); on.push(glassSharpness(await screenPixels(r, strip), await rawPixels(r, strip))); }
+    await setExtra(r, CARD_EMPTY + GLASS_OFF);
+    for (const [i, t] of moments.entries()) {
+      await at(page, t);
+      const off = glassSharpness(await screenPixels(r, strip), await rawPixels(r, strip));
+      const said = `at ${t} s: with the filter ${on[i].toFixed(3)}, without ${off.toFixed(3)}, ratio ${(on[i] / off).toFixed(3)}`;
+      console.log(said);
+      expect(on[i] / off, said).toBeLessThanOrEqual(0.85);
+    }
+  } finally {
+    await r.close();
+  }
+});
+
+// Windows draws the caption buttons, on a patch the page cannot paint:
+// on the first screen it is transparent (logic/overlay.ts), so the screen
+// shows the dark glass bar through it -- a white patch would stand out by
+// about 200 levels (docs/start-variants/combined/README.md).  In the Editor
+// the bar is white and so is the patch.
+test('the caption buttons on the screen: the first screen\'s dark bar through their patch, white in the Editor', async () => {
+  test.skip(process.platform !== 'win32', 'Windows draws the caption buttons');
+  const r = await launch();
+  const { page } = r;
+  try {
+    await page.waitForSelector('.wback.playing');
+    await page.mouse.move(-10, -10);
+    await at(page, 3.0);
+    const sample = async () => {
+      const a = await page.evaluate(() => {
+        const rect = (navigator as unknown as { windowControlsOverlay: { getTitlebarAreaRect(): DOMRect } }).windowControlsOverlay.getTitlebarAreaRect();
+        return { right: rect.x + rect.width, height: rect.height };
+      });
+      const patch = stats(await screenPixels(r, { x: a.right + 4, y: 4, width: 6, height: 6 })).mean;
+      const bar = stats(await screenPixels(r, { x: a.right - 8, y: 4, width: 6, height: 6 })).mean;
+      return { patch, bar, apart: Math.max(...patch.map((v, i) => Math.abs(v - bar[i]))), said: `patch ${patch.map(Math.round)}, bar ${bar.map(Math.round)}` };
+    };
+    const first = await sample();
+    console.log(`first screen: ${first.said}`);
+    expect(first.apart, first.said).toBeLessThanOrEqual(3);
+    expect(Math.max(...first.bar), first.said).toBeLessThan(160); // the dark bar, not white
+    await openAndAssemble(r, program(r.dir, 'p.s', 'main:\n  li $v0, 10\n  syscall\n'));
+    await page.waitForTimeout(500);
+    const editor = await sample();
+    console.log(`Editor: ${editor.said}`);
+    expect(editor.apart, editor.said).toBeLessThanOrEqual(3);
+    expect(Math.min(...editor.patch), editor.said).toBeGreaterThan(240);
   } finally {
     await r.close();
   }
@@ -149,8 +225,11 @@ test('the background on the screen, while the video plays: tinted toward the nav
     const said = `screen: toward navy ${onScreen.towardNavy.toFixed(3)}, sharpness ${onScreen.sharpness.toFixed(3)}; ` +
       `readback: ${inReadback.towardNavy.toFixed(3)}, ${inReadback.sharpness.toFixed(3)}; rect ${JSON.stringify(rect)}`;
     console.log(said);
-    expect(onScreen.towardNavy, said).toBeGreaterThan(0.4); // the tint: 0.5 at the edges .. 0.78 behind the card
-    expect(onScreen.sharpness, said).toBeLessThan(0.6);     // the blur: about 0.3; unblurred, about 1
+    // Between the design and the ground with its treatment off, measured at every size the e2e run
+    // in, over the clip's frames (docs/PORTING.md 29): the tint 0.40-0.45 with it, about 0 without;
+    // the sharpness at most 0.28 with it, about 1 without.  What they guard: the navy veil, and the blur.
+    expect(onScreen.towardNavy, said).toBeGreaterThan(0.2);
+    expect(onScreen.sharpness, said).toBeLessThan(0.6);
   } finally {
     await r.close();
   }
