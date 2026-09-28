@@ -520,6 +520,8 @@ function copyTree(dir: string, linkBuild: boolean): void {
   for (const d of ['src', 'tests', 'tools']) cpSync(path.join(root, d), path.join(dir, d), { recursive: true });
   for (const f of ['package.json', 'tsconfig.json', 'playwright.config.ts']) cpSync(path.join(root, f), path.join(dir, f));
   for (const f of ['LICENSE', 'NOTICE']) cpSync(path.join(root, '..', f), path.join(dir, '..', f)); // the repository's
+  // The .hmx specification, whose example tests/sim/hmx.test.ts compares with a golden (the repository's docs/).
+  cpSync(path.join(root, '..', 'docs/hmx-format.md'), path.join(dir, '..', 'docs/hmx-format.md'));
   cpSync(path.join(root, 'native'), path.join(dir, 'native'), {
     recursive: true, filter: (from) => !from.startsWith(path.join(root, 'native', 'build')),
   });
@@ -627,10 +629,11 @@ function run(cmd: string, args: string[], cwd: string, timeout: number): Promise
   });
 }
 
-// The tests' command; e2e ones on their own display when this is Linux and
-// there is none, or more than one worker runs.
+// The command for tests of one kind (all *.e2e.ts, or none); e2e ones on
+// their own display when this is Linux and there is none, or more than one
+// worker runs.
 function testCommand(tests: string[], display: number | null): [string, string[]] {
-  const e2e = tests.every((t) => t.endsWith('.e2e.ts'));
+  const e2e = tests[0].endsWith('.e2e.ts');
   const args = e2e
     ? [path.join(root, 'node_modules/@playwright/test/cli.js'), 'test', ...tests]
     : ['--test', '--import', './tests/helpers/timer-at-exit.ts', '--test-reporter=tap', ...tests];
@@ -656,16 +659,24 @@ async function runOne(m: Mutant, display: number | null): Promise<Result> {
       const b = await run(path.join(root, 'node_modules/.bin/node-gyp'), ['rebuild', '--directory', path.join(dir, 'native')], dir, 900000);
       if (b.status !== 0) return result('error', 'the addon did not build');
     }
-    const e2e = m.tests.every((t) => t.endsWith('.e2e.ts'));
-    if (e2e) {
+    // Unit tests (node --test) first, then e2e ones (Playwright): a list may name both.
+    const unit = m.tests.filter((t) => !t.endsWith('.e2e.ts')), e2e = m.tests.filter((t) => t.endsWith('.e2e.ts'));
+    if (e2e.length) {
       const b = await run(process.execPath, ['tools/build-ui.ts'], dir, 120000);
       if (b.status !== 0) return result('error', 'the window script did not bundle');
     }
-    const [cmd, args] = testCommand(m.tests, e2e ? display : null);
-    const t = await run(cmd, args, dir, 300000);
-    const firstFailure = (e2e ? /^\s*\d+\) (.*)$/m.exec(t.stdout)?.[1]?.replace(/─+$/, '').trim()
-                              : /^\s*not ok \d+ - (.*)$/m.exec(t.stdout)?.[1]) ?? '(no test reported a failure)';
-    return t.status === 0 ? result('survived', '') : result('killed', firstFailure);
+    for (const tests of [unit, e2e]) {
+      if (!tests.length) continue;
+      const isE2e = tests === e2e;
+      const [cmd, args] = testCommand(tests, isE2e ? display : null);
+      const t = await run(cmd, args, dir, 300000);
+      if (t.status !== 0) {
+        const first = (isE2e ? /^\s*\d+\) (.*)$/m.exec(t.stdout)?.[1]?.replace(/─+$/, '').trim()
+                             : /^\s*not ok \d+ - (.*)$/m.exec(t.stdout)?.[1]) ?? '(no test reported a failure)';
+        return result('killed', first);
+      }
+    }
+    return result('survived', '');
   } finally {
     rmSync(outer, { recursive: true, force: true });
   }
