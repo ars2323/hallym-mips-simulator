@@ -1,0 +1,1109 @@
+[
+ {
+  "variant": "A-window-glass",
+  "size": "1920",
+  "frames": 13,
+  "geometry": {
+   "window": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1040
+   },
+   "content": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1040
+   },
+   "screen": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1080
+   },
+   "workArea": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1032
+   },
+   "scale": 1
+  },
+  "card": {
+   "width": 722,
+   "height": 273
+  },
+  "ground": {
+   "valid": true,
+   "on": {
+    "towardNavy": [
+     0.426,
+     0.426
+    ],
+    "sharpness": [
+     0.095,
+     0.138
+    ],
+    "blueLean": [
+     6.8,
+     6.8
+    ],
+    "greenLean": [
+     -1.3,
+     -1.3
+    ],
+    "light": [
+     0.71,
+     0.71
+    ]
+   },
+   "off": {
+    "towardNavy": [
+     -0.006,
+     -0.006
+    ],
+    "sharpness": [
+     0.995,
+     0.998
+    ]
+   }
+  },
+  "glass": {
+   "on": [
+    0.026,
+    0.033
+   ],
+   "off": [
+    0.068,
+    0.092
+   ],
+   "ratio": [
+    0.295,
+    0.408
+   ]
+  },
+  "contrastWorst": {
+   "lead": 4.17,
+   "sub, main button": 5.04,
+   "sub, other button": 5.63,
+   "heading": 10.76,
+   "button label": 14.52
+  }
+ },
+ {
+  "variant": "A-window-glass",
+  "size": "910",
+  "frames": 13,
+  "geometry": {
+   "window": {
+    "x": 0,
+    "y": 0,
+    "width": 914,
+    "height": 505
+   },
+   "content": {
+    "x": 0,
+    "y": 0,
+    "width": 912,
+    "height": 505
+   },
+   "screen": {
+    "x": 0,
+    "y": 0,
+    "width": 853,
+    "height": 480
+   },
+   "workArea": {
+    "x": 0,
+    "y": 0,
+    "width": 1280,
+    "height": 688
+   },
+   "scale": 1.5
+  },
+  "card": {
+   "width": 721,
+   "height": 273
+  },
+  "ground": {
+   "valid": true,
+   "on": {
+    "towardNavy": [
+     0.407,
+     0.409
+    ],
+    "sharpness": [
+     0.167,
+     0.267
+    ],
+    "blueLean": [
+     5.7,
+     5.8
+    ],
+    "greenLean": [
+     -1,
+     -1
+    ],
+    "light": [
+     0.69,
+     0.69
+    ]
+   },
+   "off": {
+    "towardNavy": [
+     -0.001,
+     -0.001
+    ],
+    "sharpness": [
+     0.984,
+     0.987
+    ]
+   }
+  },
+  "glass": {
+   "on": [
+    0.073,
+    0.137
+   ],
+   "off": [
+    0.121,
+    0.299
+   ],
+   "ratio": [
+    0.459,
+    0.632
+   ]
+  },
+  "contrastWorst": {
+   "lead": 4.2,
+   "sub, main button": 5.04,
+   "sub, other button": 5.59,
+   "heading": 10.83,
+   "button label": 14.52
+  }
+ },
+ {
+  "variant": "B-window-glass-colour",
+  "size": "1920",
+  "frames": 13,
+  "geometry": {
+   "window": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1040
+   },
+   "content": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1040
+   },
+   "screen": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1080
+   },
+   "workArea": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1032
+   },
+   "scale": 1
+  },
+  "card": {
+   "width": 722,
+   "height": 273
+  },
+  "ground": {
+   "valid": true,
+   "on": {
+    "towardNavy": [
+     0.426,
+     0.427
+    ],
+    "sharpness": [
+     0.095,
+     0.137
+    ],
+    "blueLean": [
+     5.5,
+     5.6
+    ],
+    "greenLean": [
+     -0.4,
+     -0.3
+    ],
+    "light": [
+     0.71,
+     0.71
+    ]
+   },
+   "off": {
+    "towardNavy": [
+     -0.006,
+     -0.006
+    ],
+    "sharpness": [
+     0.995,
+     0.998
+    ]
+   }
+  },
+  "glass": {
+   "on": [
+    0.025,
+    0.031
+   ],
+   "off": [
+    0.068,
+    0.098
+   ],
+   "ratio": [
+    0.298,
+    0.387
+   ]
+  },
+  "contrastWorst": {
+   "lead": 4.17,
+   "sub, main button": 5.04,
+   "sub, other button": 5.64,
+   "heading": 10.75,
+   "button label": 14.52
+  }
+ },
+ {
+  "variant": "B-window-glass-colour",
+  "size": "910",
+  "frames": 13,
+  "geometry": {
+   "window": {
+    "x": 0,
+    "y": 0,
+    "width": 914,
+    "height": 505
+   },
+   "content": {
+    "x": 0,
+    "y": 0,
+    "width": 912,
+    "height": 505
+   },
+   "screen": {
+    "x": 0,
+    "y": 0,
+    "width": 853,
+    "height": 480
+   },
+   "workArea": {
+    "x": 0,
+    "y": 0,
+    "width": 1280,
+    "height": 688
+   },
+   "scale": 1.5
+  },
+  "card": {
+   "width": 721,
+   "height": 273
+  },
+  "ground": {
+   "valid": true,
+   "on": {
+    "towardNavy": [
+     0.408,
+     0.41
+    ],
+    "sharpness": [
+     0.167,
+     0.267
+    ],
+    "blueLean": [
+     4.5,
+     4.5
+    ],
+    "greenLean": [
+     0,
+     0
+    ],
+    "light": [
+     0.69,
+     0.69
+    ]
+   },
+   "off": {
+    "towardNavy": [
+     -0.001,
+     -0.001
+    ],
+    "sharpness": [
+     0.984,
+     0.987
+    ]
+   }
+  },
+  "glass": {
+   "on": [
+    0.071,
+    0.15
+   ],
+   "off": [
+    0.128,
+    0.312
+   ],
+   "ratio": [
+    0.482,
+    0.711
+   ]
+  },
+  "contrastWorst": {
+   "lead": 4.2,
+   "sub, main button": 5.04,
+   "sub, other button": 5.59,
+   "heading": 10.83,
+   "button label": 14.51
+  }
+ },
+ {
+  "variant": "C-window-opaque-colour",
+  "size": "1920",
+  "frames": 13,
+  "geometry": {
+   "window": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1040
+   },
+   "content": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1040
+   },
+   "screen": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1080
+   },
+   "workArea": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1032
+   },
+   "scale": 1
+  },
+  "card": {
+   "width": 722,
+   "height": 273
+  },
+  "ground": {
+   "valid": true,
+   "on": {
+    "towardNavy": [
+     0.426,
+     0.427
+    ],
+    "sharpness": [
+     0.095,
+     0.137
+    ],
+    "blueLean": [
+     5.5,
+     5.6
+    ],
+    "greenLean": [
+     -0.4,
+     -0.3
+    ],
+    "light": [
+     0.71,
+     0.71
+    ]
+   },
+   "off": {
+    "towardNavy": [
+     -0.006,
+     -0.006
+    ],
+    "sharpness": [
+     0.995,
+     0.998
+    ]
+   }
+  },
+  "contrastWorst": {
+   "lead": 6,
+   "sub, main button": 5.22,
+   "sub, other button": 6,
+   "heading": 15.47,
+   "button label": 15.47
+  }
+ },
+ {
+  "variant": "C-window-opaque-colour",
+  "size": "910",
+  "frames": 13,
+  "geometry": {
+   "window": {
+    "x": 0,
+    "y": 0,
+    "width": 914,
+    "height": 505
+   },
+   "content": {
+    "x": 0,
+    "y": 0,
+    "width": 912,
+    "height": 505
+   },
+   "screen": {
+    "x": 0,
+    "y": 0,
+    "width": 853,
+    "height": 480
+   },
+   "workArea": {
+    "x": 0,
+    "y": 0,
+    "width": 1280,
+    "height": 688
+   },
+   "scale": 1.5
+  },
+  "card": {
+   "width": 721,
+   "height": 273
+  },
+  "ground": {
+   "valid": true,
+   "on": {
+    "towardNavy": [
+     0.408,
+     0.41
+    ],
+    "sharpness": [
+     0.168,
+     0.269
+    ],
+    "blueLean": [
+     4.5,
+     4.5
+    ],
+    "greenLean": [
+     0,
+     0
+    ],
+    "light": [
+     0.69,
+     0.69
+    ]
+   },
+   "off": {
+    "towardNavy": [
+     -0.001,
+     -0.001
+    ],
+    "sharpness": [
+     0.981,
+     0.985
+    ]
+   }
+  },
+  "contrastWorst": {
+   "lead": 6,
+   "sub, main button": 5.22,
+   "sub, other button": 6,
+   "heading": 15.47,
+   "button label": 15.47
+  }
+ },
+ {
+  "variant": "D-window-glass-colour-90",
+  "size": "1920",
+  "frames": 13,
+  "geometry": {
+   "window": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1040
+   },
+   "content": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1040
+   },
+   "screen": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1080
+   },
+   "workArea": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1032
+   },
+   "scale": 1
+  },
+  "card": {
+   "width": 722,
+   "height": 273
+  },
+  "ground": {
+   "valid": true,
+   "on": {
+    "towardNavy": [
+     0.426,
+     0.427
+    ],
+    "sharpness": [
+     0.095,
+     0.137
+    ],
+    "blueLean": [
+     5.5,
+     5.6
+    ],
+    "greenLean": [
+     -0.4,
+     -0.3
+    ],
+    "light": [
+     0.71,
+     0.71
+    ]
+   },
+   "off": {
+    "towardNavy": [
+     -0.006,
+     -0.006
+    ],
+    "sharpness": [
+     0.995,
+     0.998
+    ]
+   }
+  },
+  "glass": {
+   "on": [
+    0.041,
+    0.052
+   ],
+   "off": [
+    0.099,
+    0.141
+   ],
+   "ratio": [
+    0.315,
+    0.451
+   ]
+  },
+  "contrastWorst": {
+   "lead": 4.95,
+   "sub, main button": 5.18,
+   "sub, other button": 5.79,
+   "heading": 12.78,
+   "button label": 14.92
+  }
+ },
+ {
+  "variant": "D-window-glass-colour-90",
+  "size": "910",
+  "frames": 13,
+  "geometry": {
+   "window": {
+    "x": 0,
+    "y": 0,
+    "width": 914,
+    "height": 505
+   },
+   "content": {
+    "x": 0,
+    "y": 0,
+    "width": 912,
+    "height": 505
+   },
+   "screen": {
+    "x": 0,
+    "y": 0,
+    "width": 853,
+    "height": 480
+   },
+   "workArea": {
+    "x": 0,
+    "y": 0,
+    "width": 1280,
+    "height": 688
+   },
+   "scale": 1.5
+  },
+  "card": {
+   "width": 721,
+   "height": 273
+  },
+  "ground": {
+   "valid": true,
+   "on": {
+    "towardNavy": [
+     0.408,
+     0.41
+    ],
+    "sharpness": [
+     0.167,
+     0.267
+    ],
+    "blueLean": [
+     4.5,
+     4.5
+    ],
+    "greenLean": [
+     0,
+     0
+    ],
+    "light": [
+     0.69,
+     0.69
+    ]
+   },
+   "off": {
+    "towardNavy": [
+     -0.001,
+     -0.001
+    ],
+    "sharpness": [
+     0.984,
+     0.987
+    ]
+   }
+  },
+  "glass": {
+   "on": [
+    0.143,
+    0.281
+   ],
+   "off": [
+    0.21,
+    0.466
+   ],
+   "ratio": [
+    0.59,
+    0.706
+   ]
+  },
+  "contrastWorst": {
+   "lead": 4.95,
+   "sub, main button": 5.18,
+   "sub, other button": 5.79,
+   "heading": 12.78,
+   "button label": 14.92
+  }
+ },
+ {
+  "variant": "B-86",
+  "size": "1920",
+  "frames": 13,
+  "geometry": {
+   "window": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1040
+   },
+   "content": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1040
+   },
+   "screen": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1080
+   },
+   "workArea": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1032
+   },
+   "scale": 1
+  },
+  "card": {
+   "width": 722,
+   "height": 273
+  },
+  "glass": {
+   "on": [
+    0.03,
+    0.037
+   ],
+   "off": [
+    0.084,
+    0.115
+   ],
+   "ratio": [
+    0.28,
+    0.371
+   ]
+  },
+  "contrastWorst": {
+   "lead": 4.55,
+   "sub, main button": 5.12,
+   "sub, other button": 5.69,
+   "heading": 11.74,
+   "button label": 14.7
+  }
+ },
+ {
+  "variant": "B-86",
+  "size": "910",
+  "frames": 13,
+  "geometry": {
+   "window": {
+    "x": 0,
+    "y": 0,
+    "width": 914,
+    "height": 505
+   },
+   "content": {
+    "x": 0,
+    "y": 0,
+    "width": 912,
+    "height": 505
+   },
+   "screen": {
+    "x": 0,
+    "y": 0,
+    "width": 853,
+    "height": 480
+   },
+   "workArea": {
+    "x": 0,
+    "y": 0,
+    "width": 1280,
+    "height": 688
+   },
+   "scale": 1.5
+  },
+  "card": {
+   "width": 721,
+   "height": 273
+  },
+  "glass": {
+   "on": [
+    0.089,
+    0.191
+   ],
+   "off": [
+    0.154,
+    0.384
+   ],
+   "ratio": [
+    0.498,
+    0.706
+   ]
+  },
+  "contrastWorst": {
+   "lead": 4.55,
+   "sub, main button": 5.12,
+   "sub, other button": 5.69,
+   "heading": 11.74,
+   "button label": 14.67
+  }
+ },
+ {
+  "variant": "B-dark-text",
+  "size": "1920",
+  "frames": 13,
+  "geometry": {
+   "window": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1040
+   },
+   "content": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1040
+   },
+   "screen": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1080
+   },
+   "workArea": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1032
+   },
+   "scale": 1
+  },
+  "card": {
+   "width": 722,
+   "height": 273
+  },
+  "glass": {
+   "on": [
+    0.025,
+    0.031
+   ],
+   "off": [
+    0.068,
+    0.098
+   ],
+   "ratio": [
+    0.298,
+    0.387
+   ]
+  },
+  "contrastWorst": {
+   "lead": 5.26,
+   "sub, main button": 6.34,
+   "sub, other button": 7.1,
+   "heading": 10.75,
+   "button label": 14.52
+  }
+ },
+ {
+  "variant": "B-dark-text",
+  "size": "910",
+  "frames": 13,
+  "geometry": {
+   "window": {
+    "x": 0,
+    "y": 0,
+    "width": 914,
+    "height": 505
+   },
+   "content": {
+    "x": 0,
+    "y": 0,
+    "width": 912,
+    "height": 505
+   },
+   "screen": {
+    "x": 0,
+    "y": 0,
+    "width": 853,
+    "height": 480
+   },
+   "workArea": {
+    "x": 0,
+    "y": 0,
+    "width": 1280,
+    "height": 688
+   },
+   "scale": 1.5
+  },
+  "card": {
+   "width": 721,
+   "height": 273
+  },
+  "glass": {
+   "on": [
+    0.071,
+    0.15
+   ],
+   "off": [
+    0.128,
+    0.312
+   ],
+   "ratio": [
+    0.482,
+    0.711
+   ]
+  },
+  "contrastWorst": {
+   "lead": 5.29,
+   "sub, main button": 6.34,
+   "sub, other button": 7.05,
+   "heading": 10.83,
+   "button label": 14.51
+  }
+ },
+ {
+  "variant": "B-86-dark-text",
+  "size": "1920",
+  "frames": 13,
+  "geometry": {
+   "window": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1040
+   },
+   "content": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1040
+   },
+   "screen": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1080
+   },
+   "workArea": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1032
+   },
+   "scale": 1
+  },
+  "card": {
+   "width": 722,
+   "height": 273
+  },
+  "glass": {
+   "on": [
+    0.03,
+    0.037
+   ],
+   "off": [
+    0.084,
+    0.115
+   ],
+   "ratio": [
+    0.28,
+    0.371
+   ]
+  },
+  "contrastWorst": {
+   "lead": 5.73,
+   "sub, main button": 6.46,
+   "sub, other button": 7.17,
+   "heading": 11.74,
+   "button label": 14.7
+  }
+ },
+ {
+  "variant": "B-86-dark-text",
+  "size": "910",
+  "frames": 13,
+  "geometry": {
+   "window": {
+    "x": 0,
+    "y": 0,
+    "width": 914,
+    "height": 505
+   },
+   "content": {
+    "x": 0,
+    "y": 0,
+    "width": 912,
+    "height": 505
+   },
+   "screen": {
+    "x": 0,
+    "y": 0,
+    "width": 853,
+    "height": 480
+   },
+   "workArea": {
+    "x": 0,
+    "y": 0,
+    "width": 1280,
+    "height": 688
+   },
+   "scale": 1.5
+  },
+  "card": {
+   "width": 721,
+   "height": 273
+  },
+  "glass": {
+   "on": [
+    0.089,
+    0.191
+   ],
+   "off": [
+    0.154,
+    0.384
+   ],
+   "ratio": [
+    0.498,
+    0.706
+   ]
+  },
+  "contrastWorst": {
+   "lead": 5.73,
+   "sub, main button": 6.46,
+   "sub, other button": 7.17,
+   "heading": 11.74,
+   "button label": 14.67
+  }
+ },
+ {
+  "variant": "B-72",
+  "size": "1920",
+  "frames": 13,
+  "geometry": {
+   "window": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1040
+   },
+   "content": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1040
+   },
+   "screen": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1080
+   },
+   "workArea": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 1032
+   },
+   "scale": 1
+  },
+  "card": {
+   "width": 722,
+   "height": 273
+  },
+  "glass": {
+   "on": [
+    0.017,
+    0.02
+   ],
+   "off": [
+    0.05,
+    0.067
+   ],
+   "ratio": [
+    0.283,
+    0.34
+   ]
+  },
+  "contrastWorst": {
+   "lead": 3.38,
+   "sub, main button": 4.94,
+   "sub, other button": 5.44,
+   "heading": 8.72,
+   "button label": 14.02
+  }
+ }
+]

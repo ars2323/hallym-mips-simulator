@@ -88,7 +88,7 @@ These come from run [36431343709](https://github.com/ars2323/hallym-mips-simulat
 
 At 910 the Windows numbers match Linux to within about 0.01. At 1920 they do not: every design reads darker (light 0.42–0.68 against 0.49–0.80 on Linux) and sharper. The smeared design, for example, measures 0.189 where Linux measures 0.030.
 
-The glass strip in the middle of the card does match at 1920 (below). The ground strip is the one that spans almost the whole screen width. A cause that fits is a window placed partly off the screen, putting black pixels into the capture. This run saved no picture of the screen, so that is not confirmed, and the Windows 1920 ground numbers should not be used for calibration until it is.
+The glass strip in the middle of the card does match at 1920 (below). The ground strip is the one that spans almost the whole screen width. A cause that fits is a window placed partly off the screen, putting black pixels into the capture. The second round confirmed it: the window was centred at (320,116), with its right 320 px off the screen. The tool now puts it at (0,0), and the Windows 1920 ground numbers above are not measurements. See [combined/README.md](combined/README.md), "On Windows".
 
 The glass card on Windows:
 

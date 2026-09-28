@@ -106,20 +106,23 @@ The glass on/off ratio, same frame (lower means the glass blurs more):
 
 These are the thresholds to use for whichever of C or D (or B with the darker text) is chosen. They are placed with margin between measured values; none is moved until a test turns green.
 
+The ranges below cover Linux and Windows (see "On Windows" further down).
+
 - **Tint** (`start.e2e.ts`, "tinted toward the navy and blurred").
-  - The design reads 0.405 at its lowest (910); with the treatment off, 0.003 at its highest.
+  - The design reads 0.405 at its lowest (Linux 910; Windows 0.407); with the treatment off, 0.003 at its highest.
   - Today's `> 0.4` is 0.005 from the design's own value and would fail intermittently.
   - Place it at **0.2**. It guards the veil: without it, the ground is the raw photo.
 - **Sharpness** (same test).
   - The design reads up to 0.274; off, down to 0.970.
   - **0.6** still sits between them with about 0.33 on each side, so it stays. What it guards is the blur.
+- **Size.** These are measured at 1920 and 910. The e2e run at the harness's default window size, so its values there are to be measured the same way (on and off) before the thresholds are written in.
 - **Contrast** (new, replacing "the card does not change while the video does" for a glass card, which is expected to change).
   - Every card text is at least **4.5:1** at 0.5, 3.0 and 5.5 s, measured as above.
   - The threshold is WCAG's, not a calibrated one. D reads 4.95 at worst; the thin-card state reads 3.38.
   - For C (opaque) the existing test can stay as it is, with the contrast check added.
 - **Glass** (new, glass designs only).
   - The card's top strip over the raw frame, with the backdrop-filter against without it in the same frame, must be at most **0.85**.
-  - The design reads 0.72 at worst (910); with the filter missing it is about 1.
+  - The design reads 0.72 at worst (Linux B at 910; Windows 0.71, D 0.71); with the filter missing it is about 1.
 
 The mutant `first screen: the card see-through` asserts an opaque card. Under a glass design it is rewritten, not deleted, as what the new design must keep:
 
@@ -128,10 +131,25 @@ The mutant `first screen: the card see-through` asserts an opaque card. Under a 
 
 Under C the existing mutant stays as it is, and the contrast test kills it too (4.21 against 4.5).
 
-The caption patch (`titleBarOverlay` colour `#00000000`) can only be seen on Windows. A check there compares the patch with the bar beside it: equal within 3 levels, as measured above. The mutant runs are on Linux, so no mutant covers it; the Windows e2e run does.
+The caption patch (`titleBarOverlay` colour `#00000000`) can only be seen on Windows. The check to add there compares the patch with the bar beside it: equal within 3 levels, as measured above, where the navy patch differed by 15 and a white one would differ by about 200. The mutant runs are on Linux, so no mutant can cover it; only the Windows e2e run can.
 
-## Windows at 1920: the ground strip is not measurable yet
+## On Windows
 
-On Windows, at 1920×1040, the ground strip with the treatment off reads tint 0.22 and sharpness 0.57–0.64. With nothing applied it should match the raw frame, as it does at 910 and on Linux. So the strip holds something that is not the video, and neither the on nor the off figure there is a measurement.
+Run [36454678242](https://github.com/ars2323/hallym-mips-simulator/actions/runs/36454678242) measured the installed app on the runner's 1920×1080 screen. `windows-metrics.json` holds the full rows. Every row's control holds: with the treatment off, the ground reads as the raw frame.
 
-Each row now carries its own control (`ground.valid`: off must read tint under 0.1 and sharpness over 0.8) and the window's and screen's geometry. On Windows the tool also saves a picture of the whole screen for the first design, so the next run shows what is in the strip. No check runs at that size on Windows: the Windows e2e use the default window size.
+| design | size | tint, on | tint, off | sharpness, on | sharpness, off | blue | green | glass ratio | lead text, worst |
+|---|---|---|---|---|---|---|---|---|---|
+| A | 1920 | 0.426 | −0.006 | 0.095–0.138 | 0.995–0.998 | +6.8 | −1.3 | 0.30–0.41 | 4.17 |
+| A | 910 | 0.407–0.409 | −0.001 | 0.167–0.267 | 0.984–0.987 | +5.7–5.8 | −1.0 | 0.46–0.63 | 4.20 |
+| B | 1920 | 0.426–0.427 | −0.006 | 0.095–0.137 | 0.995–0.998 | +5.5–5.6 | −0.4–−0.3 | 0.30–0.39 | 4.17 |
+| B | 910 | 0.408–0.410 | −0.001 | 0.167–0.267 | 0.984–0.987 | +4.5 | 0.0 | 0.48–0.71 | 4.20 |
+| C | 1920 | as B | | | | | | — | 6.00 |
+| C | 910 | 0.408–0.410 | −0.001 | 0.168–0.269 | 0.981–0.985 | +4.5 | 0.0 | — | 6.00 |
+| D | 1920 | as B | | | | | | 0.32–0.45 | 4.95 |
+| D | 910 | as B | | | | | | 0.59–0.71 | 4.95 |
+
+The contrast probes read the same as on Linux, to within 0.06 on the lead text: B at .86 is 4.55, B with #4b5563 is 5.26, both together 5.73, and B at .72 is 3.38. B at .72 at 910 is missing from this run, because the step reached its time limit on that last row. The previous run (36439439685) measured it at 3.38.
+
+Two earlier runs read the ground at 1920 as not the video: tint 0.22 and sharpness 0.6 with the treatment off. The row's geometry showed why. Windows centres a new window, so a 1920×1040 window sat at (320,116) on the 1920×1080 screen, with its right 320 px off the screen. The ground strip spans the window's width, so its right end was captured black. [windows-1920-off-screen.jpg](windows-1920-off-screen.jpg) shows the screen at the end of such a row (texts hidden, treatment off). The tool now puts the window at (0,0). The first round's Windows 1920 figures (`../README.md`) had the same cause.
+
+The Windows step runs only by hand: dispatch "Electron edition (2.x) — Windows" with the `start-variants` box ticked. It takes about 45 minutes. The pictures and numbers land in the report artifact's `start-variants/`.
