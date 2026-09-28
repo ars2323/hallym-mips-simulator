@@ -91,7 +91,9 @@ export async function rawPixels(r: Running, rect: Rect): Promise<Pixels> {
     const c = document.createElement('canvas');
     c.width = Math.round(box.width * dpr); c.height = Math.round(box.height * dpr);
     const g = c.getContext('2d')!;
-    const s = Math.max(c.width / iw, c.height / ih) * 1.03; // object-fit: cover, then scale(1.03)
+    // object-fit: cover, then the video's own scale (app.css: scale(1.03); the candidate designs, others)
+    const t = getComputedStyle(video).transform;
+    const s = Math.max(c.width / iw, c.height / ih) * (t && t !== 'none' ? new DOMMatrix(t).a : 1);
     g.drawImage(src, (c.width - iw * s) / 2, (c.height - ih * s) / 2, iw * s, ih * s);
     const x = Math.round((rc.x - box.x) * dpr), y = Math.round((rc.y - box.y) * dpr);
     const w = Math.round(rc.width * dpr), h = Math.round(rc.height * dpr);

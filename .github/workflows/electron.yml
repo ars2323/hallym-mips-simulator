@@ -65,7 +65,7 @@ jobs:
     name: Build, test, package, install
     if: github.ref_type != 'tag'   # a tag publishes what its commit's run built and checked (job `tested`)
     runs-on: windows-latest
-    timeout-minutes: 60
+    timeout-minutes: 80   # 60, and the candidate first screens' measurements (up to 40, usually far less) while a design is being chosen
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'   # no code signing
     steps:
@@ -190,12 +190,12 @@ jobs:
       - name: Candidate first screens (tools/start-variants.ts), on the Windows screen -- for choosing, not checked
         if: always() && hashFiles('electron/report/installed.txt') != ''
         continue-on-error: true
-        timeout-minutes: 12
+        timeout-minutes: 40   # the whole screen with the caption buttons first, then 13 frames of each design (metrics.json kept as it goes)
         shell: pwsh
         run: |
           $env:SPIM_E2E_EXE = (Get-Content report/installed.txt).Trim()
           $env:START_VARIANTS_OUT = 'report/start-variants'
-          node tools/start-variants.ts
+          node tools/start-variants.ts combined
 
       - name: Side by side with 1.2.4 (after; uninstall ours)
         if: always() && hashFiles('electron/report/qt-settings-together.reg') != ''
