@@ -1,0 +1,112 @@
+# The Electron edition's mutants, all of them, on Linux: does every test
+# still catch the wrong code it was written to catch?  (electron/tools/mutants.ts)
+#
+# Weekly and by hand only -- not on push or tags: a release checks the
+# mutants its round could touch (--changed, root CLAUDE.md rule 3), against
+# the baseline in electron/tools/mutants-baseline.json.  This full pass is
+# what that baseline comes from: when it is green, its `baseline` artifact
+# is a new baseline, which a person commits (CI never writes to the
+# repository).
+#
+#   shards   the mutants dealt into SHARDS parts (the addon-rebuilding ones
+#            spread over them); each part first runs its tests with no
+#            mutant (--control: a failing test there would make every kill
+#            meaningless), then its mutants, two at a time, each on its own
+#            Xvfb display
+#   summary  the parts merged: every mutant present once and killed, or it
+#            fails; the table (each mutant, by which test, in how many
+#            seconds) in the run's summary and in the `mutants` artifact
+
+name: Electron edition (2.x) — every mutant
+
+on:
+  schedule:
+    - cron: '0 18 * * 0'   # Monday 03:00 in Korea
+  workflow_dispatch:
+
+concurrency:
+  group: mutants-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SHARDS: 6
+
+defaults:
+  run:
+    working-directory: electron
+
+jobs:
+  shard:
+    name: Mutants, part ${{ matrix.shard }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Xvfb, ImageMagick (the start screen's screen capture), flex and bison
+        run: sudo apt-get update -q && sudo apt-get install -y -q xvfb imagemagick flex bison
+
+      - name: npm ci (Electron included)
+        run: npm ci
+
+      - name: The addon, for Electron
+        run: node tools/build-electron.ts
+
+      - name: The mutants of part ${{ matrix.shard }}
+        run: node tools/mutants.ts --shard ${{ matrix.shard }}/$SHARDS --jobs 2 --control --json results-${{ matrix.shard }}.json
+
+      - name: Upload part ${{ matrix.shard }}
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutants-part-${{ matrix.shard }}
+          path: electron/results-${{ matrix.shard }}.json
+          if-no-files-found: error
+
+  summary:
+    name: Every mutant, merged
+    needs: shard
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: mutants-part-*
+          path: electron/parts
+          merge-multiple: true
+
+      - name: Merged; every mutant present once and killed
+        run: |
+          status=0
+          node tools/mutants.ts --merge mutants.json parts/results-*.json > summary.md || status=$?
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
+          head -3 summary.md
+          exit $status
+
+      - name: The baseline this pass makes (commit it by hand as electron/tools/mutants-baseline.json)
+        run: node tools/mutants.ts --baseline-from mutants.json --run "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" | tee baseline.json
+
+      - name: Upload the results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutants
+          path: |
+            electron/mutants.json
+            electron/summary.md
+            electron/baseline.json
+          if-no-files-found: ignore

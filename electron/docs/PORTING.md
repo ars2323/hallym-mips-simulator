@@ -1438,3 +1438,61 @@ The still is its first frame. The three pictures of moments are now at 0.5, 3.0 
 - `check-installer-ui.ps1` samples both from the screen.
 
 **Checkouts:** `docs/**` is `-text` at the repository root, as `electron/` is in `electron/.gitattributes`: 2.4.0's Windows checkout gave the spec CRLF, and a test broke on it.
+
+## 28. The mutants against a baseline, a weekly full pass in CI; one tested installer per release
+
+A round without a release (tools, workflows, documents only).
+
+**Mutants: `node tools/mutants.ts --changed`.** It is what the 2.4.0 and 2.5.0 rounds did by hand (82 run and 87 skipped; 18 and 153), from the `file` and `tests` every mutant already has.
+
+The baseline is `tools/mutants-baseline.json`: the commit, date and killed mutants of a full pass that killed every one. A mutant runs if:
+- its `file` or one of its `tests` changed since the baseline's commit, whether committed (`git diff`) or not (`git status -z`: staged, unstaged, untracked, both sides of a rename);
+- or it is not among the baseline's.
+
+The rest are listed as skipped, with their files. Before anything runs, it checks again that none of the skipped mutants has a changed file; one that does ends the run as a failure.
+
+It runs all of them and says why when:
+- there is no baseline file;
+- the baseline commit is not an ancestor of HEAD;
+- git gives no change list;
+- a mutant's file or test does not exist.
+
+It never quietly runs none: a FILTER matching nothing is an error.
+
+The list is the program's own array, not text parsed out of a file, so comments and quotes cannot confuse it.
+
+The find check (every `find` exactly once in its `file`, text only) runs first in every mode, and a stale mutant stops everything.
+
+`--jobs` runs several at a time: by default a third of the cores, 1 to 6. The addon-rebuilding ones run one at a time, after the rest. On Linux each worker has its own Xvfb display (`xvfb-run -n`, from :120).
+
+`--verify-selector` checks the selector in a temporary `git worktree` of HEAD, which is removed after (never `git clean`, whose `-x` would take `slides/`):
+1. The baseline commit itself picks 0.
+2. A blank line added to `src/core/decoder.ts` picks exactly its 3 mutants.
+3. A blank line added to `tests/e2e/fit.e2e.ts`, a test file only, picks exactly the 18 mutants on other files that it runs.
+
+**The full pass in CI:** `.github/workflows/mutants.yml`, weekly (Monday 03:00 in Korea) and by hand, never on push or tags.
+- Six shards on Linux, each two at a time. Each first runs its tests with no mutant (`--control`), since a test failing on the runner would make every kill meaningless.
+- A merge job publishes each mutant's result, killing test and seconds as the `mutants` artifact and the run's summary. It fails unless every mutant is there once and killed, and it prints the baseline that pass makes.
+- A person commits that baseline; CI does not write to the repository.
+
+This was the one check with no public record.
+
+**The release, checked once and published as checked.** Until 2.5.0 the Windows job ran three times on the same code for a release: the release commit's push run, the dispatch that rule 3 required for the upgrade check, and the tag's run. The tag's run built a new installer and published it. Since the installer is not byte-reproducible (29 bytes apart in 2.4.0), the published file was one no check had touched; only the post-release check did.
+
+Now:
+- `upgrade` runs in every push run of main.
+- The tag's run builds nothing. Its job `tested` finds the tagged commit's own run, which must be for that SHA, with its build, tests and upgrade green and the upgrade really run. It takes that run's installer; `publish` publishes that file.
+- 48e645c's installer, which never changes, is built once and kept in the Actions cache.
+- The installer pictures come from the release commit's run and are committed before the tag, whose own run then checks that commit. So a tag carries its own pictures: v2.5.0's `installer-finish.png` was 2.4.0's, byte for byte, because the new ones were committed after the tag.
+
+**The Qt workflow** runs only when one of its inputs changes (`paths` in `ci.yml`): `QtSpim/`, `tests/`, `Tests/`, `tools/`, `Setup/`, `CPU/`, SPIM's `README`, the guides `docs/GUIDE*.md` and `docs/images/`, and `ci.yml` itself. Rule 3 asks it to be green on the last commit that changed one of them. It had been dispatched by hand on Electron-only release commits, which proved nothing about an unchanged Qt edition. `CPU/` is shared, so a change there still runs both.
+
+**Screens:** `tools/capture-screens.ts` fixes the windows' clock (`page.clock.setFixedTime`). The Assemble panel shows the assemble's time, which made every retake differ in about 300 pixels by 100 levels and more. A capture is kept only when it differs from the file on disk:
+- more than 20 pixels by more than 2 levels;
+- or any pixel by more than 24.
+
+The rest is anti-aliasing noise (one pixel by 3 levels, seen twice). A second and a third retake wrote none of the 42 pictures.
+
+**The runner's animation effects** are turned on (`tools/windows/animations-on.ps1`, `SPI_SETCLIENTAREAANIMATION`), as on the students' PCs. With them off, `prefers-reduced-motion` held and the program the installer's 마침 started showed its still.
+
+**What the blur measure compares with** (`tests/e2e/backdrop-measure.ts`): the frame the video has decoded at that moment (or the still, before it loads), drawn with no filter at the same geometry, taken anew at every measurement. It is not a stored value, so a new clip keeps the test meaningful.

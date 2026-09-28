@@ -10,6 +10,15 @@
    written without its ancillary chunks (metadata), losslessly, and must
    stay within 400 KB.
 
+   A picture whose pixels did not change is not written again, so a
+   retake leaves in git only the screens that changed.  "Did not change":
+   the same size, at most 20 pixels more than 2 levels from the file on
+   disk and none more than 24 -- the renderer's anti-aliasing noise (seen:
+   one pixel, 3 levels); a real change moves hundreds of pixels by far more
+   (the clock's digits: about 300, by 100 and more).  For that the window's
+   clock is fixed (FIXED_TIME): the Assemble panel and the band show the
+   time of the assemble.
+
    windows-frame.png: only on Windows (the CI job, with the installed app),
    the whole screen with the window maximised -- the caption buttons are the
    system's and a page capture has none.
@@ -29,10 +38,18 @@
    the guide's pictures to report/screens/usage). */
 
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { launch, openAndAssemble, openOnly, program, root, sample, settled, textRow, type Running } from '../tests/e2e/harness.ts';
+import { launch as launchApp, openAndAssemble, openOnly, program, root, sample, settled, textRow, type Running } from '../tests/e2e/harness.ts';
+
+// Every window of the set with the same clock (the assembled time on screen).
+const FIXED_TIME = new Date('2026-09-28T10:00:00+09:00');
+async function launch(...args: Parameters<typeof launchApp>): Promise<Running> {
+  const r = await launchApp(...args);
+  await r.page.clock.setFixedTime(FIXED_TIME);
+  return r;
+}
 
 const out = process.env.SCREENS_OUT ? path.resolve(process.env.SCREENS_OUT) : path.join(root, 'docs/screens');
 mkdirSync(out, { recursive: true });
@@ -68,12 +85,36 @@ function stripPng(file: string): number {
   return png.length;
 }
 
-function written(name: string, max = MAX_BYTES): void {
-  const file = path.join(out, `${name}.png`);
-  const bytes = stripPng(file);
-  console.log(`wrote ${path.relative(root, file)} (${Math.round(bytes / 1024)} KB)`);
-  if (bytes > max) throw new Error(`${name}.png is ${bytes} bytes, over ${max}: crop it`);
+// The same picture, noise aside (see above; decoded by the running app's
+// nativeImage: PNG and JPEG).
+async function samePicture(r: Running, a: string, b: string): Promise<boolean> {
+  return r.app.evaluate(({ nativeImage }, [x, y]) => {
+    const p = nativeImage.createFromPath(x), q = nativeImage.createFromPath(y);
+    const sp = p.getSize(), sq = q.getSize();
+    if (p.isEmpty() || q.isEmpty() || sp.width !== sq.width || sp.height !== sq.height) return false;
+    const u = p.toBitmap(), v = q.toBitmap();
+    let noisy = 0;
+    for (let i = 0; i < u.length; i += 4) {
+      const d = Math.max(Math.abs(u[i] - v[i]), Math.abs(u[i + 1] - v[i + 1]), Math.abs(u[i + 2] - v[i + 2]));
+      if (d > 24) return false;
+      if (d > 2 && ++noisy > 20) return false;
+    }
+    return true;
+  }, [a, b]);
 }
+// `fresh` (just captured) becomes `file`, unless `file` already holds the same picture.
+async function settle(r: Running, fresh: string, file: string, max: number): Promise<void> {
+  const bytes = file.endsWith('.png') ? stripPng(fresh) : readFileSync(fresh).length;
+  if (bytes > max) throw new Error(`${path.basename(file)} is ${bytes} bytes, over ${max}: crop it`);
+  if (existsSync(file) && await samePicture(r, fresh, file)) {
+    unlinkSync(fresh);
+    console.log(`same     ${path.relative(root, file)}`);
+    return;
+  }
+  renameSync(fresh, file);
+  console.log(`wrote    ${path.relative(root, file)} (${Math.round(bytes / 1024)} KB)`);
+}
+const freshName = (file: string) => file.replace(/(\.\w+)$/, '.new$1');
 
 async function still(r: Running, name: string): Promise<void> {
   const { page } = r;
@@ -86,17 +127,16 @@ async function still(r: Running, name: string): Promise<void> {
 }
 async function shot(r: Running, name: string, clip?: { x: number; y: number; width: number; height: number }): Promise<void> {
   await still(r, name);
-  await r.page.screenshot({ path: path.join(out, `${name}.png`), clip });
-  written(name, clip ? MAX_CROP_BYTES : MAX_BYTES);
+  const file = path.join(out, `${name}.png`);
+  await r.page.screenshot({ path: freshName(file), clip });
+  await settle(r, freshName(file), file, clip ? MAX_CROP_BYTES : MAX_BYTES);
 }
 // Over the first screen's video: JPEG.
 async function photo(r: Running, name: string): Promise<void> {
   await still(r, name);
   const file = path.join(out, `${name}.jpg`);
-  await r.page.screenshot({ path: file, type: 'jpeg', quality: 85 });
-  const bytes = readFileSync(file).length;
-  console.log(`wrote ${path.relative(root, file)} (${Math.round(bytes / 1024)} KB)`);
-  if (bytes > MAX_PHOTO_BYTES) throw new Error(`${name}.jpg is ${bytes} bytes, over ${MAX_PHOTO_BYTES}`);
+  await r.page.screenshot({ path: freshName(file), type: 'jpeg', quality: 85 });
+  await settle(r, freshName(file), file, MAX_PHOTO_BYTES);
 }
 // The first screen's video, stopped at `t` seconds, that frame on screen.
 async function videoAt(r: Running, t: number): Promise<void> {
@@ -109,10 +149,15 @@ async function videoAt(r: Running, t: number): Promise<void> {
   }), t);
 }
 
-// A shot of the set, also as one of the guide's pictures.
+// A shot of the set, also as one of the guide's pictures (copied only when it differs).
 function forGuide(from: string, name: string, ext = 'png'): void {
-  copyFileSync(path.join(out, `${from}.${ext}`), path.join(guide, `${name}.${ext}`));
-  console.log(`wrote ${path.relative(root, path.join(guide, `${name}.${ext}`))} (= ${from}.${ext})`);
+  const source = path.join(out, `${from}.${ext}`), target = path.join(guide, `${name}.${ext}`);
+  if (existsSync(target) && readFileSync(target).equals(readFileSync(source))) {
+    console.log(`same     ${path.relative(root, target)} (= ${from}.${ext})`);
+    return;
+  }
+  copyFileSync(source, target);
+  console.log(`wrote    ${path.relative(root, target)} (= ${from}.${ext})`);
 }
 
 // The running window with each part outlined and named, for the guide.
@@ -146,10 +191,8 @@ async function namedParts(r: Running, name: string): Promise<void> {
   const file = path.join(guide, `${name}.png`);
   await r.page.mouse.move(-10, -10);
   await r.page.waitForTimeout(1100);
-  await r.page.screenshot({ path: file });
-  const bytes = stripPng(file);
-  console.log(`wrote ${path.relative(root, file)} (${Math.round(bytes / 1024)} KB)`);
-  if (bytes > MAX_BYTES) throw new Error(`${name}.png is ${bytes} bytes, over ${MAX_BYTES}`);
+  await r.page.screenshot({ path: freshName(file) });
+  await settle(r, freshName(file), file, MAX_BYTES);
   await r.page.evaluate(() => document.getElementById('guide-names')?.remove());
 }
 
@@ -342,7 +385,9 @@ $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
 $bmp.Save('${file}', [System.Drawing.Imaging.ImageFormat]::Png)`;
   const done = spawnSync('powershell', ['-NoProfile', '-Command', ps], { encoding: 'utf8' });
   if (done.status !== 0) throw new Error(`${name}: ${done.stderr}`);
-  written(name, MAX_SCREEN_BYTES);
+  const bytes = stripPng(file);
+  console.log(`wrote    ${path.relative(root, file)} (${Math.round(bytes / 1024)} KB)`);
+  if (bytes > MAX_SCREEN_BYTES) throw new Error(`${name}.png is ${bytes} bytes, over ${MAX_SCREEN_BYTES}`);
 }
 if (process.platform === 'win32') {
   const r = await launch();

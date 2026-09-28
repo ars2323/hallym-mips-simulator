@@ -1,6 +1,11 @@
 # The Qt edition (1.x) of the Hallym MIPS Simulator: continuous integration.
-# It does not run for changes under electron/ alone (the Electron edition
-# has its own workflow, electron.yml); CPU/ changes run both.
+# It runs when what it builds, tests or packages changes -- its inputs,
+# listed under `paths` below: QtSpim/, its tests (tests/, Tests/), its
+# scripts (tools/), Setup/, SPIM's README, the guides it turns into PDFs
+# and their pictures, CPU/, and this file.  CPU/ is shared: it runs both
+# this and electron.yml.  A commit that changes none of them (the Electron
+# edition, the shared documents) leaves this edition as its last green run
+# left it; root CLAUDE.md, rule 3.
 #
 # linux:   the development platform.  Builds the release configuration and
 #          the CONFIG+=edu_devtools one, runs the unit tests, the regression
@@ -18,9 +23,11 @@ on:
   push:
     branches: [main]
     tags: ['stage-*', 'v1.*']
-    paths-ignore: ['electron/**', '.github/workflows/electron.yml']
+    paths: ['QtSpim/**', 'tests/**', 'Tests/**', 'tools/**', 'Setup/**', 'CPU/**', 'README',
+            'docs/GUIDE.md', 'docs/GUIDE-ko.md', 'docs/images/**', '.github/workflows/ci.yml']
   pull_request:
-    paths-ignore: ['electron/**', '.github/workflows/electron.yml']
+    paths: ['QtSpim/**', 'tests/**', 'Tests/**', 'tools/**', 'Setup/**', 'CPU/**', 'README',
+            'docs/GUIDE.md', 'docs/GUIDE-ko.md', 'docs/images/**', '.github/workflows/ci.yml']
   workflow_dispatch:
 
 jobs:

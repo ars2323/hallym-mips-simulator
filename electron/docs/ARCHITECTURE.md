@@ -171,7 +171,7 @@ carries on assembling and running with a new process (`tests/e2e/flows.e2e.ts`, 
 | The executable image (`.hmx`): the goldens `tests/hmx/*.hmx` made again from their `.s`, read back against the core, the same every time; the file the window writes, against the Text panel | `tests/sim/hmx.test.ts`, `tests/e2e/export.e2e.ts`; the format: `docs/hmx-format.md` at the repository root |
 | The first screen's video: silent, from the app's own file, one for both steps, the card readable, none under reduced motion or in the Editor, navy when it cannot play | `tests/e2e/start.e2e.ts`, `tests/renderer/start-clip.test.ts` |
 | The same e2e against the packaged app (Linux `--dir`, Windows installed build) | `SPIM_E2E_EXE`, `.github/workflows/electron.yml` (repository root) |
-| The tests above actually catch wrong implementations | `tools/mutants.ts` (77. Of these, 9 rebuild the addon and 12 open the window) |
+| The tests above actually catch wrong implementations | `tools/mutants.ts`: 171 mutants, 9 of which rebuild the addon. All of them weekly in CI (`.github/workflows/mutants.yml`, results as an artifact); a round runs those its changes could touch (`--changed`, against `tools/mutants-baseline.json`) |
 
 ## 6. The window
 

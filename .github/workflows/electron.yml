@@ -23,19 +23,26 @@
 #      progress, then the finish page ("설치가 완료되었습니다", "지금
 #      실행하기" ticked), 마침 starting the program, pictured
 #      (tools/windows/check-installer-ui.ps1)
-#   8. (run by hand, and for a v2.* tag) installing over the latest
+#   8. (every push to main, and by hand) installing over the latest
 #      published 2.x release (its installer downloaded from its release
 #      page; not run, with a notice, while this build has the released
 #      version) and over the build the Electron repository last made before
-#      the merge (48e645c, the preview build), each time then this build over
-#      itself: one folder, one uninstall entry (tools/windows/check-upgrade.ps1)
-#   9. (a v2.* tag only) the release: published from this run's installer,
-#      with the notes the tagged commit carries (electron/docs/releases/
-#      <version>.md) and the installer's SHA-256, not a pre-release, Latest;
-#      then checked as a student gets it (release-check.yml: downloaded from
-#      the public address, hash, install, every e2e, links, Latest, the
-#      earlier releases still there).  A failure anywhere on a tag opens an
-#      issue.
+#      the merge (48e645c, the preview build: built once and kept in the
+#      Actions cache, since that commit never changes), each time then this
+#      build over itself: one folder, one uninstall entry
+#      (tools/windows/check-upgrade.ps1)
+#   9. (a v2.* tag only) the release, built by nobody: the installer of
+#      the tagged commit's own run -- the one whose build, e2e, installer
+#      pages and upgrade over the latest release all passed -- is taken from
+#      that run (its commit checked to be the tag's), and published as it
+#      is, with the notes the tagged commit carries (electron/docs/releases/
+#      <version>.md) and its SHA-256, not a pre-release, Latest.  So the
+#      published file is the file that was checked (the installer is not
+#      byte-reproducible: a new build would be a file nothing checked).
+#      Then checked as a student gets it (release-check.yml: downloaded
+#      from the public address, hash, install, every e2e, links, Latest,
+#      the earlier releases still there).  A failure anywhere on a tag
+#      opens an issue.
 name: Electron edition (2.x) — Windows
 
 on:
@@ -54,6 +61,7 @@ defaults:
 jobs:
   windows:
     name: Build, test, package, install
+    if: github.ref_type != 'tag'   # a tag publishes what its commit's run built and checked (job `tested`)
     runs-on: windows-latest
     timeout-minutes: 60
     env:
@@ -76,6 +84,14 @@ jobs:
         continue-on-error: true
         shell: powershell
         run: tools/windows/screen-1920.ps1 -Report report
+
+      # Windows' animation effects on, as on the students' PCs (the runner
+      # has them off, and prefers-reduced-motion with them): the installer
+      # check then sees the first screen's video play (report/animations.txt).
+      - name: Animation effects on (tools/windows/animations-on.ps1)
+        continue-on-error: true
+        shell: powershell
+        run: tools/windows/animations-on.ps1 -Report report
 
       - name: Tool versions
         shell: cmd
@@ -216,7 +232,7 @@ jobs:
   upgrade:
     name: Install over the latest 2.x release and the pre-merge build
     needs: windows
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v2.')
+    if: github.ref_type != 'tag'   # every push to main and every dispatch; a tag reuses its commit's run
     runs-on: windows-latest
     timeout-minutes: 45
     env:
@@ -230,20 +246,35 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install winflexbison
+      # 48e645c never changes, nor does its installer: built once, then
+      # taken from the Actions cache (rebuilt only if the cache lost it).
+      - name: 48e645c's installer, kept
+        id: premerge
+        uses: actions/cache@v4
+        with:
+          path: premerge
+          key: premerge-48e645c-installer-v1
+
+      - name: Install winflexbison (to build 48e645c)
+        if: steps.premerge.outputs.cache-hit != 'true'
         run: choco install winflexbison3 --no-progress -y
 
-      - name: Build 48e645c
+      - name: Build 48e645c (when the cache does not have it)
+        if: steps.premerge.outputs.cache-hit != 'true'
         working-directory: .
         shell: pwsh
         run: |
           git worktree add ../previous 48e645c
-          Set-Location ../previous
+          Push-Location ../previous
           npm ci --ignore-scripts
           npx node-gyp rebuild --directory native
           node tools/build-electron.ts
           node tools/package.ts
-          Get-ChildItem dist/*-setup.exe | ForEach-Object { $_.FullName }
+          Pop-Location
+          New-Item -ItemType Directory -Force premerge | Out-Null
+          Copy-Item ../previous/dist/*-setup.exe premerge/
+          Copy-Item ../previous/package.json premerge/package.json
+          Get-ChildItem premerge | ForEach-Object { $_.Name }
 
       - name: This run's installer
         uses: actions/download-artifact@v4
@@ -287,9 +318,9 @@ jobs:
       - name: This build over 48e645c's
         shell: pwsh
         run: |
-          $old = (Get-Content ../../previous/package.json | ConvertFrom-Json).version
+          $old = (Get-Content ../premerge/package.json | ConvertFrom-Json).version
           $new = (Get-Content package.json | ConvertFrom-Json).version
-          tools/windows/check-upgrade.ps1 -Old (Get-Item ../../previous/dist/*-setup.exe).FullName -OldVersion $old `
+          tools/windows/check-upgrade.ps1 -Old (Get-Item ../premerge/*-setup.exe).FullName -OldVersion $old `
             -New (Get-Item new/*-setup.exe).FullName -NewVersion $new -Report upgrade/preview
 
       - name: Upload the upgrade report
@@ -304,9 +335,66 @@ jobs:
   # the e2e ran against), with the notes the tagged commit carries and the
   # installer's SHA-256; not a pre-release; Latest.  Only after the build,
   # the tests and the upgrades have passed.
+  # A v2.* tag: the installer its commit's own run built and checked.  That
+  # run -- a push to main or a dispatch -- must be for this very commit (its
+  # SHA the tag's), and its build, e2e, installer pages and its upgrade over
+  # the latest release must all have passed, the upgrade having really run
+  # (not "not run": the version raised).  Otherwise nothing is published.
+  tested:
+    name: The installer this commit's run checked
+    if: startsWith(github.ref, 'refs/tags/v2.')
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Find that run; take its installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          sha="$GITHUB_SHA"
+          chosen=''
+          for id in $(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/electron.yml/runs?head_sha=$sha&per_page=50" \
+                        --jq '.workflow_runs[] | select(.event == "push" or .event == "workflow_dispatch") | .id'); do
+            passed=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs" \
+              --jq '[.jobs[] | select(.conclusion == "success") | .name] | map(select(. == "Build, test, package, install" or startswith("Install over the latest 2.x release"))) | length')
+            if [ "$passed" = 2 ]; then chosen=$id; break; fi
+          done
+          [ -n "$chosen" ] || { echo "::error::no run of electron.yml for $sha whose build, tests and upgrade passed: push the release commit to main and let its run finish before tagging"; exit 1; }
+          run_sha=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$chosen" --jq .head_sha)
+          [ "$run_sha" = "$sha" ] || { echo "::error::run $chosen built $run_sha, not the tagged $sha"; exit 1; }
+          gh run download "$chosen" --repo "$GITHUB_REPOSITORY" -n upgrade-report -D upgrade
+          if grep -q '^not run' upgrade/release/upgrade.txt; then
+            echo "::error::run $chosen did not install over the latest release: $(head -1 upgrade/release/upgrade.txt)"; exit 1
+          fi
+          gh run download "$chosen" --repo "$GITHUB_REPOSITORY" -n HallymMIPS-windows -D dist
+          echo "TESTED_RUN=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$chosen" >> "$GITHUB_ENV"
+          echo "the installer of run $chosen (commit $run_sha): $(ls dist)"
+          sha256sum dist/*
+
+      - name: Hand it to this run
+        uses: actions/upload-artifact@v4
+        with:
+          name: HallymMIPS-windows
+          path: dist/*-setup.exe
+          if-no-files-found: error
+
+      - name: Which run it came from
+        run: echo "$TESTED_RUN" > tested-run.txt
+
+      - name: Hand that on too
+        uses: actions/upload-artifact@v4
+        with:
+          name: tested-run
+          path: tested-run.txt
+
   publish:
     name: Publish the release
-    needs: [windows, upgrade]
+    needs: tested
     if: startsWith(github.ref, 'refs/tags/v2.')
     runs-on: ubuntu-latest
     permissions:
@@ -317,11 +405,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: This run's installer
+      - name: The installer the release commit's run checked
         uses: actions/download-artifact@v4
         with:
           name: HallymMIPS-windows
           path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: tested-run
 
       - name: The version, the notes, the installer, its SHA-256
         run: |
@@ -336,8 +428,8 @@ jobs:
           hash=$(sha256sum "$setup" | cut -d' ' -f1)
           {
             cat "$notes"
-            printf '\n## SHA-256\n\nBuilt by CI from the tag `%s` (commit %s). To check the download on Windows: `certutil -hashfile <file> SHA256`.\n\n```\n%s  %s\n```\n' \
-              "$GITHUB_REF_NAME" "${GITHUB_SHA::7}" "$hash" "$(basename "$setup")"
+            printf '\n## SHA-256\n\nBuilt and checked by CI from the commit the tag `%s` names (%s), in %s; published as it is. To check the download on Windows: `certutil -hashfile <file> SHA256`.\n\n```\n%s  %s\n```\n' \
+              "$GITHUB_REF_NAME" "${GITHUB_SHA::7}" "$(cat tested-run.txt)" "$hash" "$(basename "$setup")"
           } > release-notes.md
           echo "SETUP=$setup" >> "$GITHUB_ENV"
           echo "$hash  $(basename "$setup")"
@@ -364,7 +456,7 @@ jobs:
   # failed: an issue says so, so that it cannot go unnoticed.
   release-failed:
     name: Report a failed release
-    needs: [windows, upgrade, publish, release-check]
+    needs: [tested, publish, release-check]
     if: failure() && startsWith(github.ref, 'refs/tags/v2.')
     runs-on: ubuntu-latest
     permissions:
@@ -376,7 +468,7 @@ jobs:
         run: |
           gh issue create --repo "$GITHUB_REPOSITORY" --title "Release $GITHUB_REF_NAME failed" --body "The workflow for the tag \`$GITHUB_REF_NAME\` failed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
 
-          Build / tests: ${{ needs.windows.result }}; upgrade: ${{ needs.upgrade.result }}; publish: ${{ needs.publish.result }}; post-release check: ${{ needs.release-check.result }}.
+          The checked installer from the commit's run: ${{ needs.tested.result }}; publish: ${{ needs.publish.result }}; post-release check: ${{ needs.release-check.result }}.
 
           If the release was published and its check failed, see electron/docs/WINDOWS.md, \"Rolling back a release\"."
 

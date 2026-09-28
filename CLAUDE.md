@@ -76,7 +76,11 @@ for again each time.
    (2.1.1). The report gives the reason.
 3. **Release only when everything is green.** If one check is red, do not release: report it. The checks, reported
    as a table:
-   - both workflows green on the commit to be released (the Qt build and the Electron build);
+   - the Electron workflow green on the commit to be released; the Qt workflow green on the last commit that changed
+     one of its inputs (`QtSpim/`, `tests/`, `Tests/`, `tools/`, `Setup/`, `CPU/`, SPIM's `README`, the guides
+     `docs/GUIDE*.md` and `docs/images/`, `.github/workflows/ci.yml`: `git log -1 -- <those>`). It runs only when one
+     of them changes (its `paths`); running it again on an unchanged Qt edition proves nothing. `CPU/` is shared: a
+     change there runs both;
    - the unit tests (`cd electron && npm test`);
    - every e2e test at the four widths (`npm run e2e:widths`: 1280, 1093, 1024, 910), and **the whole suite once
      more with 1920×1040 as every test's window** (`SPIM_E2E_SIZE=1920x1040 npx playwright test`). "+1920" means that
@@ -84,16 +88,18 @@ for again each time.
      (`panels.e2e.ts`, found in the 2.4.0 round) showed up only there;
    - Korean input: the CDP tests (in the e2e) and the real Microsoft Korean IME (Windows CI);
    - settings reset to their defaults at every start (in the e2e);
-   - mutants, against a baseline: the last release tag. **Every mutant this round could have touched is killed:**
-     those whose `file`, or one of whose `tests`, changed since the baseline (`git diff --name-only <tag>..HEAD` and
-     `git status --porcelain`), and every mutant added since. **The whole set was killed at the baseline** (for
-     2.4.0: all 151 at `v2.3.0`). And every mutant's `find` occurs exactly once in its `file` (text only, no build),
-     so a skipped mutant's code has not moved; one that does not is run. `node tools/mutants.ts "<module> <what>"`
-     runs one;
+   - mutants, against the baseline in `electron/tools/mutants-baseline.json` (a full pass that killed every mutant:
+     its commit, date, the mutants it killed). **Every mutant this round could have touched is killed**
+     (`node tools/mutants.ts --changed`): those whose `file`, or one of whose `tests`, changed since the baseline's
+     commit (committed or not), and every mutant not in the baseline. The tool lists what it skipped and why,
+     checks that none of those has a changed file, checks every mutant's `find` occurs exactly once in its `file`,
+     and runs them all, saying why, when it cannot trust the change set. The full pass runs weekly in CI
+     (`.github/workflows/mutants.yml`, results published as an artifact); when it is green, its baseline is
+     committed by hand (CI does not write to the repository);
    - the Windows CI job's e2e against the installed app, the 1920 test included;
    - installing over 1.2.4 (side by side: Windows CI, every run) and over the latest published 2.x release (the
-     workflow's `upgrade` job: run it by hand on the commit to be released, before tagging; on a commit that still
-     carries the released version it has nothing to upgrade from and says so instead);
+     workflow's `upgrade` job, in every run of a push to main; on a commit that still carries the released version
+     it has nothing to upgrade from and says so instead, which a tag does not accept);
    - document links: 0 broken, 0 orphans (`node tools/check-doc-links.ts`);
    - greps: no old version given as the current one, no `[스크린샷 자리]`, no "하면 됩니다"-type ending (1.x documents
      excepted);
@@ -102,10 +108,15 @@ for again each time.
    notes, `electron/docs/releases/<version>.md`, go in the commit that starts the release (rule 7). The notes are in
    English, for students: the Korean user guide's link first; what they will see that is different; that the
    program is unsigned and how to get past the Windows warning (link); links back to the previous 2.x release and
-   to 1.2.4; no video links. Push that commit, wait for both workflows and run the checks above, then push the tag
-   `v<version>`. The tag's workflow (`electron.yml`) builds and tests again, installs over the previous release,
-   publishes (not a pre-release; Latest; the installer's SHA-256 added to the notes by CI) and then runs the
-   post-release check (`release-check.yml`). A failure anywhere opens an issue.
+   to 1.2.4; no video links. Then:
+   1. Push that commit and run the checks above. Its run (build, e2e, installer pages, upgrade) takes the installer's
+      pictures (`report/installer/` in its `windows-report` artifact).
+   2. Commit those pictures (`electron/docs/screens/installer-*`, `uninstaller-finish.png`) and push: the tag must
+      carry the pictures of what it releases. That commit's own run checks it in turn.
+   3. When that run is green, push the tag `v<version>` on that commit. The tag's workflow builds nothing: it takes
+      the installer that commit's run built and checked (the run's commit must be the tag's, and its upgrade over
+      the latest release must have run), publishes it as it is (not a pre-release; Latest; its SHA-256 added to the
+      notes), and then runs the post-release check (`release-check.yml`). A failure anywhere opens an issue.
 5. **It is released only when the post-release check has passed:** the installer downloaded from the public release
    address, its SHA-256 the one in the notes, installed on a clean runner, every e2e test run against it, every link
    and picture of the published documents opening, the release Latest, the earlier releases still there. Check its
@@ -116,7 +127,7 @@ for again each time.
 6. **Never delete an old release.** 1.2.4 is the Qt edition's last; the earlier 2.x releases are where to go back.
    The notes link back to them; rolling back is in `electron/docs/WINDOWS.md`, "Rolling back a release".
 7. **The version is raised once, at the end of a round, in the commit that starts the release,** never in the middle
-   of a round. The tag goes on that commit, or on a green descendant of it that changes no version and only fixes
-   what a check found there. Both 2.3.0 and 2.4.0 met a Windows-only failure after the bump. Every check of rule 3
-   runs on the commit the tag goes on, and the report names both commits.
+   of a round. The tag goes on a green descendant of it that changes no version: the installer pictures of rule 4,
+   and fixes of what a check found there (both 2.3.0 and 2.4.0 met a Windows-only failure after the bump). Every
+   check of rule 3 runs on the commit the tag goes on, and the report names both commits.
 

@@ -128,9 +128,13 @@ With the installer from the artifact `HallymMIPS-windows`. On **Korean Windows**
 
 A release is made by pushing a tag `v2.x.y` on a commit whose `electron/package.json` has that version and which
 carries the notes `electron/docs/releases/<version>.md` (the rules: `CLAUDE.md` at the repository root, "Releasing the
-Electron edition (2.x)"). The tag's workflow (`electron.yml`) builds and tests, installs over the latest published 2.x
-release, publishes the release from that run's installer — not a pre-release, Latest, the SHA-256 added to the notes —
-and then calls **Release check (2.x, as downloaded)** (`release-check.yml`): the release is Latest with the installer
+Electron edition (2.x)"). That commit's own run, a push to main, has already built it, run every e2e against the
+installed program, run the installer with its pages, and installed it over the latest published 2.x release. The
+tag's workflow (`electron.yml`) builds nothing. Its job `tested` finds that run (its commit must be the tag's, its
+build, tests and upgrade green, the upgrade really run) and takes its installer; `publish` publishes that very file —
+not a pre-release, Latest, the SHA-256 added to the notes. So the file students download is the file that was
+checked: the installer is not byte-reproducible, and a new build would be a file nothing had checked. Then the tag's
+workflow calls **Release check (2.x, as downloaded)** (`release-check.yml`): the release is Latest with the installer
 as its only file, 1.2.4 and every 2.x release are still there, the installer downloaded from the public address has
 the SHA-256 of the notes, it installs on a clean runner (screen 1920×1080), every e2e test passes against it (the real
 Microsoft Korean IME included), and every link and picture of the published documents opens at the tag. A failure in

@@ -1,27 +1,54 @@
 /* Shows that the tests catch a wrong module, before they are trusted to say
    a right one is right.
 
-     node tools/mutants.ts [FILTER]
+     node tools/mutants.ts [FILTER]            every mutant (or those whose "module what" holds FILTER)
+     node tools/mutants.ts --changed           only those the changes since the baseline could touch
+       --list            say which would run, and why; run nothing
+       --jobs N          N mutants at a time (default: a third of the cores, 1 to 6); those that
+                         rebuild the addon run one at a time, after the others
+       --shard I/N       the I-th of N parts of the selection (CI: .github/workflows/mutants.yml)
+       --control         first run the selection's tests with no mutant: a failure there would make
+                         every kill meaningless, so the run stops
+       --json FILE       the results: each mutant, killed or not, by which test, in how many seconds
+     node tools/mutants.ts --check             every mutant's `find` exactly once in its `file`; nothing built or run
+     node tools/mutants.ts --merge OUT IN...   one result from the shards' JSON; fails unless every mutant is in it, killed
+     node tools/mutants.ts --baseline-from MERGED [--run URL]
+                                               print the baseline record of a green full pass (to commit by hand)
+     node tools/mutants.ts --verify-selector   the selector's own checks, in a temporary git worktree
 
-   Each mutant below changes one thing in one file -- the text `find` must
-   occur exactly once -- in a copy of src/, tests/, tools/ and native/'s
-   sources in a temporary directory, <tmp>/electron (the built addon and
+   Each mutant changes one thing in one file -- the text `find` must occur
+   exactly once -- in a copy of src/, tests/, tools/ and native/'s sources
+   in a temporary directory, <tmp>/electron (the built addon and
    node_modules/ are linked, not copied, and the repository's CPU/ is linked
-   at <tmp>/CPU; a mutant marked `rebuild` in native/src gets its
-   own build of the addon there), and
-   runs the tests named for it there.  A mutant is KILLED when those tests
-   fail; one that survives, or does not apply, fails this script.  Nothing in
-   the working tree is touched.
+   at <tmp>/CPU; a mutant marked `rebuild` in native/src gets its own build
+   of the addon there), and runs the tests named for it there.  A mutant is
+   KILLED when those tests fail; one that survives, or does not apply, fails
+   this script.  Nothing in the working tree is touched.
+
+   --changed.  The baseline, tools/mutants-baseline.json, is a full pass
+   that killed every mutant: its commit, date, and the mutants it killed.
+   From it, a mutant runs if its `file` or one of its `tests` changed since
+   that commit -- committed (git diff <sha>..HEAD) or not (git status:
+   staged, unstaged, untracked) -- or if it is not among the baseline's.
+   The rest were killed at the baseline against the same code and tests,
+   and are listed as skipped, each with why; that none of them has a file in
+   the changes is checked again before anything runs.  Whenever the change
+   set cannot be trusted, it runs them all and says why: no baseline file,
+   the baseline commit not an ancestor of HEAD, git not answering, a
+   mutant's file or test missing.  The find check runs first in every mode:
+   a `find` that does not occur exactly once stops everything.
 
    Tests named *.e2e.ts run the real window through Playwright (the copy's
-   window script is bundled first); they need a display -- on Linux without
-   one, xvfb-run -a npm run test:mutants.
+   window script is bundled first); they need a display.  On Linux each
+   worker gets its own (xvfb-run -n, from :120 up) when there is none or
+   when more than one runs at a time; otherwise the one in DISPLAY.
 */
 
-import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { execFileSync, spawn } from 'node:child_process';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { parseArgs } from 'node:util';
 
 const root = path.join(import.meta.dirname, '..');
 
@@ -502,11 +529,119 @@ function copyTree(dir: string, linkBuild: boolean): void {
   symlinkSync(path.join(root, '..', 'CPU'), path.join(dir, '..', 'CPU'));
 }
 
-const filter = process.argv[2] ?? '';
-const selected = MUTANTS.filter((m) => `${m.module} ${m.what}`.includes(filter));
-let bad = 0;
-const rows: string[] = [];
-for (const m of selected) {
+// ---- which mutants ------------------------------------------------------------------------
+
+const repo = path.join(root, '..');
+const BASELINE = path.join(root, 'tools/mutants-baseline.json');
+const keyOf = (m: Mutant): string => `${m.module}: ${m.what}`;
+
+interface Baseline { sha: string; date: string; killed: number; run?: string; mutants: string[] }
+
+// Every mutant's `find` exactly once in its `file` (text only): the mutants
+// that do not apply any more, with how often their text occurs.
+function staleFinds(dir: string): { m: Mutant; count: number }[] {
+  const out: { m: Mutant; count: number }[] = [];
+  for (const m of MUTANTS) {
+    const file = path.join(dir, m.file);
+    const count = existsSync(file) ? readFileSync(file, 'utf8').split(m.find).length - 1 : 0;
+    if (count !== 1) out.push({ m, count });
+  }
+  return out;
+}
+
+// The repository's paths changed since `sha`: committed, staged, unstaged,
+// untracked.  git status -z gives "XY path\0", and for a rename or copy
+// "XY new\0old\0": both paths count.
+function changedSince(repoDir: string, sha: string): Set<string> {
+  const git = (args: string[]) => execFileSync('git', ['-C', repoDir, ...args], { encoding: 'utf8', maxBuffer: 64 << 20 });
+  const files = new Set<string>();
+  for (const f of git(['diff', '--name-only', '-z', `${sha}..HEAD`]).split('\0')) if (f) files.add(f);
+  const records = git(['status', '--porcelain=v1', '-z', '--untracked-files=all']).split('\0');
+  for (let i = 0; i < records.length; i++) {
+    const r = records[i];
+    if (!r) continue;
+    files.add(r.slice(3));
+    if (r[0] === 'R' || r[0] === 'C') { i += 1; if (records[i]) files.add(records[i]); }
+  }
+  return files;
+}
+
+interface Picked { m: Mutant; why: string[] }
+type Selection =
+  | { all: true; reason: string }
+  | { all: false; baseline: Baseline; changed: Set<string>; run: Picked[]; skipped: Mutant[] };
+
+// What --changed runs, from the baseline at `baselineFile` and the changes in
+// `repoDir` (whose electron/ holds the mutants' files).  Any doubt: all of them.
+function select(repoDir: string, baselineFile: string): Selection {
+  const electronDir = path.join(repoDir, 'electron');
+  let baseline: Baseline;
+  try {
+    baseline = JSON.parse(readFileSync(baselineFile, 'utf8')) as Baseline;
+  } catch (e) {
+    return { all: true, reason: `no baseline to go from (${path.relative(repo, baselineFile)}: ${(e as Error).message})` };
+  }
+  if (!/^[0-9a-f]{40}$/.test(baseline.sha ?? '') || !Array.isArray(baseline.mutants)) {
+    return { all: true, reason: `${path.relative(repo, baselineFile)} has no commit or no list of mutants` };
+  }
+  try {
+    execFileSync('git', ['-C', repoDir, 'merge-base', '--is-ancestor', baseline.sha, 'HEAD'], { stdio: 'ignore' });
+  } catch {
+    return { all: true, reason: `the baseline commit ${baseline.sha.slice(0, 7)} is not an ancestor of HEAD` };
+  }
+  let changed: Set<string>;
+  try {
+    changed = changedSince(repoDir, baseline.sha);
+  } catch (e) {
+    return { all: true, reason: `git did not give the changes since ${baseline.sha.slice(0, 7)}: ${(e as Error).message.split('\n')[0]}` };
+  }
+  for (const m of MUTANTS) {
+    for (const f of [m.file, ...m.tests]) {
+      if (!existsSync(path.join(electronDir, f))) return { all: true, reason: `${keyOf(m)}: ${f} does not exist` };
+    }
+  }
+  const known = new Set(baseline.mutants);
+  const run: Picked[] = [], skipped: Mutant[] = [];
+  for (const m of MUTANTS) {
+    const why: string[] = [];
+    if (!known.has(keyOf(m))) why.push('new since the baseline');
+    if (changed.has(`electron/${m.file}`)) why.push(`file ${m.file} changed`);
+    for (const t of m.tests) if (changed.has(`electron/${t}`)) why.push(`test ${t} changed`);
+    if (why.length) run.push({ m, why }); else skipped.push(m);
+  }
+  return { all: false, baseline, changed, run, skipped };
+}
+
+// ---- running them ----------------------------------------------------------------------------
+
+interface Result { key: string; module: string; what: string; rebuild: boolean; result: 'killed' | 'survived' | 'not applied' | 'error'; seconds: number; by: string }
+
+function run(cmd: string, args: string[], cwd: string, timeout: number): Promise<{ status: number | null; stdout: string }> {
+  return new Promise((done) => {
+    const child = spawn(cmd, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
+    let stdout = '';
+    child.stdout.on('data', (d) => { stdout += d; });
+    child.stderr.on('data', () => {});
+    const timer = setTimeout(() => child.kill('SIGKILL'), timeout);
+    child.on('close', (status) => { clearTimeout(timer); done({ status, stdout }); });
+  });
+}
+
+// The tests' command; e2e ones on their own display when this is Linux and
+// there is none, or more than one worker runs.
+function testCommand(tests: string[], display: number | null): [string, string[]] {
+  const e2e = tests.every((t) => t.endsWith('.e2e.ts'));
+  const args = e2e
+    ? [path.join(root, 'node_modules/@playwright/test/cli.js'), 'test', ...tests]
+    : ['--test', '--import', './tests/helpers/timer-at-exit.ts', '--test-reporter=tap', ...tests];
+  if (e2e && display !== null) return ['xvfb-run', ['-n', String(display), '-s', '-screen 0 2400x1400x24', process.execPath, ...args]];
+  return [process.execPath, args];
+}
+
+async function runOne(m: Mutant, display: number | null): Promise<Result> {
+  const started = Date.now();
+  const result = (r: Result['result'], by: string): Result =>
+    ({ key: keyOf(m), module: m.module, what: m.what, rebuild: !!m.rebuild, result: r, seconds: Math.round((Date.now() - started) / 100) / 10, by });
   const outer = mkdtempSync(path.join(os.tmpdir(), 'mutant-'));
   const dir = path.join(outer, 'electron');
   mkdirSync(dir);
@@ -515,35 +650,232 @@ for (const m of selected) {
     const file = path.join(dir, m.file);
     const text = readFileSync(file, 'utf8');
     const count = text.split(m.find).length - 1;
-    if (count !== 1) {
-      rows.push(`NOT APPLIED  ${m.module}: ${m.what} (found ${count} times)`);
-      bad += 1;
-      continue;
-    }
+    if (count !== 1) return result('not applied', `found ${count} times`);
     writeFileSync(file, text.replace(m.find, m.replace));
     if (m.rebuild) {
-      execFileSync(path.join(root, 'node_modules/.bin/node-gyp'), ['rebuild', '--directory', path.join(dir, 'native')],
-                   { stdio: 'ignore' });
+      const b = await run(path.join(root, 'node_modules/.bin/node-gyp'), ['rebuild', '--directory', path.join(dir, 'native')], dir, 900000);
+      if (b.status !== 0) return result('error', 'the addon did not build');
     }
     const e2e = m.tests.every((t) => t.endsWith('.e2e.ts'));
-    if (e2e) execFileSync(process.execPath, ['tools/build-ui.ts'], { cwd: dir, stdio: 'ignore' });
-    const run = e2e
-      ? spawnSync(process.execPath, [path.join(root, 'node_modules/@playwright/test/cli.js'), 'test', ...m.tests],
-                  { cwd: dir, encoding: 'utf8', timeout: 300000 })
-      : spawnSync(process.execPath, ['--test', '--import', './tests/helpers/timer-at-exit.ts', '--test-reporter=tap', ...m.tests],
-                  { cwd: dir, encoding: 'utf8', timeout: 300000 });
-    const firstFailure = (e2e ? /^\s*\d+\) (.*)$/m.exec(run.stdout)?.[1]?.replace(/─+$/, '').trim()
-                              : /^\s*not ok \d+ - (.*)$/m.exec(run.stdout)?.[1]) ?? '(no test reported a failure)';
-    if (run.status === 0) {
-      rows.push(`SURVIVED     ${m.module}: ${m.what}`);
-      bad += 1;
-    } else {
-      rows.push(`killed       ${m.module}: ${m.what}  <-  ${firstFailure}`);
+    if (e2e) {
+      const b = await run(process.execPath, ['tools/build-ui.ts'], dir, 120000);
+      if (b.status !== 0) return result('error', 'the window script did not bundle');
     }
+    const [cmd, args] = testCommand(m.tests, e2e ? display : null);
+    const t = await run(cmd, args, dir, 300000);
+    const firstFailure = (e2e ? /^\s*\d+\) (.*)$/m.exec(t.stdout)?.[1]?.replace(/─+$/, '').trim()
+                              : /^\s*not ok \d+ - (.*)$/m.exec(t.stdout)?.[1]) ?? '(no test reported a failure)';
+    return t.status === 0 ? result('survived', '') : result('killed', firstFailure);
   } finally {
     rmSync(outer, { recursive: true, force: true });
   }
 }
-console.log(rows.join('\n'));
-console.log(`\n${selected.length - bad} of ${selected.length} mutants killed`);
-process.exit(bad === 0 ? 0 : 1);
+
+// The selection's tests with no mutant: they must pass, or a kill says nothing.
+async function control(list: Mutant[], display: number | null): Promise<string | null> {
+  const unit = [...new Set(list.flatMap((m) => m.tests).filter((t) => !t.endsWith('.e2e.ts')))];
+  const e2e = [...new Set(list.flatMap((m) => m.tests).filter((t) => t.endsWith('.e2e.ts')))];
+  const outer = mkdtempSync(path.join(os.tmpdir(), 'mutant-control-'));
+  const dir = path.join(outer, 'electron');
+  mkdirSync(dir);
+  try {
+    copyTree(dir, true);
+    for (const tests of [unit, e2e]) {
+      if (!tests.length) continue;
+      if (tests === e2e) await run(process.execPath, ['tools/build-ui.ts'], dir, 120000);
+      const [cmd, args] = testCommand(tests, tests === e2e ? display : null);
+      const t = await run(cmd, args, dir, 3600000);
+      if (t.status !== 0) {
+        const first = (/^\s*\d+\) (.*)$/m.exec(t.stdout)?.[1] ?? /^\s*not ok \d+ - (.*)$/m.exec(t.stdout)?.[1] ?? '').trim();
+        return `${tests.length} test file(s) fail with no mutant${first ? `: ${first}` : ''}`;
+      }
+    }
+    return null;
+  } finally {
+    rmSync(outer, { recursive: true, force: true });
+  }
+}
+
+// `jobs` at a time; those that rebuild the addon one at a time, after.
+async function runAll(list: Mutant[], jobs: number, displays: boolean): Promise<Result[]> {
+  const results: Result[] = [];
+  const say = (r: Result) => console.log(`${r.result.padEnd(12)} ${r.key}${r.by ? `  <-  ${r.by}` : ''}  (${r.seconds} s)`);
+  const pool = async (items: Mutant[], width: number) => {
+    let next = 0;
+    await Promise.all(Array.from({ length: Math.min(width, items.length) }, async (_, w) => {
+      for (let i = next++; i < items.length; i = next++) {
+        const r = await runOne(items[i], displays ? 120 + w : null);
+        results.push(r);
+        say(r);
+      }
+    }));
+  };
+  await pool(list.filter((m) => !m.rebuild), jobs);
+  await pool(list.filter((m) => m.rebuild), 1);
+  const order = new Map(list.map((m, i) => [keyOf(m), i]));
+  return results.sort((a, b) => order.get(a.key)! - order.get(b.key)!);
+}
+
+// ---- the selector's own checks ------------------------------------------------------------
+
+// In a temporary worktree of HEAD (removed after; nothing in this tree is
+// touched): the baseline HEAD itself picks nothing; a blank line added to one
+// mutant's file picks exactly the mutants that name that file; a blank line
+// added to a test file that is no mutant's `file` (the one running most
+// mutants on other files) picks exactly those that run it.
+function verifySelector(): boolean {
+  const wt = mkdtempSync(path.join(os.tmpdir(), 'mutants-selector-'));
+  let ok = true;
+  const check = (what: string, got: Selection, want: Mutant[]) => {
+    if (got.all) { console.log(`FAIL  ${what}: fell back to all (${got.reason})`); ok = false; return; }
+    const g = got.run.map((p) => keyOf(p.m)).sort(), w = want.map(keyOf).sort();
+    const same = g.length === w.length && g.every((k, i) => k === w[i]);
+    console.log(`${same ? 'PASS' : 'FAIL'}  ${what}: picked ${g.length}${g.length ? `:\n        ${g.join('\n        ')}` : ''}`);
+    if (!same) { console.log(`      expected ${w.length}: ${w.join('; ')}`); ok = false; }
+  };
+  try {
+    execFileSync('git', ['-C', repo, 'worktree', 'add', '--detach', wt, 'HEAD'], { stdio: 'ignore' });
+    const head = execFileSync('git', ['-C', wt, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+    const base = path.join(os.tmpdir(), `mutants-baseline-${process.pid}.json`); // outside the worktree: not a change
+    writeFileSync(base, JSON.stringify({ sha: head, date: new Date().toISOString(), killed: MUTANTS.length, mutants: MUTANTS.map(keyOf) }));
+    check('1. the baseline commit itself, nothing changed', select(wt, base), []);
+    const target = MUTANTS[0].file;                        // src/core/decoder.ts
+    const f = path.join(wt, 'electron', target);
+    writeFileSync(f, readFileSync(f, 'utf8') + '\n');
+    check(`2. a blank line added to ${target}`, select(wt, base), MUTANTS.filter((m) => m.file === target || m.tests.includes(target)));
+    execFileSync('git', ['-C', wt, 'checkout', '--', `electron/${target}`]);
+    // The test file that is no mutant's `file` and runs the most mutants on other files than check 2's.
+    const files = new Set(MUTANTS.map((m) => m.file));
+    const uses = new Map<string, number>();
+    for (const m of MUTANTS) if (m.file !== target) for (const t of m.tests) if (!files.has(t)) uses.set(t, (uses.get(t) ?? 0) + 1);
+    const test = [...uses].sort((a, b) => b[1] - a[1])[0][0];
+    const t = path.join(wt, 'electron', test);
+    writeFileSync(t, readFileSync(t, 'utf8') + '\n');
+    check(`3. a blank line added to ${test} (a test file only)`, select(wt, base), MUTANTS.filter((m) => m.tests.includes(test)));
+    rmSync(base, { force: true });
+  } finally {
+    execFileSync('git', ['-C', repo, 'worktree', 'remove', '--force', wt], { stdio: 'ignore' });
+  }
+  return ok;
+}
+
+// ---- the command line -------------------------------------------------------------------
+
+const { values: opt, positionals } = parseArgs({
+  allowPositionals: true,
+  options: {
+    changed: { type: 'boolean', default: false },
+    list: { type: 'boolean', default: false },
+    check: { type: 'boolean', default: false },
+    control: { type: 'boolean', default: false },
+    jobs: { type: 'string' },
+    shard: { type: 'string' },
+    json: { type: 'string' },
+    merge: { type: 'string' },
+    'baseline-from': { type: 'string' },
+    run: { type: 'string' },
+    'verify-selector': { type: 'boolean', default: false },
+  },
+});
+
+if (opt['verify-selector']) process.exit(verifySelector() ? 0 : 1);
+
+if (opt.merge) {
+  // --merge OUT IN...: every mutant exactly once, and killed.
+  const parts = positionals.map((f) => JSON.parse(readFileSync(f, 'utf8')) as { sha: string; results: Result[] });
+  const all = parts.flatMap((p) => p.results);
+  const shas = new Set(parts.map((p) => p.sha));
+  const seen = new Map<string, number>();
+  for (const r of all) seen.set(r.key, (seen.get(r.key) ?? 0) + 1);
+  const missing = MUTANTS.map(keyOf).filter((k) => !seen.has(k));
+  const twice = [...seen].filter(([, n]) => n > 1).map(([k]) => k);
+  const notKilled = all.filter((r) => r.result !== 'killed');
+  const merged = { sha: [...shas].join(','), date: new Date().toISOString(), total: MUTANTS.length, killed: all.filter((r) => r.result === 'killed').length,
+                   seconds: Math.round(all.reduce((n, r) => n + r.seconds, 0)), results: all };
+  writeFileSync(opt.merge, JSON.stringify(merged, null, 1));
+  const lines = [`## Mutants: ${merged.killed} of ${MUTANTS.length} killed`, '', `commit ${merged.sha}; ${parts.length} shard(s); ${merged.seconds} s of mutant time`, '',
+    '| Mutant | Result | Seconds | Killed by |', '|---|---|---|---|',
+    ...all.map((r) => `| ${r.key.replace(/\|/g, '\\|')} | ${r.result} | ${r.seconds} | ${r.by.replace(/\|/g, '\\|').slice(0, 120)} |`)];
+  console.log(lines.join('\n'));
+  const bad = [shas.size !== 1 ? `the shards ran on different commits: ${[...shas].join(', ')}` : '',
+    missing.length ? `not run: ${missing.join('; ')}` : '', twice.length ? `run twice: ${twice.join('; ')}` : '',
+    notKilled.length ? `not killed: ${notKilled.map((r) => `${r.key} (${r.result})`).join('; ')}` : ''].filter(Boolean);
+  for (const b of bad) console.error(`FAIL  ${b}`);
+  process.exit(bad.length ? 1 : 0);
+}
+
+if (opt['baseline-from']) {
+  // A green, complete full pass -> the baseline record, printed (committed by hand).
+  const merged = JSON.parse(readFileSync(opt['baseline-from'], 'utf8')) as { sha: string; results: Result[] };
+  const killed = merged.results.filter((r) => r.result === 'killed').map((r) => r.key);
+  const missing = MUTANTS.map(keyOf).filter((k) => !killed.includes(k));
+  if (!/^[0-9a-f]{40}$/.test(merged.sha) || missing.length) {
+    console.error(`not a baseline: ${missing.length ? `not killed there: ${missing.join('; ')}` : `commit ${merged.sha}`}`);
+    process.exit(1);
+  }
+  const date = execFileSync('git', ['-C', repo, 'show', '-s', '--format=%cI', merged.sha], { encoding: 'utf8' }).trim();
+  console.log(JSON.stringify({ sha: merged.sha, date, killed: killed.length, run: opt.run, mutants: killed.sort() }, null, 1));
+  process.exit(0);
+}
+
+// --check, and before every run: a mutant that no longer applies stops everything.
+const stale = staleFinds(root);
+for (const { m, count } of stale) console.error(`STALE        ${keyOf(m)}: its find occurs ${count} times in ${m.file}`);
+console.log(`find: ${MUTANTS.length - stale.length} of ${MUTANTS.length} mutants apply (their text once in their file)`);
+if (stale.length) process.exit(1);
+if (opt.check) process.exit(0);
+
+let list = MUTANTS.filter((m) => `${m.module} ${m.what}`.includes(positionals[0] ?? ''));
+if (!list.length) { console.error(`no mutant's "module what" holds "${positionals[0]}"`); process.exit(1); }
+if (opt.changed) {
+  const sel = select(repo, BASELINE);
+  if (sel.all) {
+    console.log(`ALL          ${sel.reason}: every mutant runs`);
+  } else {
+    const b = sel.baseline;
+    console.log(`baseline     ${b.sha} (${b.date}; ${b.killed} killed${b.run ? `; ${b.run}` : ''})`);
+    console.log(`changes      ${sel.changed.size} files since then (committed, staged, unstaged, untracked)`);
+    console.log(`to run       ${sel.run.length}`);
+    for (const p of sel.run) console.log(`  run        ${keyOf(p.m)}  <-  ${p.why.join('; ')}`);
+    console.log(`skipped      ${sel.skipped.length}: file and tests unchanged since ${b.sha.slice(0, 7)}, killed there`);
+    for (const m of sel.skipped) console.log(`  skip       ${keyOf(m)}  (${[m.file, ...m.tests].join(', ')})`);
+    // Checked again, now, against the same change set: a skipped mutant with a changed file is a bug here.
+    const leak = sel.skipped.filter((m) => [m.file, ...m.tests].some((f) => sel.changed.has(`electron/${f}`)));
+    if (leak.length) {
+      for (const m of leak) console.error(`FAIL         skipped although changed: ${keyOf(m)}`);
+      process.exit(1);
+    }
+    console.log(`PASS         no skipped mutant has its file or a test among the ${sel.changed.size} changed files`);
+    const chosen = new Set(sel.run.map((p) => p.m));
+    list = list.filter((m) => chosen.has(m));
+  }
+}
+if (opt.shard) {
+  const [i, n] = opt.shard.split('/').map(Number);
+  if (!(n >= 1 && i >= 1 && i <= n)) throw new Error(`--shard ${opt.shard}: I/N with 1 <= I <= N`);
+  // Round-robin, the addon-rebuilding ones apart, so each part gets its share of both.
+  const deal = (xs: Mutant[]) => xs.filter((_, k) => k % n === i - 1);
+  list = [...deal(list.filter((m) => !m.rebuild)), ...deal(list.filter((m) => m.rebuild))];
+  console.log(`shard        ${i}/${n}: ${list.length} mutants`);
+}
+
+if (opt.list) {
+  for (const m of list) console.log(`  would run  ${keyOf(m)}`);
+  console.log(`${list.length} would run`);
+  process.exit(0);
+}
+const jobs = opt.jobs ? Number(opt.jobs) : Math.max(1, Math.min(6, Math.floor(os.cpus().length / 3)));
+const displays = process.platform === 'linux' && (jobs > 1 || !process.env.DISPLAY);
+console.log(`running      ${list.length} mutants, ${jobs} at a time${displays ? ' (each on its own display)' : ''}`);
+const started = Date.now();
+if (opt.control && list.length) {
+  const bad = await control(list, displays ? 119 : null);
+  if (bad) { console.error(`CONTROL      ${bad}: no kill would mean anything`); process.exit(1); }
+  console.log('control      the selection\'s tests pass with no mutant');
+}
+const results = await runAll(list, jobs, displays);
+const head = execFileSync('git', ['-C', repo, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+if (opt.json) writeFileSync(opt.json, JSON.stringify({ sha: head, shard: opt.shard ?? null, results }, null, 1));
+const killed = results.filter((r) => r.result === 'killed').length;
+console.log(`\n${killed} of ${results.length} mutants killed (${Math.round((Date.now() - started) / 1000)} s)`);
+process.exit(killed === results.length ? 0 : 1);
