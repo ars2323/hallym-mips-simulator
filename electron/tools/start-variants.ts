@@ -223,6 +223,10 @@ for (const v of set) {
     const started = Date.now();
     const r = await launch(s.size, { switches: [`--force-device-scale-factor=${s.scale}`] });
     try {
+      // Windows centres a new window: a 1920x1040 one on the 1920x1080 screen sat at (320,116),
+      // its right 320 px off the screen, and the ground strip captured black there (run
+      // 36447207053).  At (0,0) only its bottom 8 px are under the taskbar, far from what is measured.
+      await r.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setPosition(0, 0));
       await r.page.clock.setFixedTime(FIXED_TIME);
       await videoAt(r, AT);
       await applyVariant(r, v);
