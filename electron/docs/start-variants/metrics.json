@@ -1,0 +1,390 @@
+[
+ {
+  "variant": "1-current",
+  "size": "1920",
+  "ground": {
+   "towardNavy": 0.624,
+   "sharpness": 0.253,
+   "blueLean": 10.8,
+   "greenLean": -2.6,
+   "light": 0.57,
+   "mean": [
+    33,
+    72,
+    122
+   ],
+   "rawMean": [
+    91,
+    138,
+    172
+   ]
+  },
+  "card": {
+   "width": 780,
+   "height": 289
+  }
+ },
+ {
+  "variant": "1-current",
+  "size": "910",
+  "ground": {
+   "towardNavy": 0.593,
+   "sharpness": 0.222,
+   "blueLean": 7.7,
+   "greenLean": -2,
+   "light": 0.54,
+   "mean": [
+    55,
+    94,
+    143
+   ],
+   "rawMean": [
+    131,
+    184,
+    223
+   ]
+  },
+  "card": {
+   "width": 780,
+   "height": 289
+  }
+ },
+ {
+  "variant": "2-light-tint",
+  "size": "1920",
+  "ground": {
+   "towardNavy": 0.279,
+   "sharpness": 0.304,
+   "blueLean": 3.7,
+   "greenLean": 0.6,
+   "light": 0.8,
+   "mean": [
+    59,
+    113,
+    151
+   ],
+   "rawMean": [
+    91,
+    138,
+    172
+   ]
+  },
+  "card": {
+   "width": 780,
+   "height": 289
+  }
+ },
+ {
+  "variant": "2-light-tint",
+  "size": "910",
+  "ground": {
+   "towardNavy": 0.281,
+   "sharpness": 0.431,
+   "blueLean": 2.5,
+   "greenLean": 0.4,
+   "light": 0.78,
+   "mean": [
+    90,
+    146,
+    185
+   ],
+   "rawMean": [
+    131,
+    184,
+    223
+   ]
+  },
+  "card": {
+   "width": 780,
+   "height": 289
+  }
+ },
+ {
+  "variant": "3-smeared",
+  "size": "1920",
+  "ground": {
+   "towardNavy": 0.432,
+   "sharpness": 0.03,
+   "blueLean": 6.9,
+   "greenLean": -0.6,
+   "light": 0.7,
+   "mean": [
+    46,
+    94,
+    139
+   ],
+   "rawMean": [
+    91,
+    136,
+    171
+   ]
+  },
+  "card": {
+   "width": 722,
+   "height": 273
+  }
+ },
+ {
+  "variant": "3-smeared",
+  "size": "910",
+  "ground": {
+   "towardNavy": 0.485,
+   "sharpness": 0.053,
+   "blueLean": 7.4,
+   "greenLean": -0.6,
+   "light": 0.62,
+   "mean": [
+    58,
+    112,
+    163
+   ],
+   "rawMean": [
+    129,
+    182,
+    221
+   ]
+  },
+  "card": {
+   "width": 721,
+   "height": 273
+  }
+ },
+ {
+  "variant": "4-glass",
+  "size": "1920",
+  "ground": {
+   "towardNavy": 0.348,
+   "sharpness": 0.128,
+   "blueLean": 5.9,
+   "greenLean": -1,
+   "light": 0.76,
+   "mean": [
+    54,
+    101,
+    148
+   ],
+   "rawMean": [
+    91,
+    136,
+    171
+   ]
+  },
+  "cardStrip": {
+   "computed": "blur(18px) saturate(1.2)",
+   "on": {
+    "sharpness": 0.025,
+    "mean": [
+     215,
+     221,
+     225
+    ]
+   },
+   "off": {
+    "sharpness": 0.08,
+    "mean": [
+     215,
+     220,
+     223
+    ]
+   }
+  },
+  "card": {
+   "width": 722,
+   "height": 273
+  }
+ },
+ {
+  "variant": "4-glass",
+  "size": "910",
+  "ground": {
+   "towardNavy": 0.351,
+   "sharpness": 0.219,
+   "blueLean": 4.7,
+   "greenLean": -0.7,
+   "light": 0.73,
+   "mean": [
+    79,
+    130,
+    179
+   ],
+   "rawMean": [
+    129,
+    182,
+    221
+   ]
+  },
+  "cardStrip": {
+   "computed": "blur(18px) saturate(1.2)",
+   "on": {
+    "sharpness": 0.126,
+    "mean": [
+     214,
+     223,
+     233
+    ]
+   },
+   "off": {
+    "sharpness": 0.224,
+    "mean": [
+     215,
+     223,
+     231
+    ]
+   }
+  },
+  "card": {
+   "width": 721,
+   "height": 273
+  }
+ },
+ {
+  "variant": "5-whole-window",
+  "size": "1920",
+  "ground": {
+   "towardNavy": 0.458,
+   "sharpness": 0.112,
+   "blueLean": 8,
+   "greenLean": -1,
+   "light": 0.69,
+   "mean": [
+    42,
+    89,
+    136
+   ],
+   "rawMean": [
+    89,
+    134,
+    167
+   ]
+  },
+  "card": {
+   "width": 722,
+   "height": 273
+  }
+ },
+ {
+  "variant": "5-whole-window",
+  "size": "910",
+  "ground": {
+   "towardNavy": 0.436,
+   "sharpness": 0.132,
+   "blueLean": 6.7,
+   "greenLean": -0.8,
+   "light": 0.67,
+   "mean": [
+    62,
+    113,
+    165
+   ],
+   "rawMean": [
+    122,
+    173,
+    214
+   ]
+  },
+  "card": {
+   "width": 721,
+   "height": 273
+  }
+ },
+ {
+  "variant": "6-neutral",
+  "size": "1920",
+  "ground": {
+   "towardNavy": 0.609,
+   "sharpness": 0.137,
+   "blueLean": -3,
+   "greenLean": -0.1,
+   "light": 0.49,
+   "mean": [
+    50,
+    66,
+    78
+   ],
+   "rawMean": [
+    91,
+    136,
+    171
+   ]
+  },
+  "card": {
+   "width": 722,
+   "height": 273
+  }
+ },
+ {
+  "variant": "6-neutral",
+  "size": "910",
+  "ground": {
+   "towardNavy": 0.603,
+   "sharpness": 0.241,
+   "blueLean": -2.9,
+   "greenLean": -0.1,
+   "light": 0.5,
+   "mean": [
+    73,
+    91,
+    103
+   ],
+   "rawMean": [
+    129,
+    182,
+    221
+   ]
+  },
+  "card": {
+   "width": 721,
+   "height": 273
+  }
+ },
+ {
+  "variant": "7-no-video",
+  "size": "1920",
+  "ground": {
+   "towardNavy": 0.841,
+   "sharpness": 0.621,
+   "blueLean": 28.1,
+   "greenLean": -6.6,
+   "light": 0.4,
+   "mean": [
+    2,
+    44,
+    113
+   ],
+   "rawMean": [
+    91,
+    136,
+    171
+   ]
+  },
+  "card": {
+   "width": 722,
+   "height": 273
+  }
+ },
+ {
+  "variant": "7-no-video",
+  "size": "910",
+  "ground": {
+   "towardNavy": 0.918,
+   "sharpness": 0.16,
+   "blueLean": 31.3,
+   "greenLean": -7.4,
+   "light": 0.28,
+   "mean": [
+    1,
+    40,
+    109
+   ],
+   "rawMean": [
+    129,
+    182,
+    221
+   ]
+  },
+  "card": {
+   "width": 721,
+   "height": 273
+  }
+ }
+]

@@ -18,7 +18,9 @@
 #      Korean IME (tools/windows/korean-ime.ps1, tests/e2e/ime-real.e2e.ts)
 #   7. tools/probe-platform.ts: simulator handles while running/stepping
 #      (the core's waitable timer), screenshots of the native file dialogs;
-#      and the fixed set of screens captured on Windows
+#      and the fixed set of screens captured on Windows; the candidate
+#      first screens (tools/start-variants.ts: pictures and numbers, for
+#      choosing a design -- a failure there fails nothing)
 #   7b. the installer as a student runs it, with its pages (not /S): the
 #      progress, then the finish page ("설치가 완료되었습니다", "지금
 #      실행하기" ticked), 마침 starting the program, pictured
@@ -184,6 +186,16 @@ jobs:
           $env:SPIM_E2E_EXE = (Get-Content report/installed.txt).Trim()
           $env:SCREENS_OUT = 'report/screens'
           node tools/capture-screens.ts
+
+      - name: Candidate first screens (tools/start-variants.ts), on the Windows screen -- for choosing, not checked
+        if: always() && hashFiles('electron/report/installed.txt') != ''
+        continue-on-error: true
+        timeout-minutes: 12
+        shell: pwsh
+        run: |
+          $env:SPIM_E2E_EXE = (Get-Content report/installed.txt).Trim()
+          $env:START_VARIANTS_OUT = 'report/start-variants'
+          node tools/start-variants.ts
 
       - name: Side by side with 1.2.4 (after; uninstall ours)
         if: always() && hashFiles('electron/report/qt-settings-together.reg') != ''
