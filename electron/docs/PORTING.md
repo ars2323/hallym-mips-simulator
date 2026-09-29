@@ -1579,3 +1579,66 @@ The thresholds (`tests/e2e/start.e2e.ts`) and what each guards:
 - **The control is on by default** (`--no-control` skips it). Every run first runs the selection's tests with no mutant. It was already what made the weekly full pass trustworthy: a test failing on its own reads as a kill.
 
 **Closed:** the first screen measured on Windows at 1920 did not agree with Linux. The window was centred at (320,116), 320 px of it off the screen. `docs/screens/README.md`, "Closed in the 2.6.0 round", has the details.
+
+## 30. A user test: the tutorial's card next to what it is about, a step at the line to fix, the title bar at every font (2.7.0)
+
+Five faults found by using the program, all ones a student meets.
+
+**A. The tutorial's card did not follow what it pointed at.** It was measured first: each step's first target and the card, as rectangles, at every state of every step (each step, its result, both phases of step 19). The distance is from the card to that first target, at 1280×800. In 2.6.0 most states were at 16–24 px, and these were far off:
+
+| step | first target | card, 2.6.0 | distance | card, 2.7.0 | distance |
+|---|---|---|---|---|---|
+| 2 (Assemble, title bar) | 233,5 141×28 | 485,52 | 113 | 148,50 — under it | 16 |
+| 5 (Step, title bar) | 675,5 94×28 | 427,171 | 137 | 567,50 — under it | 16 |
+| 7 | 481,171 68×19 | 849,252 | 307 | 360,206 | 16 |
+| 12, its result | 1013,212 46×17 | 523,127 | 180 | 881,244 | 16 |
+| 13 | 846,263 410×30 | 95,346 | 444 | 896,309 | 16 |
+| 15, its result | 12,780 338×17 | 427,367 | 228 | 26,565 | 16 |
+| 18 | 85,499 115×22 | 853,553 | 654 | 8,537 | 16 |
+| 19, phase 2 (the Assemble panel) | 23,594 137×18 | 427,185 | 328 | 8,359 | 16 |
+| 15, 16, 17, 19 (title bar) | Run, speed, Reset, Assemble | 485,52 all four | 18–75 | under each | 16 |
+
+The worst over all states was 654 px in 2.6.0; in 2.7.0 it is 24 at 1280, and at most 25 at 1093, 1024, 910 and 1920.
+
+*Cause.* The card was placed by `place([...targets, ...keepOff, ...litPanels])`, and the lit panels counted both ways: the card had to keep 12 px off them, and they were tried as things to stand beside.
+- For a toolbar button the lit area is the whole title bar. Every spot beside the button broke the 12 px (the view starts right under the bar), so the next rectangle tried was the lit title bar itself, and the card stood under its middle. That was the same spot for Assemble, Step, Run, Reset and the speed: (485,52) at 1280.
+- For a target inside a panel, the panel's own box pushed the card to its far side (step 18: 654 px), or out to the window's free middle (19, phase 2).
+
+*Now* (`logic/placement.ts`): the first target is what the card is about. The card goes right below it, its middle over the target's; else right above it; else right of it, then left, level with it.
+- Each slides along its row or column only as far as it must to keep off the step's other targets and what the step keeps off, and no further than 48 px from the first target.
+- Failing all four, the free spot nearest the first target.
+- The lit panels are no longer kept off. The only rule kept is the old one: never over a target's box. The card can now lie over the rest of a lit panel.
+- Step 19's second phase kept off the whole Editor, which pushed its card across the window. It now keeps off only the line with the error.
+- `tests/e2e/tutorial.e2e.ts` walks every state at 1280, 1093, 1024 and 910 and fails if the card is more than 48 px from its first target: nearly twice the worst now (25), well under what 2.6.0 did (113 and more).
+
+**B. "4행으로 가기" at step 19 ended the tutorial.** The button moved the Editor to the line, and the tutorial went straight on to its end, which opens the first example again. The jump looked like quitting.
+- A step is added between them, step 20, "여기가 고칠 줄입니다": the Editor at that line, the cursor on it, the line marked red and boxed. The card says the line is the one to fix, and that Ctrl+S assembles it again once it is.
+- The end is step 21. The tutorial has twenty-one steps.
+- The walk checks the cursor's line, the mark and what the step points at.
+
+**C. A big font broke the title bar.** Two faults:
+- the speed switch took its height from its words, so at 24 px it was 45 px tall in a 40 px bar and pushed the buttons up;
+- the steps that make room were fitted at the start and on a resize only, not when the font changed. At 24 px in a 1280 window no step was taken, and the tools ran to x=1429.
+
+The steps are measured (room left before the caption buttons), not set by the window's width. Every button and switch in the bar now has one height, `clamp(28px, font + 12px, 34px)`, and one middle line; the font's changes fit the bar again. Two steps come after the program's name:
+- the buttons as their icons (names in the tooltips, the speed as its value, "Instant"), borders kept;
+- then smaller icons.
+
+Folding the buttons into a menu, the step after those, has not been needed.
+
+`tests/e2e/titlebar.e2e.ts` tries every font the app offers, 10–24 px, at 1280, 1093, 1024, 910 and 1920, with a twenty-column file name and (off Windows) the caption buttons 30 px wider. At each of the 75 it checks:
+- the middles within 2 px;
+- every button and switch bordered all round and showing an icon or words;
+- nothing past the room;
+- nothing cut.
+
+The whole run takes 14 s. At 910 px with a 24 px font, the icons alone are enough, and with every step taken 42 px are left. At the default font, the narrowest window has 296 px in steps it does not use; it had 1 (`docs/screens/README.md`, closed).
+
+The check was tried against the fault: with the speed button's value hidden (the first way it was written), it failed at 910 px from 17 px up ("a button showing nothing").
+
+**D.**
+- **The thin-card mutant** now makes the card .65, not .72. With the darker text, .72 read 4.30 against the threshold's 4.5, 0.20 short, while the design stands 0.84 over it. At .65 the card reads 3.64, 0.86 short: the two sides are about even.
+- **The mutant baseline** is the full pass on this round's commit (below).
+- **The caption patch at the program's start:** CAPTION_START.
+
+**The screens.** A retake rewrote start photos that had not changed. Measured: the glass card is drawn a pixel higher or lower from one start of the app to the next, never within one start, and never without its filter. That is open item 2 in `docs/screens/README.md`. The capture now seeks to a frame's middle, since 3.0 s is a boundary between two frames. That did not settle the photos, and neither did letting a pixel match its neighbour above or below; the latter was taken out again.

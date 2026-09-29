@@ -496,6 +496,7 @@ function applyFont(): void {
   text.fit();
   registers?.fit();
   editor.view.requestMeasure();
+  fitTitlebar(); // the bar's words grow with the font: fit again (before 2.7.0 it kept the default font's steps)
 }
 
 // ---- settings and about -----------------------------------------------------------
@@ -555,7 +556,7 @@ function renderChrome(): void {
   speedSlow.classList.toggle('on', speed === 'slow');
   speedFast.setAttribute('aria-checked', String(speed === 'fast'));
   speedSlow.setAttribute('aria-checked', String(speed === 'slow'));
-  speedOne.replaceChildren(h('span', { class: 'label' }, `Speed: ${speed === 'fast' ? 'Instant' : '1 line/s'}`));
+  speedOne.replaceChildren(h('span', { class: 'label' }, h('span', { class: 'pre' }, 'Speed: '), speed === 'fast' ? 'Instant' : '1 line/s'));
   // No file, nothing to run: the first screen has no toolbar.
   toolbar.hidden = !open;
   editorHead.setMeta(open ? h('span', {}, code(file.name), ` · ${file.format?.encoding ?? 'UTF-8'} · ${file.format?.lineEnd ?? 'LF'}`) : '');
@@ -589,16 +590,20 @@ function nameAssemble(): void {
 // The title bar gives way one step at a time, as far as it has to: the key
 // hints, the buttons' icons (their names stay), Save & Assemble's "Save &",
 // the speed as one button, tighter spacing, the file's name (down to
-// FILE_LEAST columns), and last the program's name (the logo stays) -- the
-// file's name then takes back what the program's name left.
+// FILE_LEAST columns), the program's name (the logo stays) -- the file's
+// name then takes back what the program's name left -- and, a big font in
+// a narrow window, the buttons' names (their icons back; TITLE_LAST), then
+// their icons' size.  Every button keeps its border.  All measured: the
+// font takes room at any width, so the font's changes fit it again too.
 // It fits when its last item ends before the padding kept for the system's
 // caption buttons (scrollWidth does not count what spills into padding).
 const TITLE_STEPS = ['nokeys', 'noicons', 'short', 'onespeed', 'tighter'] as const;
+const TITLE_LAST = ['iconsonly', 'smallicons'] as const;
 const tools = titlebar.querySelector('.tools') as HTMLElement;
 function fitTitlebar(): void {
   const end = () => titlebar.getBoundingClientRect().right - parseFloat(getComputedStyle(titlebar).paddingRight);
   const fits = () => tools.getBoundingClientRect().right <= end() + 0.5;
-  titlebar.classList.remove('noapp');
+  titlebar.classList.remove('noapp', ...TITLE_LAST);
   showFileName(FILE_MOST);
   for (let level = 0; level <= TITLE_STEPS.length; level += 1) {
     TITLE_STEPS.forEach((step, k) => titlebar.classList.toggle(step, k < level));
@@ -621,7 +626,12 @@ function fitTitlebar(): void {
   };
   if (longest()) return;
   titlebar.classList.add('noapp');
-  if (!longest()) showFileName(FILE_LEAST);
+  if (longest()) return;
+  for (let level = 1; level <= TITLE_LAST.length; level += 1) {
+    TITLE_LAST.forEach((step, k) => titlebar.classList.toggle(step, k < level));
+    if (longest()) return;
+  }
+  showFileName(FILE_LEAST);
 }
 window.addEventListener('resize', () => fitTitlebar());
 // The room kept for the caption buttons (the padding's env(titlebar-area-*))

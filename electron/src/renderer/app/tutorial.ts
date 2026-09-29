@@ -1,4 +1,4 @@
-/* The tutorial: twenty steps over src/examples/tutorial.s (and
+/* The tutorial: twenty-one steps over src/examples/tutorial.s (and
    tutorial-error.s at step 19), both opened read-only and put away at the
    end.  Nothing of it is kept: a new start of the program always begins at
    step 1; within one run, coming back offers to go on where it stopped.
@@ -24,9 +24,9 @@
    what the student is learning), the toolbar's area for a button, the
    status bar for its words; the rest of the window is dimmed.  Inside, a
    box on each target says where to look.  Lit is not clickable: only the
-   targets take a click.  The card never covers a box, and keeps off the
-   lit panels where the window has room (logic/placement.ts), with Haram
-   at its far end: never between the words and what they are about, always
+   targets take a click.  The card never covers a box: it stands right
+   below what the step is about, or above it, or beside it
+   (logic/placement.ts), with Haram at its far end: never between the words and what they are about, always
    on the card's white.  Before
    drawing, a step makes its targets really visible: the right side of a
    narrow window, the right tab, the line scrolled in, a column the width
@@ -441,16 +441,16 @@ export class Tutorial {
     const size = { width: this.card.offsetWidth, height: this.card.offsetHeight };
     // Below the title bar: the card never hides the toolbar.
     const view = { left: 0, top: ($('.titlebar')?.getBoundingClientRect().bottom ?? 0), right: w, bottom: hh };
-    // Beside the targets, off the lit panels and off what the step keeps
-    // off; failing that, off the targets and what is kept off (over a lit
-    // panel: a narrow window); then off the targets alone (over what was
-    // kept off: the Editor at step 19, whose line is worth seeing but not
-    // what the card talks about); never over a target's box.
+    // Right below the first target, else above, else beside it
+    // (logic/placement.ts): off every target and what the step keeps off;
+    // failing that, off the targets alone; never over a target's box.  The
+    // lit panels are not kept off -- they were what put every toolbar
+    // step's card under the title bar's middle (docs/PORTING.md 30).
     const keepOff = targetRects(step.avoid?.(this) ?? []).list;
     const grown = rects.list.map((r) => grow(r, 4));
     const at = step.kind === 'end' || rects.list.length === 0
       ? { left: (w - size.width) / 2, top: (hh - size.height) / 2, side: null }
-      : place([...grown, ...keepOff, ...lit], size, view) ?? place([...grown, ...keepOff], size, view) ?? place(grown, size, view)
+      : place(grown, size, view, keepOff) ?? place(grown, size, view)
         ?? { left: w - size.width - 8, top: hh - size.height - 8, side: null };
     this.card.style.left = `${Math.round(at.left)}px`;
     this.card.style.top = `${Math.round(at.top)}px`;
@@ -523,7 +523,7 @@ function targetRects(targets: Target[]): { list: Rect[]; owners: Element[]; miss
   return { list, owners, missing, clipped };
 }
 
-// ---- the twenty steps ---------------------------------------------------------------
+// ---- the twenty-one steps ------------------------------------------------------------
 
 const ADD = /^\s+add\s+\$t3/;
 const SUB = /^\s+sub\s+\$t4/;
@@ -751,8 +751,8 @@ export const STEPS: Step[] = [
     targets: (t) => (t.phase === 0 ? [button('assemble')]
       : [textOf($('.asm .notice h3')), textOf($('.asm .item')), $('.asm .row .btn')]),
     reveal: () => scrollIn($('.asm .row .btn')),
-    // The Editor's line with the error is part of what to look at.
-    avoid: (t) => (t.phase === 1 && !t.host.narrow() ? [$('.editor-panel')] : []),
+    // The Editor's line with the error is part of what to look at: the card keeps off it.
+    avoid: (t) => { const n = t.host.errorLine(); return t.phase === 1 && n && !t.host.narrow() ? [lines(t, n)] : []; },
     prepare: async (t) => { t.host.showView('editor'); },
     done: (_t, s) => (s.kind === 'assembled' && !s.ok ? 'phase' : s.kind === 'goto' ? 'next' : null),
     skip: async (t) => {
@@ -760,6 +760,19 @@ export const STEPS: Step[] = [
       const n = t.host.errorLine();
       if (n) t.host.goToLine(n);
     } },
+  // "N행으로 가기" took the student to the line: show them where they are (2.7.0; before, the
+  // tutorial went straight on to its end, which opened the first example again -- the jump
+  // looked like the tutorial quitting).  The cursor is on the line, the line marked red.
+  { kind: 'explain', file: 'tutorial-error.s', view: 'editor',
+    prepare: async (t) => {
+      if (!t.host.errorLine()) await t.host.assemble();
+      const n = t.host.errorLine();
+      if (n) t.host.goToLine(n);
+    },
+    title: () => '여기가 고칠 줄입니다',
+    body: (t) => `Editor 패널의 ${t.host.errorLine() ?? ''}행으로 왔습니다. 커서가 이 줄에 있고, 틀린 줄은 붉게 표시됩니다. Assemble 패널의 설명대로 고친 뒤 Ctrl+S 키를 누르면 다시 어셈블합니다. 이 예제는 읽기 전용이라 여기서는 고치지 않습니다.`,
+    targets: (t) => { const n = t.host.errorLine(); return n ? [lines(t, n)] : []; },
+    reveal: (t) => { const n = t.host.errorLine(); if (n) t.host.revealLine(n); } },
   { kind: 'end', file: 'tutorial.s', pose: 'congrats',
     // Ends on the example, assembled and whole (not on step 19's errors).
     prepare: async (t) => { if (!t.host.assembled()) await t.host.assemble(); },

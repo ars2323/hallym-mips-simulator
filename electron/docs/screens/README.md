@@ -38,6 +38,7 @@ The example files and step counts are written inside the tool, so the same scene
 | `lab-columns.png` | The lab PC's Registers and Text heads, cropped: Name Hex Dec Bin / Address Encoding Format Instruction | Same screen as `lab-1366x768-125`, top 190px of the two panels (150KB or less) |
 | `1024x768.png` | 1024×768 at 100% scaling: left/right split kept, Text shows Format and Source as buttons | CSS 1024×728 (taskbar), same run as `split-running` |
 | `tutorial-01.png` | Tutorial step 1: the Editor lit whole, boxes on its head and the first lines, the rest dimmed, the card and Haram; the example is never saved: Assemble in the toolbar and on the Run side, "어셈블 (Ctrl+S)" in the status bar | 1280×800, 튜토리얼 보기 → step 1 |
+| `tutorial-02.png`, `tutorial-05.png` | Steps 2 and 5, practice steps about a toolbar button (Assemble; Step): the card right under that button, its middle over the button's (from 2.7.0; before, every toolbar step's card stood under the title bar's middle) | 1280×800, steps 2 and 5 |
 | `tutorial-03.png` | Step 3: the Registers panel lit whole (all its groups, the context of what the card says), boxes on its head and the Temporaries band; the card off it | 1280×800, step 3 |
 | `tutorial-04.png` | Step 4: the Text rows where `li $t0, 0x12345678` became the two lines `lui` + `ori` | 1280×800, step 4 via the tutorial's `go()` (up to assembling) |
 | `tutorial-09.png` | Step 9: the bit grid's opcode, rs, rt, rd and the Encoding value in Text | 1280×800, step 9 (starting code and two `li` lines, `add` executed, Inspector pinned) |
@@ -45,8 +46,10 @@ The example files and step counts are written inside the tool, so the same scene
 | `tutorial-quit-ask.png` | The quit question over the tutorial: Haram in the dialog, the card and rings under the backdrop, one Haram | 1280×800, step 14, 그만두기 |
 | `tutorial-18-done.png` | Step 18's result beat: the Console's output and the status bar pointed at; the card's text is what just happened, [다음] awaited | 1280×800, step 18, then F5 |
 | `tutorial-19.png` | Step 19: the Assemble panel after assembling `tutorial-error.s`, lit whole, three boxes | 1280×800, Ctrl+S at step 19 |
-| `tutorial-20.png` | Step 20: the center card, Haram (congrats) | 1280×800, step 20 |
+| `tutorial-20.png` | Step 20 (from 2.7.0): after 4행으로 가기 at step 19, the Editor at line 4 of `tutorial-error.s` — the cursor on it, the line marked red, boxed — and the card "여기가 고칠 줄입니다" | 1280×800, the button in the Assemble panel pressed at step 19 |
+| `tutorial-21.png` | Step 21, the end: the center card, Haram (congrats) | 1280×800, step 21 |
 | `tutorial-09-narrow.png` | Step 9 in a narrow window (Run side) | 910×505 at 1.5× |
+| `font-24-narrow.png`, `titlebar-24-narrow.png` | The biggest font (24 px) in the narrowest window, a twenty-column file name: the title bar at its last step (from 2.7.0) — the buttons as their icons (the speed as its value, "Instant"), each with its border, all on one middle line, the file's name cut in its stem; the whole window, and the bar alone | 910×505 at 1.5×, `lab04_김학현_20210123.s` assembled, Ctrl+= eleven times (13 → 24 px) |
 | `windows-frame.png` | The installed build maximized on **real Windows** (Server 2025, the Windows 11 shell) at 1920×1080: the default layout as a student sees it — the app's bar, the system's window buttons, the taskbar | CI only (`electron.yml` at the repository root; the runner's screen set to 1920×1080 by `tools/windows/screen-1920.ps1`, 1024×768 if that fails — `report/screen.txt`). With the installed build, the same run as `split-running`, then maximized; whole screen (≤ 700 KB) |
 | `windows-frame-tutorial.png` | The same, with the tutorial on: the caption buttons' patch coloured with the dim (`#bdc5d4`), the buttons still there | CI only, like `windows-frame`; step 14, maximized; whole screen |
 
@@ -91,34 +94,58 @@ and what was done or why it waits. Open items stay until they are fixed.
    Data layout for one band of widths; both are larger than this round. Below 971 px the window
    shows Editor and Run as tabs and Data fits; from 1035 px it fits.
 
-2. **The title bar's narrowest step has no room for another icon.** From 2.4.0 the right-hand
-   group has five icons: Tutorial, New file, Open file, Export executable image, Settings.
-   The fifth took 26 px. In the narrowest step (`tighter`, at 910 px, with a 20-column file name
-   and Windows' caption buttons) the bar came out 25 px short, so before it there was 1 px to spare.
-   That step's icon buttons went from 24 to 20 px with no gap between them, which leaves 9 px.
-   **Does 20 px apply on Windows? Yes:** the `tighter` step is on at 910×505 (1366×768 at 150%)
-   for every file name on every platform, and the +30 px that showed the shortfall stands for
-   Windows' own wider caption buttons (`fit.e2e.ts`). At 1024 px and wider it never engages.
-   *Why it waits:* 20 px is the least an 18-px icon takes, so a sixth icon (or a longer label)
-   needs another step, for example New file and Open file in one menu, not narrower buttons.
+2. **A retake rewrites some start-screen photos that did not change** (2.6.0 on). The glass card
+   (`backdrop-filter`) is drawn a little differently from one start of the app to the next:
+   measured at 1024×728, the same frame, two captures in one start are identical, two starts
+   differ in 0 to 536,000 pixels — mostly the card's contents a pixel higher or lower, the
+   compositor rounding its layer differently — and without the filter two starts are identical.
+   So `tools/capture-screens.ts` rewrites two to seven of the `start-*.jpg` at each retake
+   (three retakes in a row: 7, 2, 3), which the screens' rule (a picture that did not change is
+   not rewritten, §28) was meant to stop. Letting a pixel match its neighbour above or below
+   in the comparison was tried and did not settle them. `error-kept.png` was rewritten once in
+   the same retakes, with no glass in it.
+   *Why it waits:* the pictures are right, only their bytes move; pinning the compositor's
+   rounding is not in the page's hands. Until then, a retake's `start-*.jpg` are committed only
+   in a round that changes the first screen.
 
 ### Skipped tests: intended
 
 The e2e run at each width ends with some tests skipped. These skips are intended, not faults
 waiting for a fix.
 
-- **At 910×505, 97 tests, not 98.** `layout.e2e.ts` *splitter: drag to share the width, fold
+- **At 910×505, one more skipped than at the other widths.** `layout.e2e.ts` *splitter: drag to share the width, fold
   either side away and back* skips itself when the window shows Editor and Run as tabs. Below
   971 px there is no splitter to drag or fold: one side shows at a time. The tabs are what that
   width has instead, and *narrow windows show one side at a time; 1093 wide (1366 at 125%) keeps
   both* (`layout.e2e.ts`) and `fit.e2e.ts` at 910×505 test them. At the other widths the
   splitter test runs.
-- **At every width, 2 skipped.** The two tests of `ime-real.e2e.ts` (*the editor: 한글 typed
+- **At every width, the caption buttons on the screen** (`start.e2e.ts`, *the caption buttons on
+  the screen: the first screen's dark bar through their patch, white in the Editor*): Windows
+  draws them, so they can only be seen there; the Windows job runs it against the installed app.
+  Elsewhere `window.e2e.ts` checks the colours the page asks Windows for.
+- **At every width, the real Korean IME.** The two tests of `ime-real.e2e.ts` (*the editor: 한글 typed
   with the Windows IME, Enter, then saved*, and *the Console: 한글 typed with the Windows IME into
   syscall 8, Enter*) type through the real Microsoft Korean IME. That IME exists only on the
   Windows runner, where the Windows job installs it (`tools/windows/korean-ime.ps1`) and runs
   them against the installed app, with `SPIM_REAL_IME=1`. Elsewhere, `ime.e2e.ts` drives the
   IME's events through CDP at every width.
+
+### Closed in the 2.7.0 round
+
+- **The title bar's narrowest step had no room for another icon** (open item 2, from 2.4.0: at
+  910 px, with a twenty-column file name and Windows' wider caption buttons, 1 px to spare; any
+  bigger font made it negative). A user test found it: at a big font the bar broke —
+  the speed switch grew past the bar's 40 px and pushed the buttons up, and the steps that make
+  room were not taken again after the font changed, so the bar ran off the window.
+  *Fixed* (`docs/PORTING.md` 30): one height and one middle line for every control, whatever the
+  font; the steps fitted again whenever the font changes; and two steps after the program's
+  name — the buttons as their icons (names in the tooltips, borders kept), then smaller icons.
+  `tests/e2e/titlebar.e2e.ts` tries every font the app offers (10–24 px) at the five widths, with
+  the long name and the wider caption buttons: middles within 2 px, borders all round, every
+  button showing an icon or words, nothing past the room, nothing cut. At the worst of them
+  (910 px, 24 px) the icons alone are enough and 42 px are left with every step taken; at the
+  default font the narrowest window has 296 px in steps it does not use (it had 1). Folding the
+  buttons into a menu, the step after those, has not been needed.
 
 ### Closed in the 2.6.0 round
 

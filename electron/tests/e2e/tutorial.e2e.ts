@@ -1,10 +1,11 @@
-/* The tutorial (src/renderer/app/tutorial.ts, docs/PORTING.md 18, 25):
-   - all twenty steps, walked with the real actions, at 1093x582 (a lab PC),
-     1024x728 and 910x505 (the narrow window): at every step what it points
-     at is on screen, and the card covers none of it (a click at a target's
-     middle reaches the target, not the tutorial); the panel each target is
-     in is lit whole and the rest of the window dimmed; a box on each
-     target;
+/* The tutorial (src/renderer/app/tutorial.ts, docs/PORTING.md 18, 25, 30):
+   - all twenty-one steps, walked with the real actions, at 1280x800,
+     1093x582 (a lab PC), 1024x728 and 910x505 (the narrow window): at every
+     step what it points at is on screen, and the card covers none of it (a
+     click at a target's middle reaches the target, not the tutorial) and
+     stands next to the first (within NEAR); the panel each target is in is
+     lit whole and the rest of the window dimmed; a box on each target;
+     step 20, the Editor at the line to fix;
    - the same walk with [건너뛰기] at every practice step;
    - stopping at step 16 while the slow run goes;
    - the examples on disk unchanged; a student's unsaved file back as it
@@ -20,6 +21,7 @@ import { launch, openAndAssemble, resize, root, sample, type Running } from './h
 interface Shown { step: number; phase: number; result: boolean; hits: boolean[]; did: string[]; targets: { left: number; top: number; right: number; bottom: number }[]; lit: { left: number; top: number; right: number; bottom: number }[]; card: { left: number; top: number; right: number; bottom: number } | null }
 const shown = (page: Page) => page.evaluate(() => (window as unknown as { __tutorial: { shown: Shown; active: boolean } }).__tutorial.shown);
 const active = (page: Page) => page.evaluate(() => (window as unknown as { __tutorial: { active: boolean } }).__tutorial.active);
+const NEAR = 48; // px, card to first target (checkStep)
 const hash = (name: string) => createHash('sha256').update(readFileSync(path.join(root, 'src/examples', name))).digest('hex');
 
 async function atStep(page: Page, n: number, phase = 0, result = false): Promise<Shown> {
@@ -29,7 +31,7 @@ async function atStep(page: Page, n: number, phase = 0, result = false): Promise
   for (let i = 0; i < 40; i += 1) {
     await page.waitForTimeout(100);
     const s = JSON.stringify(await shown(page));
-    if (s === last && (n === 20 || JSON.parse(s).targets.length > 0)) break;
+    if (s === last && (n === 21 || JSON.parse(s).targets.length > 0)) break;
     last = s;
   }
   return shown(page);
@@ -88,11 +90,15 @@ async function checkStep(page: Page, n: number, phase = 0, result = false): Prom
     return { areaLit, wrong, boxed, rings: rings.length, refused };
   }, { targets: s.targets, lit: s.lit });
   expect(light.refused, `${where}: a lit panel off the targets takes no click`).toEqual(s.lit.map(() => true));
-  // The card keeps off the lit panels where the window has room (1093 and more; at 1024 and 910 it may lie over one, never over a box).
-  const overLit = s.card ? s.lit.some((l) => s.card!.left < l.right && l.left < s.card!.right && s.card!.top < l.bottom && l.top < s.card!.bottom) : false;
-  const width = await page.evaluate(() => innerWidth);
-  if (overLit) console.log(`[${width}] step ${n}${phase ? `.${phase}` : ''}${result ? ' (result)' : ''}: the card over a lit panel`);
-  if (width >= 1093) expect(overLit, `${where}: the card off the lit panels`).toBe(false);
+  // The card next to what the step is about: within NEAR of its first target (right below it,
+  // above it or beside it: logic/placement.ts).  Every state of every step reads 16-25 px at the
+  // five widths; before 2.7.0, a toolbar step's card stood under the title bar's middle, 113 px
+  // from Assemble at step 2, and step 19's Assemble panel 248 px away (docs/PORTING.md 30).
+  if (s.targets.length) {
+    const t = s.targets[0], c = s.card!;
+    const apartBy = Math.hypot(Math.max(0, t.left - c.right, c.left - t.right), Math.max(0, t.top - c.bottom, c.top - t.bottom));
+    expect(apartBy, `${where}: the card ${Math.round(apartBy)} px from its target ${JSON.stringify({ t, c })}`).toBeLessThanOrEqual(NEAR);
+  }
   expect(light.areaLit, `${where}: each target's panel lit whole`).toEqual(s.targets.map(() => true));
   expect(light.wrong, `${where}: dark exactly outside the lit panels`).toBe(0);
   expect(light.boxed, `${where}: a box on each target`).toEqual(s.targets.map(() => true));
@@ -137,7 +143,7 @@ const middle = (r: { left: number; top: number; right: number; bottom: number })
 // (told to, done, shown what it did, then [다음]); the others go straight on.
 const RESULT = new Set([5, 12, 15, 17, 18]);
 
-// Walks steps 1..20: by doing each practice step, or by skipping it.
+// Walks steps 1..21: by doing each practice step, or by skipping it.
 async function walk(page: Page, how: 'do' | 'skip'): Promise<void> {
   const practice = async (n: number, act: () => Promise<void>, phase = 0) => {
     await checkStep(page, n, phase);
@@ -206,7 +212,21 @@ async function walk(page: Page, how: 'do' | 'skip'): Promise<void> {
   });
   await practice(19, () => page.keyboard.press('Control+s'));
   await practice(19, () => page.locator('.asm').getByRole('button', { name: /행으로 가기/ }).click(), 1);
+  // Step 20: the Editor at the line to fix -- the cursor on it, the line marked, the card saying so.
   await checkStep(page, 20);
+  await expect(page.locator('.tut-card h3')).toHaveText('여기가 고칠 줄입니다');
+  const at = await page.evaluate(() => {
+    const lines = [...document.querySelectorAll('.cm-content .cm-line')];
+    const marked = document.querySelector('.cm-line.cm-error-line');
+    const sel = window.getSelection();
+    const cursorLine = sel?.anchorNode ? lines.findIndex((l) => l.contains(sel.anchorNode)) + 1 : 0;
+    return { marked: marked ? lines.indexOf(marked) + 1 : 0, cursorLine, focused: document.activeElement?.closest('.cm-editor') !== null };
+  });
+  expect(at, 'the cursor on the marked line, in the Editor').toEqual({ marked: 4, cursorLine: 4, focused: true });
+  const lineBox = (await page.locator('.cm-line.cm-error-line').boundingBox())!;
+  expect(Math.abs((await shown(page)).targets[0].top - lineBox.y) < 3, 'the step points at that line').toBe(true);
+  await next(page);
+  await checkStep(page, 21);
   // The end on the example, whole: not on step 19's errors.
   await expect(page.locator('.titlebar .file')).toContainText('tutorial.s');
   await expect(page.locator('.titlebar .file')).not.toContainText('error');
@@ -224,7 +244,7 @@ const SIZES = [
 ];
 
 for (const size of SIZES) {
-  test(`${size.name}: twenty steps, done for real; every target on screen, none under the card`, async () => {
+  test(`${size.name}: twenty-one steps, done for real; every target on screen, none under the card, the card next to it`, async () => {
     test.setTimeout(180_000);
     const before = [hash('tutorial.s'), hash('tutorial-error.s')];
     const r = await launch(size);

@@ -67,9 +67,18 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .titlebar .file:empty { display: none; }
 .titlebar .file b { color: var(--text); font-weight: 400; }
 .titlebar .dirty { color: var(--amber-text); }
-.titlebar .toolbar { display: flex; gap: 6px; flex: none; margin-left: 6px; }
+.titlebar .toolbar { display: flex; align-items: center; gap: 6px; flex: none; margin-left: 6px; }
 .titlebar .drag { flex: 1; min-width: 12px; align-self: stretch; }
-.titlebar .tools { display: flex; gap: 2px; flex: none; }
+.titlebar .tools { display: flex; align-items: center; gap: 2px; flex: none; }
+/* One rule for every control in the bar, whatever the font: centred on the
+   bar's middle line, as tall as the font needs but inside the bar (40 px,
+   fixed by the system's caption buttons), the words in it one line tall.
+   (Before 2.7.0 the speed switch took its height from its words: at 24 px
+   it grew past the bar and pushed the buttons up.) */
+.titlebar { --ctl: clamp(28px, calc(var(--fs) + 12px), 34px); }
+.titlebar .btn, .titlebar .seg { height: var(--ctl); line-height: 1; }
+.titlebar .seg { align-items: stretch; }
+.titlebar .seg button { display: inline-flex; align-items: center; padding-top: 0; padding-bottom: 0; line-height: 1; }
 .btn { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--white); color: var(--navy); font-weight: 500; white-space: nowrap; flex: none; }
 .btn:hover:not(:disabled) { background: var(--hover); }
 .btn img { width: 16px; height: 16px; opacity: .85; }
@@ -91,11 +100,13 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .speedbox { display: inline-flex; align-items: center; gap: 6px; flex: none; }
 .speedlabel { font-size: 12px; color: var(--text-2); white-space: nowrap; }
 .titlebar .speedone { display: none; }
-/* A narrow title bar gives way in steps (app.ts fitTitlebar): key hints,
-   the buttons' icons, Save & Assemble's "Save &" (app.ts, the text), the
-   speed as one button, tighter spacing, the file's name (app.ts, down to
-   ten columns), and only then the program's name.  The buttons keep their
-   names throughout (Save & Assemble its last word). */
+/* A narrow title bar gives way in steps (app.ts fitTitlebar), by the room
+   it measures -- a bigger font takes more of it at the same width: key
+   hints, the buttons' icons, Save & Assemble's "Save &" (app.ts, the text),
+   the speed as one button, tighter spacing, the file's name (app.ts, down
+   to ten columns), the program's name; then, a big font in a narrow window,
+   the buttons' names (their icons back, the names in their tooltips) and
+   last their icons' size.  Every button keeps its border throughout. */
 .titlebar.nokeys .btn kbd { display: none; }
 .titlebar.noicons .toolbar .btn img { display: none; }
 .titlebar.noicons .toolbar .btn { padding: 0 9px; }
@@ -109,6 +120,15 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .titlebar.tighter .toolbar .btn { padding: 0 7px; }
 .titlebar.tighter .drag { min-width: 4px; }
 .titlebar.noapp .appname { display: none; }
+.titlebar.iconsonly .toolbar .btn img { display: inline; }
+.titlebar.iconsonly .toolbar .btn .label { display: none; }
+.titlebar.iconsonly .toolbar .btn { padding: 0 7px; }
+.titlebar.iconsonly .toolbar .btn.speedone .label { display: inline; } /* no icon: its value alone */
+.titlebar.iconsonly .speedone .pre { display: none; }
+.titlebar.iconsonly .viewswitch button { padding: 0 5px; }
+.titlebar.smallicons .toolbar .btn img, .titlebar.smallicons .iconbtn img { width: 14px; height: 14px; }
+.titlebar.smallicons .toolbar .btn { padding: 0 5px; }
+.titlebar.smallicons .iconbtn { width: 18px; }
 
 /* ---- status bar --------------------------------------------------------- */
 .status { display: flex; align-items: center; gap: 16px; padding: 0 12px; font-size: 12px; color: var(--text-2); background: var(--white); border-top: 1px solid var(--border); white-space: nowrap; overflow: hidden; }

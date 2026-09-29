@@ -145,7 +145,9 @@ async function videoAt(r: Running, t: number): Promise<void> {
     const v = document.querySelector('.wback video') as HTMLVideoElement;
     v.pause();
     v.addEventListener('seeked', () => requestAnimationFrame(() => requestAnimationFrame(() => done())), { once: true });
-    v.currentTime = t;
+    // The middle of that frame (the clip is 30 a second): 3.0 s is the boundary of frames 89 and
+    // 90, and a seek to a boundary may land on either.
+    v.currentTime = t + 1 / 60;
   }), t);
 }
 
@@ -322,9 +324,9 @@ for (const [name, size, scale] of [
   await r.close();
 }
 
-// The tutorial (docs/PORTING.md 18, 25): steps 1, 3 (Registers lit whole),
-// 4 (lui + ori), 9 (bits = Encoding), 14 (the gutter), 19 (the Assemble
-// panel, after Assemble), 20;
+// The tutorial (docs/PORTING.md 18, 25, 30): steps 1, 2 and 5 (the card right
+// under the toolbar button it is about), 3 (Registers lit whole), 4 (lui + ori), 9 (bits = Encoding), 14 (the gutter), 19 (the Assemble
+// panel, after Assemble), 20 (its "N행으로 가기": the line to fix), 21;
 // step 9 again in the narrow window.  Each step is entered as the tutorial
 // enters it (its go()), which sets the machine up the same way every time.
 async function tutorialStep(r: Running, n: number): Promise<void> {
@@ -338,7 +340,7 @@ async function tutorialStep(r: Running, n: number): Promise<void> {
 }
 {
   const r = await launch({ width: 1280, height: 800 });
-  for (const n of [1, 3, 4, 9, 14]) { await tutorialStep(r, n); await shot(r, `tutorial-${String(n).padStart(2, '0')}`); }
+  for (const n of [1, 2, 3, 4, 5, 9, 14]) { await tutorialStep(r, n); await shot(r, `tutorial-${String(n).padStart(2, '0')}`); }
   forGuide('tutorial-04', '02-tutorial-04');
   // The quit question over step 14: Haram in the dialog, the card and rings under the backdrop.
   await r.page.locator('.tut-card .tut-quit').click();
@@ -358,14 +360,32 @@ async function tutorialStep(r: Running, n: number): Promise<void> {
   await r.page.waitForFunction(() => (window as unknown as { __tutorial: { shown: { phase: number } } }).__tutorial.shown.phase === 1);
   await r.page.waitForTimeout(600);
   await shot(r, 'tutorial-19');
-  await tutorialStep(r, 20);
+  // "N행으로 가기", as a student presses it: step 20, the Editor at that line.
+  await r.page.locator('.asm').getByRole('button', { name: /행으로 가기/ }).click();
+  await r.page.waitForFunction(() => (window as unknown as { __tutorial: { shown: { step: number } } }).__tutorial.shown.step === 20);
+  await r.page.waitForTimeout(600);
   await shot(r, 'tutorial-20');
+  await tutorialStep(r, 21);
+  await shot(r, 'tutorial-21');
   await r.close();
 }
 {
   const r = await launch({ width: 910, height: 505 }, { switches: ['--force-device-scale-factor=1.5'] });
   await tutorialStep(r, 9);
   await shot(r, 'tutorial-09-narrow');
+  await r.close();
+}
+// The biggest font (24 px) in the narrowest window, with a twenty-column file
+// name (docs/PORTING.md 30): the title bar at its last step -- the buttons as
+// their icons, every one bordered, all on one middle line, nothing cut.
+{
+  const r = await launch({ width: 910, height: 505 }, { switches: ['--force-device-scale-factor=1.5'] });
+  await openAndAssemble(r, sample(r.dir, 'tests/samples/lab04-ok.s', 'lab04_김학현_20210123.s'));
+  for (let i = 0; i < 11; i += 1) await r.page.keyboard.press('Control+='); // 13 -> 24 px
+  await r.page.waitForFunction(() => getComputedStyle(document.documentElement).getPropertyValue('--fs').trim() === '24px');
+  await r.page.waitForTimeout(600);
+  await shot(r, 'font-24-narrow');
+  await shot(r, 'titlebar-24-narrow', { x: 0, y: 0, width: 910, height: 40 });
   await r.close();
 }
 

@@ -14,7 +14,7 @@ What it is made of:
 - pure TypeScript modules ported from the Qt edition's `QtSpim/edu/core`;
 - the window: Editor | Run side by side — the first screen, writing code,
   running one line at a time, the Inspector, Data (screens: `docs/screens/`);
-- the twenty-step tutorial over two read-only examples
+- the twenty-one-step tutorial over two read-only examples
   (`src/examples/tutorial.s`, `tutorial-error.s`), keeping no state
   (`docs/PORTING.md`, section 18).
 

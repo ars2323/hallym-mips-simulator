@@ -8,7 +8,10 @@
     - the pages: the progress, then the finish page, and nothing else (no
       folder to choose, no "for all users", no welcome or licence page)
     - the finish page: "설치가 완료되었습니다", and "지금 실행하기" ticked
-    - 마침, with it ticked, starts the program
+    - 마침, with it ticked, starts the program; its first 2.5 s on screen
+      sampled at the caption buttons' patch (first-frames.txt: whether a
+      white patch shows on the first screen's dark bar before the page
+      turns it transparent)
     - installed where /S installs: %LOCALAPPDATA%\Programs\Hallym MIPS, the
       Start menu's Hallym MIPS, the uninstall entry "Hallym MIPS <version>"
   then uninstalls it with the uninstaller's pages (the progress, then "제거가
@@ -16,6 +19,7 @@
     installer-progress.png  the progress page
     installer-finish.png    the finish page
     installer-started.png   the program 마침 started (its first screen)
+    installer-started-200ms.png  the same, about 200 ms after its window appeared
     uninstaller-finish.png  the uninstaller's finish page
 
   Usage (CI, with nothing of ours installed):
@@ -171,6 +175,47 @@ if ($finish) {
 
   Write-Host '== 마침, with 지금 실행하기 ticked'
   if ($done) { [void][Ui]::SendMessage($done.H, $BM_CLICK, [IntPtr]0, [IntPtr]0) }
+  # The first moments on screen (2.7.0): the main process opens the window
+  # with a white caption patch and the page turns it transparent on its
+  # dark first-screen bar -- does a white square show at the top right in
+  # between?  From the window's appearance, every few tens of ms for 2.5 s:
+  # the patch against the bar just before it (the 8 px the page keeps clear),
+  # and one picture of the window about 200 ms in.
+  Add-Type -AssemblyName System.Windows.Forms
+  $sw = [Diagnostics.Stopwatch]::StartNew(); $win = [IntPtr]::Zero
+  while ($sw.ElapsedMilliseconds -lt 30000 -and $win -eq [IntPtr]::Zero) {
+    $pr = Get-Process HallymMIPS -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
+    if ($pr -and [Ui]::IsWindowVisible($pr.MainWindowHandle)) { $win = $pr.MainWindowHandle } else { Start-Sleep -Milliseconds 15 }
+  }
+  Check ($win -ne [IntPtr]::Zero) "the program's window appeared ($($sw.ElapsedMilliseconds) ms after 마침)"
+  if ($win -ne [IntPtr]::Zero) {
+    $t0 = $sw.ElapsedMilliseconds; $frames = @(); $pictured = $false
+    $screenW = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Width
+    $mean = { param($bm, $x) $s = @(0, 0, 0); for ($j = 0; $j -lt 6; $j++) { for ($i = 0; $i -lt 6; $i++) { $c = $bm.GetPixel($x + $i, $j); $s[0] += $c.R; $s[1] += $c.G; $s[2] += $c.B } }; ,@($s | ForEach-Object { [int]($_ / 36) }) }
+    while ($sw.ElapsedMilliseconds - $t0 -lt 2500) {
+      $wr = New-Object Ui+RECT; [void][Ui]::GetWindowRect($win, [ref]$wr)
+      $right = [Math]::Min($wr.Right, $screenW); $top = [Math]::Max($wr.Top, 0)
+      # 160 px ending at the window's right: the patch is its last 138 (three 46-px buttons at 100 %).
+      $bm = New-Object System.Drawing.Bitmap 160, 6; $gr = [System.Drawing.Graphics]::FromImage($bm)
+      $gr.CopyFromScreen($right - 160, $top + 6, 0, 0, $bm.Size); $gr.Dispose()
+      $patch = & $mean $bm 26; $bar = & $mean $bm 14
+      $frames += [pscustomobject]@{ ms = $sw.ElapsedMilliseconds - $t0; patch = $patch; bar = $bar }
+      $bm.Dispose()
+      if (-not $pictured -and $sw.ElapsedMilliseconds - $t0 -ge 200) {
+        $pictured = $true
+        $bmp = New-Object System.Drawing.Bitmap ($wr.Right - $wr.Left), ($wr.Bottom - $wr.Top); $g2 = [System.Drawing.Graphics]::FromImage($bmp)
+        $g2.CopyFromScreen($wr.Left, $wr.Top, 0, 0, $bmp.Size); $g2.Dispose()
+        $bmp.Save((Join-Path $Report 'installer-started-200ms.png'), [System.Drawing.Imaging.ImageFormat]::Png); $bmp.Dispose()
+        Note "picture: installer-started-200ms.png ($($sw.ElapsedMilliseconds - $t0) ms after the window appeared)"
+      }
+    }
+    $lum = { param($c) 0.2126 * $c[0] + 0.7152 * $c[1] + 0.0722 * $c[2] }
+    $flash = @($frames | Where-Object { (& $lum $_.patch) -gt 200 -and (& $lum $_.bar) -lt 120 })
+    Note ("first 2.5 s: {0} frames; the caption patch white on the dark bar in {1}" -f $frames.Count, $flash.Count)
+    if ($flash.Count) { Note ("  at {0} ms" -f (($flash | ForEach-Object { $_.ms }) -join ', ')) }
+    $frames | Select-Object -First 12 | ForEach-Object { Note ("  {0,5} ms  patch {1}  bar {2}" -f $_.ms, ($_.patch -join ','), ($_.bar -join ',')) }
+    ($frames | ForEach-Object { "$($_.ms)`t$($_.patch -join ',')`t$($_.bar -join ',')" }) | Set-Content (Join-Path $Report 'first-frames.txt')
+  }
   Check ($p.WaitForExit(30000)) 'the installer closed'
   $app = $null
   for ($i = 0; $i -lt 60 -and -not $app; $i++) { Start-Sleep -Milliseconds 500; $app = Get-Process HallymMIPS -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1 }

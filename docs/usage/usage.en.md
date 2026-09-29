@@ -140,12 +140,13 @@ two choices:
 
 ![The start screen: Haram says hello, with two choices, 튜토리얼 보기 and 바로 시작](images/01-start.jpg)
 
-### The twenty-step tutorial
+### The twenty-one-step tutorial
 
 The tutorial opens an example program (`tutorial.s`) and points at the real
 window, one place at a time: the panel it is about stays bright, whole, with a
 blue box on what to look at; the rest of the window is lightly dimmed. Only
-what is boxed takes a click.
+what is boxed takes a click. The card stands right below what it points at
+(above it or beside it when there is no room).
 
 | Steps | What you learn |
 |---|---|
@@ -153,7 +154,7 @@ what is boxed takes a click.
 | 5–9 | Running one line (Step), the register that just changed, hex, decimal and binary, the Inspector's 32 bits |
 | 10–13 | The Data tab, labels, memory changed by `sw`, the stack |
 | 14–17 | Breakpoints, Run, running slowly (1 line/s), Reset |
-| 18–20 | Output in the Console, what to do when assembly fails, the end |
+| 18–21 | Output in the Console, what to do when assembly fails, going to the line to fix, the end |
 
 - Explanation steps go on with **다음** (next), or the → key.
 - A practice step's card has no **다음** (next) button. Do what the card says
