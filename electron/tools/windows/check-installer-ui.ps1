@@ -108,6 +108,10 @@ function Page($p, [string]$finishTitle = '설치가 완료되었습니다') {
   $top = $tops | Where-Object { [Ui]::Class($_) -eq '#32770' } | Select-Object -First 1
   if (-not $top) { return $null }
   $controls = @([Ui]::Children($top) | ForEach-Object { [pscustomobject]@{ H = $_; Class = [Ui]::Class($_); Text = [Ui]::Text($_) } })
+  # A page still being drawn: its buttons (< 뒤로, 마침, 취소) and nothing else with words yet --
+  # not a page of its own (2.7.1's first run read the uninstaller's finish page so, one poll early,
+  # as "progress, other, finish").  Looked at again at the next poll.
+  if (-not ($controls | Where-Object { $_.Text -and $_.Class -ne 'Button' }) -and -not ($controls | Where-Object { $_.Class -eq 'msctls_progress32' })) { return $null }
   $kind = if ($controls | Where-Object { $_.Text -eq $finishTitle }) { 'finish' }
           elseif ($controls | Where-Object { $_.Class -eq 'msctls_progress32' }) { 'progress' }
           else { 'other' }
