@@ -24,7 +24,7 @@
    Writes <id>-1920.jpg, <id>-910.jpg, sheet.jpg (ImageMagick's montage, where
    there is one), metrics.json. */
 
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -45,9 +45,12 @@ const out = process.env.START_VARIANTS_OUT ? path.resolve(process.env.START_VARI
 mkdirSync(out, { recursive: true });
 const FIXED_TIME = new Date('2026-09-28T10:00:00+09:00');
 const AT = 3.0;
-// The clip is 201 frames at 30/s (6.7 s): `all` takes each at its middle; N, N evenly from 0.25 to 6.25 s.
+// `all`: every frame of the clip (counted by ffprobe: 192 at 30/s from 2.7.1), each at its middle;
+// N: N evenly from 0.25 to 6.25 s.
 const framesArg = flag('--frames', '13');
-const FRAMES = framesArg === 'all' ? Array.from({ length: 201 }, (_, i) => (i + 0.5) / 30)
+const clipFrames = (): number => Number(execFileSync('ffprobe', ['-v', 'error', '-count_frames', '-select_streams', 'v:0',
+  '-show_entries', 'stream=nb_read_frames', '-of', 'csv=p=0', path.join(root, 'src/renderer/assets/hallym/start/start.webm')], { encoding: 'utf8' }).trim());
+const FRAMES = framesArg === 'all' ? Array.from({ length: clipFrames() }, (_, i) => (i + 0.5) / 30)
   : Array.from({ length: Number(framesArg) }, (_, i) => 0.25 + i * (6 / Math.max(1, Number(framesArg) - 1)));
 if (!FRAMES.length || FRAMES.some((t) => !(t >= 0 && t < 6.7))) throw new Error(`--frames ${framesArg}`);
 // `default`: the harness's own window (1280x800, SPIM_E2E_SIZE aside), the one the e2e measure in;

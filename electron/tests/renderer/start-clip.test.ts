@@ -4,11 +4,14 @@
    (EBML), not from a player. */
 
 import assert from 'node:assert/strict';
-import { readFileSync, statSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 
-import { clipArgs, OUT_DIR } from '../../tools/start-video.ts';
+import { clipArgs, makeClip, OUT_DIR } from '../../tools/start-video.ts';
+import { hasFfmpeg, motion } from '../helpers/clip-motion.ts';
 
 const CLIP = path.join(OUT_DIR, 'start.webm');
 const STILL = path.join(OUT_DIR, 'start.jpg');
@@ -68,18 +71,60 @@ test('the clip is small (under 3 MB), its still under 200 kB and the same size',
   assert.deepEqual([jpg.readUInt16BE(at + 7), jpg.readUInt16BE(at + 5)], [960, 540]);
 });
 
-test('tools/start-video.ts writes no sound: -an, no audio codec; the loop fades its end into its start; the cut in use is slowed', () => {
-  const args = clipArgs('in.mp4', 'out.webm', 0, 12);
+test('tools/start-video.ts writes no sound: -an, no audio codec; the cut in use is slowed, its copies gone first; the loop by frames', () => {
+  const args = clipArgs('in.mp4', 'out.webm', 0, 12, 1, 360);
   assert.ok(args.includes('-an'));
   assert.ok(!args.some((a) => /^-(c:a|acodec|b:a)$/.test(a)));
-  const filter = args[args.indexOf('-filter_complex') + 1];
-  assert.match(filter, /trim=0:12,/);
-  assert.match(filter, /xfade=transition=fade:duration=0\.8:offset=10\.400/);
-  assert.throws(() => clipArgs('in.mp4', 'out.webm', 0, 1.5));
-  // The cut in use: 0:00.1-0:02.6 slowed to a third (7.5 s), frames in between interpolated.
-  const used = clipArgs('in.mp4', 'out.webm', 0.1, 2.6, 3);
+  assert.match(args[args.indexOf('-filter_complex') + 1], /trim=0:12,/);
+  assert.throws(() => clipArgs('in.mp4', 'out.webm', 0, 2, 1, 60));
+  // The cut in use: 0:00.1-0:02.6, timed at 25/1.001, slowed to a third and interpolated, then
+  // evened; 216 frames, the clip 192.  (That its copies go first is the motion tests' to see.)
+  const used = clipArgs('in.mp4', 'out.webm', 0.1, 2.6, 3, 216);
   const f = used[used.indexOf('-filter_complex') + 1];
-  assert.match(f, /trim=0\.1:2\.6,.*setpts=3\*PTS,minterpolate=fps=30:mi_mode=mci/);
-  assert.match(f, /xfade=transition=fade:duration=0\.8:offset=5\.900/);
+  assert.match(f, /trim=0\.1:2\.6,setpts=PTS-STARTPTS,.*setpts=N\/\(25000\/1001\)\/TB,scale=960:540[^,]*,setpts=3\*PTS,minterpolate=fps=30:mi_mode=mci[^,]*,tmix=/);
+  // Cut in frames: the middle of the plain frames first, the end blended into the head (N from 1).
+  assert.match(f, /trim=start_frame=108:end_frame=192.*trim=start_frame=192:end_frame=216.*trim=end_frame=24.*trim=start_frame=24:end_frame=108/);
+  assert.match(f, /blend=all_expr='A\*\(1-N\/24\)\+B\*N\/24'/);
+  assert.match(f, /concat=n=3/);
   assert.ok(used.includes('-an'));
+});
+
+// How the committed clip moves (tests/helpers/clip-motion.ts).  Each threshold lies between the
+// clip made in 2.7.1 and 2.7.0's, whose copied frames stood it still 0.1 s in every 0.6
+// (docs/PORTING.md 31):
+//                        2.7.1   2.7.0   threshold
+//   stall                0.702   0.001   >= 0.35   the smallest step over the mean step
+//   period 3             0.039   0.382   <= 0.2    the index % 3 phases' range over the mean
+//   period 18            0.205   1.434   <= 0.8    the same, 18 phases (5 shot frames in 18)
+//   seam                 1.205   1.627   <= 1.4    last -> first over the median step
+export const MOTION = { stall: 0.35, period3: 0.2, period18: 0.8, seam: 1.4 };
+function moves(file: string, where: string, seam = true): void {
+  const m = motion(file);
+  const said = `${where}: ${JSON.stringify(Object.fromEntries(Object.entries(m).map(([k, v]) => [k, +v.toFixed(3)])))}`;
+  console.log(said);
+  assert.ok(m.stall >= MOTION.stall, `${said}: a frame that does not move`);
+  assert.ok(m.period3 <= MOTION.period3, `${said}: uneven every third frame`);
+  assert.ok(m.period18 <= MOTION.period18, `${said}: uneven every 18th frame`);
+  if (seam) assert.ok(m.seam <= MOTION.seam, `${said}: the loop jumps where it wraps`);
+}
+
+test('the clip moves at every frame, evenly, and wraps without a jump', { skip: !hasFfmpeg() && 'no ffmpeg on PATH' }, () => {
+  moves(CLIP, 'start.webm');
+});
+
+// The tool on a source with the same fault as the promotional video: an image panned at 25 frames
+// a second, made 29.97 (every sixth frame a copy).  The clip it makes must move at every frame and
+// evenly, as the one in use.  (Its seam depends on the picture: 1.3 on this one, not what the copies
+// change; the committed clip's is checked above.)
+test('tools/start-video.ts: a 25-fps source in a 29.97-fps stream makes a clip that moves at every frame', { skip: !hasFfmpeg() && 'no ffmpeg on PATH', timeout: 600_000 }, () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'start-clip-'));
+  try {
+    const source = path.join(dir, 'source.mkv'), clip = path.join(dir, 'clip.webm');
+    execFileSync('ffmpeg', ['-v', 'error', '-loop', '1', '-framerate', '25', '-i', STILL, '-vf',
+      'scale=2400:1350,crop=1920:1080:x=t*100:y=t*30,fps=30000/1001', '-t', '3', '-c:v', 'ffv1', source]);
+    makeClip(source, clip, 0.1, 2.6, 3);
+    moves(clip, 'the panned source\'s clip', false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

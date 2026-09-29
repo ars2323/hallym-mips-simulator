@@ -51,8 +51,8 @@ jobs:
         with:
           node-version: 22
 
-      - name: Xvfb, ImageMagick (the start screen's screen capture), flex and bison
-        run: sudo apt-get update -q && sudo apt-get install -y -q xvfb imagemagick flex bison
+      - name: Xvfb, ImageMagick (the start screen's screen capture), flex and bison, ffmpeg (the start clip's motion)
+        run: sudo apt-get update -q && sudo apt-get install -y -q xvfb imagemagick flex bison ffmpeg
 
       - name: npm ci (Electron included)
         run: npm ci

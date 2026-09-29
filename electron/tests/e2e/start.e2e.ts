@@ -110,7 +110,7 @@ test('both steps of the first screen: one background, which runs on from one to 
 // Measured as the screen shows it, the texts hidden, the darkest 1% under
 // each text's box (backdrop-measure.ts); the moments cover the clip, whose
 // worst frame of all 201 is in docs/PORTING.md 29.
-const MOMENTS = [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5];
+const MOMENTS = [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.2]; // the clip is 6.4 s (2.7.1)
 test('every text on the card at least 4.5:1 against what is behind it, at every moment of the clip; the video changes behind it', async () => {
   const r = await launch();
   const { page } = r;

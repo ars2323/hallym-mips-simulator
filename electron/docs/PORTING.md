@@ -1645,3 +1645,46 @@ The check was tried against the fault: with the speed button's value hidden (the
   - The first try missed the moment: sent, not posted, the click came back only once the installer had seen the program up, and the capture's own first pass took half a second, so its first sample was 579 ms in.
 
 **The screens.** A retake rewrote start photos that had not changed. Measured: the glass card is drawn a pixel higher or lower from one start of the app to the next, never within one start, and never without its filter. That is open item 2 in `docs/screens/README.md`. The capture now seeks to a frame's middle, since 3.0 s is a boundary between two frames. That did not settle the photos, and neither did letting a pixel match its neighbour above or below; the latter was taken out again.
+
+## 31. The first screen's clip stood still 0.1 s in every 0.6: copied frames in the source (2.7.1)
+
+**Seen:** the background moved for half a second and stopped for a tenth, over and over, inside the clip and not at its loop. Measured on `start.webm` (every frame at 240×135, grey, the mean absolute difference between neighbours, a "step"):
+- 27 of its 200 steps were under 0.3, where a moving step averages 1.6;
+- standstills of three frames came every 18, at 0.80, 1.40, 2.00, 3.20, 3.80, 4.40 and 5.60 s;
+- the steps' index % 3 phases were 1.50, 1.41 and 1.94;
+- the loop's last-to-first step was 1.63 times the median step.
+
+**Cause: the source is 25-fps material in a 29.97-fps stream.** Counted in the promotional video's first 2.7 s, every sixth frame repeats the one before: frames 2, 8, 14 … 80. Those steps are 0.02–0.66, the others about 4. That is five shot frames and one copy in every six (29.97 × 5/6 = 24.975). The cut in use (0:00.1–0:02.6) holds 12 of them in 75 frames. Slowed three times and interpolated as they came, each copy became three frames that do not move, every 18. The later shots of the video have no copies.
+
+**Now** (`tools/start-video.ts`):
+1. **The copies go first,** at the source's own size, with `mpdecimate=hi=64*32:lo=64*16:frac=0.5`. Its defaults took only 7 of the 14 copies in 0–2.8 s; this takes all 14 and nothing else, as does the setting twice as coarse. `decimate=cycle=6` took the wrong six (0, 4, 10 …), its groups not lined up with the copies.
+2. **The frames left are timed evenly** at 25000/1001 fps (dropping frames leaves gaps in the timestamps), then scaled, slowed three times and interpolated as before.
+3. **The steps are evened.** Five shot frames in every 18 made the steps next to a shot frame about 1.5 and the others 0.9: a jolt of 1.7 every 3.6 frames. The steps' strongest periodic structure was 0.63 of a step. A 1-2-3-2-1 average over five frames (`tmix`) takes it to 0.06, at a smear of 0.13 s that the screen's 8-px blur covers.
+4. **Cut by frames, not seconds.** The paced cut's frames are counted (216); `minterpolate` stops about one input interval before the last kept frame, so they can't be worked out. The end is blended into the head frame by frame (`blend`, whose N counts from 1), so the fade's last frame is the head's frame 23 whole. `xfade`, trimmed by seconds, left part of the other end in it whatever its offset and duration, and once ran out of frames mid-fade (a step of 7.9).
+5. **The loop wraps in the middle of the flight.** The file starts at paced frame 108, so its last and first frames are neighbours of the paced cut, both ordinary to encode. At the old place, a blended frame (which the encoder keeps less well) met the first, key frame.
+6. **Two passes at crf 34.** One pass at crf 40 left the wrap 1.44 steps, the key frame kept better than the frames before the wrap; two at 34 leave it 1.2. Making the last frame a key frame as well moved the jump into it instead (1.83).
+
+| | 2.7.0 | 2.7.1 |
+|---|---|---|
+| frames, length | 201, 6.7 s | 192, 6.4 s |
+| bytes (the still) | 786,024 (—) | 1,180,440 (107,413) |
+| steps under 0.3 | 27 | 0 |
+| smallest step / mean step (stall) | 0.001 | 0.702 |
+| index % 3 phases' range / mean (period 3) | 0.382 | 0.039 |
+| 18 phases' range / mean (period 18) | 1.434 | 0.205 |
+| last → first / median step (seam) | 1.627 | 1.205 |
+| sound track | none | none |
+
+What is left uneven: the crossfade's own 24 frames. Two distant views blended add about 1/24 of their difference to each step, so those steps are 2.5–4 against about 1.2 elsewhere. It was the same in 2.6.0: fading an aerial pass that does not come back to its start costs that.
+
+**The checks** (`tests/renderer/start-clip.test.ts`, with `tests/helpers/clip-motion.ts`; they need ffmpeg and say so when they skip):
+- **the committed clip moves** at every frame, evenly, and wraps without a jump:
+  - stall ≥ 0.35;
+  - period 3 ≤ 0.2;
+  - period 18 ≤ 0.8;
+  - seam ≤ 1.4.
+
+  Each threshold lies between the two clips above, about halfway: 2.7.0 fails every one of them, 2.7.1 passes with room;
+- **the tool, on a source with the same fault:** an image panned at 25 fps and made 29.97 (every sixth frame a copy). Its clip must pass the same stall and period checks: stall 0.62, period 3 0.02, period 18 0.27. The seam is left out there: it depends on the picture (1.3 on this one), not on the copies. With the de-duplication taken out it reads stall 0.015 with 9 standstills. The mutant *the clip made with the source's copied frames* is killed by this test. `mutants.yml` installs ffmpeg for it.
+
+The still (`start.jpg`) is the clip's new first frame, the middle of the flight. The start pictures and `start-clip-contact.jpg` are made again. `tools/start-variants.ts --frames all` now counts the clip's frames (192), and `start.e2e.ts`'s last moment is 6.2 s.
