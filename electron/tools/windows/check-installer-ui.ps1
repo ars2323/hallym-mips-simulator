@@ -174,33 +174,40 @@ if ($finish) {
   Check ($null -ne $done) "finish page: the 마침 button ($($done.Text))"
 
   Write-Host '== 마침, with 지금 실행하기 ticked'
-  if ($done) { [void][Ui]::SendMessage($done.H, $BM_CLICK, [IntPtr]0, [IntPtr]0) }
   # The first moments on screen (2.7.0): the main process opens the window
   # with a white caption patch and the page turns it transparent on its
   # dark first-screen bar -- does a white square show at the top right in
   # between?  From the window's appearance, every few tens of ms for 2.5 s:
   # the patch against the bar just before it (the 8 px the page keeps clear),
-  # and one picture of the window about 200 ms in.
+  # and one picture of the window about 200 ms in.  The click is posted,
+  # not sent: sent, it came back only when the installer had seen the
+  # program up (the first try's first sample was 579 ms after the window
+  # was found, the video already playing); and everything is run once
+  # before it, whose first run alone took half a second.
   Add-Type -AssemblyName System.Windows.Forms
+  Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class Post { [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, int m, IntPtr w, IntPtr l); }'
+  $screenW = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Width
+  $mean = { param($bm, $x) $s = @(0, 0, 0); for ($j = 0; $j -lt 6; $j++) { for ($i = 0; $i -lt 6; $i++) { $c = $bm.GetPixel($x + $i, $j); $s[0] += $c.R; $s[1] += $c.G; $s[2] += $c.B } }; ,@($s | ForEach-Object { [int]($_ / 36) }) }
+  # 160 px ending at `right`, 6 rows from `top`: the patch is the last 138 (three 46-px buttons at 100 %).
+  $grab = { param($right, $top)
+    $bm = New-Object System.Drawing.Bitmap 160, 6; $gr = [System.Drawing.Graphics]::FromImage($bm)
+    $gr.CopyFromScreen($right - 160, $top + 6, 0, 0, $bm.Size); $gr.Dispose()
+    $pb = @((& $mean $bm 26), (& $mean $bm 14)); $bm.Dispose(); ,$pb }
+  $null = & $grab 400 0
+  $null = Get-Process HallymMIPS -ErrorAction SilentlyContinue
   $sw = [Diagnostics.Stopwatch]::StartNew(); $win = [IntPtr]::Zero
+  if ($done) { [void][Post]::PostMessage($done.H, $BM_CLICK, [IntPtr]0, [IntPtr]0) }
   while ($sw.ElapsedMilliseconds -lt 30000 -and $win -eq [IntPtr]::Zero) {
     $pr = Get-Process HallymMIPS -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
-    if ($pr -and [Ui]::IsWindowVisible($pr.MainWindowHandle)) { $win = $pr.MainWindowHandle } else { Start-Sleep -Milliseconds 15 }
+    if ($pr -and [Ui]::IsWindowVisible($pr.MainWindowHandle)) { $win = $pr.MainWindowHandle } else { Start-Sleep -Milliseconds 10 }
   }
   Check ($win -ne [IntPtr]::Zero) "the program's window appeared ($($sw.ElapsedMilliseconds) ms after 마침)"
   if ($win -ne [IntPtr]::Zero) {
     $t0 = $sw.ElapsedMilliseconds; $frames = @(); $pictured = $false
-    $screenW = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Width
-    $mean = { param($bm, $x) $s = @(0, 0, 0); for ($j = 0; $j -lt 6; $j++) { for ($i = 0; $i -lt 6; $i++) { $c = $bm.GetPixel($x + $i, $j); $s[0] += $c.R; $s[1] += $c.G; $s[2] += $c.B } }; ,@($s | ForEach-Object { [int]($_ / 36) }) }
     while ($sw.ElapsedMilliseconds - $t0 -lt 2500) {
       $wr = New-Object Ui+RECT; [void][Ui]::GetWindowRect($win, [ref]$wr)
-      $right = [Math]::Min($wr.Right, $screenW); $top = [Math]::Max($wr.Top, 0)
-      # 160 px ending at the window's right: the patch is its last 138 (three 46-px buttons at 100 %).
-      $bm = New-Object System.Drawing.Bitmap 160, 6; $gr = [System.Drawing.Graphics]::FromImage($bm)
-      $gr.CopyFromScreen($right - 160, $top + 6, 0, 0, $bm.Size); $gr.Dispose()
-      $patch = & $mean $bm 26; $bar = & $mean $bm 14
-      $frames += [pscustomobject]@{ ms = $sw.ElapsedMilliseconds - $t0; patch = $patch; bar = $bar }
-      $bm.Dispose()
+      $pb = & $grab ([Math]::Min($wr.Right, $screenW)) ([Math]::Max($wr.Top, 0))
+      $frames += [pscustomobject]@{ ms = $sw.ElapsedMilliseconds - $t0; patch = $pb[0]; bar = $pb[1] }
       if (-not $pictured -and $sw.ElapsedMilliseconds - $t0 -ge 200) {
         $pictured = $true
         $bmp = New-Object System.Drawing.Bitmap ($wr.Right - $wr.Left), ($wr.Bottom - $wr.Top); $g2 = [System.Drawing.Graphics]::FromImage($bmp)
