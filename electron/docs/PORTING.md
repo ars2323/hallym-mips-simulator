@@ -1639,6 +1639,9 @@ The check was tried against the fault: with the speed button's value hidden (the
 **D.**
 - **The thin-card mutant** now makes the card .65, not .72. With the darker text, .72 read 4.30 against the threshold's 4.5, 0.20 short, while the design stands 0.84 over it. At .65 the card reads 3.64, 0.86 short: the two sides are about even.
 - **The mutant baseline** is the full pass on this round's commit (below).
-- **The caption patch at the program's start:** CAPTION_START.
+- **The caption patch at the program's start.** The main process opens the window with the white patch, and the page turns it transparent: could a white square flash on the dark bar in between? The Windows installer check now samples the patch against the bar every 15–56 ms for the program's first 2.5 s, except from 205 to 858 ms, while the 200-ms picture was being saved. It starts from the moment the window is up (1,795 ms after 마침), with the click posted so the loop is already polling, and takes one picture at 200 ms (run 36529634490).
+  - All 82 samples show the patch as the bar, from the first at 40 ms (44,72,109 against 46,73,109) and at 205 ms. None shows a white patch on the dark bar.
+  - The page asks for the transparent patch before the window is first shown, so the first patch's colour is left as it is. The first 40 ms are the capture's own delay.
+  - The first try missed the moment: sent, not posted, the click came back only once the installer had seen the program up, and the capture's own first pass took half a second, so its first sample was 579 ms in.
 
 **The screens.** A retake rewrote start photos that had not changed. Measured: the glass card is drawn a pixel higher or lower from one start of the app to the next, never within one start, and never without its filter. That is open item 2 in `docs/screens/README.md`. The capture now seeks to a frame's middle, since 3.0 s is a boundary between two frames. That did not settle the photos, and neither did letting a pixel match its neighbour above or below; the latter was taken out again.
