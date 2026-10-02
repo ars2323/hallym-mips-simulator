@@ -16,7 +16,7 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 
@@ -32,7 +32,7 @@ const cardFor = (w: number, h: number) => {
   return { x: Math.round((w - side) / 2), y: Math.round((h - side) / 2), width: side, height: side };
 };
 const at = (w: number, h: number, card = cardFor(w, h)): Geometry =>
-  generate({ seed: SEED, width: w, height: h, dpr: 1, chipLabel: 'MIPS32', card });
+  generate({ seed: SEED, width: w, height: h, dpr: 1, card });
 const every = (f: (g: Geometry, name: string) => void): void => {
   for (const [w, h] of SIZES) f(at(w, h), `${w}x${h}`);
 };
@@ -42,6 +42,17 @@ const render = readFileSync(path.join(root, 'src/renderer/startfield/render.ts')
 const renderCode = render.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
 const glintsCode = readFileSync(path.join(root, 'src/renderer/startfield/glints.css'), 'utf8')
   .replace(/\/\*[\s\S]*?\*\//g, '');
+const appCss = readFileSync(path.join(root, 'src/renderer/app/app.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+/** The part of `code` between two markers, so a check can name the pass it
+    is about instead of counting how many there are. */
+function between(code: string, from: string, to?: string): string {
+  const a = code.indexOf(from);
+  assert.ok(a >= 0, `no ${from} in the renderer`);
+  if (to === undefined) return code.slice(a);
+  const b = code.indexOf(to, a + from.length);
+  assert.ok(b > a, `no ${to} after ${from} in the renderer`);
+  return code.slice(a, b);
+}
 
 test('the chip is square, and the pins are on its edges with the corners left bare', () => {
   every((g, name) => {
@@ -207,13 +218,17 @@ test('the bright points are light, not smudges: added, and always on a pad', () 
     assert.ok(new Set(g.flares.map((f) => f.streak)).size === 2, `${name}: the streaks all point one way`);
   });
   /* A soft white circle drawn over the board is a grey smudge; added, it is
-     light.  Three passes add light -- around the traces, the flares on the
-     board, and the layer above -- and each puts the context back when it is
-     done, so counting them is what says none has been left drawing over. */
-  const added = renderCode.match(/globalCompositeOperation = 'lighter'/g) ?? [];
-  const back = renderCode.match(/globalCompositeOperation = 'source-over'/g) ?? [];
-  assert.ok(added.length >= 3, `only ${added.length} passes add their light`);
-  assert.ok(back.length >= added.length, `${added.length} passes add light and ${back.length} put it back`);
+     light.  Three things add light, and each is named here rather than
+     counted: a count is a magic number that breaks the next time a pass is
+     added, and it does not say which pass stopped adding. */
+  for (const [what, body] of [
+    ['the light around the traces', between(renderCode, 'for (const layer of', 'for (const p of g.pads)')],
+    ['the flares on the board', between(renderCode, 'for (const p of g.pads)', 'export function livePulses')],
+    ['the layer above the board', between(renderCode, 'export function drawPulse')],
+  ] as const) {
+    assert.match(body, /globalCompositeOperation = 'lighter'/, `${what} does not add its light`);
+    assert.match(body, /globalCompositeOperation = 'source-over'/, `${what} does not put the context back`);
+  }
 });
 
 /* One signal speed, and each trace's own rate against it.  The first is what
@@ -283,12 +298,59 @@ test('the pulses: a few at once, a couple a second, and a loop that never runs o
   assert.ok(!/animation:[^;]*infinite/.test(glintsCode), 'a CSS animation that never ends');
 });
 
+/* How much board there is.  This replaces counting the lines off the
+   finished picture: that count moved when the haze and the bloom made the
+   far traces visible, although not one trace had been added, and it turned
+   on where a brightness threshold was put rather than on how many traces
+   there were.  The generator's own output cannot be argued with.
+
+   The numbers are of the board at 1280x800 and are meant to be edited when
+   the generator changes on purpose -- as the golden below is. */
+export const BOARD_1280x800 = { traces: 217, length: 25539, pads: 457, floating: 228 } as const;
+
+test('the board is made of as many traces, pads and metres of line as it was', () => {
+  const g = at(1280, 800);
+  const length = Math.round(g.paths.reduce((s, p) => s + p.length, 0));
+  const floating = g.pads.filter((p) => p.kind === 'floating').length;
+  const got = { traces: g.paths.length, length, pads: g.pads.length, floating };
+  console.log('board', JSON.stringify(got));
+  for (const k of ['traces', 'length', 'pads', 'floating'] as const) {
+    const want = BOARD_1280x800[k];
+    assert.ok(Math.abs(got[k] - want) <= Math.max(2, want * 0.02),
+      `${k}: ${got[k]} against ${want}`);
+  }
+  // And it scales with the area rather than being a fixed set of lines.
+  const big = at(1920, 1080);
+  const ratio = big.paths.length / g.paths.length;
+  const area = (1920 * 1080) / (1280 * 800);
+  assert.ok(Math.abs(ratio / area - 1) <= 0.25, `${ratio.toFixed(2)} traces for ${area.toFixed(2)} of the area`);
+});
+
+/* The folder is to be copied whole into another simulator, so it must not
+   reach outside itself for anything.  Checked rather than remembered: one
+   import of the app would be found by whoever did the copying, in the other
+   repository, with no idea why it was there (docs/PORTING.md 32). */
+test('the board\'s folder imports nothing outside itself', () => {
+  const dir = path.join(root, 'src/renderer/startfield');
+  const files = readdirSync(dir).filter((f) => f.endsWith('.ts'));
+  assert.ok(files.length >= 4, `${files.length} files in the folder`);
+  for (const file of files) {
+    const code = readFileSync(path.join(dir, file), 'utf8');
+    for (const m of code.matchAll(/^\s*import\s[^;]*?from\s+'([^']+)'/gm)) {
+      const from = m[1];
+      assert.ok(from.startsWith('./') && !from.includes('..'),
+        `${file} imports ${from}, which is outside the folder`);
+    }
+    assert.doesNotMatch(code, /from\s+'\.\./, `${file} imports from outside the folder`);
+  }
+});
+
 test('the same input gives the same board, to the byte', () => {
   const hash = (g: Geometry): string => createHash('sha256').update(JSON.stringify(g)).digest('hex');
   for (const [w, h] of SIZES) assert.equal(hash(at(w, h)), hash(at(w, h)), `${w}x${h} differs from itself`);
   assert.equal(hash(at(1280, 800)).slice(0, 16), GOLDEN_1280x800);
   assert.notEqual(hash(at(1280, 800)),
-    hash(generate({ seed: SEED + 1, width: 1280, height: 800, dpr: 1, chipLabel: 'MIPS32', card: cardFor(1280, 800) })));
+    hash(generate({ seed: SEED + 1, width: 1280, height: 800, dpr: 1, card: cardFor(1280, 800) })));
 });
 
 test('the pins follow the card: a card of another size or place puts them elsewhere', () => {
@@ -304,4 +366,4 @@ test('the pins follow the card: a card of another size or place puts them elsewh
 });
 
 // Updated on purpose when the generator changes; see the test above.
-const GOLDEN_1280x800 = '65c9aea8b3ef21fb';
+const GOLDEN_1280x800 = 'c391706df99b4bc4';

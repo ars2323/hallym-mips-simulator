@@ -11,7 +11,7 @@ test.afterEach(async () => { await r.close(); });
 
 test('first screen -> new file -> paste -> Ctrl+S -> errors -> fix -> Ctrl+S -> Text', async () => {
   const { app, page } = r;
-  await expect(page.locator('.wcard .wordmark')).toHaveText('Hallym MIPS Simulator');
+  await expect(page.locator('.wcard .wtitle')).toHaveText('Hallym MIPS Simulator');
   await page.getByRole('button', { name: /바로 시작/ }).click();
   await page.getByRole('button', { name: /새 파일/ }).first().click();
   await expect(page.locator('.editor-panel')).toBeVisible();

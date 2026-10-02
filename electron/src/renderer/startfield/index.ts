@@ -1,13 +1,17 @@
 /* The first screen's circuit board.  The only surface a caller uses:
 
-     const field = startfield({ seed: 20261002, chipLabel: 'MIPS32' });
+     const field = startfield({ seed: 20261002 });
      container.append(field.root, card);   // the card carries data-startfield-chip
      field.show(true);
 
-   Two parameters, and no import of anything outside this folder, so the
-   folder can be copied whole into another simulator: there the call becomes
-   chipLabel: 'RV32I' with its own seed and nothing else changes.  The chip
-   is found by the attribute, not passed in, which keeps it at two.
+   One parameter, and no import of anything outside this folder, so the
+   folder can be copied whole into another simulator: there the call is the
+   same with its own seed and nothing else changes.  The chip is found by the
+   attribute, not passed in, which keeps it at one.
+
+   onFrame() hands the caller the same clock, so whatever it draws of its own
+   -- the card's own lights, in this program -- moves with the board instead
+   of beside it, and is photographed by the same capture.
 
    The card is the chip.  Its rectangle is measured on screen and the pins
    are placed on it, so there is never a second drawn square under a floating
@@ -34,6 +38,9 @@ import { dieAlpha, drawBoard, drawPulse } from './render.ts';
 export interface Startfield {
   root: HTMLElement;
   show(on: boolean): void;
+  /** Called with the moment of the opening, every frame the board draws.
+      Returns the undo.  Nothing is called once show(false) has been. */
+  onFrame(listener: (t: number) => void): () => void;
   destroy(): void;
 }
 
@@ -64,7 +71,7 @@ declare global {
   interface Window { __startfield?: TestHook }
 }
 
-export function startfield(options: { seed: number; chipLabel: string }): Startfield {
+export function startfield(options: { seed: number }): Startfield {
   if (!document.getElementById(STYLE_ID)) {
     const style = document.createElement('style');
     style.id = STYLE_ID;
@@ -78,9 +85,10 @@ export function startfield(options: { seed: number; chipLabel: string }): Startf
   const root = document.createElement('div');
   root.className = 'startfield';
   root.setAttribute('aria-hidden', 'true');
-  root.append(board, pulse);
+  // The canvases go in when the screen is shown and come out when it is not.
 
   const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+  const listeners = new Set<(t: number) => void>();
   let geo: Geometry | undefined;
   let raf = 0, started = 0, shown = false, frames = 0, boardDraws = 0;
   let drawnAt = -1;                      // the moment the board below holds
@@ -111,6 +119,7 @@ export function startfield(options: { seed: number; chipLabel: string }): Startf
     drawPulse(upper, geo, t);
     work.push(performance.now() - began);
     chip()?.style.setProperty('--sf-die', dieAlpha(t).toFixed(3));
+    for (const listener of listeners) listener(t);
   };
 
   /* Measures the card and lays the field out again.  Done after the fonts
@@ -137,7 +146,7 @@ export function startfield(options: { seed: number; chipLabel: string }): Startf
       c.height = Math.round(height * dpr);
     }
     geo = generate({
-      seed: options.seed, width, height, dpr, chipLabel: options.chipLabel,
+      seed: options.seed, width, height, dpr,
       card: { x: Math.round(box.x - host.x), y: Math.round(box.y - host.y), width: Math.round(box.width), height: Math.round(box.height) },
     });
     drawnAt = -1;
@@ -212,17 +221,37 @@ export function startfield(options: { seed: number; chipLabel: string }): Startf
     };
   }
 
+  /* Off the first screen there is nothing of this left: no frame asked for,
+     no canvas in the document, no geometry held, nothing watched, and the
+     properties it was setting on the card gone.  A board that went on
+     running behind the Editor would cost a lab PC a lesson's worth of
+     nothing. */
+  const teardown = (): void => {
+    stop();
+    clearTimeout(resizeTimer);
+    observer.disconnect();
+    board.remove();
+    pulse.remove();
+    geo = undefined;
+    drawnAt = -1;
+    chip()?.style.removeProperty('--sf-die');
+  };
+
   return {
     root,
     show(on: boolean) {
       if (on === shown) return;
       shown = on;
       root.parentElement?.classList.toggle('startfield-on', on);
-      if (on) start(); else { stop(); observer.disconnect(); }
+      if (on) { root.append(board, pulse); start(); } else teardown();
+    },
+    onFrame(listener: (t: number) => void) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
     },
     destroy() {
-      stop();
-      observer.disconnect();
+      teardown();
+      listeners.clear();
       reduce.removeEventListener('change', onReduce);
       if (window.__startfield) delete window.__startfield;
     },

@@ -18,10 +18,9 @@
 #      Korean IME (tools/windows/korean-ime.ps1, tests/e2e/ime-real.e2e.ts)
 #   7. tools/probe-platform.ts: simulator handles while running/stepping
 #      (the core's waitable timer), screenshots of the native file dialogs;
-#      and the fixed set of screens captured on Windows; by hand only (the
-#      dispatch's start-variants box), the first screen measured over the
-#      clip (tools/start-variants.ts app: the numbers its thresholds sit
-#      between -- a failure there fails nothing)
+#      the fixed set of screens captured on Windows; and what a frame of the
+#      first screen costs on this platform (tools/start-cost.ts) -- numbers,
+#      not a check: a failure there fails nothing
 #   7b. the installer as a student runs it, with its pages (not /S): the
 #      progress, then the finish page ("설치가 완료되었습니다", "지금
 #      실행하기" ticked), 마침 starting the program, pictured
@@ -56,11 +55,14 @@ on:
   pull_request:
     paths: ['electron/**', 'CPU/**', '.github/workflows/electron.yml']
   workflow_dispatch:
-    inputs:
-      start-variants:
-        description: 'Also measure the first screen on Windows (tools/start-variants.ts app, at the e2e window size, 67 frames; about 30 min)'
-        type: boolean
-        default: false
+
+# One run of a branch at a time: a second push while the first is still
+# building is a run of code nobody is waiting for any more.  Not for a tag or
+# a hand-started run -- a tag's run publishes, and cancelling that halfway
+# would leave a release half made.
+concurrency:
+  group: electron-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' && github.event_name != 'workflow_dispatch' }}
 
 defaults:
   run:
@@ -71,7 +73,7 @@ jobs:
     name: Build, test, package, install
     if: github.ref_type != 'tag'   # a tag publishes what its commit's run built and checked (job `tested`)
     runs-on: windows-latest
-    timeout-minutes: ${{ inputs.start-variants && 100 || 60 }}   # the first screen measured (by hand only) takes about 30 more
+    timeout-minutes: 75   # the first screen's frame cost is measured here too
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'   # no code signing
     steps:
@@ -193,16 +195,17 @@ jobs:
           $env:SCREENS_OUT = 'report/screens'
           node tools/capture-screens.ts
 
-      - name: The first screen measured (tools/start-variants.ts app), on the Windows screen -- numbers, not a check
-        # By hand only (workflow_dispatch, start-variants ticked): about 30 minutes, for placing thresholds, not a check
-        if: always() && inputs.start-variants && hashFiles('electron/report/installed.txt') != ''
+      # The first screen draws itself now, so what a frame of it costs is a
+      # number this platform has to give: the lab PCs have built-in graphics
+      # and the local figures come off a developer's machine.
+      - name: The first screen's frame cost, on Windows
+        if: always() && hashFiles('electron/report/installed.txt') != ''
         continue-on-error: true
-        timeout-minutes: 60   # the whole screen with the caption buttons first, then 13 frames of each design (metrics.json kept as it goes)
+        timeout-minutes: 15
         shell: pwsh
         run: |
           $env:SPIM_E2E_EXE = (Get-Content report/installed.txt).Trim()
-          $env:START_VARIANTS_OUT = 'report/start-variants'
-          node tools/start-variants.ts app --size default --frames 67
+          node tools/start-cost.ts --json report/start-cost.json
 
       - name: Side by side with 1.2.4 (after; uninstall ours)
         if: always() && hashFiles('electron/report/qt-settings-together.reg') != ''

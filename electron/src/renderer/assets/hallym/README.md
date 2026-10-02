@@ -73,20 +73,13 @@ product of Hallym University.
 | signature-h-ko-en.svg | Korean-English horizontal signature |
 | symbol-basic.svg | The symbol (basic form): the logo on the window's top bar. Byte for byte the Qt edition's `QtSpim/edu/theme/brand/symbol-basic.svg` |
 
-### start/ — the first screen's background
+### The first screen's background
 
-| File | What |
-|---|---|
-| start.webm | The opening aerial shot of the university's promotional video, "[Official Video] 한림대학교 홍보영상｜The New Hallym 대학의 내일을 열다" (official YouTube channel @HALLYMNEWS, `RG5SE2GWIm4`): 0:00.1–0:02.6, slowed to a third (the frames in between interpolated). VP9, 960×540, 30 fps, 6.7 s, 201 frames, **no sound track**; its last 0.8 s fade into its first, so it loops without a seam. It is the one shot of the video with nothing written in it, no graphics over it and no cut in it; the first cut (0:00–0:12, in 2.4.0) had "한림대학교" on the gate sculpture, building signs and graphics over the last aerial shot, and six cuts (`electron/docs/screens/start-clip-2.4.0-contact.jpg`). |
-| start.jpg | its first frame: shown at once, before the clip plays, and instead of it under prefers-reduced-motion |
-
-Both are made by `tools/start-video.ts` from the source video (the video
-track only, taken as 1080p VP9 with yt-dlp); its defaults are this cut. To use
-the university's own master instead, run that script on it (with `--from`,
-`--to` and `--slow` for another shot); the blur and the tint are app.css's, so
-nothing else changes. Whatever shot is used, look at every frame first
-(`electron/docs/screens/start-clip-contact.jpg` is this one's): no text, no
-logo, no graphics, no cut.
+There is no asset for it any more. The first screen's background was a clip
+of the university's promotional video until 2.7.1; from 2.8.0 the program
+draws it (`electron/src/renderer/startfield/`), so there is no video, no
+still and nothing of the campus in the installer. What the clip was, and
+what replaced it, is in `electron/docs/PORTING.md`.
 
 ## Where they come from
 

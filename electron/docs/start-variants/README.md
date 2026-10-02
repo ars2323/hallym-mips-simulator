@@ -1,3 +1,9 @@
+> **History.** These are the candidate designs of 2.6.0, when the first screen was a photograph
+> of the campus under a glass card. The first screen is a drawn circuit board from 2.8.0
+> (`electron/src/renderer/startfield/`), and the tools that made these pictures
+> (`tools/start-variants.ts`, `tools/start-variants-list.ts`) were removed with it. The pictures
+> are kept as the record of that choice; nothing here can be run again.
+
 # Candidate first screens
 
 Designs for the first screen, for choosing one. They are not the app's screens (those are in `../screens/`), and the app does not change until one is chosen. Each design is CSS laid over the app as it is, at run time: `tools/start-variants-list.ts` holds the designs and `tools/start-variants.ts` takes the pictures.

@@ -122,7 +122,6 @@ export interface Geometry {
   grid: number;
   chamfer: number;
   card: Rect;
-  chipLabel: string;
   pins: Pin[];
   paths: Path[];
   pads: Pad[];
@@ -142,7 +141,6 @@ export interface Input {
   height: number;
   card: Rect;
   dpr: number;
-  chipLabel: string;
 }
 
 export const GRID = 22;
@@ -377,7 +375,7 @@ function steps(rand: () => number): number {
 }
 
 export function generate(input: Input): Geometry {
-  const { seed, width, height, card, dpr, chipLabel } = input;
+  const { seed, width, height, card, dpr } = input;
   const rand = rng(seed);
   const field = new Field(width, height, GRID);
   field.block(card, CARD_KEEP_OUT);
@@ -558,6 +556,6 @@ export function generate(input: Input): Geometry {
     beats.push({ flare: FLARES_BLOWN + n, periodMs: BEAT_MS.min + rand() * (BEAT_MS.max - BEAT_MS.min), phase: rand() });
   }
 
-  return { seed, width, height, dpr, grid: GRID, chamfer: CHAMFER, card, chipLabel, pins, paths, pads, flares,
+  return { seed, width, height, dpr, grid: GRID, chamfer: CHAMFER, card, pins, paths, pads, flares,
            speed, grownMs, pulses, pulsePeriodMs: PULSE_PERIOD, beats };
 }

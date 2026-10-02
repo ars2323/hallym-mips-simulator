@@ -525,32 +525,65 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .wcard::before { content: ''; position: absolute; inset: 18px; border: 1px solid rgba(255,255,255,.35); border-radius: 4px; pointer-events: none; }
 /* Everything the package holds sits in one column, centred inside the die
    frame rather than pushed around by fixed padding, so the balance keeps at
-   every window size.  The two gaps between the three blocks are named here,
+   every window size.  The three gaps between the four blocks are named here,
    where the column is, rather than spread over the blocks themselves. */
 .wstack { position: absolute; inset: 18px; display: flex; flex-direction: column; justify-content: center; align-items: center;
-  --gap-mark: 44px; --gap-die: 40px; }
-/* The mark and the product's name on one line, centred on each other: the
-   top bar's lockup, larger.  The symbol keeps its own colours -- the
-   university's rules forbid recolouring it. */
-.wlogo { display: flex; align-items: center; gap: 10px; margin-bottom: var(--gap-mark); }
-.wlogo .logo { height: 26px; width: auto; }
-.wlogo .wordmark { color: #fff; font-size: 19px; letter-spacing: .01em; white-space: nowrap; }
+  --gap-name: 14px; --gap-ways: 40px; --gap-between: 12px; }
+/* The mark, large, in its own colours: the university's rules forbid
+   recolouring it. */
+.wlogo { height: 60px; width: auto; margin: 0 auto; }
+/* The product's name.  Its glyphs are white; the light that runs across it
+   is the layer over them (.wtitle::after), which is why the fill is a
+   gradient at all. */
+.wtitle { position: relative; margin-top: var(--gap-name); font-size: 20px; letter-spacing: .01em; white-space: nowrap;
+  background-image: linear-gradient(90deg, #fff, #fff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.wtitle::after {
+  content: attr(data-text); position: absolute; left: 0; top: 0; white-space: nowrap; pointer-events: none;
+  background-image: linear-gradient(90deg,
+    rgba(255,255,255,0) calc(var(--sp-at, 0) * 100% - 80px),
+    #fff calc(var(--sp-at, 0) * 100%),
+    rgba(255,255,255,0) calc(var(--sp-at, 0) * 100% + 80px));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 0 7px rgba(255,255,255,.85));
+  opacity: var(--sp-amp, 0);
+}
 /* Not out to the die frame's edge: the margin is what makes the buttons read
    as marking on a package rather than as a dialog. */
-.wbody { display: flex; flex-direction: column; width: 70%; }
-.actions { display: flex; flex-direction: column; gap: 10px; }
-.action { display: flex; gap: 10px; align-items: center; justify-content: center; width: 100%; height: 44px; padding: 0 14px;
-  border: 1px solid rgba(255,255,255,.22); border-radius: 6px; background: rgba(255,255,255,.04); }
+.wbody { display: flex; flex-direction: column; width: 70%; margin-top: var(--gap-ways); }
+.actions { display: flex; flex-direction: column; gap: var(--gap-between); }
+/* The two ways in, and which is which: the first has the brighter border,
+   whiter words and a lighter ground, and carries a brighter light more
+   often (spark.ts).  One axis on its own is a coincidence. */
+.action { position: relative; display: flex; gap: 10px; align-items: center; justify-content: center; width: 100%; height: 46px; padding: 0 14px;
+  border: 1px solid rgba(255,255,255,.28); border-radius: 6px; background: #0a0a0a; }
+.action b { color: rgba(255,255,255,.82); font-weight: 600; }
+.action.main { border-color: rgba(255,255,255,.55); background: #141414; }
+.action.main b { color: #fff; }
+/* The light going round the border: a cone turned by the clock, masked down
+   to the border itself.  The trace it is the end of is on the board behind. */
+.action::after {
+  content: ''; position: absolute; inset: -2px; border-radius: 8px; padding: 2px; pointer-events: none;
+  box-sizing: border-box; filter: blur(.7px);
+  /* The lit arc is longer as well as brighter the stronger the pulse, so
+     what the eye sees follows the three peaks (spark.ts) rather than
+     flattening them: a light that only changed opacity would make the
+     weakest pulse nearly as big an event as the strongest. */
+  background: conic-gradient(from calc(var(--sp-at, 0) * 1turn),
+    rgba(255,255,255,0) 0deg,
+    rgba(255,255,255,0) calc(360deg - var(--sp-amp, 0) * 190deg),
+    rgba(255,255,255,.55) calc(360deg - var(--sp-amp, 0) * 70deg),
+    #fff 352deg, rgba(255,255,255,0) 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: var(--sp-amp, 0);
+}
 .action:hover { border-color: #fff; background: rgba(255,255,255,.09); }
 .action:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .action img { width: 18px; height: 18px; opacity: .85; flex: none; filter: brightness(0) invert(1); }
-.action b { color: #fff; font-weight: 600; }
-.action.main { border-color: rgba(255,255,255,.55); background: rgba(255,255,255,.08); }
 .wbody .back { display: block; margin-top: 14px; font-size: 12px; height: 18px; color: #8a8a8a; text-align: center; }
 .wbody .back:hover { color: #fff; }
-/* The die marking, at the foot.  White at 55 %: at 45 % it is 4.49:1 on
-   #050505, just under the 4.5 it has to clear. */
-.wcard .die { margin-top: var(--gap-die); font-family: var(--code); font-size: 12px; letter-spacing: .35em; color: rgba(255,255,255,.55); }
 /* The bars on the first screen (body.first-screen, app.ts): the board shows
    through them, white words and icons, no dividing lines.  Nothing is
    blurred -- the board behind is flat, so a backdrop-filter would cost a

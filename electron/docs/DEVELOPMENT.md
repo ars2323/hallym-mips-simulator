@@ -56,6 +56,9 @@ tools/
   package.ts        electron-builder packaging (docs/PORTING.md, section 13)
   licenses.ts       the licenses of the bundled npm packages
   probe-platform.ts simulator handles, native file dialogs (platform checks)
+  start-cost.ts     what a frame of the first screen costs here (numbers, not a check)
+  start-measure.ts  the first screen's brightness and timing, off its own pixels
+  start-film.ts     the first screen filmed, frame by frame off a virtual clock
   windows/check-side-by-side.ps1  installing next to the Qt edition 1.2.4
   windows/check-upgrade.ps1       installing over the build before the merge
   scanner-input-experiment.ts   measuring a difference in source-line display (docs/PORTING.md, section 1)

@@ -1688,3 +1688,124 @@ What is left uneven: the crossfade's own 24 frames. Two distant views blended ad
 - **the tool, on a source with the same fault:** an image panned at 25 fps and made 29.97 (every sixth frame a copy). Its clip must pass the same stall and period checks: stall 0.62, period 3 0.02, period 18 0.27. The seam is left out there: it depends on the picture (1.3 on this one), not on the copies. With the de-duplication taken out it reads stall 0.015 with 9 standstills. The mutant *the clip made with the source's copied frames* is killed by this test. `mutants.yml` installs ffmpeg for it.
 
 The still (`start.jpg`) is the clip's new first frame, the middle of the flight. The start pictures and `start-clip-contact.jpg` are made again. `tools/start-variants.ts --frames all` now counts the clip's frames (192), and `start.e2e.ts`'s last moment is 6.2 s.
+
+
+## 32. The first screen the program draws: a circuit board, a chip, and what is left moving (2.8.0)
+
+The first screen was a clip of the university's promotional video under a glass card, and before
+that a photograph. It is now drawn: a circuit board grown from one seed, with the card as the chip
+in the middle of it. There is no video and no still in the installer at all.
+
+**Where it is.** `src/renderer/startfield/` -- four files and a stylesheet, importing nothing
+outside themselves:
+
+| File | What |
+|---|---|
+| `generate.ts` | Where every line, pad and bright point goes, and when. A pure function: no DOM, no timer, no randomness of its own, so its output can be hashed as a golden |
+| `render.ts` | Draws that on two Canvas 2D contexts: `drawBoard` (the board) and `drawPulse` (what is still moving) |
+| `index.ts` | The two canvases, the clock, which layer is drawn when, and the teardown |
+| `glints.css` | The two canvases' layout and the opening's CSS parts. Nothing in it loops |
+| `css.d.ts` | So the stylesheet can be imported as text (`tools/build-ui.ts`, esbuild's `text` loader) |
+
+**What makes it read as a board** rather than as scattered lines: a 22 px grid with every vertex on
+it; every right angle cut by a straight 6 px chamfer, so nothing but 0, 45, 90 and 135 degrees is
+ever drawn; traces that never cross and never touch; a pad where every trace ends and far more that
+join nothing; and three depths by width and brightness together. The pins sit on the card's measured
+rectangle -- the card *is* the chip, so there is no second drawn square for the two to disagree
+about.
+
+**Brightness** (2.8.0, after the board was measured and found eight to twelve times too dark). Three
+things carry it, and none of them is more traces: the three depths' alphas (0.28 / 0.62 / 0.92, the
+brightest near ones at 1.0); an ambient haze under everything, brightest not at the chip but at a
+ring out from it, so the package stays in the calmest part of the picture; and light around every
+trace, four concentric strokes added, falling away faster with depth than the trace's own alpha does
+-- in proportion, every depth ends up with much the same halo and the board reads flat. Two to three
+dozen flares, the brightest six blown out to a white core.
+
+**Time.** A trace's duration is its length over one signal speed, so the light runs at the same rate
+along a short trace and a long one; its own multiplier (0.35x to 3x) is what makes neighbours take
+different times, and its delay is mostly how far from the chip it starts -- bent away from the
+distance (^1.7), so the rings near the chip fill in while the corners are still empty. The board is
+finished at about 8.5 s.
+
+**Two layers, and what a settled board costs.** The board below is drawn while it grows and once
+more when it has, and then never again however long the window is left open. The layer above it is
+cleared and drawn every frame and carries at most eight things: three to five pulses running along
+traces that are already there (five lanes of one cycle, so how many run at once is settled by
+construction) and three flares swelling. Its schedule is a loop worked out from the seed, so nothing
+is kept and any moment of any length of time is drawn from the clock alone.
+
+**Nothing loops in CSS.** Not the die frame's breath, not the card's lights. Two reasons: a looping
+CSS animation keeps a compositor thread awake for as long as the window is open, and the capture
+tool freezes animations to take a frame, so anything that loops in CSS is missing from every picture
+of the screen. What moves instead is driven from the same clock, as custom properties.
+
+**The card** is the chip and carries four things down the middle of its die frame: the university's
+symbol at 60 px, the product's name, and the two ways in -- straight to work first, the tutorial
+under it. Each of the three carries a light of its own: one that runs across the name
+(`background-clip: text`) and one that goes round each button's border (a `conic-gradient` masked
+down to the border). They are in one order on all three axes -- how bright each is at rest, how
+bright its light gets, and how often one comes -- because one axis on its own is a coincidence, and
+all three are measured off a photograph of the window rather than read out of the stylesheet
+(`src/renderer/app/panels/spark.ts`, `tests/e2e/start.e2e.ts`).
+
+**Measured**, at 1920x1080, over the board region (the window less the card and the two bars):
+
+| | 2.7.1 (the clip) | 2.7.2 (drawn, dark) | 2.8.0 |
+|---|---|---|---|
+| mean brightness | — | 17.5 | 51.4 |
+| at 20 or below | — | 88.7 % | 0.00 % |
+| 45 and up | — | 3.96 % | 27.6 % |
+| 160 and up | — | 1.45 % | 4.81 % |
+| 220 and up | — | 0.05 % | 1.60 % |
+| first lit p10 / p50 / p90 / p99 | — | 0.25 / 0.73 / 0.87 / 0.90 s | 0.75 / 2.85 / 6.45 / 8.10 s |
+| the farthest ring after the nearest | — | 0.09 s | 6.00 s |
+| drawing, growing (median / p99) | — | — | 0.80 / 1.50 ms |
+| drawing, settled | — | — | 0.20 / 1.30 ms |
+| draws of the board below, settled | — | — | 0 |
+
+**How it is checked.** What makes it a board is checked where it is decided, against the geometry:
+the grid, the angles, the chamfers, self-avoidance, the pads, the three depths' shares, the trace
+and pad counts, and a sha256 of the whole board as a golden
+(`tests/renderer/startfield.test.ts`). What only the window can settle is checked there, off its own
+pixels (`tests/e2e/start.e2e.ts` with `tests/e2e/board-measure.ts` and `tests/e2e/png.ts`):
+brightness, timing, the rings, what is left moving, the card's hierarchy, the contrast of every
+word, and that nothing of it outlives the first screen. `tools/start-measure.ts` prints the same
+numbers with their targets beside them, which is what the board was tuned against;
+`tools/start-cost.ts` prints what a frame costs on the machine it is run on, and is run on Windows
+in CI as well, because the lab PCs have built-in graphics.
+
+**What went with it.** The clip (`assets/hallym/start/`), the tool that made it
+(`tools/start-video.ts`) and its checks; the candidate-design machinery of 2.6.0
+(`tools/start-variants.ts`, `tools/start-variants-list.ts`, `tests/e2e/backdrop-measure.ts`) and the
+phase of `tools/probe-platform.ts` that measured the photographed background through the compositor.
+NOTICE no longer names the video; the university's marks stay, because the symbol is on the top bar
+and on the card.
+
+### What a RISC-V edition changes
+
+`hallym-riscv-simulator` takes the board as it is. Copy `electron/src/renderer/startfield/` whole --
+all five files -- and nothing else of this program; the folder imports nothing outside itself, which
+a check holds it to (`tests/renderer/startfield.test.ts`).
+
+The call site is `electron/src/renderer/app/panels/welcome.ts`:
+
+```ts
+const start = startfield({ seed: SEED });     // SEED is in panels/spark.ts
+container.append(start.root, card);           // the card carries data-startfield-chip
+start.show(true);
+start.onFrame((t) => { /* whatever the card's own lights are */ });
+```
+
+What to change there, and nothing else:
+
+| What | Where | To |
+|---|---|---|
+| The seed | `panels/spark.ts`, `SEED` | Any other number: a different board, the same rules |
+| The product's name | `panels/welcome.ts`, `WORDMARK` | `'Hallym RISC-V Simulator'` |
+| The symbol | `panels/welcome.ts`, the `asset('hallym/marks/symbol-basic.svg')` in the card, and the same call in `app.ts` for the top bar | The same file in that repository's assets |
+
+`chipLabel` is no longer a parameter: the die marking (`MIPS32`) was taken off the card in 2.8.0, so
+the board needs nothing from the app but a seed. The card's own lights (`panels/spark.ts`,
+`.wtitle` and `.action` in `app.css`) are the app's, not the board's; a RISC-V edition can take them
+or leave them, and they need only `onFrame`.
