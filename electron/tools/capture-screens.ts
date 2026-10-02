@@ -67,7 +67,12 @@ const TYPO = '        .text\n        .global main            # .globl\nmain:   l
 const MAX_BYTES = 400 * 1024;
 const MAX_SCREEN_BYTES = 700 * 1024; // a whole Windows screen, up to 1920x1080
 const MAX_CROP_BYTES = 150 * 1024;
-const MAX_PHOTO_BYTES = 250 * 1024; // a JPEG over the first screen's video
+/* A JPEG of the first screen.  The board the program draws is harder to
+   compress than the photograph that was there before it -- a field of thin
+   bright lines on a dark ground is what JPEG is worst at -- so the quality
+   is a little lower than it was and the cap is where it was. */
+const MAX_PHOTO_BYTES = 250 * 1024;
+const PHOTO_QUALITY = 78;
 const START_AT = 12.0;              // the board settled: it grows for about 8.5 s (startfield/)
 
 // PNG without its ancillary chunks: the signature, then IHDR, PLTE, tRNS,
@@ -136,17 +141,31 @@ async function shot(r: Running, name: string, clip?: { x: number; y: number; wid
 async function photo(r: Running, name: string): Promise<void> {
   await still(r, name);
   const file = path.join(out, `${name}.jpg`);
-  await r.page.screenshot({ path: freshName(file), type: 'jpeg', quality: 85 });
+  await r.page.screenshot({ path: freshName(file), type: 'jpeg', quality: PHOTO_QUALITY });
   await settle(r, freshName(file), file, MAX_PHOTO_BYTES);
 }
 // The first screen's board (src/renderer/startfield/), put at `t` seconds
 // of its opening -- the same picture every round, with no clip to seek.
 async function boardAt(r: Running, t: number): Promise<void> {
   await r.page.waitForSelector('.startfield canvas');
+  /* The board is grown after the fonts are ready, which is a frame or two
+     after the canvas is in the document.  Stepping the clock before then
+     drew nothing and left the loop running, and the picture was then of
+     whatever moment the shot happened to catch: that is what rewrote two to
+     seven of these on every capture, for rounds. */
+  await r.page.waitForFunction(() => (window as unknown as {
+    __startfield: { geometry(): unknown } }).__startfield.geometry() !== undefined);
+  // The window settling its size sets the board off again (a ResizeObserver
+  // behind a 180 ms debounce), which would start the clock over after the
+  // moment was put where it was wanted.
+  await r.page.waitForTimeout(400);
   await r.page.evaluate((t) => new Promise<void>((done) => {
     (window as unknown as { __startfield: { stepTo(ms: number): void } }).__startfield.stepTo(t * 1000);
     requestAnimationFrame(() => requestAnimationFrame(() => done()));
   }), t);
+  // And a moment more for the compositor to put it on the screen: a shot
+  // taken before that comes back as the frame before it.
+  await r.page.waitForTimeout(20);
 }
 
 // A shot of the set, also as one of the guide's pictures (copied only when it differs).

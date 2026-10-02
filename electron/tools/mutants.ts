@@ -622,6 +622,9 @@ const MUTANTS: Mutant[] = [
       + '.action.main { border-color: rgba(255,255,255,.28); background: #0a0a0a; }\n'
       + '.action.main b { color: rgba(255,255,255,.82); }',
     tests: ['tests/e2e/start.e2e.ts'] },
+  { module: 'first screen', file: 'src/renderer/app/panels/welcome.ts', what: 'none of the card\'s lights ever lit',
+    find: "    el.style.setProperty('--sp-amp', amp.toFixed(3));", replace: "    el.style.setProperty('--sp-amp', '0');",
+    tests: ['tests/e2e/start.e2e.ts'] },
   { module: 'first screen', file: 'src/renderer/app/panels/spark.ts', what: 'every light on the card as bright as every other',
     find: '  title: { periodMs: 3500, peak: 1.0 },\n  primary: { periodMs: 5000, peak: 0.85 },\n  secondary: { periodMs: 8000, peak: 0.55 },',
     replace: '  title: { periodMs: 3500, peak: 1.0 },\n  primary: { periodMs: 5000, peak: 1.0 },\n  secondary: { periodMs: 8000, peak: 1.0 },',

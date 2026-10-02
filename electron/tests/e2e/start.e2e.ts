@@ -384,6 +384,10 @@ test('the board at 1920x1080: bright enough, spread out in time, and no more lin
    order something a measurement can see rather than something only the
    stylesheet knows. */
 const LIFT_STEP = 1.6;      // each one's lift against the next one's
+/* And a floor under each, about half of what it measures: a ratio alone is
+   satisfied by three lights that are all off, which is the one way of
+   breaking this that would look worst. */
+const LIFT_LEAST = { title: 4.0, primary: 1.2, secondary: 0.4 } as const;
 
 test('the card reads in one order: the name, then straight to work, then the tutorial', async () => {
   const r = await launch(MEASURE_AT);
@@ -432,7 +436,9 @@ test('the card reads in one order: the name, then straight to work, then the tut
     }
     // Axis 2 again, as how much each one's light lifts it: with every peak
     // the same the two buttons' lifts come together, which the step catches.
-    expect(lift.secondary, 'the second way in never lights at all').toBeGreaterThan(0.3);
+    for (const k of SPARK_ORDER) {
+      expect(lift[k], `${k}: its light lifts it ${lift[k].toFixed(2)}, which is not a light`).toBeGreaterThan(LIFT_LEAST[k]);
+    }
     expect(lift.title).toBeGreaterThan(LIFT_STEP * lift.primary);
     expect(lift.primary).toBeGreaterThan(LIFT_STEP * lift.secondary);
     // Axis 3: how often.  Settled in spark.ts, and checked there as well.
