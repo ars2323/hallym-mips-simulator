@@ -66,9 +66,21 @@ async function settle(page: Page): Promise<void> {
   await page.waitForTimeout(DRAWN);
 }
 
+
 /** Waits for the whole board to have grown, however long that takes. */
-async function grown(page: Page): Promise<number> {
+/** Waits until the board has been grown for the window's settled size: the
+    canvas is in the document before the board is built, and an installed app
+    that opens maximised sizes its window after that, which sets the board
+    off again behind its resize debounce. */
+async function built(page: Page): Promise<void> {
   await page.waitForSelector('.startfield canvas');
+  await page.waitForFunction(() => (window as unknown as {
+    __startfield: { geometry(): unknown } }).__startfield.geometry() !== undefined);
+  await page.waitForTimeout(500);
+}
+
+async function grown(page: Page): Promise<number> {
+  await built(page);
   const ms = await page.evaluate(() => (window as unknown as {
     __startfield: { grown(): number } }).__startfield.grown());
   await page.waitForTimeout(ms + 800);
@@ -514,7 +526,7 @@ test('the buttons work from the start, and the second step keeps the same board'
   const r = await launch();
   const { page } = r;
   try {
-    await page.waitForSelector('.startfield canvas');
+    await built(page);
     const before = await page.evaluate(() => (window as unknown as {
       __startfield: { geometry(): { seed: number; paths: unknown[] } } }).__startfield.geometry());
     await page.getByRole('button', { name: /바로 시작/ }).click();   // the opening is still running
