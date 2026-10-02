@@ -6,11 +6,11 @@
         makes a waitable timer on every run_spim() call on Windows
         (CPU/run.cpp start_CP0_timer) and never closes it;
      2. the native file dialogs, as they look: a screenshot of the whole
-        screen while the save and the open dialog are up;
-     3. the first screen's background as the SCREEN shows it (blur, tint),
-        against the raw frame, in a few variants of how it is drawn
-        (tests/e2e/backdrop-measure.ts): the variant that works on the
-        platform's display is the one to use.
+        screen while the save and the open dialog are up.
+
+   It once also measured the first screen's photographed background through
+   the compositor; the first screen is drawn by the program now
+   (src/renderer/startfield/), so that went with it in 2.8.0.
 
      node tools/probe-platform.ts OUTDIR [--expect-no-leak]
 
@@ -20,7 +20,6 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { compare, groundRect, rawPixels, readbackPixels, screenPixels } from '../tests/e2e/backdrop-measure.ts';
 import { launch, openAndAssemble, program, settled, type Running } from '../tests/e2e/harness.ts';
 
 const out = path.resolve(process.argv[2] ?? 'build/probe');
@@ -189,46 +188,6 @@ const VARIANTS: [string, string][] = [
     const draw = () => { g.filter = 'blur(1.5px)'; g.drawImage(v, 0, 0, 480, 270); g.filter = 'none'; g.fillStyle = 'rgba(0,32,91,.6)'; g.fillRect(0, 0, 480, 270); v.requestVideoFrameCallback(draw); };
     v.requestVideoFrameCallback(draw); }`],
 ];
-await phase('start-screen', 480_000, async () => {
-  const results: Record<string, unknown>[] = [];
-  const gpu = { status: {}, info: {} as unknown };
-  for (const [name, change] of VARIANTS) {
-    const r = await launch({ width: 1280, height: 800 });
-    try {
-      await r.page.waitForSelector('.wback.playing', { timeout: 15000 });
-      if (!results.length) {
-        gpu.status = await r.app.evaluate(({ app }) => app.getGPUFeatureStatus());
-        gpu.info = await r.app.evaluate(async ({ app }) => app.getGPUInfo('basic'));
-      }
-      await r.page.mouse.move(-10, -10);
-      if (change) await r.page.evaluate(change);
-      // Playing, but at 1/16 (Chromium's least): the frame barely moves while the screen is captured
-      // (a PowerShell capture takes about a second) and the raw frame drawn.
-      await r.page.evaluate(() => { (document.querySelector('.wback video') as HTMLVideoElement).playbackRate = 0.0625; });
-      await sleep(2500);
-      const rect = await groundRect(r);
-      const screen = await screenPixels(r, rect);
-      const readback = await readbackPixels(r, rect);
-      const raw = await rawPixels(r, rect);
-      const onScreen = compare(screen, raw), inReadback = compare(readback, raw);
-      const reduced = await r.page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
-      const cls = await r.page.locator('.wback').getAttribute('class');
-      results.push({ variant: name, rect, reducedMotion: reduced, wback: cls,
-        screen: { towardNavy: +onScreen.towardNavy.toFixed(3), sharpness: +onScreen.sharpness.toFixed(3), mean: onScreen.screen.mean.map(Math.round) },
-        readback: { towardNavy: +inReadback.towardNavy.toFixed(3), sharpness: +inReadback.sharpness.toFixed(3) },
-        raw: { mean: onScreen.raw.mean.map(Math.round), relLocalVar: +onScreen.raw.relLocalVar.toFixed(4) } });
-      log(`start-screen: ${name}: screen ${JSON.stringify(results.at(-1)!.screen)} readback ${JSON.stringify(results.at(-1)!.readback)}`);
-      screenshot(path.join(out, `start-${results.length}.png`));
-    } finally {
-      kill(r);
-    }
-  }
-  report.startScreen = { gpu, variants: results };
-});
-
-writeFileSync(path.join(out, 'probe.json'), JSON.stringify(report, null, 1));
-console.log(JSON.stringify(report, null, 1));
-
 // --expect-no-leak: fail unless the simulator process's handles stay put
 // while running and stepping (a little slack for Windows' own thread pool).
 if (process.argv.includes('--expect-no-leak')) {

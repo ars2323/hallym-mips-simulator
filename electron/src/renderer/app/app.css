@@ -510,46 +510,87 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .congrats h3 { margin: 0 0 2px; font-size: 15px; color: var(--navy); }
 .congrats p { margin: 0 0 8px; color: var(--text-2); }
 
-/* ---- first screen: one fixed shape for both steps ------------------------ */
+/* ---- first screen: the card is the processor ----------------------------- */
 .welcome { display: contents; }
-/* The card is glass: white at .82 over the photo, which it blurs
-   (backdrop-filter), so the ground's colour comes through and the card
-   sits on the screen instead of floating over it.  Its secondary text is
-   --text-2-glass, darker than --text-2, which keeps every text at 4.5:1
-   or better over every frame of the clip (docs/PORTING.md 29: why not a
-   thicker card). */
-.wcard { display: grid; grid-template-columns: 168px 460px; gap: 0 28px; align-items: center; width: auto; max-width: calc(100vw - 48px);
-  background: rgba(255,255,255,.82); backdrop-filter: blur(18px) saturate(1.2);
-  border: 1px solid rgba(255,255,255,.55); border-radius: 16px; padding: 28px 32px; box-shadow: 0 10px 40px rgba(0,16,46,.25); }
-/* Behind the card (panels/backdrop.ts): the video, blurred and under navy,
-   under the whole window -- the title bar and the status bar are dark glass
-   over it on this screen (below), one piece instead of three bands.  Navy
-   underneath: the colour until the still has loaded, and the fallback when
-   the clip cannot play. */
-.wback { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; background: var(--navy); }
-.wback img, .wback video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(8px) saturate(1.25) sepia(.1) hue-rotate(-6deg); transform: scale(1.06); }
-.wback video { opacity: 0; transition: opacity .6s ease; }
-.wback.playing video { opacity: 1; }
-.wback::after { content: ''; position: absolute; inset: 0;
-  background: linear-gradient(rgba(0,20,56,.35), transparent 12%, transparent 88%, rgba(0,20,56,.35)), rgba(0,32,91,.4); }
-.wback.failed img, .wback.failed video, .wback.nostill img { display: none; }
-.wcard h1 { margin: 0 0 6px; font-size: 24px; font-weight: 700; color: var(--navy); }
-.wcard p.lead { margin: 0 0 20px; color: var(--text-2-glass); font-size: 14px; white-space: nowrap; }
-.actions { display: grid; grid-template-columns: 220px 220px; gap: 12px; }
-.action { display: flex; gap: 12px; align-items: flex-start; width: 220px; height: 84px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: rgba(255,255,255,.8); text-align: left; }
-.action:hover { border-color: var(--blue); }
-.action img { width: 20px; height: 20px; margin-top: 2px; opacity: .8; flex: none; }
-.action b { display: block; color: var(--navy); font-weight: 600; margin-bottom: 2px; }
-.action .sub { display: block; color: var(--text-2-glass); font-size: 12px; line-height: 1.45; white-space: nowrap; }
-.action.main { border-color: var(--blue); background: rgba(232,240,249,.85); }
-.wbody .back { display: block; margin-top: 12px; font-size: 12px; height: 18px; }
-@media (max-width: 860px) { .wcard { grid-template-columns: 460px; justify-content: center; } .wcard img.char { display: none; } }
-/* The bars on the first screen (body.first-screen, app.ts): dark glass over
-   the photo, white words and icons, no dividing lines.  The caption
-   buttons' patch is transparent here, their symbols white (app.ts,
-   updateOverlay).  The symbol mark keeps its own colours. */
+/* A square package, as a processor is.  Its inside is darker than the board
+   around it (#050505 against #0d0d0d) so it reads as a part set into the
+   board rather than a panel floating over it.  The circuit
+   (src/renderer/startfield/) measures this rectangle and puts its pins on
+   it: there is no second drawn square to disagree with.  Inside the package
+   a second, fainter frame is the die -- that one border is most of what
+   makes it read as a chip rather than as a box. */
+.wcard { position: relative; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center;
+  width: clamp(360px, 52vmin, 460px); aspect-ratio: 1; max-width: calc(100vw - 48px); max-height: calc(100vh - 120px);
+  background: #050505; border: 2.5px solid #fff; border-radius: 10px; }
+.wcard::before { content: ''; position: absolute; inset: 18px; border: 1px solid rgba(255,255,255,.35); border-radius: 4px; pointer-events: none; }
+/* Everything the package holds sits in one column, centred inside the die
+   frame rather than pushed around by fixed padding, so the balance keeps at
+   every window size.  The three gaps between the four blocks are named here,
+   where the column is, rather than spread over the blocks themselves. */
+.wstack { position: absolute; inset: 18px; display: flex; flex-direction: column; justify-content: center; align-items: center;
+  --gap-name: 14px; --gap-ways: 40px; --gap-between: 12px; }
+/* The mark, large, in its own colours: the university's rules forbid
+   recolouring it. */
+.wlogo { height: 60px; width: auto; margin: 0 auto; }
+/* The product's name.  Its glyphs are white; the light that runs across it
+   is the layer over them (.wtitle::after), which is why the fill is a
+   gradient at all. */
+.wtitle { position: relative; margin-top: var(--gap-name); font-size: 20px; letter-spacing: .01em; white-space: nowrap;
+  background-image: linear-gradient(90deg, #fff, #fff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.wtitle::after {
+  content: attr(data-text); position: absolute; left: 0; top: 0; white-space: nowrap; pointer-events: none;
+  background-image: linear-gradient(90deg,
+    rgba(255,255,255,0) calc(var(--sp-at, 0) * 100% - 80px),
+    #fff calc(var(--sp-at, 0) * 100%),
+    rgba(255,255,255,0) calc(var(--sp-at, 0) * 100% + 80px));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 0 7px rgba(255,255,255,.85));
+  opacity: var(--sp-amp, 0);
+}
+/* Not out to the die frame's edge: the margin is what makes the buttons read
+   as marking on a package rather than as a dialog. */
+.wbody { display: flex; flex-direction: column; width: 70%; margin-top: var(--gap-ways); }
+.actions { display: flex; flex-direction: column; gap: var(--gap-between); }
+/* The two ways in, and which is which: the first has the brighter border,
+   whiter words and a lighter ground, and carries a brighter light more
+   often (spark.ts).  One axis on its own is a coincidence. */
+.action { position: relative; display: flex; gap: 10px; align-items: center; justify-content: center; width: 100%; height: 46px; padding: 0 14px;
+  border: 1px solid rgba(255,255,255,.28); border-radius: 6px; background: #0a0a0a; }
+.action b { color: rgba(255,255,255,.82); font-weight: 600; }
+.action.main { border-color: rgba(255,255,255,.55); background: #141414; }
+.action.main b { color: #fff; }
+/* The light going round the border: a cone turned by the clock, masked down
+   to the border itself.  The trace it is the end of is on the board behind. */
+.action::after {
+  content: ''; position: absolute; inset: -2px; border-radius: 8px; padding: 2px; pointer-events: none;
+  box-sizing: border-box; filter: blur(.7px);
+  /* The lit arc is longer as well as brighter the stronger the pulse, so
+     what the eye sees follows the three peaks (spark.ts) rather than
+     flattening them: a light that only changed opacity would make the
+     weakest pulse nearly as big an event as the strongest. */
+  background: conic-gradient(from calc(var(--sp-at, 0) * 1turn),
+    rgba(255,255,255,0) 0deg,
+    rgba(255,255,255,0) calc(360deg - var(--sp-amp, 0) * 190deg),
+    rgba(255,255,255,.55) calc(360deg - var(--sp-amp, 0) * 70deg),
+    #fff 352deg, rgba(255,255,255,0) 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: var(--sp-amp, 0);
+}
+.action:hover { border-color: #fff; background: rgba(255,255,255,.09); }
+.action:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.action img { width: 18px; height: 18px; opacity: .85; flex: none; filter: brightness(0) invert(1); }
+.wbody .back { display: block; margin-top: 14px; font-size: 12px; height: 18px; color: #8a8a8a; text-align: center; }
+.wbody .back:hover { color: #fff; }
+/* The bars on the first screen (body.first-screen, app.ts): the board shows
+   through them, white words and icons, no dividing lines.  Nothing is
+   blurred -- the board behind is flat, so a backdrop-filter would cost a
+   layer for no difference.  The caption buttons' patch is transparent, their
+   symbols white (app.ts, updateOverlay). */
 body.first-screen .work { background: transparent; }
-body.first-screen .titlebar, body.first-screen .status { position: relative; z-index: 2; background: rgba(0,20,56,.3); border-color: transparent; backdrop-filter: blur(16px); }
+body.first-screen .titlebar, body.first-screen .status { position: relative; z-index: 2; background: rgba(255,255,255,.03); border-color: transparent; }
 body.first-screen .titlebar .appname { color: var(--white); }
 body.first-screen .titlebar .iconbtn img { filter: brightness(0) invert(1); opacity: .9; }
 body.first-screen .titlebar .iconbtn:hover { background: rgba(255,255,255,.14); }

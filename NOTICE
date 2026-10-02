@@ -143,13 +143,9 @@ About > Licenses.
 8. Hallym University marks, and the characters Haram and Hari
 -------------------------------------------------------------
 
-The Hallym University symbol, logotype, emblem and signature (both editions),
-the university's characters Haram (하람) and Hari (하리) (the Electron
-edition), and the opening aerial shot of its promotional video (0:00.1 to
-0:02.6), slowed down and without sound (the Electron edition's first screen),
-belong to Hallym University. The video is "[Official Video] 한림대학교
-홍보영상｜The New Hallym 대학의 내일을 열다", from Hallym University's official
-YouTube channel, @HALLYMNEWS.
+The Hallym University symbol, logotype, emblem and signature (both editions)
+and the university's characters Haram (하람) and Hari (하리) (the Electron
+edition) belong to Hallym University.
 
 They appear in this software only to identify it as a teaching tool for
 Hallym University's courses.
@@ -162,8 +158,14 @@ must remove them, unless Hallym University has given its own permission.
 This software is not an official product of Hallym University.
 
 Where they are:
-  electron/src/renderer/assets/hallym/   marks, characters and the video (README.md there)
+  electron/src/renderer/assets/hallym/   the marks and the characters (README.md there)
   electron/packaging/icons/              the application icon, made from the symbol
   QtSpim/edu/theme/brand/                the Qt edition's icon and marks
   assets/ci/                             the marks' source files and the
                                          university's regulations for them
+
+9. MIPS
+-------
+
+MIPS is a trademark of MIPS. This software is not affiliated with, nor
+endorsed by, MIPS.

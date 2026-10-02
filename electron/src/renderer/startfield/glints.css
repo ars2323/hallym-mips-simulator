@@ -1,0 +1,43 @@
+/* The two canvases, and the opening's CSS parts.
+
+   Everything here ends.  Nothing on this screen is a CSS animation that
+   loops: what keeps moving after the opening -- the pulses, the flares'
+   beat, the die frame's breath -- is drawn on the layer above the board or
+   driven from index.ts, off the same clock.  Two reasons.  A looping CSS
+   animation keeps a compositor thread awake for as long as the window is
+   open, and the capture tool freezes animations to take a frame, so
+   anything that loops in CSS is missing from every picture of the screen.
+
+   The lower canvas holds the board and is drawn while it grows and once
+   more when it has.  The upper one is cleared and drawn every frame and
+   carries a handful of things.  It is transparent, so what the board left
+   shows through it. */
+
+.startfield { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; background: #0d0d0d; }
+.startfield canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+/* The chip's package: the card itself (welcome.ts), drawn once as it
+   appears.  0.96 -> 1 once, and no loop afterwards -- there are buttons
+   inside it to press. */
+.welcome.startfield-on .wcard { animation: sf-chip 420ms cubic-bezier(.2,.7,.3,1) both; }
+@keyframes sf-chip {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+/* The buttons come in at 400 ms and are clickable from then on (they are
+   never display:none, so nothing about focus or hit testing waits), whatever
+   the board behind them is still doing. */
+.welcome.startfield-on .wcard .actions,
+.welcome.startfield-on .wcard .back { animation: sf-fade 320ms ease 400ms both; }
+@keyframes sf-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* The die frame breathes -- brightness only, never size: there are buttons
+   inside it.  Its alpha is set on the card by index.ts, frame by frame, off
+   the same clock as the canvases. */
+.welcome.startfield-on .wcard::before { border-color: rgba(255,255,255,var(--sf-die, .35)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome.startfield-on .wcard,
+  .welcome.startfield-on .wcard .actions,
+  .welcome.startfield-on .wcard .back { animation: none; }
+}

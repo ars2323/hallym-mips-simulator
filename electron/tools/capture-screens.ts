@@ -23,9 +23,10 @@
    the whole screen with the window maximised -- the caption buttons are the
    system's and a page capture has none.
 
-   The first screen has the university's video behind it: those shots stop
-   it at a fixed second (the same picture every round) and are JPEG -- as
-   PNG a video frame is 500 KB and more.  start-frame-1, start and
+   The first screen has the circuit board behind it
+   (src/renderer/startfield/): those shots put its opening at a fixed
+   moment, which is the same picture every round because the board is
+   settled by its seed and the window alone.  start-frame-1, start and
    start-frame-3 are three moments of it; start-<width> and start-2-<width>
    the two steps at the other widths.
 
@@ -66,8 +67,13 @@ const TYPO = '        .text\n        .global main            # .globl\nmain:   l
 const MAX_BYTES = 400 * 1024;
 const MAX_SCREEN_BYTES = 700 * 1024; // a whole Windows screen, up to 1920x1080
 const MAX_CROP_BYTES = 150 * 1024;
-const MAX_PHOTO_BYTES = 250 * 1024; // a JPEG over the first screen's video
-const START_AT = 3.0;               // the video's second in start.jpg and the other widths' shots
+/* A JPEG of the first screen.  The board the program draws is harder to
+   compress than the photograph that was there before it -- a field of thin
+   bright lines on a dark ground is what JPEG is worst at -- so the quality
+   is a little lower than it was and the cap is where it was. */
+const MAX_PHOTO_BYTES = 250 * 1024;
+const PHOTO_QUALITY = 78;
+const START_AT = 12.0;              // the board settled: it grows for about 8.5 s (startfield/)
 
 // PNG without its ancillary chunks: the signature, then IHDR, PLTE, tRNS,
 // IDAT and IEND only.  The pixels are untouched.
@@ -135,20 +141,31 @@ async function shot(r: Running, name: string, clip?: { x: number; y: number; wid
 async function photo(r: Running, name: string): Promise<void> {
   await still(r, name);
   const file = path.join(out, `${name}.jpg`);
-  await r.page.screenshot({ path: freshName(file), type: 'jpeg', quality: 85 });
+  await r.page.screenshot({ path: freshName(file), type: 'jpeg', quality: PHOTO_QUALITY });
   await settle(r, freshName(file), file, MAX_PHOTO_BYTES);
 }
-// The first screen's video, stopped at `t` seconds, that frame on screen.
-async function videoAt(r: Running, t: number): Promise<void> {
-  await r.page.waitForSelector('.wback.playing');
+// The first screen's board (src/renderer/startfield/), put at `t` seconds
+// of its opening -- the same picture every round, with no clip to seek.
+async function boardAt(r: Running, t: number): Promise<void> {
+  await r.page.waitForSelector('.startfield canvas');
+  /* The board is grown after the fonts are ready, which is a frame or two
+     after the canvas is in the document.  Stepping the clock before then
+     drew nothing and left the loop running, and the picture was then of
+     whatever moment the shot happened to catch: that is what rewrote two to
+     seven of these on every capture, for rounds. */
+  await r.page.waitForFunction(() => (window as unknown as {
+    __startfield: { geometry(): unknown } }).__startfield.geometry() !== undefined);
+  // The window settling its size sets the board off again (a ResizeObserver
+  // behind a 180 ms debounce), which would start the clock over after the
+  // moment was put where it was wanted.
+  await r.page.waitForTimeout(400);
   await r.page.evaluate((t) => new Promise<void>((done) => {
-    const v = document.querySelector('.wback video') as HTMLVideoElement;
-    v.pause();
-    v.addEventListener('seeked', () => requestAnimationFrame(() => requestAnimationFrame(() => done())), { once: true });
-    // The middle of that frame (the clip is 30 a second): 3.0 s is the boundary of frames 89 and
-    // 90, and a seek to a boundary may land on either.
-    v.currentTime = t + 1 / 60;
+    (window as unknown as { __startfield: { stepTo(ms: number): void } }).__startfield.stepTo(t * 1000);
+    requestAnimationFrame(() => requestAnimationFrame(() => done()));
   }), t);
+  // And a moment more for the compositor to put it on the screen: a shot
+  // taken before that comes back as the frame before it.
+  await r.page.waitForTimeout(20);
 }
 
 // A shot of the set, also as one of the guide's pictures (copied only when it differs).
@@ -218,8 +235,8 @@ async function lab04(r: Running): Promise<void> {
   const r = await launch({ width: 1280, height: 800 });
   const { page } = r;
   // Three moments of the video: 0.5 s, start.jpg's own 3.0 s (taken below), 5.5 s.
-  for (const [n, t] of [[1, 0.5], [3, 5.5]]) { await videoAt(r, t); await photo(r, `start-frame-${n}`); }
-  await videoAt(r, START_AT);
+  for (const [n, t] of [[1, 1.0], [3, 5.0]]) { await boardAt(r, t); await photo(r, `start-frame-${n}`); }
+  await boardAt(r, START_AT);
   await photo(r, 'start');
   forGuide('start', '01-start', 'jpg');
   await page.getByRole('button', { name: /바로 시작/ }).click();
@@ -282,7 +299,7 @@ for (const [name, size, scale] of [
   ['1920', { width: 1920, height: 1040 }, '1'],
 ] as const) {
   const r = await launch(size, { switches: [`--force-device-scale-factor=${scale}`] });
-  await videoAt(r, START_AT);
+  await boardAt(r, START_AT);
   await photo(r, `start-${name}`);
   await r.page.getByRole('button', { name: /바로 시작/ }).click();
   await photo(r, `start-2-${name}`);

@@ -128,17 +128,20 @@ whoever opens it.
 
 ## The first time: the start screen and the tutorial
 
-The program opens on a start screen where Haram, the university's character,
-says hello, over the university's promotional video playing without sound (a
-still picture on a PC with Windows' animation effects turned off). There are
-two choices:
+The program opens on a start screen where a circuit board grows outwards from
+a chip. The square in the middle is that chip, and the two choices sit on it
+like markings on a package:
 
-- **튜토리얼 보기** (see the tutorial) — for your first time. Twenty steps point
-  at one part of the window after another.
 - **바로 시작** (start right away) — then **새 파일** (new file) or **파일 열기**
   (open a file, Ctrl+O).
+- **튜토리얼 보기** (see the tutorial) — for your first time. Twenty-one steps
+  point at one part of the window after another.
 
-![The start screen: Haram says hello, with two choices, 튜토리얼 보기 and 바로 시작](images/01-start.jpg)
+Both work from the moment they appear; there is no need to wait for the board
+to finish. (On a PC with Windows' animation effects turned off, the finished
+screen comes up at once.)
+
+![The start screen: a chip-shaped card in the middle of a circuit board, with two choices, 바로 시작 and 튜토리얼 보기](images/01-start.jpg)
 
 ### The twenty-one-step tutorial
 

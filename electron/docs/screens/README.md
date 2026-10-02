@@ -58,7 +58,7 @@ The example files and step counts are written inside the tool, so the same scene
 | `installer-started.jpg` | What 마침 started: the installed program's start screen, its video playing (a live frame, not stopped) | CI only, the same run, 6 s after 마침; the window alone. The CI writes a PNG; it is committed as JPEG (quality 85), like the other start screens. The runner's animation effects are turned on first (`tools/windows/animations-on.ps1`), so the video plays as on the students' PCs. Comes from the release commit's run and is committed before the tag |
 | `installer-started-200ms.jpg` | The same program about 200 ms after its window appeared (from 2.7.0): the caption buttons' patch already see-through on the dark bar, no white square at the top right. The check samples that corner through the first 2.5 s (`first-frames.txt` in the report; `docs/PORTING.md` 30) | CI only, the same run: the click on 마침 posted, the window found, the picture taken at the first sample past 200 ms; committed as JPEG (quality 85) before the tag |
 | `uninstaller-finish.png` | The uninstaller's finish page (after its progress page): "제거가 끝났습니다", the same band |
-| `start-clip-contact.jpg` | Every frame of the first screen's clip, numbered, on one sheet (192, from 2.7.1: one aerial pass, starting in its middle; frames 84–107 the crossfade of its end into its beginning, which frame 108 goes on from; no copied frame, `docs/PORTING.md` 31): no text, logo, graphics or cut | `ffmpeg -i src/renderer/assets/hallym/start/start.webm -vf "scale=180:-2,drawtext=…text='%{n}'…,tile=16x12:padding=2:color=white" -frames:v 1 -q:v 4`, 180 px a frame; made again with the clip |
+| `start-clip-contact.jpg` | Every frame of the first screen's clip as it was in 2.7.1, numbered, on one sheet. Kept as the record of the clip; the first screen is drawn from 2.8.0 and there is no clip to remake it from | — (the clip and the tool that made it were removed in 2.8.0) |
 | `start-clip-2.4.0-contact.jpg` | The same for 2.4.0's clip (336 frames, 0:00–0:12 of the source), kept for what it shows: "한림대학교" on the gate sculpture (57–101), building signs (102–201), graphics over the aerial shot (248–319), six cuts | The same, of the clip at `v2.4.0` | CI only, the same run: the uninstaller run with its pages, as Settings > Apps runs it. Comes from the release commit's run and is committed before the tag |
 
 `windows-frame.png` and `windows-frame-tutorial.png` are taken as is from `report/screens/` in the CI artifact `windows-report`,
@@ -158,7 +158,7 @@ waiting for a fix.
   screen, its right 320 px off the screen. The ground strip spans the window's width, and its end
   was captured black. The whole screen at the end of such a measurement shows it:
   `docs/start-variants/combined/windows-1920-off-screen.jpg`.
-  *Fixed:* `tools/start-variants.ts` puts the window at (0,0) on every launch, and every row carries
+  *Fixed at the time:* `tools/start-variants.ts` (removed in 2.8.0) put the window at (0,0) on every launch, and every row carried
   its own control: with the treatment off the ground must read as the raw frame (tint under 0.1,
   sharpness over 0.8), or the row says `valid: false`. Measured again (run 36454678242), every
   Windows row is valid and within 0.02 of Linux. The e2e never measured there: they run at the

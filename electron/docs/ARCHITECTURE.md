@@ -194,7 +194,7 @@ src/renderer/app/
 - **State is not restored.** Window size, panels, recent files, open files and breakpoints all start from fixed defaults
   every time (lab PCs are shared by many people). The settings file (`userData/settings.json`) holds only the font size and the Data number base.
   Ctrl + / Ctrl − apply only to the current run.
-- **The first screen's video** is one file: to use another (say, the university's own master), run `node tools/start-video.ts <file>`, which rewrites `src/renderer/assets/hallym/start/start.webm` and its still `start.jpg`; nothing else changes.
+- **The first screen is drawn, not played** (2.8.0): `src/renderer/startfield/` grows a circuit board from one seed, on two canvases -- the board below, drawn while it grows and once more when it has, and the layer above it, which carries what is still moving. There is no video and no still. The folder imports nothing outside itself, so another simulator can copy it whole (`docs/PORTING.md`, "What a RISC-V edition changes").
 - The register panel creates one DOM row per register once, and on every stop updates only the cells whose text changed and the rows whose highlight changed.
   Text keeps only the visible rows plus 10 rows before and after in the DOM. Measurements for both are in `docs/UI-ROUND1.md`.
 
