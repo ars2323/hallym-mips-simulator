@@ -1,13 +1,17 @@
-/* What is left moving once the opening is over, and the opening's own CSS
-   parts.  The canvas stops (index.ts ends its requestAnimationFrame loop at
-   SETTLED): a settled board that went on redrawing dozens of strokes and
-   gradients every frame would keep a lab PC's built-in graphics busy for
-   nothing.  What is left is compositor work only -- one opacity on one
-   element -- so the main thread does nothing at all.
+/* The two canvases, and the opening's CSS parts.
 
-   These are also here because a CSS animation can be put at an exact time
-   (a negative animation-delay, then paused), which is how the capture tool
-   takes one frame of the whole screen at a time. */
+   Everything here ends.  Nothing on this screen is a CSS animation that
+   loops: what keeps moving after the opening -- the pulses, the flares'
+   beat, the die frame's breath -- is drawn on the layer above the board or
+   driven from index.ts, off the same clock.  Two reasons.  A looping CSS
+   animation keeps a compositor thread awake for as long as the window is
+   open, and the capture tool freezes animations to take a frame, so
+   anything that loops in CSS is missing from every picture of the screen.
+
+   The lower canvas holds the board and is drawn while it grows and once
+   more when it has.  The upper one is cleared and drawn every frame and
+   carries a handful of things.  It is transparent, so what the board left
+   shows through it. */
 
 .startfield { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; background: #0d0d0d; }
 .startfield canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -21,28 +25,19 @@
   to   { opacity: 1; transform: scale(1); }
 }
 /* The buttons come in at 400 ms and are clickable from then on (they are
-   never display:none, so nothing about focus or hit testing waits). */
+   never display:none, so nothing about focus or hit testing waits), whatever
+   the board behind them is still doing. */
 .welcome.startfield-on .wcard .actions,
 .welcome.startfield-on .wcard .back { animation: sf-fade 320ms ease 400ms both; }
 @keyframes sf-fade { from { opacity: 0; } to { opacity: 1; } }
 
-/* Once it has settled, the die frame breathes -- brightness only, never
-   size: there are buttons inside it. */
-.welcome.startfield-on .wcard::before {
-  /* Its phase is driven by custom properties rather than by its own delay,
-     because an inline style cannot reach a pseudo-element and the capture
-     tool has to be able to put every moving thing at an exact time. */
-  animation: sf-die 4s ease-in-out var(--sf-delay, 1.1s) infinite;
-  animation-play-state: var(--sf-play, running);
-}
-@keyframes sf-die {
-  0%, 100% { border-color: rgba(255,255,255,.35); }
-  50%      { border-color: rgba(255,255,255,.45); }
-}
+/* The die frame breathes -- brightness only, never size: there are buttons
+   inside it.  Its alpha is set on the card by index.ts, frame by frame, off
+   the same clock as the canvases. */
+.welcome.startfield-on .wcard::before { border-color: rgba(255,255,255,var(--sf-die, .35)); }
 
 @media (prefers-reduced-motion: reduce) {
   .welcome.startfield-on .wcard,
-  .welcome.startfield-on .wcard::before,
   .welcome.startfield-on .wcard .actions,
   .welcome.startfield-on .wcard .back { animation: none; }
 }

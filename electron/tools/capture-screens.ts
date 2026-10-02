@@ -68,7 +68,7 @@ const MAX_BYTES = 400 * 1024;
 const MAX_SCREEN_BYTES = 700 * 1024; // a whole Windows screen, up to 1920x1080
 const MAX_CROP_BYTES = 150 * 1024;
 const MAX_PHOTO_BYTES = 250 * 1024; // a JPEG over the first screen's video
-const START_AT = 3.0;               // the video's second in start.jpg and the other widths' shots
+const START_AT = 12.0;              // the board settled: it grows for about 8.5 s (startfield/)
 
 // PNG without its ancillary chunks: the signature, then IHDR, PLTE, tRNS,
 // IDAT and IEND only.  The pixels are untouched.
@@ -216,7 +216,7 @@ async function lab04(r: Running): Promise<void> {
   const r = await launch({ width: 1280, height: 800 });
   const { page } = r;
   // Three moments of the video: 0.5 s, start.jpg's own 3.0 s (taken below), 5.5 s.
-  for (const [n, t] of [[1, 0.5], [3, 5.5]]) { await boardAt(r, t); await photo(r, `start-frame-${n}`); }
+  for (const [n, t] of [[1, 1.0], [3, 5.0]]) { await boardAt(r, t); await photo(r, `start-frame-${n}`); }
   await boardAt(r, START_AT);
   await photo(r, 'start');
   forGuide('start', '01-start', 'jpg');

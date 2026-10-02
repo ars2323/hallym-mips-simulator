@@ -1,10 +1,15 @@
 /* The first screen's circuit board (src/renderer/startfield/).
 
    What is checked here is what a picture cannot settle: that every text on
-   the chip is readable against it, that the opening stops when it is over
-   (a settled board must cost nothing), that it keeps inside a frame's
-   budget while it runs, and that the chip is the card -- the pins are on the
-   rectangle the card actually occupies, at every window size.
+   the chip is readable against it, that the board is bright enough and
+   spread out enough in time to read as something growing, that a settled
+   board still moves without being redrawn, that it keeps inside a frame's
+   budget, and that the chip is the card -- the pins are on the rectangle the
+   card actually occupies, at every window size.
+
+   The brightness and the timing are measured off the board's own pixels, by
+   the same function the tuning tool uses (board-measure.ts): a number read
+   there is what a threshold here is drawn around.
 
    The board itself -- the grid, the angles, the self-avoidance -- is checked
    where it is decided, in tests/renderer/startfield.test.ts, against the
@@ -12,11 +17,21 @@
 
 import { expect, test, type Page } from '@playwright/test';
 
+import { COLOURS } from '../../src/renderer/startfield/render.ts';
+import { BANDS, DENSITY, IDLE_MOTION, measureBoard, TIMING } from './board-measure.ts';
 import { launch, type Running } from './harness.ts';
 
-const SETTLED = 1100;
+/** Long enough for the card and the first of the board, not for all of it:
+    only the tests that measure the opening wait for it to finish. */
+const DRAWN = 1400;
 const CHIP_INSIDE = '#050505';
-const BACKGROUND = '#0d0d0d';
+/** The brightest the board's ground gets (render.ts lays the haze down):
+    what the words that sit over the board have to be read against. */
+const BOARD_GROUND = COLOURS.hazePeak;
+/** The bars on the first screen are the board with 3 % white over them. */
+const BAR_WHITE = 0.03;
+/** The window the board was tuned at, and is measured at. */
+const MEASURE_AT = { width: 1920, height: 1080 };
 
 const framesDrawn = (page: Page) => page.evaluate(() => (window as unknown as {
   __startfield: { frames(): number } }).__startfield.frames());
@@ -46,7 +61,16 @@ const hex = (h: string): [number, number, number] =>
 
 async function settle(page: Page): Promise<void> {
   await page.waitForSelector('.startfield canvas');
-  await page.waitForTimeout(SETTLED + 500);
+  await page.waitForTimeout(DRAWN);
+}
+
+/** Waits for the whole board to have grown, however long that takes. */
+async function grown(page: Page): Promise<number> {
+  await page.waitForSelector('.startfield canvas');
+  const ms = await page.evaluate(() => (window as unknown as {
+    __startfield: { grown(): number } }).__startfield.grown());
+  await page.waitForTimeout(ms + 800);
+  return ms;
 }
 
 test('the board is behind the card, drawn by the app itself, and the card is the chip', async () => {
@@ -89,7 +113,8 @@ test('every text on the chip at 4.5:1 or better, against the chip and against th
   const { page } = r;
   try {
     await settle(page);
-    const chip = hex(CHIP_INSIDE), ground = hex(BACKGROUND);
+    const chip = hex(CHIP_INSIDE);
+    const ground = hex(BOARD_GROUND).map((v) => Math.round(v * (1 - BAR_WHITE) + 255 * BAR_WHITE)) as [number, number, number];
     const colours = await page.evaluate(() => {
       const get = (sel: string) => {
         const el = document.querySelector(sel);
@@ -97,6 +122,7 @@ test('every text on the chip at 4.5:1 or better, against the chip and against th
       };
       return {
         wordmark: get('.wcard .wordmark'), die: get('.wcard .die'), label: get('.action b'), back: get('.wbody .back'),
+        appname: get('.titlebar .appname'), status: get('.status'),
         cardBg: getComputedStyle(document.querySelector('.wcard')!).backgroundColor,
         actionBg: getComputedStyle(document.querySelector('.action')!).backgroundColor,
       };
@@ -110,8 +136,15 @@ test('every text on the chip at 4.5:1 or better, against the chip and against th
                                                label: colours.label, back: colours.back })) {
       worst.push([name, contrast(parse(css, chip), chip)]);
     }
-    // And the secondary grey as it is used over the board itself.
-    worst.push(['the back link over the board', contrast(parse(colours.back, ground), ground)]);
+    /* The only words that sit over the board itself are the two bars': the
+       first screen makes them transparent and the board shows through.
+       Their ground is the brightest the haze gets, with the bars' own 3 %
+       white over it -- the worst case for them, not the card's #0d0d0d,
+       which nothing is drawn on any more. */
+    for (const [name, css] of Object.entries({ 'the title bar over the board': colours.appname,
+                                               'the status bar over the board': colours.status })) {
+      worst.push([name, contrast(parse(css, ground), ground)]);
+    }
     for (const [name, value] of worst) expect(value, `${name}: ${value.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
     console.log('contrast', worst.map(([n, v]) => `${n} ${v.toFixed(2)}`).join(', '));
   } finally { await r.close(); }
@@ -219,20 +252,26 @@ test('the package stays square and its column keeps inside the die frame, at fou
   } finally { await r.close(); }
 });
 
-test('the opening stops: once it has settled, not one more animation frame', async () => {
+/* A window left open all afternoon is the case this has to be right for.
+   The layer above the board goes on drawing, so the screen is never a
+   photograph; the board below is drawn while it grows and once more when it
+   has, and after that not at all.  That is what makes the one affordable:
+   the frames keep coming, but each of them is a handful of strokes. */
+test('a settled board goes on moving, and the board below it is never drawn again', async () => {
   const r = await launch();
   const { page } = r;
   try {
-    await settle(page);
-    const drawn = await framesDrawn(page);
-    const counted = await page.evaluate(() => new Promise<number>((done) => {
-      let n = 0;
-      const real = window.requestAnimationFrame.bind(window);
-      (window as unknown as { requestAnimationFrame: typeof requestAnimationFrame }).requestAnimationFrame = ((cb: FrameRequestCallback) => { n++; return real(cb); }) as typeof requestAnimationFrame;
-      setTimeout(() => done(n), 2000);
-    }));
-    expect(counted, 'animation frames asked for in 2 s of a settled board').toBe(0);
-    expect(drawn).toBeGreaterThan(10); // it did run
+    const ms = await grown(page);
+    const before = await page.evaluate(() => (window as unknown as {
+      __startfield: { boardDraws(): number; frames(): number } }).__startfield.boardDraws());
+    const framesBefore = await framesDrawn(page);
+    await page.waitForTimeout(2000);
+    const after = await page.evaluate(() => (window as unknown as {
+      __startfield: { boardDraws(): number } }).__startfield.boardDraws());
+    expect(after - before, 'the board below was drawn again after it had grown').toBe(0);
+    expect(await framesDrawn(page) - framesBefore,
+      'the layer above stopped: a settled board is a photograph').toBeGreaterThan(60);
+    console.log(`grown at ${(ms / 1000).toFixed(2)} s, ${before} draws of the board below, 0 after`);
   } finally { await r.close(); }
 });
 
@@ -240,24 +279,82 @@ test('the opening stops: once it has settled, not one more animation frame', asy
    that keeps up draws every 16.7 ms whatever it is drawing, so a median gap
    under 8 ms is not something a 60 Hz screen can show.  The gaps are
    reported too -- they are what says no frame was missed. */
-test('the opening keeps inside a frame: the drawing median under 8 ms, p99 under 16 ms', async () => {
+test('what a frame costs: growing under 8/16 ms, settled under 5/12 ms', async () => {
   const r = await launch();
   const { page } = r;
   try {
-    await settle(page);
-    const got = await page.evaluate(() => {
-      const h = (window as unknown as { __startfield: { work(): number[]; deltas(): number[] } }).__startfield;
-      return { work: h.work(), deltas: h.deltas() };
-    });
-    const work = got.work.sort((a, b) => a - b);
-    const gaps = got.deltas.filter((d) => d > 0).sort((a, b) => a - b);
-    expect(work.length).toBeGreaterThan(20);
+    const ms = await grown(page);
+    await page.waitForTimeout(2500);
+    const got = await page.evaluate(({ ms }) => {
+      const h = (window as unknown as {
+        __startfield: { work(): number[]; deltas(): number[]; times(): number[] } }).__startfield;
+      const times = h.times(), work = h.work(), deltas = h.deltas();
+      const part = (lo: number, hi: number) => {
+        const w: number[] = [], d: number[] = [];
+        for (let i = 0; i < times.length; i++) {
+          if (times[i] < lo || times[i] >= hi) continue;
+          w.push(work[i]);
+          if (deltas[i] > 0) d.push(deltas[i]);
+        }
+        return { work: w.sort((a, b) => a - b), gaps: d.sort((a, b) => a - b) };
+      };
+      return { growth: part(0, ms), idle: part(ms, Infinity) };
+    }, { ms });
     const q = (xs: number[], p: number) => xs[Math.min(xs.length - 1, Math.floor(xs.length * p))];
-    console.log(`drawing: median ${q(work, 0.5).toFixed(2)} ms, p99 ${q(work, 0.99).toFixed(2)} ms over ${work.length} frames;`
-      + ` gaps: median ${q(gaps, 0.5).toFixed(2)} ms, p99 ${q(gaps, 0.99).toFixed(2)} ms`);
-    expect(q(work, 0.5)).toBeLessThan(8);
-    expect(q(work, 0.99)).toBeLessThan(16);
-    expect(q(gaps, 0.99), 'a dropped frame doubles the gap').toBeLessThan(34);
+    for (const [name, part, median, p99] of [
+      ['growing', got.growth, 8, 16], ['settled', got.idle, 5, 12]] as const) {
+      expect(part.work.length, `${name}: frames measured`).toBeGreaterThan(20);
+      console.log(`${name}: drawing median ${q(part.work, 0.5).toFixed(2)} ms, p99 ${q(part.work, 0.99).toFixed(2)} ms`
+        + ` over ${part.work.length} frames; gaps median ${q(part.gaps, 0.5).toFixed(1)} ms, p99 ${q(part.gaps, 0.99).toFixed(1)} ms`);
+      expect(q(part.work, 0.5), `${name}: the median frame`).toBeLessThan(median);
+      expect(q(part.work, 0.99), `${name}: the worst hundredth`).toBeLessThan(p99);
+    }
+  } finally { await r.close(); }
+});
+
+/* The board, measured off its own pixels at the window it was tuned at.
+   Five things at once because they come from one sweep of the clock, which
+   takes a while: how bright it ends up, when each pixel of it lit, whether
+   that spread outwards from the chip, how many lines a scanline crosses --
+   and that a settled board is still moving.
+
+   The density is here to catch the obvious wrong answer to "it is too dark":
+   more traces.  Brightness belongs in the alphas, the haze and the flares;
+   the number of lines is already what it should be. */
+test('the board at 1920x1080: bright enough, spread out in time, and no more lines than before', async () => {
+  const r = await launch(MEASURE_AT);
+  const { page } = r;
+  try {
+    const ms = await grown(page);
+    const m = await page.evaluate(measureBoard, { step: 150, grown: ms });
+    const show = (name: string, v: number, [lo, hi]: readonly number[], unit = '', dp = 2): void => {
+      console.log(`  ${name.padEnd(18)} ${v.toFixed(dp)}${unit}   (${lo}..${hi === Infinity ? '' : hi})`);
+    };
+    console.log(`board region ${m.board.width}x${m.board.height}, ${m.board.pixels} px, grown at ${(ms / 1000).toFixed(2)} s`);
+    show('mean', m.hist.mean, BANDS.mean);
+    show('near-black 0-20', m.hist.nearBlack, BANDS.nearBlack, ' %');
+    show('visible 45+', m.hist.visible, BANDS.visible, ' %');
+    show('bright 160+', m.hist.bright, BANDS.bright, ' %');
+    show('near-white 220+', m.hist.nearWhite, BANDS.nearWhite, ' %');
+    for (const k of ['p10', 'p50', 'p90', 'p99', 'spread'] as const) show(k, m.timing[k], TIMING[k], ' ms');
+    console.log(`  rings 90 %         ${m.timing.rings.map((v) => (v / 1000).toFixed(2)).join(' / ')} s`);
+    show('rings far-near', m.timing.rings[4] - m.timing.rings[0], TIMING.rings, ' ms');
+    show('density', m.density, DENSITY, ' /1000 px');
+    show('idle motion', m.idleMotion, IDLE_MOTION, '', 4);
+
+    const band = (name: string, v: number, [lo, hi]: readonly number[]): void => {
+      expect(v, `${name}: ${v.toFixed(2)}`).toBeGreaterThanOrEqual(lo);
+      expect(v, `${name}: ${v.toFixed(2)}`).toBeLessThanOrEqual(hi);
+    };
+    band('mean brightness', m.hist.mean, BANDS.mean);
+    band('near-black', m.hist.nearBlack, BANDS.nearBlack);
+    band('visible', m.hist.visible, BANDS.visible);
+    band('bright', m.hist.bright, BANDS.bright);
+    band('near-white', m.hist.nearWhite, BANDS.nearWhite);
+    for (const k of ['p10', 'p50', 'p90', 'p99', 'spread'] as const) band(k, m.timing[k], TIMING[k]);
+    band('the rings, farthest against nearest', m.timing.rings[4] - m.timing.rings[0], TIMING.rings);
+    band('lines a scanline crosses', m.density, DENSITY);
+    band('what still moves once it has settled', m.idleMotion, IDLE_MOTION);
   } finally { await r.close(); }
 });
 

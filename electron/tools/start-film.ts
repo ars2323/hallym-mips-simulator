@@ -33,9 +33,18 @@ import { launch, type Running } from '../tests/e2e/harness.ts';
 const root = path.join(import.meta.dirname, '..');
 const FIXED_TIME = new Date('2026-09-28T10:00:00+09:00');
 const FPS = 60;
-const SECONDS = 5;
-const STILLS = [0.3, 0.9, 1.5, 4.0];           // seconds
+/* The board grows for about eight and a half seconds and then goes on
+   moving, so the film of the window the board is tuned at runs long enough
+   to show both: fourteen seconds, eight of them growing.  The other three
+   sizes are there to show the layout, not the opening, and six is enough. */
+const SECONDS: Record<string, number> = { '1920x1080': 14 };
+const SECONDS_OTHERWISE = 6;
+const STILLS = [0.5, 2.0, 5.0, 8.0, 12.0];     // seconds
 const SIZES: [number, number][] = [[1280, 800], [1920, 1080], [1920, 540], [1024, 768]];
+/** The window the contact sheet shows every moment of; of the rest it shows
+    the settled screen alone. */
+const SHEET_SIZE = '1920x1080';
+const SHEET_AT = 12.0;
 
 const { values } = parseArgs({ options: {
   out: { type: 'string', default: path.join(root, 'build/startfilm') },
@@ -51,7 +60,8 @@ const sizes: [number, number][] = values.sizes
 // --at asks for those moments and nothing else: no frames are taken, so no
 // film is made and there is nothing to compare between two runs.
 const moments = values.at ? values.at.split(',').map(Number) : STILLS;
-const frameCount = values.at ? 0 : FPS * SECONDS;
+const seconds = (w: number, h: number): number => SECONDS[`${w}x${h}`] ?? SECONDS_OTHERWISE;
+const frameCount = (w: number, h: number): number => (values.at ? 0 : FPS * seconds(w, h));
 
 /** Puts the whole screen -- canvas and CSS alike -- at `ms` of the opening. */
 async function stepTo(r: Running, ms: number): Promise<void> {
@@ -75,7 +85,7 @@ async function film(width: number, height: number, dir: string): Promise<string[
     await r.page.clock.setFixedTime(FIXED_TIME);
     await r.page.waitForSelector('.startfield canvas');
     await r.page.waitForTimeout(1500);           // fonts, layout, the first build
-    for (let n = 0; n < frameCount; n++) {
+    for (let n = 0; n < frameCount(width, height); n++) {
       await stepTo(r, (n * 1000) / FPS);
       const file = path.join(dir, `frame_${String(n).padStart(4, '0')}.png`);
       // animations: 'disabled' keeps Playwright from sampling a CSS
@@ -102,12 +112,12 @@ function encode(dir: string, mp4: string): void {
   if (run.status !== 0) throw new Error(`ffmpeg: ${run.status}`);
 }
 
-/** The stills of every size, side by side, to look at in one go: one row a
-    window size, one column a moment.  Each is fitted into the same cell
-    first -- they are four different window sizes, and a glob of mixed sizes
-    is one stream the image demuxer cannot read. */
+/** The stills, side by side, to look at in one go: the window the board is
+    tuned at at every moment, and each of the others settled.  Each is fitted
+    into the same cell first -- they are four different window sizes, and a
+    glob of mixed sizes is one stream the image demuxer cannot read. */
 function contactSheet(files: string[], to: string): void {
-  const CELL_W = 648, CELL_H = 408, COLS = moments.length;
+  const CELL_W = 648, CELL_H = 408, COLS = 4;
   const scale = files.map((_, i) =>
     `[${i}:v]scale=${CELL_W - 8}:${CELL_H - 8}:force_original_aspect_ratio=decrease,`
     + `pad=${CELL_W}:${CELL_H}:(ow-iw)/2:(oh-ih)/2:color=0x151515[c${i}]`).join(';');
@@ -144,8 +154,15 @@ for (const [w, h] of sizes) {
   report[`${w}x${h}-frameHash`] = createHash('sha256').update(first.join('')).digest('hex').slice(0, 16);
   rmSync(dir, { recursive: true, force: true });
 }
-// Sorted: the rows come out one window size each, the columns one moment each.
-const stills = readdirSync(out).filter((f) => f.startsWith('still-')).sort().map((f) => path.join(out, f));
+/* The sheet: the tuned window at each moment first, in time order, then the
+   other sizes settled.  Named by size and moment, so sorting by name would
+   put 12.0 s before 2.0 s and the rows of a size out of order. */
+const named = readdirSync(out).filter((f) => f.startsWith('still-'))
+  .map((f) => { const m = /^still-(\d+x\d+)-([\d.]+)s\.png$/.exec(f)!; return { file: f, size: m[1], at: Number(m[2]) }; });
+const stills = [
+  ...named.filter((n) => n.size === SHEET_SIZE).sort((a, b) => a.at - b.at),
+  ...named.filter((n) => n.size !== SHEET_SIZE && n.at === SHEET_AT).sort((a, b) => a.size.localeCompare(b.size)),
+].map((n) => path.join(out, n.file));
 const sheet = stills.length > 1 && hasFfmpeg();
 if (sheet) contactSheet(stills, path.join(out, 'contact-sheet.png'));
 else if (stills.length) console.log(`no contact sheet (${hasFfmpeg() ? 'one still' : 'no ffmpeg on PATH'})`);

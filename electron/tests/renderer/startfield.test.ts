@@ -40,6 +40,8 @@ const vkey = (p: Pt): string => `${p.x},${p.y}`;
 const render = readFileSync(path.join(root, 'src/renderer/startfield/render.ts'), 'utf8');
 /** The code alone: the comments talk about arcs and round joins. */
 const renderCode = render.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+const glintsCode = readFileSync(path.join(root, 'src/renderer/startfield/glints.css'), 'utf8')
+  .replace(/\/\*[\s\S]*?\*\//g, '');
 
 test('the chip is square, and the pins are on its edges with the corners left bare', () => {
   every((g, name) => {
@@ -191,28 +193,94 @@ test('three depths, in the shares the board is meant to have, and nothing wider 
 
 test('the bright points are light, not smudges: added, and always on a pad', () => {
   every((g, name) => {
-    assert.ok(g.flares.length >= 12, `${name}: ${g.flares.length} flares`);
+    // Enough of them, and large: most of the board's near-white is here.
+    assert.ok(g.flares.length >= 22, `${name}: ${g.flares.length} flares`);
     const pads = new Set(g.pads.map((p) => vkey(p.at)));
     const tips = new Set(g.pins.map((p) => vkey(p.tip)));
     for (const f of g.flares) {
       assert.ok(pads.has(vkey(f.at)) || tips.has(vkey(f.at)), `${name}: a flare at ${vkey(f.at)} is on nothing`);
-      assert.ok(f.strength > 0 && f.strength <= 0.8, `${name}: a flare at ${f.strength}`);
+      assert.ok(f.strength > 0 && f.strength <= 1, `${name}: a flare at ${f.strength}`);
     }
+    // The few that are blown out: a white core, not a bright point.
+    assert.ok(g.flares.filter((f) => f.strength >= 0.9).length >= 5, `${name}: nothing blown out`);
+    assert.ok(g.flares.some((f) => f.halo >= 42 && f.streakLength >= 130), `${name}: no flare of any size`);
     assert.ok(new Set(g.flares.map((f) => f.streak)).size === 2, `${name}: the streaks all point one way`);
   });
-  // A soft white circle drawn over the board is a grey smudge; added, it is light.
-  assert.match(renderCode, /ctx\.globalCompositeOperation = 'lighter'/);
-  assert.match(renderCode, /ctx\.globalCompositeOperation = 'source-over'/);
+  /* A soft white circle drawn over the board is a grey smudge; added, it is
+     light.  Three passes add light -- around the traces, the flares on the
+     board, and the layer above -- and each puts the context back when it is
+     done, so counting them is what says none has been left drawing over. */
+  const added = renderCode.match(/globalCompositeOperation = 'lighter'/g) ?? [];
+  const back = renderCode.match(/globalCompositeOperation = 'source-over'/g) ?? [];
+  assert.ok(added.length >= 3, `only ${added.length} passes add their light`);
+  assert.ok(back.length >= added.length, `${added.length} passes add light and ${back.length} put it back`);
 });
 
-test('one speed for the whole board: duration over length is the same for every trace', () => {
+/* One signal speed, and each trace's own rate against it.  The first is what
+   makes a short trace and a long one look like the same light moving; the
+   second is what keeps them from arriving together. */
+test('one signal speed, each trace at its own rate, from 0.35x to 3x', () => {
   every((g, name) => {
-    const ratios = g.paths.map((p) => p.durationMs / p.length);
+    const ratios = g.paths.map((p) => p.durationMs * p.speedMul / p.length);
     for (const r of ratios) assert.ok(Math.abs(r - ratios[0]) < 1e-9, `${name}: ${r} against ${ratios[0]}`);
     assert.ok(ratios[0] > 0, `${name}: no duration`);
-    const last = Math.max(...g.paths.filter((p) => p.layer === 2).map((p) => p.delayMs + p.durationMs));
-    assert.ok(last <= 750, `${name}: the chip's traces need ${Math.round(last)} ms`);
+    const muls = g.paths.map((p) => p.speedMul);
+    assert.ok(Math.min(...muls) >= 0.35 && Math.max(...muls) <= 3.0, `${name}: ${Math.min(...muls)}..${Math.max(...muls)}`);
+    assert.ok(Math.max(...muls) - Math.min(...muls) >= 2.0,
+      `${name}: every trace at much the same rate (${(Math.max(...muls) - Math.min(...muls)).toFixed(2)})`);
   });
+});
+
+/* The stagger, in the geometry: a trace at the far corner starts seconds
+   after one at the pins.  What that looks like on screen is measured in
+   tests/e2e/start.e2e.ts, off the pixels. */
+test('the further from the chip a trace starts, the later it does', () => {
+  every((g, name) => {
+    const cx = g.card.x + g.card.width / 2, cy = g.card.y + g.card.height / 2;
+    const away = (p: { points: { x: number; y: number }[] }) => Math.hypot(p.points[0].x - cx, p.points[0].y - cy);
+    const sorted = g.paths.slice().sort((a, b) => away(a) - away(b));
+    const take = Math.max(1, Math.floor(sorted.length / 5));
+    const mean = (ps: typeof sorted) => ps.reduce((s, p) => s + p.delayMs, 0) / ps.length;
+    const near = mean(sorted.slice(0, take)), far = mean(sorted.slice(-take));
+    assert.ok(far - near >= 2500, `${name}: the farthest fifth starts ${Math.round(far - near)} ms after the nearest`);
+    assert.ok(g.grownMs >= far, `${name}: grown at ${g.grownMs} before the last trace starts`);
+  });
+});
+
+/* What is left moving: a loop of pulses worked out from the seed, so a
+   window open all afternoon costs the same as one just opened. */
+test('the pulses: a few at once, a couple a second, and a loop that never runs out', () => {
+  every((g, name) => {
+    assert.ok(g.pulses.length > 20, `${name}: ${g.pulses.length} pulses in ${g.pulsePeriodMs} ms`);
+    const starts = (g.pulses.length / g.pulsePeriodMs) * 1000;
+    assert.ok(starts >= 1.5 && starts <= 3, `${name}: ${starts.toFixed(2)} pulses start a second`);
+    // At any moment: three to six running, and never more than eight things
+    // on the layer above once the flares that beat are counted.
+    let least = Infinity, most = 0;
+    for (let t = 0; t < g.pulsePeriodMs; t += 50) {
+      let n = 0;
+      // Both t and a period later, as the renderer counts them: a lane's
+      // last pulse crosses the wrap and runs on into the next turn, which is
+      // what keeps the loop from having a lull at its seam.
+      for (const q of g.pulses) for (const now of [t, t + g.pulsePeriodMs]) {
+        if (now >= q.startMs && now < q.startMs + q.durationMs) n++;
+      }
+      least = Math.min(least, n); most = Math.max(most, n);
+    }
+    assert.ok(most <= 6, `${name}: ${most} pulses at once`);
+    assert.ok(least >= 3, `${name}: only ${least} pulses at once`);
+    assert.ok(most + g.beats.length <= 8, `${name}: ${most + g.beats.length} things on the layer above`);
+    for (const q of g.pulses) {
+      const path = g.paths[q.path];
+      assert.ok(path && path.id === q.path, `${name}: a pulse on no trace`);
+      assert.equal(path.layer, 2, `${name}: a pulse on a trace of the board behind`);
+    }
+    for (const b of g.beats) assert.ok(g.flares[b.flare], `${name}: a beat on no flare`);
+  });
+  // Nothing of it is a CSS animation that loops: those cannot be photographed
+  // (the capture tool freezes them) and they keep a thread awake for as long
+  // as the window is open.
+  assert.ok(!/animation:[^;]*infinite/.test(glintsCode), 'a CSS animation that never ends');
 });
 
 test('the same input gives the same board, to the byte', () => {
@@ -236,4 +304,4 @@ test('the pins follow the card: a card of another size or place puts them elsewh
 });
 
 // Updated on purpose when the generator changes; see the test above.
-const GOLDEN_1280x800 = '0bf8b8dc0afa24b1';
+const GOLDEN_1280x800 = '65c9aea8b3ef21fb';

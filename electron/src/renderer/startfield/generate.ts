@@ -21,9 +21,18 @@
       pads than traces -- most of them joined to nothing.  The small dots are
       half of the texture; without them the field looks empty however many
       lines are in it.
+   6. Brightness is in the alphas and in the flares, never in more lines.
+      A board that is too dark is not short of traces -- it is short of
+      light, and answering it with more lines fills the grid in and loses
+      the board.
 
-   Lengths, not segment counts, drive the timing: a path's duration is its
-   length over one speed, so a signal moves at the same rate everywhere. */
+   Time.  A path's duration is its length over one speed, so a signal moves
+   at the same rate everywhere; its own multiplier (0.35x to 3x) is what
+   makes neighbouring traces take different times, and its delay is mostly
+   how far from the chip it starts.  Those two are what spread the opening
+   over seconds instead of landing it all at once.  What is left moving
+   afterwards is a looping schedule of pulses, worked out here from the seed
+   so that any moment of it can be drawn from the clock alone. */
 
 export type Layer = 0 | 1 | 2; // 0 far, 1 mid, 2 near
 export type Side = 'top' | 'right' | 'bottom' | 'left';
@@ -42,13 +51,21 @@ export interface Pin {
 export interface Path {
   id: number;
   layer: Layer;
-  /** A tenth of the near ones are brighter again and carry a flare. */
+  /** The brightest near ones, which carry a flare. */
   bright: boolean;
   from: 'pin' | 'seed' | 'branch';
+  /** Whether it grows out of the chip, or is the board behind it. */
+  chip: boolean;
   parent?: number;
   /** Grid vertices, in order.  drawn() turns them into the polyline. */
   points: Pt[];
   length: number;
+  /** Its own speed, 0.35x to 3x of the board's: traces that all run at one
+      rate arrive together, which reads as a wipe rather than as a board
+      filling up. */
+  speedMul: number;
+  /** When it starts, from the opening's zero.  Mostly its distance from the
+      chip: the far corners are seconds behind the pins. */
   delayMs: number;
   durationMs: number;
 }
@@ -61,6 +78,10 @@ export interface Pad {
   /** Where a trace ends, where one branches, or joined to nothing at all
       (most of them: the small dots are half of the texture). */
   kind: 'end' | 'branch' | 'floating';
+  /** The trace it belongs to, if any: it turns up when that one arrives. */
+  path?: number;
+  /** When it turns up. */
+  atMs: number;
 }
 
 export interface Flare {
@@ -72,6 +93,25 @@ export interface Flare {
   /** The long thin streak: level, or at 45 deg. */
   streak: 'level' | 'diagonal';
   streakLength: number;
+  /** When it lights, from the opening's zero. */
+  atMs: number;
+}
+
+/** One run of light along a trace that is already drawn, on the layer above
+    the board.  The schedule is a loop of pulsePeriodMs, so the board is
+    alive for as long as the window is open without anything being kept. */
+export interface Pulse {
+  path: number;
+  startMs: number;
+  durationMs: number;
+}
+
+/** A flare whose brightness swells and falls on the layer above.  Light is
+    only ever added, so the board below stays as it was drawn. */
+export interface Beat {
+  flare: number;
+  periodMs: number;
+  phase: number;
 }
 
 export interface Geometry {
@@ -88,6 +128,12 @@ export interface Geometry {
   pads: Pad[];
   flares: Flare[];
   speed: number;
+  /** When the last of it has arrived: after this the board is finished and
+      is not drawn again (index.ts). */
+  grownMs: number;
+  pulses: Pulse[];
+  pulsePeriodMs: number;
+  beats: Beat[];
 }
 
 export interface Input {
@@ -101,13 +147,15 @@ export interface Input {
 
 export const GRID = 22;
 export const CHAMFER = 6;
-/** Width and alpha of each depth, and how much of the board is at it. */
+/** Width and alpha of each depth, and how much of the board is at it.  The
+    three alphas are what the board's brightness is made of: at a tenth of
+    these the same geometry is a grid of faint scratches on black. */
 export const LAYERS = [
-  { width: 1.0, alpha: 0.10, share: 0.40 },
-  { width: 1.5, alpha: 0.22, share: 0.40 },
-  { width: 2.0, alpha: 0.55, share: 0.20 },
+  { width: 1.0, alpha: 0.28, share: 0.40 },
+  { width: 1.5, alpha: 0.62, share: 0.40 },
+  { width: 2.0, alpha: 0.92, share: 0.20 },
 ] as const;
-export const BRIGHT = { width: 2.0, alpha: 0.95 } as const;
+export const BRIGHT = { width: 2.0, alpha: 1.0 } as const;
 /** Nothing drawn on this board is wider than this. */
 export const MAX_LINE_WIDTH = 2.5;
 
@@ -121,7 +169,7 @@ const PINS_PER_SIDE = 10;
 const PIN_LENGTH = 14;
 const PIN_BARE_ENDS = 0.12;            // no pin in the last eighth of an edge
 const CARD_KEEP_OUT = 1;
-const BRIGHT_SHARE = 0.10;             // of the near layer
+const BRIGHT_SHARE = 0.18;             // of the near layer
 const DECOR_AREA = 7000;               // px^2 per decorative trace
 /* Which depth a decorative trace goes to.  The chip's own traces are all
    near -- they are the ones the signal runs along -- and their branches sit
@@ -131,8 +179,46 @@ const DECOR_LAYER = [0.70, 0.22] as const;   // far, mid; the rest near
 const PAD_AREA = 4500;                 // px^2 per floating pad
 const BIG_PAD_SHARE = 0.3;             // r = 3 against r = 1.5
 const BRANCH_PAD_P = 0.45;
-const FLARES_MIN = 12, FLARES_MAX = 18;
-const SPEED_FITS_IN = 640;             // ms for the longest trace
+const FLARES_MIN = 22, FLARES_MAX = 30;
+const FLARE_HALO = 42;
+const FLARE_STREAK = 130;
+const FLARES_BLOWN = 6;                // the first few, with the core burnt out
+const SPEED_FITS_IN = 640;             // ms for the longest trace at 1x
+
+/* The opening's shape.  A board that fills in 0.65 s reads as a wipe: the
+   eye sees one event, not a thing growing.  Three things spread it out --
+   each trace runs at its own rate, each starts later the further it is from
+   the chip, and the board behind the chip starts later again. */
+const BASE_DELAY = 380;
+const DIST_DELAY = 6800;               // the farthest trace against the nearest
+/* Not in proportion to the distance but bent away from it: the rings near
+   the chip fill in while the far corners are still empty, which is what the
+   eye reads as something spreading outwards rather than as a bar moving
+   across. */
+const DIST_CURVE = 1.7;
+const DECOR_EXTRA = 700;               // what is not joined to the chip, later again
+const DELAY_JITTER = 520;
+const SPEED_MUL = { min: 0.35, max: 3.0 } as const;
+
+/* The layer above the board, which is what is left moving.  Five lanes, each
+   running one pulse at a time, and the whole schedule a loop: any moment of
+   any length of time is worked out from the seed alone and nothing is kept.
+
+   The lanes are on one cycle and evenly spread over it, rather than each
+   going its own way, so how many run at once is settled by construction and
+   not by luck.  A lane is quiet for at most 0.28 of the cycle and the lanes
+   are 0.2 of it apart, so two neighbours can be quiet together but three
+   never can: between three and five are running at every moment, which with
+   the three flares that beat is eight things on the layer at most. */
+const PULSE_PERIOD = 24000;
+const PULSE_LANES = 5;
+const PULSE_CYCLE = 2000;              // divides PULSE_PERIOD
+const PULSE_ON = { min: 0.72, max: 0.92 } as const;   // of the cycle
+const BEATS = 3;                       // flares that swell and fall
+const BEAT_MS = { min: 2400, max: 3600 } as const;
+/** A pulse wants a trace longer than its own lit run, or it covers the whole
+    of it at once and nothing appears to move. */
+const PULSE_MIN_LENGTH = 150;
 
 /** mulberry32: a small PRNG, so the board is the same for the same seed. */
 export function rng(seed: number): () => number {
@@ -302,14 +388,15 @@ export function generate(input: Input): Geometry {
   let id = 0;
   const layerOf = (r: number): Layer => (r < DECOR_LAYER[0] ? 0 : r < DECOR_LAYER[0] + DECOR_LAYER[1] ? 1 : 2);
 
-  const add = (points: Pt[], layer: Layer, from: Path['from'], parent?: number): Path | undefined => {
+  const add = (points: Pt[], layer: Layer, from: Path['from'], chip: boolean, parent?: number): Path | undefined => {
     if (points.length < 2) return undefined;
-    const p: Path = { id: id++, layer, bright: false, from, parent, points, length: lengthOf(points), delayMs: 0, durationMs: 0 };
+    const p: Path = { id: id++, layer, bright: false, from, chip, parent, points, length: lengthOf(points),
+                      speedMul: 1, delayMs: 0, durationMs: 0 };
     paths.push(p);
     return p;
   };
-  const padAt = (at: Pt, layer: Layer, kind: Pad['kind']): void => {
-    pads.push({ at, r: rand() < BIG_PAD_SHARE ? 3 : 1.5, layer, kind });
+  const padAt = (at: Pt, layer: Layer, kind: Pad['kind'], path?: number): void => {
+    pads.push({ at, r: rand() < BIG_PAD_SHARE ? 3 : 1.5, layer, kind, path, atMs: 0 });
   };
 
   // ---- the chip's own traces, out of every pin ---------------------------
@@ -323,15 +410,15 @@ export function generate(input: Input): Geometry {
     if (!field.releaseOut(i, j, d)) continue;
     field.takeVertex(i, j);
     const branches: typeof pending = [];
-    add(walk(field, i, j, dir, steps(rand) + 2, rand, branches), 2, 'pin');
+    add(walk(field, i, j, dir, steps(rand) + 2, rand, branches), 2, 'pin', true);
     pending.push(...branches);
   }
   for (const b of pending) {
     const parent = paths.find((p) => p.points.some((q) => q.x === b.i * GRID && q.y === b.j * GRID));
     // A branch off the chip sits one depth back, so the near layer stays the
     // fifth of the board that LAYERS asks for.
-    const child = add(walk(field, b.i, b.j, b.dir, steps(rand), rand, []), 1, 'branch', parent?.id);
-    if (child && rand() < BRANCH_PAD_P) padAt(child.points[0], 1, 'branch');
+    const child = add(walk(field, b.i, b.j, b.dir, steps(rand), rand, []), 1, 'branch', true, parent?.id);
+    if (child && rand() < BRANCH_PAD_P) padAt(child.points[0], 1, 'branch', child.id);
   }
 
   // ---- the board behind, by area ----------------------------------------
@@ -342,11 +429,11 @@ export function generate(input: Input): Geometry {
     if (!field.inside(i, j) || field.takenVertex(i, j)) continue;
     field.takeVertex(i, j);
     const branches: typeof pending = [];
-    const p = add(walk(field, i, j, Math.floor(rand() * 8), steps(rand), rand, branches), layerOf(rand()), 'seed');
+    const p = add(walk(field, i, j, Math.floor(rand() * 8), steps(rand), rand, branches), layerOf(rand()), 'seed', false);
     if (!p) continue;
     for (const b of branches) {
-      const child = add(walk(field, b.i, b.j, b.dir, steps(rand), rand, []), p.layer, 'branch', p.id);
-      if (child && rand() < BRANCH_PAD_P) padAt(child.points[0], p.layer, 'branch');
+      const child = add(walk(field, b.i, b.j, b.dir, steps(rand), rand, []), p.layer, 'branch', false, p.id);
+      if (child && rand() < BRANCH_PAD_P) padAt(child.points[0], p.layer, 'branch', child.id);
     }
     n++;
   }
@@ -374,8 +461,31 @@ export function generate(input: Input): Geometry {
     if (owner) pd.layer = owner.layer;
   }
 
+  /* ---- one signal speed, each trace's own rate, and the stagger --------
+     A trace's duration is still its length over the board's one speed, so
+     the light runs at the same rate along a short trace and a long one;
+     its own multiplier is what makes one trace take three times as long as
+     its neighbour.  The delay is mostly distance: the ring of traces at the
+     far corners starts DIST_DELAY after the ring at the pins. */
+  const longest = paths.reduce((m, p) => Math.max(m, p.length), 1);
+  const speed = longest / SPEED_FITS_IN;
+  const centre = { x: card.x + card.width / 2, y: card.y + card.height / 2 };
+  const from = (at: Pt): number => Math.hypot(at.x - centre.x, at.y - centre.y);
+  let nearest = Infinity, furthest = 0;
+  for (const p of paths) { const d = from(p.points[0]); if (d < nearest) nearest = d; if (d > furthest) furthest = d; }
+  const spread = Math.max(1, furthest - nearest);
+  /** How far out a point is, 0 at the chip's own traces, 1 at the corners. */
+  const ring = (at: Pt): number => Math.min(1, Math.max(0, (from(at) - nearest) / spread));
+  for (const p of paths) {
+    p.speedMul = SPEED_MUL.min + rand() * (SPEED_MUL.max - SPEED_MUL.min);
+    p.durationMs = p.length / (speed * p.speedMul);
+    p.delayMs = BASE_DELAY + Math.pow(ring(p.points[0]), DIST_CURVE) * DIST_DELAY
+      + rand() * DELAY_JITTER + (p.chip ? 0 : DECOR_EXTRA);
+  }
+  const arrival = new Map<number, number>(paths.map((p) => [p.id, p.delayMs + p.durationMs]));
+
   // ---- a pad where every trace ends -------------------------------------
-  for (const p of paths) padAt(p.points[p.points.length - 1], p.layer, 'end');
+  for (const p of paths) padAt(p.points[p.points.length - 1], p.layer, 'end', p.id);
 
   // ---- and far more that join nothing: the dots that carry the texture ---
   const wantPads = Math.round((width * height) / PAD_AREA);
@@ -386,16 +496,11 @@ export function generate(input: Input): Geometry {
     padAt({ x: i * GRID, y: j * GRID }, layerOf(rand()), 'floating');
     n++;
   }
-
-  // ---- one speed for the board, and the stagger -------------------------
-  const longest = paths.reduce((m, p) => Math.max(m, p.length), 1);
-  const speed = longest / SPEED_FITS_IN;
-  const centre = { x: card.x + card.width / 2, y: card.y + card.height / 2 };
-  const far = Math.hypot(width, height) / 2 || 1;
-  for (const p of paths) {
-    p.durationMs = p.length / speed;
-    p.delayMs = p.layer === 2
-      ? Math.min(1, Math.hypot(p.points[0].x - centre.x, p.points[0].y - centre.y) / far) * 160 : 0;
+  // A pad turns up when what it belongs to arrives; one joined to nothing
+  // keeps the same distance rule as the board behind it.
+  for (const pd of pads) {
+    pd.atMs = pd.path !== undefined ? arrival.get(pd.path) ?? 0
+      : BASE_DELAY + Math.pow(ring(pd.at), DIST_CURVE) * DIST_DELAY + DECOR_EXTRA + rand() * DELAY_JITTER;
   }
 
   // ---- the bright points, always on a pad that is already there ---------
@@ -408,18 +513,51 @@ export function generate(input: Input): Geometry {
     let k = Math.floor(rand() * pool.length);
     for (let t = 0; t < 8 && used.has(k); t++) k = Math.floor(rand() * pool.length);
     used.add(k);
-    // Three of them carry the eye; the rest sit back.
-    const strength = n < 3 ? 0.8 : 0.3 + rand() * 0.2;
-    flares.push({ at: pool[k].at, halo: 30, strength,
-                  streak: rand() < 0.5 ? 'level' : 'diagonal', streakLength: 90 });
+    // The first few are blown out -- a white core with no shading left in it
+    // -- and the rest sit back.  Those few are most of the near-white on the
+    // board; without them it is grey everywhere and bright nowhere.
+    const strength = n < FLARES_BLOWN ? 1.0 : 0.3 + rand() * 0.2;
+    flares.push({ at: pool[k].at, halo: FLARE_HALO, strength,
+                  streak: rand() < 0.5 ? 'level' : 'diagonal', streakLength: FLARE_STREAK,
+                  atMs: pool[k].atMs + 240 });
   }
   // A few at the pins, small: this is where the chip reads as sending signal out.
   const tips = 4 + Math.floor(rand() * 3);
   for (let n = 0; n < tips; n++) {
     const pin = pins[Math.floor(rand() * pins.length)];
     flares.push({ at: pin.tip, halo: 16, strength: 0.45 + rand() * 0.2,
-                  streak: rand() < 0.5 ? 'level' : 'diagonal', streakLength: 44 });
+                  streak: rand() < 0.5 ? 'level' : 'diagonal', streakLength: 44,
+                  atMs: BASE_DELAY + 300 + rand() * 400 });
   }
 
-  return { seed, width, height, dpr, grid: GRID, chamfer: CHAMFER, card, chipLabel, pins, paths, pads, flares, speed };
+  const grownMs = Math.ceil(Math.max(
+    ...paths.map((p) => p.delayMs + p.durationMs),
+    ...pads.map((pd) => pd.atMs),
+    ...flares.map((f) => f.atMs + 400)));
+
+  /* ---- what is left moving --------------------------------------------
+     Five lanes, each with one pulse at a time, laid out to the end of the
+     period; the last of a lane is allowed to cross the wrap and is drawn
+     again a period early, so the loop has no lull at its seam. */
+  const pulses: Pulse[] = [];
+  const longEnough = paths.filter((p) => p.layer === 2 && p.length >= PULSE_MIN_LENGTH);
+  const lit = longEnough.length >= PULSE_LANES ? longEnough : paths.filter((p) => p.layer === 2);
+  for (let lane = 0; lane < PULSE_LANES && lit.length > 0; lane++) {
+    const phase = (lane / PULSE_LANES) * PULSE_CYCLE;
+    for (let at = phase; at < PULSE_PERIOD; at += PULSE_CYCLE) {
+      const on = PULSE_ON.min + rand() * (PULSE_ON.max - PULSE_ON.min);
+      pulses.push({ path: lit[Math.floor(rand() * lit.length)].id, startMs: at, durationMs: on * PULSE_CYCLE });
+    }
+  }
+  pulses.sort((a, b) => a.startMs - b.startMs);
+
+  /* Not the blown ones: their middles are already white, and light added to
+     white is white -- a beat there is one nothing can see. */
+  const beats: Beat[] = [];
+  for (let n = 0; n < BEATS && FLARES_BLOWN + n < flares.length; n++) {
+    beats.push({ flare: FLARES_BLOWN + n, periodMs: BEAT_MS.min + rand() * (BEAT_MS.max - BEAT_MS.min), phase: rand() });
+  }
+
+  return { seed, width, height, dpr, grid: GRID, chamfer: CHAMFER, card, chipLabel, pins, paths, pads, flares,
+           speed, grownMs, pulses, pulsePeriodMs: PULSE_PERIOD, beats };
 }
