@@ -91,6 +91,10 @@ async function film(width: number, height: number, dir: string): Promise<string[
   return hashes;
 }
 
+/** ffmpeg is what makes the film and the contact sheet; the Windows runner
+    has none, and there it is only the stills that are wanted. */
+const hasFfmpeg = (): boolean => spawnSync('ffmpeg', ['-version']).status === 0;
+
 function encode(dir: string, mp4: string): void {
   const run = spawnSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y',
     '-framerate', String(FPS), '-i', path.join(dir, 'frame_%04d.png'),
@@ -142,7 +146,10 @@ for (const [w, h] of sizes) {
 }
 // Sorted: the rows come out one window size each, the columns one moment each.
 const stills = readdirSync(out).filter((f) => f.startsWith('still-')).sort().map((f) => path.join(out, f));
-if (stills.length) contactSheet(stills, path.join(out, 'contact-sheet.png'));
+const sheet = stills.length > 1 && hasFfmpeg();
+if (sheet) contactSheet(stills, path.join(out, 'contact-sheet.png'));
+else if (stills.length) console.log(`no contact sheet (${hasFfmpeg() ? 'one still' : 'no ffmpeg on PATH'})`);
 report.stills = stills.length;
+report.contactSheet = sheet;
 writeFileSync(path.join(out, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);
 console.log(`\n${JSON.stringify(report, null, 2)}`);
