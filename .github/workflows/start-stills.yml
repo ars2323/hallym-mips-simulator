@@ -1,5 +1,6 @@
-# The first screen, photographed on Windows -- by hand only, for the preview
-# branch (feature/circuit-start).  It is not a check and nothing depends on
+# The first screen settled, photographed on Windows -- for the preview branch
+# (feature/circuit-start).  The board grows for about 8.5 s, so 12 s is a
+# picture of it finished.  It is not a check and nothing depends on
 # it: it builds the addon and the renderer, runs the app from source, takes
 # the pictures the capture tool takes on Linux, and uploads them.  No
 # installer is built, nothing is packaged and nothing is published.
@@ -16,7 +17,7 @@ on:
     inputs:
       at:
         description: 'Moments of the opening, in seconds (comma separated)'
-        default: '4.0'
+        default: '12.0'
       sizes:
         description: 'Window sizes (comma separated)'
         default: '1280x800,1920x1080,1920x540,1024x768'
@@ -27,7 +28,7 @@ defaults:
 
 jobs:
   stills:
-    name: The first screen at ${{ inputs.at || '4.0' }} s
+    name: The first screen at ${{ inputs.at || '12.0' }} s
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
@@ -69,7 +70,7 @@ jobs:
       - name: The stills
         run: >-
           node tools/start-film.ts
-          --at "${{ inputs.at || '4.0' }}"
+          --at "${{ inputs.at || '12.0' }}"
           --sizes "${{ inputs.sizes || '1280x800,1920x1080,1920x540,1024x768' }}"
           --out report/stills
 
