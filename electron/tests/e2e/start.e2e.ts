@@ -1,312 +1,348 @@
-/* The first screen's background (panels/backdrop.ts): the university's
-   video, silent, looping, from the app's own files; one video for both
-   steps, running on from one to the other; the glass card readable over it
-   (every text 4.5:1 at every moment of the clip) and blurring what it shows;
-   on the screen, the ground tinted and blurred; on Windows, the caption
-   buttons' patch showing the dark bar through; the still only under
-   prefers-reduced-motion; nothing of it once a
-   file is open; the brand's navy, quietly, when the clip cannot play.
+/* The first screen's circuit board (src/renderer/startfield/).
 
-   Run by the Windows job against the installed program too: there the clip
-   is read from the package (app.asar). */
+   What is checked here is what a picture cannot settle: that every text on
+   the chip is readable against it, that the opening stops when it is over
+   (a settled board must cost nothing), that it keeps inside a frame's
+   budget while it runs, and that the chip is the card -- the pins are on the
+   rectangle the card actually occupies, at every window size.
+
+   The board itself -- the grid, the angles, the self-avoidance -- is checked
+   where it is decided, in tests/renderer/startfield.test.ts, against the
+   geometry rather than against pixels. */
 
 import { expect, test, type Page } from '@playwright/test';
 
-import {
-  CARD_EMPTY, cardTexts, compare, GLASS_OFF, glassRect, glassSharpness, groundRect, HIDE_TEXT, rawPixels, readbackPixels, screenPixels, setExtra, stats, textContrasts,
-} from './backdrop-measure.ts';
-import { launch, openAndAssemble, program, type Running } from './harness.ts';
+import { launch, type Running } from './harness.ts';
 
-const NAVY = 'rgb(0, 32, 91)';
-const clip = (page: Page) => page.evaluate(() => {
-  const v = document.querySelector('.wback video') as HTMLVideoElement & { webkitAudioDecodedByteCount: number };
-  return { src: v.currentSrc, hasSrc: v.hasAttribute('src'), paused: v.paused, muted: v.muted, time: v.currentTime, duration: v.duration,
-           width: v.videoWidth, height: v.videoHeight, audioBytes: v.webkitAudioDecodedByteCount, network: v.networkState,
-           playing: v.closest('.wback')!.classList.contains('playing') };
-});
-// Stops the clip at `t` seconds and waits for the frame to be on screen.
-async function at(page: Page, t: number): Promise<void> {
-  await page.evaluate((t) => new Promise<void>((done) => {
-    const v = document.querySelector('.wback video') as HTMLVideoElement;
-    v.pause();
-    v.addEventListener('seeked', () => requestAnimationFrame(() => requestAnimationFrame(() => done())), { once: true });
-    v.currentTime = t;
-  }), t);
-  await page.waitForTimeout(100);
+const SETTLED = 1100;
+const CHIP_INSIDE = '#050505';
+const BACKGROUND = '#0d0d0d';
+
+const framesDrawn = (page: Page) => page.evaluate(() => (window as unknown as {
+  __startfield: { frames(): number } }).__startfield.frames());
+
+/** sRGB relative luminance, and the contrast of two colours. */
+function luminance(rgb: [number, number, number]): number {
+  const f = (v: number) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  return 0.2126 * f(rgb[0]) + 0.7152 * f(rgb[1]) + 0.0722 * f(rgb[2]);
 }
-// The window's pixels in `rect` (CSS pixels): their mean luminance (0..1), and the bytes themselves.
-const pixels = (r: Running, rect: { x: number; y: number; width: number; height: number }) =>
-  r.app.evaluate(async ({ BrowserWindow }, rect) => {
-    const image = await BrowserWindow.getAllWindows()[0].webContents.capturePage(rect);
-    const b = image.toBitmap(); // BGRA
-    let sum = 0;
-    for (let i = 0; i < b.length; i += 4) sum += (0.0722 * b[i] + 0.7152 * b[i + 1] + 0.2126 * b[i + 2]) / 255;
-    return { luminance: sum / (b.length / 4), hash: b.toString('base64') };
-  }, { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) });
+const contrast = (a: [number, number, number], b: [number, number, number]): number => {
+  const [x, y] = [luminance(a), luminance(b)].sort((p, q) => q - p);
+  return (x + 0.05) / (y + 0.05);
+};
+/** A computed colour, laid over `under` when it is not opaque -- the die
+    marking is white at 55 %, and taking it for pure white would report a
+    contrast it does not have. */
+const parse = (css: string, under?: [number, number, number]): [number, number, number] => {
+  const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/.exec(css);
+  if (!m) throw new Error(`not a colour: ${css}`);
+  const rgb: [number, number, number] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const a = m[4] === undefined ? 1 : Number(m[4]);
+  if (a === 1 || !under) return rgb;
+  return rgb.map((v, i) => Math.round(v * a + under[i] * (1 - a))) as [number, number, number];
+};
+const hex = (h: string): [number, number, number] =>
+  [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
 
-test('the first screen: the university video behind the card, from the app\'s own file, silent, playing', async () => {
+async function settle(page: Page): Promise<void> {
+  await page.waitForSelector('.startfield canvas');
+  await page.waitForTimeout(SETTLED + 500);
+}
+
+test('the board is behind the card, drawn by the app itself, and the card is the chip', async () => {
   const r = await launch();
   const { page } = r;
   try {
-    await page.waitForSelector('.wback.playing');
-    const c = await clip(page);
-    expect(c.src).toMatch(/^file:.*\/assets\/hallym\/start\/start\.webm$/); // no network: the program's own file
-    expect([c.width, c.height]).toEqual([960, 540]);
-    expect(c.duration).toBeGreaterThan(6); // 6.7 s: 0:00.1-0:02.6 of the source, slowed to a third
-    expect(c.muted).toBe(true);
-    const t0 = c.time;
-    await page.waitForTimeout(1200);
-    const later = await clip(page);
-    expect(later.paused).toBe(false);
-    expect((later.time - t0 + later.duration) % later.duration).toBeGreaterThan(0.5); // it moves
-    expect(later.audioBytes).toBe(0); // no sound decoded: the file has none
-    expect(await page.locator('.wback').getAttribute('aria-hidden')).toBe('true');
-    // Its still is there too, under it: the clip's first frame, 960x540.
-    expect(await page.locator('.wback img.still').evaluate((i: HTMLImageElement) => [i.complete, i.naturalWidth])).toEqual([true, 960]);
-  } finally {
-    await r.close();
-  }
+    await settle(page);
+    const g = await page.evaluate(() => (window as unknown as { __startfield: { geometry(): {
+      pins: { side: string; at: { x: number; y: number }; stub: { x: number; y: number } }[];
+      paths: unknown[]; card: { x: number; y: number; width: number; height: number };
+    } } }).__startfield.geometry());
+    expect(g.paths.length).toBeGreaterThan(40);
+    expect(g.pins.length).toBeGreaterThanOrEqual(32);
+    // The pins are on the rectangle the card really occupies, not on a square of their own.
+    const box = (await page.locator('.wcard').boundingBox())!;
+    const host = (await page.locator('.startfield').boundingBox())!;
+    // A processor is square, and the board is laid out around that square.
+    expect(Math.abs(box.width - box.height),
+      `the package is ${Math.round(box.width)}x${Math.round(box.height)}`).toBeLessThanOrEqual(1);
+    expect(Math.abs(g.card.x - (box.x - host.x))).toBeLessThanOrEqual(1);
+    expect(Math.abs(g.card.y - (box.y - host.y))).toBeLessThanOrEqual(1);
+    expect(Math.abs(g.card.width - box.width)).toBeLessThanOrEqual(1);
+    for (const pin of g.pins) {
+      const edge = pin.side === 'top' ? pin.at.y === g.card.y
+        : pin.side === 'bottom' ? pin.at.y === g.card.y + g.card.height
+        : pin.side === 'left' ? pin.at.x === g.card.x : pin.at.x === g.card.x + g.card.width;
+      expect(edge).toBe(true);
+    }
+    // No video is loaded any more: the first screen is drawn, not played.
+    expect(await page.locator('.wback').count()).toBe(0);
+    expect(await page.locator('video').count()).toBe(0);
+  } finally { await r.close(); }
 });
 
-test('both steps of the first screen: one background, which runs on from one to the other', async () => {
+/* Everything the package carries: the product's name, the buttons' labels,
+   the die marking and the way back.  The marking is held to 4.5:1 like the
+   rest -- white at 45 % would be 4.49:1 on #050505, just under it. */
+test('every text on the chip at 4.5:1 or better, against the chip and against the board', async () => {
   const r = await launch();
   const { page } = r;
   try {
-    await page.waitForSelector('.wback.playing');
-    // Marks the element and counts every (re)load of it.
-    await page.evaluate(() => {
-      const v = document.querySelector('.wback video') as HTMLVideoElement & { mark?: string };
-      v.mark = 'first';
-      (window as unknown as { loads: number }).loads = 0;
-      for (const e of ['loadstart', 'emptied']) v.addEventListener(e, () => { (window as unknown as { loads: number }).loads++; });
+    await settle(page);
+    const chip = hex(CHIP_INSIDE), ground = hex(BACKGROUND);
+    const colours = await page.evaluate(() => {
+      const get = (sel: string) => {
+        const el = document.querySelector(sel);
+        return el ? getComputedStyle(el).color : '';
+      };
+      return {
+        wordmark: get('.wcard .wordmark'), die: get('.wcard .die'), label: get('.action b'), back: get('.wbody .back'),
+        cardBg: getComputedStyle(document.querySelector('.wcard')!).backgroundColor,
+        actionBg: getComputedStyle(document.querySelector('.action')!).backgroundColor,
+      };
     });
-    const same = () => page.evaluate(() => ({
-      mark: (document.querySelector('.wback video') as HTMLVideoElement & { mark?: string } | null)?.mark ?? null,
-      backs: document.querySelectorAll('.wback').length,
-      loads: (window as unknown as { loads: number }).loads,
+    expect(parse(colours.cardBg)).toEqual(chip);
+    const worst: [string, number][] = [];
+    // The card's own words sit on the chip; the buttons' on the button, which
+    // is the chip with a touch of white over it -- take the chip, the darker
+    // of the two, as the ground for both.
+    for (const [name, css] of Object.entries({ wordmark: colours.wordmark, die: colours.die,
+                                               label: colours.label, back: colours.back })) {
+      worst.push([name, contrast(parse(css, chip), chip)]);
+    }
+    // And the secondary grey as it is used over the board itself.
+    worst.push(['the back link over the board', contrast(parse(colours.back, ground), ground)]);
+    for (const [name, value] of worst) expect(value, `${name}: ${value.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+    console.log('contrast', worst.map(([n, v]) => `${n} ${v.toFixed(2)}`).join(', '));
+  } finally { await r.close(); }
+});
+
+/* What the package carries (2.7.2): the mark with the product's name, the
+   two ways in, and the die marking at the foot -- one column, centred in the
+   die frame rather than held by fixed padding.  Measured against the die
+   frame, which is .wcard::before: the package's border, its inset, and the
+   frame's own line. */
+interface Rect { x: number; y: number; width: number; height: number }
+interface Card {
+  card: Rect; die: Rect; stack: string[];
+  logo: Rect; wordmark: Rect; wordmarkText: string; markText: string;
+  block: { logo: Rect; body: Rect; mark: Rect };
+  buttons: Rect[]; sentences: number; text: string;
+}
+const cardLayout = (page: Page): Promise<Card> => page.evaluate(() => {
+  const box = (sel: string): Rect => {
+    const el = document.querySelector(sel);
+    if (!el) throw new Error(`no ${sel}`);
+    const b = el.getBoundingClientRect();
+    return { x: b.x, y: b.y, width: b.width, height: b.height };
+  };
+  const text = (sel: string) => document.querySelector(sel)?.textContent ?? '';
+  const card = document.querySelector('.wcard') as HTMLElement;
+  const r = card.getBoundingClientRect();
+  const edge = parseFloat(getComputedStyle(card).borderLeftWidth)
+    + parseFloat(getComputedStyle(card, '::before').left)
+    + parseFloat(getComputedStyle(card, '::before').borderLeftWidth);
+  return {
+    card: { x: r.x, y: r.y, width: r.width, height: r.height },
+    die: { x: r.x + edge, y: r.y + edge, width: r.width - 2 * edge, height: r.height - 2 * edge },
+    stack: [...document.querySelector('.wstack')!.children].map((c) => c.className),
+    logo: box('.wlogo .logo'), wordmark: box('.wlogo .wordmark'),
+    wordmarkText: text('.wlogo .wordmark'), markText: text('.wcard .die'),
+    block: { logo: box('.wlogo'), body: box('.wbody'), mark: box('.wcard .die') },
+    buttons: [...document.querySelectorAll('.action')].map((b) => {
+      const q = b.getBoundingClientRect();
+      return { x: q.x, y: q.y, width: q.width, height: q.height };
+    }),
+    sentences: document.querySelectorAll('.wcard h1, .wcard p').length,
+    text: card.innerText,
+  };
+});
+const middle = (b: Rect): number => b.y + b.height / 2;
+
+test('the package carries a mark, two ways in and a die marking -- in that order, and no sentence', async () => {
+  const r = await launch();
+  const { page } = r;
+  try {
+    await settle(page);
+    const m = await cardLayout(page);
+    // Nothing explains the program on the package any more.
+    expect(m.sentences, 'a heading or a paragraph is back on the package').toBe(0);
+    expect(m.text.replace(/\s+/g, ' ').trim()).toBe('Hallym MIPS Simulator 튜토리얼 보기 바로 시작 MIPS32');
+    expect(m.stack).toEqual(['wlogo', 'wbody', 'die']);
+    // The mark and the product's name: one line, centred on each other, 10 px apart.
+    expect(Math.abs(middle(m.logo) - middle(m.wordmark)),
+      `the mark at ${middle(m.logo).toFixed(2)}, the name at ${middle(m.wordmark).toFixed(2)}`).toBeLessThanOrEqual(0.5);
+    expect(m.wordmark.x - (m.logo.x + m.logo.width)).toBeCloseTo(10, 0);
+    expect(m.logo.height).toBeCloseTo(26, 0);
+    expect(m.wordmarkText).toBe('Hallym MIPS Simulator');
+    // The two ways in: 44 px tall, 10 px apart, at 70 % of the die frame --
+    // short of its edge, which is what makes them read as marking.
+    expect(m.buttons.length).toBe(2);
+    for (const b of m.buttons) expect(b.height).toBeCloseTo(44, 0);
+    expect(m.buttons[1].y - (m.buttons[0].y + m.buttons[0].height)).toBeCloseTo(10, 0);
+    const share = m.buttons[0].width / m.die.width;
+    const said = `the buttons at ${(share * 100).toFixed(2)} % of the die frame`;
+    expect(share, said).toBeGreaterThanOrEqual(0.68);
+    expect(share, said).toBeLessThanOrEqual(0.72);
+    // The die marking is last: below both of them, and last in the column.
+    expect(m.stack[m.stack.length - 1]).toBe('die');
+    expect(m.block.body.y, 'the two ways in are not under the mark').toBeGreaterThanOrEqual(m.block.logo.y + m.block.logo.height);
+    expect(m.block.mark.y, 'the die marking is not at the foot').toBeGreaterThanOrEqual(m.block.body.y + m.block.body.height);
+    expect(m.markText).toBe('MIPS32');
+    // The two gaps the column is built on.
+    expect(m.block.body.y - (m.block.logo.y + m.block.logo.height)).toBeCloseTo(44, 0);
+    expect(m.block.mark.y - (m.block.body.y + m.block.body.height)).toBeCloseTo(40, 0);
+    console.log(`package ${m.card.width.toFixed(2)}x${m.card.height.toFixed(2)}, die frame ${m.die.width.toFixed(2)}, ${said}`);
+  } finally { await r.close(); }
+});
+
+test('the package stays square and its column keeps inside the die frame, at four window sizes', async () => {
+  const r = await launch({ width: 1280, height: 800 });
+  const { page } = r;
+  try {
+    await settle(page);
+    for (const [w, h] of [[1280, 800], [1920, 1080], [1920, 540], [1024, 768]] as [number, number][]) {
+      await resize(r, w, h);
+      await page.waitForTimeout(400);
+      const m = await cardLayout(page);
+      const top = m.block.logo.y, foot = m.block.mark.y + m.block.mark.height;
+      const where = `${w}x${h}: the package ${m.card.width.toFixed(2)}x${m.card.height.toFixed(2)},`
+        + ` the column ${top.toFixed(2)}..${foot.toFixed(2)} in the die frame`
+        + ` ${m.die.y.toFixed(2)}..${(m.die.y + m.die.height).toFixed(2)}`;
+      expect(Math.abs(m.card.width - m.card.height), where).toBeLessThanOrEqual(1);
+      expect(top, where).toBeGreaterThanOrEqual(m.die.y);
+      expect(foot, where).toBeLessThanOrEqual(m.die.y + m.die.height);
+      expect(m.buttons[0].x, where).toBeGreaterThanOrEqual(m.die.x);
+      expect(m.wordmark.x + m.wordmark.width, where).toBeLessThanOrEqual(m.die.x + m.die.width);
+      console.log(where);
+    }
+  } finally { await r.close(); }
+});
+
+test('the opening stops: once it has settled, not one more animation frame', async () => {
+  const r = await launch();
+  const { page } = r;
+  try {
+    await settle(page);
+    const drawn = await framesDrawn(page);
+    const counted = await page.evaluate(() => new Promise<number>((done) => {
+      let n = 0;
+      const real = window.requestAnimationFrame.bind(window);
+      (window as unknown as { requestAnimationFrame: typeof requestAnimationFrame }).requestAnimationFrame = ((cb: FrameRequestCallback) => { n++; return real(cb); }) as typeof requestAnimationFrame;
+      setTimeout(() => done(n), 2000);
     }));
-    let before = (await clip(page)).time;
-    for (const go of [/바로 시작/, /처음으로/, /바로 시작/]) {
-      await page.getByRole('button', { name: go }).click();
-      await page.waitForTimeout(700);
-      expect(await same()).toEqual({ mark: 'first', backs: 1, loads: 0 });
-      const now = await clip(page);
-      expect(now.playing).toBe(true);
-      expect(now.paused).toBe(false);
-      const moved = (now.time - before + now.duration) % now.duration;
-      expect(moved).toBeGreaterThan(0.3); // on from where it was, not from the start
-      expect(moved).toBeLessThan(3);
-      before = now.time;
-    }
-    await expect(page.getByRole('button', { name: /파일 열기/ })).toBeVisible();
-  } finally {
-    await r.close();
-  }
+    expect(counted, 'animation frames asked for in 2 s of a settled board').toBe(0);
+    expect(drawn).toBeGreaterThan(10); // it did run
+  } finally { await r.close(); }
 });
 
-// The card is glass (2.6.0): it shows the ground, blurred, so it changes
-// with the video -- what must hold is that every text on it stays readable,
-// 4.5:1 (WCAG AA) against what is behind it, at every moment of the clip.
-// Measured as the screen shows it, the texts hidden, the darkest 1% under
-// each text's box (backdrop-measure.ts); the moments cover the clip, whose
-// worst frame of all 201 is in docs/PORTING.md 29.
-const MOMENTS = [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.2]; // the clip is 6.4 s (2.7.1)
-test('every text on the card at least 4.5:1 against what is behind it, at every moment of the clip; the video changes behind it', async () => {
+/* The budget is the work in the frame, not the gap between frames: a window
+   that keeps up draws every 16.7 ms whatever it is drawing, so a median gap
+   under 8 ms is not something a 60 Hz screen can show.  The gaps are
+   reported too -- they are what says no frame was missed. */
+test('the opening keeps inside a frame: the drawing median under 8 ms, p99 under 16 ms', async () => {
   const r = await launch();
   const { page } = r;
   try {
-    await page.waitForSelector('.wback.playing');
-    await page.mouse.move(-10, -10);
-    const texts = await cardTexts(r);
-    const ground = await groundRect(r);
-    await setExtra(r, HIDE_TEXT);
-    const grounds = new Set<string>();
-    const worst: string[] = [];
-    for (const t of MOMENTS) {
-      await at(page, t);
-      grounds.add((await pixels(r, ground)).hash);
-      for (const [name, c] of Object.entries(await textContrasts(r, texts))) {
-        worst.push(`${name} ${c} at ${t} s`);
-        expect(c, `${name} at ${t} s`).toBeGreaterThanOrEqual(4.5);
-      }
-    }
-    console.log(worst.sort((a, b) => parseFloat(a.split(' ').at(-4)!) - parseFloat(b.split(' ').at(-4)!)).slice(0, 3).join('; '));
-    expect(grounds.size).toBe(MOMENTS.length); // the video does change behind it
-  } finally {
-    await r.close();
-  }
+    await settle(page);
+    const got = await page.evaluate(() => {
+      const h = (window as unknown as { __startfield: { work(): number[]; deltas(): number[] } }).__startfield;
+      return { work: h.work(), deltas: h.deltas() };
+    });
+    const work = got.work.sort((a, b) => a - b);
+    const gaps = got.deltas.filter((d) => d > 0).sort((a, b) => a - b);
+    expect(work.length).toBeGreaterThan(20);
+    const q = (xs: number[], p: number) => xs[Math.min(xs.length - 1, Math.floor(xs.length * p))];
+    console.log(`drawing: median ${q(work, 0.5).toFixed(2)} ms, p99 ${q(work, 0.99).toFixed(2)} ms over ${work.length} frames;`
+      + ` gaps: median ${q(gaps, 0.5).toFixed(2)} ms, p99 ${q(gaps, 0.99).toFixed(2)} ms`);
+    expect(q(work, 0.5)).toBeLessThan(8);
+    expect(q(work, 0.99)).toBeLessThan(16);
+    expect(q(gaps, 0.99), 'a dropped frame doubles the gap').toBeLessThan(34);
+  } finally { await r.close(); }
 });
 
-// The glass: the card blurs what it shows of the ground.  The card emptied
-// (all of it glass) against the raw frame, on 4x4 blocks (glassSharpness),
-// with the card's backdrop-filter and without it, in the same frame; the
-// ratio of the two sharpnesses is the measure (across frames the two ranges can overlap, in one frame not).
-// With no filter it is 1; the design's, at every e2e size, is in
-// docs/PORTING.md 29.
-test('the glass card blurs what it shows of the ground', async () => {
+test('the buttons work from the start, and the second step keeps the same board', async () => {
   const r = await launch();
   const { page } = r;
   try {
-    await page.waitForSelector('.wback.playing');
-    await page.mouse.move(-10, -10);
-    const strip = await glassRect(r);
-    const moments = [0.5, 3.0, 5.5];
-    const on: number[] = [];
-    await setExtra(r, CARD_EMPTY);
-    for (const t of moments) { await at(page, t); on.push(glassSharpness(await screenPixels(r, strip), await rawPixels(r, strip))); }
-    await setExtra(r, CARD_EMPTY + GLASS_OFF);
-    for (const [i, t] of moments.entries()) {
-      await at(page, t);
-      const off = glassSharpness(await screenPixels(r, strip), await rawPixels(r, strip));
-      const said = `at ${t} s: with the filter ${on[i].toFixed(3)}, without ${off.toFixed(3)}, ratio ${(on[i] / off).toFixed(3)}`;
-      console.log(said);
-      expect(on[i] / off, said).toBeLessThanOrEqual(0.85);
-    }
-  } finally {
-    await r.close();
-  }
+    await page.waitForSelector('.startfield canvas');
+    const before = await page.evaluate(() => (window as unknown as {
+      __startfield: { geometry(): { seed: number; paths: unknown[] } } }).__startfield.geometry());
+    await page.getByRole('button', { name: /바로 시작/ }).click();   // the opening is still running
+    await expect(page.getByRole('button', { name: /새 파일/ })).toBeVisible();
+    await settle(page);
+    const after = await page.evaluate(() => (window as unknown as {
+      __startfield: { geometry(): { seed: number; paths: unknown[] } } }).__startfield.geometry());
+    expect(after.seed).toBe(before.seed);
+    expect(after.paths.length).toBe(before.paths.length);   // a step never rebuilds the board
+  } finally { await r.close(); }
 });
 
-// Windows draws the caption buttons, on a patch the page cannot paint:
-// on the first screen it is transparent (logic/overlay.ts), so the screen
-// shows the dark glass bar through it -- a white patch would stand out by
-// about 200 levels (docs/start-variants/combined/README.md).  In the Editor
-// the bar is white and so is the patch.
-test('the caption buttons on the screen: the first screen\'s dark bar through their patch, white in the Editor', async () => {
-  test.skip(process.platform !== 'win32', 'Windows draws the caption buttons');
-  const r = await launch();
+test('prefers-reduced-motion: the settled board at once, and nothing moving', async () => {
+  const r = await launch(undefined, { switches: ['--force-prefers-reduced-motion'] });
   const { page } = r;
   try {
-    await page.waitForSelector('.wback.playing');
-    await page.mouse.move(-10, -10);
-    await at(page, 3.0);
-    const sample = async () => {
-      const a = await page.evaluate(() => {
-        const rect = (navigator as unknown as { windowControlsOverlay: { getTitlebarAreaRect(): DOMRect } }).windowControlsOverlay.getTitlebarAreaRect();
-        return { right: rect.x + rect.width, height: rect.height };
-      });
-      const patch = stats(await screenPixels(r, { x: a.right + 4, y: 4, width: 6, height: 6 })).mean;
-      const bar = stats(await screenPixels(r, { x: a.right - 8, y: 4, width: 6, height: 6 })).mean;
-      return { patch, bar, apart: Math.max(...patch.map((v, i) => Math.abs(v - bar[i]))), said: `patch ${patch.map(Math.round)}, bar ${bar.map(Math.round)}` };
-    };
-    const first = await sample();
-    console.log(`first screen: ${first.said}`);
-    expect(first.apart, first.said).toBeLessThanOrEqual(3);
-    expect(Math.max(...first.bar), first.said).toBeLessThan(160); // the dark bar, not white
-    await openAndAssemble(r, program(r.dir, 'p.s', 'main:\n  li $v0, 10\n  syscall\n'));
-    await page.waitForTimeout(500);
-    const editor = await sample();
-    console.log(`Editor: ${editor.said}`);
-    expect(editor.apart, editor.said).toBeLessThanOrEqual(3);
-    expect(Math.min(...editor.patch), editor.said).toBeGreaterThan(240);
-  } finally {
-    await r.close();
-  }
-});
-
-// As the SCREEN shows it, while the video plays (slowed, so that the frame
-// holds while it is captured): the background moved toward the navy by the
-// tint, and blurred -- against the clip's own frame at the same place.  The
-// compositor's readback is not enough: on Windows it had both while the
-// screen had neither (tests/e2e/backdrop-measure.ts).
-test('the background on the screen, while the video plays: tinted toward the navy and blurred, against the raw frame', async () => {
-  const r = await launch();
-  const { page } = r;
-  try {
-    await page.waitForSelector('.wback.playing');
-    await page.mouse.move(-10, -10);
-    await page.evaluate(() => { (document.querySelector('.wback video') as HTMLVideoElement).playbackRate = 0.0625; });
-    await page.waitForTimeout(1500);
-    expect((await clip(page)).paused).toBe(false);
-    const rect = await groundRect(r);
-    const raw = await rawPixels(r, rect);
-    const onScreen = compare(await screenPixels(r, rect), raw);
-    const inReadback = compare(await readbackPixels(r, rect), raw);
-    const said = `screen: toward navy ${onScreen.towardNavy.toFixed(3)}, sharpness ${onScreen.sharpness.toFixed(3)}; ` +
-      `readback: ${inReadback.towardNavy.toFixed(3)}, ${inReadback.sharpness.toFixed(3)}; rect ${JSON.stringify(rect)}`;
-    console.log(said);
-    // Between the design and the ground with its treatment off, measured at every size the e2e run
-    // in, over the clip's frames (docs/PORTING.md 29): the tint 0.40-0.45 with it, about 0 without;
-    // the sharpness at most 0.28 with it, about 1 without.  What they guard: the navy veil, and the blur.
-    expect(onScreen.towardNavy, said).toBeGreaterThan(0.2);
-    expect(onScreen.sharpness, said).toBeLessThan(0.6);
-  } finally {
-    await r.close();
-  }
-});
-
-test('prefers-reduced-motion: the still, and no video loaded, from the start or when it is turned on', async () => {
-  const r = await launch();
-  const { page } = r;
-  try {
-    await page.waitForSelector('.wback.playing');
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await expect.poll(async () => { const c = await clip(page); return [c.hasSrc, c.playing]; }).toEqual([false, false]);
-    await expect(page.locator('.wback img.still')).toBeVisible();
-    await expect(page.locator('.wback video')).toHaveCSS('opacity', '0');
-    // From the start: the window loaded again with the preference already on.
     await page.reload();
-    await page.waitForSelector('.wcard');
-    await page.waitForTimeout(800);
-    const c = await clip(page);
-    expect([c.hasSrc, c.playing, c.network]).toEqual([false, false, 0]); // NETWORK_EMPTY: never loaded
-    await expect(page.locator('.wback img.still')).toBeVisible();
-    await page.emulateMedia({ reducedMotion: 'no-preference' });
-    await page.waitForSelector('.wback.playing');
-  } finally {
-    await r.close();
-  }
+    await page.waitForSelector('.startfield canvas');
+    await page.waitForTimeout(600);
+    const counted = await page.evaluate(() => new Promise<number>((done) => {
+      let n = 0;
+      const real = window.requestAnimationFrame.bind(window);
+      (window as unknown as { requestAnimationFrame: typeof requestAnimationFrame }).requestAnimationFrame = ((cb: FrameRequestCallback) => { n++; return real(cb); }) as typeof requestAnimationFrame;
+      setTimeout(() => done(n), 1200);
+    }));
+    expect(counted).toBe(0);
+    // Nothing is animated: not the package's entrance, not the die frame.
+    const names = await page.evaluate(() => {
+      const card = document.querySelector('.wcard')!;
+      return [getComputedStyle(card).animationName, getComputedStyle(card, '::before').animationName];
+    });
+    expect(names).toEqual(['none', 'none']);
+  } finally { await r.close(); }
 });
 
-test('the Editor has no video: it is unloaded once a file is open, and back with the first screen', async () => {
+test('nothing of the board once a file is open, and it is back with the first screen', async () => {
   const r = await launch();
   const { page } = r;
   try {
-    await page.waitForSelector('.wback.playing');
+    await settle(page);
     await page.getByRole('button', { name: /바로 시작/ }).click();
     await page.getByRole('button', { name: /새 파일/ }).click();
-    await page.waitForSelector('.editor-panel .cm-content');
-    await expect(page.locator('.wback')).toBeHidden();
-    const c = await clip(page);
-    expect([c.hasSrc, c.paused, c.playing]).toEqual([false, true, false]);
-  } finally {
-    await r.close();
-  }
-  // The tutorial, started from the first screen, opens its program (no
-  // video) and, stopped, goes back to the first screen: the video with it.
-  const r2 = await launch();
-  try {
-    await r2.page.waitForSelector('.wback.playing');
-    await r2.page.getByRole('button', { name: /튜토리얼 보기/ }).click();
-    await r2.page.waitForSelector('.tut-card');
-    await expect(r2.page.locator('.wback')).toBeHidden();
-    expect((await clip(r2.page)).hasSrc).toBe(false);
-    await r2.page.locator('.tut-card .tut-quit').click();
-    await r2.page.locator('dialog.ask').getByRole('button', { name: '그만두기' }).click();
-    await expect(r2.page.locator('.wcard')).toBeVisible();
-    await r2.page.waitForSelector('.wback.playing');
-  } finally {
-    await r2.close();
-  }
+    await expect(page.locator('.stage-welcome')).toBeHidden();
+    // The app draws its own things under the Editor; what must stop is the board.
+    const before = await framesDrawn(page);
+    await page.waitForTimeout(1000);
+    expect(await framesDrawn(page), 'the board must not draw under the Editor').toBe(before);
+  } finally { await r.close(); }
 });
 
-test('a clip that cannot play: the brand\'s navy, quietly -- no still, no video, no message, never white', async () => {
-  const r = await launch();
+test('the board follows the window: resized, the pins are on the card again', async () => {
+  const r = await launch({ width: 1280, height: 800 });
   const { page } = r;
   try {
-    await page.waitForSelector('.wback.playing');
-    const status = await page.locator('.status').innerText();
-    await page.evaluate(() => { const v = document.querySelector('.wback video') as HTMLVideoElement; v.src = v.src.replace('start.webm', 'missing.webm'); });
-    await page.waitForSelector('.wback.failed');
-    await expect(page.locator('.wback img.still')).toBeHidden();
-    await expect(page.locator('.wback video')).toBeHidden();
-    await expect(page.locator('.wback')).toHaveCSS('background-color', NAVY);
-    const stage = (await page.locator('.stage-welcome').boundingBox())!;
-    await expect.poll(async () => (await pixels(r, { x: stage.x, y: stage.y, width: 40, height: 40 })).luminance)
-      .toBeLessThan(0.2); // navy (0.12) under the tint, not white
-    expect(await page.locator('.status').innerText()).toBe(status);
-    await expect(page.locator('dialog[open]')).toHaveCount(0);
-  } finally {
-    await r.close();
-  }
+    await settle(page);
+    const first = await page.evaluate(() => (window as unknown as {
+      __startfield: { geometry(): { width: number; card: { x: number } } } }).__startfield.geometry());
+    await resize(r, 1024, 768);
+    await page.waitForTimeout(900);          // the field is laid out again once the size is quiet
+    const g = await page.evaluate(() => (window as unknown as { __startfield: { geometry(): {
+      width: number; card: { x: number; y: number; width: number; height: number };
+      pins: { side: string; at: { x: number; y: number } }[];
+    } } }).__startfield.geometry());
+    expect(g.width).toBeLessThan(first.width);
+    const box = (await page.locator('.wcard').boundingBox())!;
+    const host = (await page.locator('.startfield').boundingBox())!;
+    // A processor is square, and the board is laid out around that square.
+    expect(Math.abs(box.width - box.height),
+      `the package is ${Math.round(box.width)}x${Math.round(box.height)}`).toBeLessThanOrEqual(1);
+    expect(Math.abs(g.card.x - (box.x - host.x))).toBeLessThanOrEqual(1);
+    for (const pin of g.pins.filter((p) => p.side === 'top')) expect(pin.at.y).toBe(g.card.y);
+  } finally { await r.close(); }
 });
+
+async function resize(r: Running, width: number, height: number): Promise<void> {
+  await r.app.evaluate(({ BrowserWindow }, s) => {
+    BrowserWindow.getAllWindows()[0].setBounds({ width: s.width, height: s.height });
+  }, { width, height });
+}

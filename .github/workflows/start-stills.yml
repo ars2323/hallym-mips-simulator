@@ -1,0 +1,72 @@
+# The first screen, photographed on Windows -- by hand only, for the preview
+# branch (feature/circuit-start).  It is not a check and nothing depends on
+# it: it builds the addon and the renderer, runs the app from source, takes
+# the pictures the capture tool takes on Linux, and uploads them.  No
+# installer is built, nothing is packaged and nothing is published.
+name: First screen stills (Windows)
+
+on:
+  workflow_dispatch:
+    inputs:
+      at:
+        description: 'Moments of the opening, in seconds (comma separated)'
+        default: '4.0'
+      sizes:
+        description: 'Window sizes (comma separated)'
+        default: '1280x800,1920x1080,1920x540,1024x768'
+
+defaults:
+  run:
+    working-directory: electron
+
+jobs:
+  stills:
+    name: The first screen at ${{ inputs.at }} s
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # The addon builds the SPIM core, whose parser needs them.
+      - name: Install winflexbison
+        run: choco install winflexbison3 --no-progress -y
+
+      # The screen the students have (the runner starts at 1024x768), and
+      # Windows' animation effects on, as on their PCs: the pictures are of
+      # what they would see.  Reported either way.
+      - name: Screen 1920x1080 (tools/windows/screen-1920.ps1)
+        continue-on-error: true
+        shell: powershell
+        run: tools/windows/screen-1920.ps1 -Report report
+
+      - name: Animation effects on (tools/windows/animations-on.ps1)
+        continue-on-error: true
+        shell: powershell
+        run: tools/windows/animations-on.ps1 -Report report
+
+      # With its scripts, unlike the build job: the app is run from source
+      # here, so Electron's own binary has to come down.
+      - name: npm ci
+        run: npm ci
+
+      # N-API only, so the Node build loads in Electron too (tools/build-electron.ts).
+      - name: Build the addon
+        run: npx node-gyp rebuild --directory native
+
+      - name: Build the renderer
+        run: node tools/build-ui.ts
+
+      - name: The stills
+        run: node tools/start-film.ts --at "${{ inputs.at }}" --sizes "${{ inputs.sizes }}" --out report/stills
+
+      - name: Upload them
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: start-stills-windows
+          path: electron/report
+          if-no-files-found: error

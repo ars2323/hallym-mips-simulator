@@ -129,13 +129,19 @@ test('typing: Tab is four columns, Shift+Tab takes four back, Enter starts at co
 test('the first screen keeps its shape from one step to the other, and the window its size into the work', async () => {
   const { page, app } = r;
   const box = async (sel: string) => (await page.locator(sel).boundingBox())!;
+  // The package comes in scaled (startfield/glints.css, sf-chip): measured
+  // while that runs, it is smaller than it will be, and a step later it
+  // would look as though the step had moved it.
+  await page.locator('.wcard').evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
   const card1 = await box('.wcard');
   const first1 = await box('.actions .action >> nth=0');
-  const lead1 = await box('.wcard .lead');
+  const mark1 = await box('.wcard .wlogo');
+  const die1 = await box('.wcard .die');
   await page.getByRole('button', { name: /바로 시작/ }).click();
   expect(await box('.wcard')).toEqual(card1);
   expect(await box('.actions .action >> nth=0')).toEqual(first1);
-  expect(await box('.wcard .lead')).toEqual(lead1);
+  expect(await box('.wcard .wlogo')).toEqual(mark1);
+  expect(await box('.wcard .die')).toEqual(die1);
   const size = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getContentSize());
   await page.getByRole('button', { name: /새 파일/ }).first().click();
   await expect(page.locator('.editor-panel')).toBeVisible();

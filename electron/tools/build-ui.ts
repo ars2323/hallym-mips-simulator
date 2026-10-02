@@ -24,6 +24,10 @@ export const rendererOptions: esbuild.BuildOptions = {
   sourcemap: true,
   metafile: true,
   logLevel: 'info',
+  // src/renderer/startfield carries its own stylesheet and puts it in a
+  // <style> itself, so the folder can be copied whole into another
+  // simulator with nothing to add to the page.
+  loader: { '.css': 'text' },
 };
 export const nodeOptions = (entry: string, outfile: string): esbuild.BuildOptions => ({
   entryPoints: [path.join(root, entry)],
