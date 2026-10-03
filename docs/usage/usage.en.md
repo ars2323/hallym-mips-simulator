@@ -138,7 +138,8 @@ like markings on a package:
   point at one part of the window after another.
 
 Both work from the moment they appear; there is no need to wait for the board
-to finish. (On a PC with Windows' animation effects turned off, the finished
+to finish. The bar along the top is empty on the start screen: settings and
+the rest appear at its right once a file is open. (On a PC with Windows' animation effects turned off, the finished
 screen comes up at once.)
 
 ![The start screen: a chip-shaped card in the middle of a circuit board, with two choices, 바로 시작 and 튜토리얼 보기](images/01-start.jpg)

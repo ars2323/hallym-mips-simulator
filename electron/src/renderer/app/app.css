@@ -591,9 +591,14 @@ button { font: inherit; color: inherit; cursor: pointer; }
    symbols white (app.ts, updateOverlay). */
 body.first-screen .work { background: transparent; }
 body.first-screen .titlebar, body.first-screen .status { position: relative; z-index: 2; background: rgba(255,255,255,.03); border-color: transparent; }
-body.first-screen .titlebar .appname { color: var(--white); }
-body.first-screen .titlebar .iconbtn img { filter: brightness(0) invert(1); opacity: .9; }
-body.first-screen .titlebar .iconbtn:hover { background: rgba(255,255,255,.14); }
+/* And it carries nothing: the card below is the program's name and its mark,
+   at the size they are meant to be read at, and the two ways in are on it.
+   A second small copy of the mark in the corner, and four buttons for what
+   the card already offers, are what the board has to be seen through.  The
+   bar itself stays -- it is what the window is dragged by, and the system's
+   caption buttons sit in it. */
+body.first-screen .titlebar .brand,
+body.first-screen .titlebar .tools { display: none; }
 body.first-screen .status { color: rgba(255,255,255,.85); }
 
 /* ---- dialogs ------------------------------------------------------------ */

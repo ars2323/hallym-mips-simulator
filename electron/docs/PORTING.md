@@ -1809,3 +1809,19 @@ What to change there, and nothing else:
 the board needs nothing from the app but a seed. The card's own lights (`panels/spark.ts`,
 `.wtitle` and `.action` in `app.css`) are the app's, not the board's; a RISC-V edition can take them
 or leave them, and they need only `onFrame`.
+
+### The top bar, empty on the first screen (2.8.1)
+
+The bar carried the mark and "Hallym MIPS" at its left and four buttons at its right -- tutorial,
+new file, open, settings -- over the board.  The card below it carries the same mark at 60 px, the
+whole product name, and the two ways in; the buttons were a second offer of what the card already
+offers, and the mark a small second copy of it.  Both are hidden on `body.first-screen` now, and the
+bar itself stays: it is what a frameless window is dragged by, and the system's caption buttons sit
+in it.  Everything is back the moment a file is open.
+
+What it costs: **settings and About are reached from that bar, so they cannot be reached from the
+first screen at all.**  A student who wants a larger font before opening anything has to open
+something first.  Four e2e tests reached settings that way and now go through the Editor; the
+caption patch's "with a dialog over the first screen" leg went, because nothing can raise a dialog
+there any more -- the patch under a backdrop is still checked in the Editor and over the tutorial.
+

@@ -611,6 +611,10 @@ const MUTANTS: Mutant[] = [
     find: '  --gap-name: 14px; --gap-ways: 40px; --gap-between: 12px; }',
     replace: '  --gap-name: 28px; --gap-ways: 80px; --gap-between: 24px; }',
     tests: ['tests/e2e/start.e2e.ts'] },
+  { module: 'first screen', file: 'src/renderer/app/app.css', what: 'the top bar\'s mark and buttons back over the board',
+    find: 'body.first-screen .titlebar .brand,\nbody.first-screen .titlebar .tools { display: none; }',
+    replace: 'body.first-screen .titlebar .tools { opacity: .999; }',
+    tests: ['tests/e2e/start.e2e.ts'] },
   // ---- the hierarchy the card is read in, on all three of its axes
   { module: 'first screen', file: 'src/renderer/app/app.css', what: 'the two ways in dressed as each other',
     find: '  border: 1px solid rgba(255,255,255,.28); border-radius: 6px; background: #0a0a0a; }\n'

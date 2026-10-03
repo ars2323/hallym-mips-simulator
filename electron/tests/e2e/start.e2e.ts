@@ -138,7 +138,7 @@ test('every text on the chip at 4.5:1 or better, against the chip and against th
       return {
         title: getComputedStyle(document.querySelector('.wcard .wtitle')!).backgroundImage,
         back: get('.wbody .back'),
-        appname: get('.titlebar .appname'), status: get('.status'),
+        status: get('.status'),
         cardBg: getComputedStyle(document.querySelector('.wcard')!).backgroundColor,
         buttons: [...document.querySelectorAll<HTMLElement>('.action')].map((b) => ({
           label: getComputedStyle(b.querySelector('b')!).color,
@@ -160,15 +160,12 @@ test('every text on the chip at 4.5:1 or better, against the chip and against th
       worst.push([`the ${n === 0 ? 'first' : 'second'} way in`, contrast(parse(b.label, ground), ground)]);
     }
     worst.push(['the way back', contrast(parse(colours.back, chip), chip)]);
-    /* The only words that sit over the board itself are the two bars': the
-       first screen makes them transparent and the board shows through.
-       Their ground is the brightest the haze gets, with the bars' own 3 %
-       white over it -- the worst case for them, not the card's #0d0d0d,
-       which nothing is drawn on any more. */
-    for (const [name, css] of Object.entries({ 'the title bar over the board': colours.appname,
-                                               'the status bar over the board': colours.status })) {
-      worst.push([name, contrast(parse(css, ground), ground)]);
-    }
+    /* The only words that sit over the board itself are the status bar's:
+       the first screen makes the bars transparent and empties the top one.
+       Their ground is the brightest the haze gets, with the bar's own 3 %
+       white over it -- the worst case for it, not the card's #0d0d0d, which
+       nothing is drawn on any more. */
+    worst.push(['the status bar over the board', contrast(parse(colours.status, ground), ground)]);
     for (const [name, value] of worst) expect(value, `${name}: ${value.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
     console.log('contrast', worst.map(([n, v]) => `${n} ${v.toFixed(2)}`).join(', '));
   } finally { await r.close(); }
@@ -400,6 +397,38 @@ const LIFT_STEP = 1.6;      // each one's lift against the next one's
    satisfied by three lights that are all off, which is the one way of
    breaking this that would look worst. */
 const LIFT_LEAST = { title: 4.0, primary: 1.2, secondary: 0.4 } as const;
+
+/* The top bar carries nothing on the first screen.  The card below it is the
+   program's name and its mark at the size they are meant to be read at, and
+   the two ways in are on it; a second small mark in the corner and four
+   buttons for what the card already offers are only something the board has
+   to be seen through.  The bar itself stays: it is what the window is
+   dragged by, and the system's caption buttons sit in it. */
+test('the top bar is empty on the first screen, and has its mark and buttons back in the Editor', async () => {
+  const r = await launch();
+  const { page } = r;
+  try {
+    await settle(page);
+    const shown = (sel: string) => page.locator(sel).evaluate((el) => getComputedStyle(el).display !== 'none');
+    expect(await shown('.titlebar .brand'), 'the mark is in the corner of the first screen').toBe(false);
+    expect(await shown('.titlebar .tools'), 'the buttons are on the first screen').toBe(false);
+    for (const icon of await page.locator('.titlebar .tools .iconbtn').all()) {
+      await expect(icon).toBeHidden();
+    }
+    // The bar is still there, and still what the window is dragged by.
+    await expect(page.locator('.titlebar')).toBeVisible();
+    expect(await page.locator('.titlebar').evaluate((el) =>
+      getComputedStyle(el).getPropertyValue('-webkit-app-region'))).toBe('drag');
+
+    // Into the Editor, and they are all back.
+    await page.getByRole('button', { name: /바로 시작/ }).click();
+    await page.getByRole('button', { name: /새 파일/ }).click();
+    await expect(page.locator('.editor-panel')).toBeVisible();
+    expect(await shown('.titlebar .brand'), 'the mark did not come back').toBe(true);
+    expect(await shown('.titlebar .tools'), 'the buttons did not come back').toBe(true);
+    await expect(page.locator('.titlebar .tools .iconbtn').first()).toBeVisible();
+  } finally { await r.close(); }
+});
 
 test('the card reads in one order: the name, then straight to work, then the tutorial', async () => {
   const r = await launch(MEASURE_AT);

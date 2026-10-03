@@ -27,18 +27,19 @@ test('opens maximised (Windows), at its own 1280x800 where nothing maximises it'
   }
 });
 
-test('the caption buttons\' patch: see-through with white symbols on the first screen, whatever covers it', async () => {
+/* Nothing can be raised over the first screen since 2.8.1 -- its top bar
+   carries no buttons, and the card's two choices open no dialog -- so the
+   patch under a dialog's backdrop is checked in the Editor and over the
+   tutorial, below. */
+test('the caption buttons\' patch: see-through with white symbols on the first screen, white with a file open', async () => {
   const r = await launch();
   const { page } = r;
   try {
-    // Its title bar is dark glass over the photo: the patch shows it (and a dialog's backdrop) through.
+    // Its title bar is the board, showing through: the patch shows it through too.
     await expect.poll(() => overlay(r)).toBe('#00000000');
     expect(await symbols(r)).toBe('#ffffff');
-    await page.getByTitle('Settings').click();
-    await expect(page.locator('dialog.settings')).toBeVisible();
-    await page.waitForTimeout(200);
-    expect(await overlay(r)).toBe('#00000000');
-    await page.locator('dialog.settings').getByRole('button', { name: 'Close' }).click();
+    // Nothing of the top bar is on the first screen to raise anything with.
+    await expect(page.locator('.titlebar .tools')).toBeHidden();
     // A file open: the white title bar, the patch white with navy symbols.
     await openAndAssemble(r, program(r.dir, 'p.s', PROGRAM));
     await expect.poll(() => overlay(r)).toBe('#ffffff');

@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { readHmx } from '../helpers/hmx-read.ts';
-import { launch, openAndAssemble, program, regHex, root, sample, settled, side, statusText } from './harness.ts';
+import { launch, openAndAssemble, program, regHex, root, type Running, sample, settled, side, statusText } from './harness.ts';
 
 const VERSION = (JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')) as { version: string }).version;
 
@@ -18,6 +18,14 @@ const files = (dir: string): string[] => readdirSync(dir).flatMap((n) => {
   const p = path.join(dir, n);
   return statSync(p).isDirectory() ? files(p) : [p];
 });
+
+/** Settings is reached from the top bar, and the top bar carries nothing on
+    the first screen (2.8.1): these go into the Editor first. */
+async function intoTheEditor(r: Running): Promise<void> {
+  await r.page.getByRole('button', { name: /바로 시작/ }).click();
+  await r.page.getByRole('button', { name: /새 파일/ }).click();
+  await r.page.locator('.editor-panel').waitFor();
+}
 
 test('nothing is kept: font size, Data radix, zoom, folds and the window are back to their defaults at the next start', async () => {
   const runs = mkdtempSync(path.join(tmpdir(), 'spim-runs-'));
@@ -56,6 +64,7 @@ test('nothing is kept: font size, Data radix, zoom, folds and the window are bac
     });
     if (process.platform === 'win32') expect(win.maximized).toBe(true);
     if (!win.maximized) expect(win.size).toEqual([1280, 800]);
+    await intoTheEditor(r);
     await page.getByTitle('Settings').click();
     const dialog = page.locator('dialog.settings');
     await expect(dialog.locator('.value')).toHaveText('13px');
@@ -127,6 +136,7 @@ test('no exception handler: the program brings its own __start', async () => {
   const r = await launch();
   const { page } = r;
   try {
+    await intoTheEditor(r);
     await page.getByTitle('Settings').click();
     const dialog = page.locator('dialog.settings');
     await dialog.locator('summary').click();
@@ -157,6 +167,7 @@ test('About: version, SPIM, and every notice from the files the package carries'
   const r = await launch();
   const { page } = r;
   try {
+    await intoTheEditor(r);
     await page.getByTitle('Settings').click();
     await page.getByRole('button', { name: /About · Licenses/ }).click();
     const about = page.locator('dialog.about');
