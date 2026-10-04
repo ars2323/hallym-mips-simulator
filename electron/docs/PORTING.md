@@ -1810,6 +1810,8 @@ the board needs nothing from the app but a seed. The card's own lights (`panels/
 `.wtitle` and `.action` in `app.css`) are the app's, not the board's; a RISC-V edition can take them
 or leave them, and they need only `onFrame`.
 
+RISC-V 로 가져갈 것: 이번 버그 수정과 Ctrl + / 토글 (2.8.2).
+
 ### The top bar, empty on the first screen (2.8.1)
 
 The bar carried the mark and "Hallym MIPS" at its left and four buttons at its right -- tutorial,

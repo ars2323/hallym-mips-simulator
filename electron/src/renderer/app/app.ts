@@ -338,9 +338,16 @@ const asmRoom = (): number => Math.max(ASM_LEAST, paneEditor.clientHeight - edit
 
 function layout(): void {
   stageWelcome.hidden = open;
-  document.body.classList.toggle('first-screen', !open); // its bars over the photo (app.css), the caption patch (updateOverlay)
-  firstScreen.show(!open); // the video plays on the first screen only
+  document.body.classList.toggle('first-screen', !open); // its bars over the board (app.css), the caption patch (updateOverlay)
   split.hidden = !open;
+  /* After the two stages have been shown and hidden, never before: showing
+     the first screen measures the card to put the board's pins on it, and
+     with the Editor side still laid out the card stands somewhere else.
+     Coming back from the tutorial that left the board a hole 108 px taller
+     than the card above it (245 px on a maximised 2560x1392 screen); at the
+     first start the Editor side had never been shown, so the order had
+     never mattered. */
+  firstScreen.show(!open);
   viewSwitch.hidden = !open || !narrow;
   split.classList.toggle('narrow', narrow);
   split.dataset.view = view;

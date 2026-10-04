@@ -26,6 +26,7 @@
    Editor is the line being executed. */
 
 import { defaultKeymap, history, historyKeymap, indentLess, indentMore, insertNewline } from '@codemirror/commands';
+import { isBlank, MARK, plan, take } from './logic/comment.ts';
 import { indentUnit } from '@codemirror/language';
 import { Compartment, EditorSelection, EditorState, RangeSet, RangeSetBuilder, StateEffect, StateField, type Extension } from '@codemirror/state';
 import {
@@ -162,6 +163,39 @@ function tab(view: EditorView): boolean {
   return true;
 }
 
+/* Ctrl+/ (Cmd+/ as well): the comment mark on or off, over the line the
+   cursor is on or every line a selection touches.  One dispatch, so the
+   whole block is one step of the undo history rather than one a line, and so
+   the selection is mapped through it and goes on pointing at the same lines.
+
+   A read-only document is left alone and the key is swallowed: the tutorial
+   opens its example read-only and that file must not be written to. */
+function toggleComment(view: EditorView): boolean {
+  const { state } = view;
+  if (state.readOnly) return true;
+  const doc = state.doc;
+  const numbers = new Set<number>();
+  for (const r of state.selection.ranges) {
+    for (let n = doc.lineAt(r.from).number; n <= doc.lineAt(r.to).number; n++) numbers.add(n);
+  }
+  const lines = [...numbers].sort((a, b) => a - b).map((n) => doc.line(n));
+  const { comment, column, nothing } = plan(lines.map((l) => l.text));
+  if (nothing) return true;
+  const changes: { from: number; to?: number; insert?: string }[] = [];
+  for (const line of lines) {
+    if (isBlank(line.text)) continue;              // nothing on it to mark
+    if (comment) {
+      changes.push({ from: line.from + column, insert: `${MARK} ` });
+    } else {
+      const off = take(line.text);
+      if (off) changes.push({ from: line.from + off.at, to: line.from + off.at + off.length });
+    }
+  }
+  if (changes.length === 0) return true;
+  view.dispatch({ changes, scrollIntoView: true, userEvent: 'input.toggleComment' });
+  return true;
+}
+
 // ---- the line being executed ---------------------------------------------------------
 
 // The source line of PC, from the Text panel's line column (the core's own
@@ -227,6 +261,8 @@ export function createEditor(parent: HTMLElement, onSave: () => void, onChange: 
         lineNumbers(), errorGutter, history(), highlighter, errorField, errorDecorations,
         pcField, pcDecorations, indentUnit.of('    '),
         keymap.of([{ key: 'Tab', run: tab, shift: indentLess }, { key: 'Enter', run: insertNewline },
+          // Mod is Ctrl here and Cmd on a Mac; Ctrl works there too.
+          { key: 'Mod-/', run: toggleComment }, { key: 'Ctrl-/', run: toggleComment },
           ...historyKeymap, ...defaultKeymap]),
         EditorView.updateListener.of((u) => { if (u.docChanged) onChange(); }),
         EditorView.domEventHandlers({

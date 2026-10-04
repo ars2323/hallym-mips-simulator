@@ -126,6 +126,101 @@ test('typing: Tab is four columns, Shift+Tab takes four back, Enter starts at co
   expect(await doc()).toBe('    li  $t0, 5\nx');
 });
 
+/* Four columns on one line, eight on the next, two on the one after: the
+   marks have to come back in one column, the shallowest of the three. */
+const BLOCK = 'main:\n    li $t0, 5\n\n        add $t1, $t0, $t0\n  sw $t1, x\n';
+
+/** Into the Editor with `text` in it, and a way to read the lines back. */
+async function typed(r: Running, text: string): Promise<() => Promise<string>> {
+  const { page, app } = r;
+  await page.getByRole('button', { name: /바로 시작/ }).click();
+  await page.getByRole('button', { name: /새 파일/ }).first().click();
+  await expect(page.locator('.editor-panel')).toBeVisible();
+  await app.evaluate(({ clipboard }, t) => clipboard.writeText(t), text);
+  await page.locator('.cm-content').click();
+  await page.keyboard.press('Control+v');
+  return () => page.evaluate(() => [...document.querySelectorAll('.cm-line')].map((l) => l.textContent).join('\n'));
+}
+
+test('Ctrl+/: one line on and off, a block in one column, blank lines left alone, one undo', async () => {
+  const { page } = r;
+  const doc = await typed(r, BLOCK);
+  // One line, no selection: the line the cursor is on.
+  await page.locator('.cm-line').nth(1).click();
+  await page.keyboard.press('Control+/');
+  expect(await doc()).toBe('main:\n    # li $t0, 5\n\n        add $t1, $t0, $t0\n  sw $t1, x\n');
+  await page.keyboard.press('Control+/');
+  expect(await doc()).toBe(BLOCK);
+
+  // The three lines of the body, which are indented 4, 8 and 2: the marks go
+  // in one column, the shallowest, and the blank line keeps out of it.
+  await page.locator('.cm-line').nth(1).click();
+  await page.keyboard.down('Shift');
+  await page.locator('.cm-line').nth(4).click();
+  await page.keyboard.up('Shift');
+  await page.keyboard.press('Control+/');
+  // The mark is in one column and each line keeps its own indent after it.
+  expect(await doc()).toBe('main:\n  #   li $t0, 5\n\n  #       add $t1, $t0, $t0\n  # sw $t1, x\n');
+  // Still the same lines selected: toggling again takes them all off.
+  await page.keyboard.press('Control+/');
+  expect(await doc()).toBe(BLOCK);
+
+  // Part commented: all of them get the mark, and one undo takes it all back.
+  await page.locator('.cm-line').nth(1).click();
+  await page.keyboard.press('Control+/');
+  await page.locator('.cm-line').nth(1).click();
+  await page.keyboard.down('Shift');
+  await page.locator('.cm-line').nth(4).click();
+  await page.keyboard.up('Shift');
+  await page.keyboard.press('Control+/');
+  expect(await doc()).toBe('main:\n  #   # li $t0, 5\n\n  #       add $t1, $t0, $t0\n  # sw $t1, x\n');
+  await page.keyboard.press('Control+z');
+  expect(await doc(), 'the block came back a line at a time').toBe(
+    'main:\n    # li $t0, 5\n\n        add $t1, $t0, $t0\n  sw $t1, x\n');
+});
+
+/* KNOWN WEAK (2.8.2, frozen): this holds that the read-only example is not
+   written to, and it is not -- but it does not hold that editor.ts's
+   `if (state.readOnly) return true;` is what stops it.  Delete that line and
+   this test still passes: its mutant ("Ctrl+/ writing to a read-only
+   document") survives.  Instrumenting toggleComment showed it is never
+   entered here at all -- with the tutorial open the keydown reaches the
+   window's capture phase already defaultPrevented and never gets to
+   .cm-content.  What does that is not identified; it is not a renderer
+   capture listener (there is none) and not a main-process accelerator
+   (Menu.setApplicationMenu(null), no before-input-event, no globalShortcut).
+   To get a check the mutant can kill, exercise the guard on a read-only
+   document that is not behind the tutorial.  See docs/HANDOVER.md (d). */
+test('Ctrl+/ does nothing to a read-only document: the tutorial\'s example is not written to', async () => {
+  const { page } = r;
+  await page.getByRole('button', { name: /튜토리얼 보기/ }).click();
+  await expect(page.locator('.tut-card')).toBeVisible();
+  const doc = () => page.evaluate(() => [...document.querySelectorAll('.cm-line')].map((l) => l.textContent).join('\n'));
+  const before = await doc();
+  expect(before.length, 'the tutorial opened nothing').toBeGreaterThan(20);
+  /* Lines with something on them, and both ways the toggle could go: the
+     example's first line is a comment already, so one key would take its
+     mark off, and the three lines of its .data have none, so one key would
+     give them marks.  A blank line, or a line the cursor is not on, would
+     pass whatever the editor did. */
+  const lines = before.split('\n');
+  expect(lines[0], 'the example no longer opens with a comment').toMatch(/^#/);
+  for (const n of [3, 4, 5]) expect(lines[n].trim(), `line ${n + 1} is not a plain line`).not.toMatch(/^(#|$)/);
+  await page.locator('.cm-line').nth(0).click();
+  await page.keyboard.press('Control+/');
+  await page.waitForTimeout(150);
+  expect(await doc(), 'the read-only example lost its comment mark').toBe(before);
+  await page.locator('.cm-line').nth(3).click();
+  await page.keyboard.down('Shift');
+  await page.locator('.cm-line').nth(5).click();
+  await page.keyboard.up('Shift');
+  await page.keyboard.press('Control+/');
+  await page.waitForTimeout(150);
+  expect(await doc(), 'the read-only example was written to').toBe(before);
+  // And nothing was put up to say so.
+  expect(await page.locator('dialog[open]').count()).toBe(0);
+});
+
 test('the first screen keeps its shape from one step to the other, and the window its size into the work', async () => {
   const { page, app } = r;
   const box = async (sel: string) => (await page.locator(sel).boundingBox())!;

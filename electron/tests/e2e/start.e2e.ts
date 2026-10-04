@@ -548,6 +548,21 @@ test('back from the tutorial: the board is up again, and running once', async ()
     console.log(`${drawn} frames in a second after coming back`);
     expect(drawn, 'the board is not drawing again').toBeGreaterThan(20);
     expect(drawn, 'two loops are running').toBeLessThan(90);
+
+    /* And the hole it leaves for the card is the card.  Coming back from the
+       tutorial it kept a space taller than the card above it -- a band of
+       board with no trace in it, 245 px of one at 2560x1392 (2.8.1). */
+    const g = await page.evaluate(() => (window as unknown as { __startfield: { geometry(): {
+      card: { x: number; y: number; width: number; height: number } } } }).__startfield.geometry());
+    const box = (await page.locator('.wcard').boundingBox())!;
+    const host = (await page.locator('.startfield').boundingBox())!;
+    const said = `the board keeps ${g.card.width}x${g.card.height} at ${g.card.x},${g.card.y}`
+      + ` for a card of ${Math.round(box.width)}x${Math.round(box.height)}`
+      + ` at ${Math.round(box.x - host.x)},${Math.round(box.y - host.y)}`;
+    expect(Math.abs(g.card.width - box.width), said).toBeLessThanOrEqual(1);
+    expect(Math.abs(g.card.height - box.height), said).toBeLessThanOrEqual(1);
+    expect(Math.abs(g.card.x - (box.x - host.x)), said).toBeLessThanOrEqual(1);
+    expect(Math.abs(g.card.y - (box.y - host.y)), said).toBeLessThanOrEqual(1);
   } finally { await r.close(); }
 });
 
