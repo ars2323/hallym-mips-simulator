@@ -1,5 +1,9 @@
 # Hallym MIPS Simulator
 
+> **Development has moved to `assembly-studio`; this repository is kept for the record.** The last
+> release is 2.8.1, and what the new repository needs to know in order to take code from this one
+> is in [docs/HANDOVER.md](docs/HANDOVER.md).
+
 > **사용법 (한국어): [docs/usage/usage.ko.md](docs/usage/usage.ko.md)** — 내려받기, 설치,
 > Windows 경고 창 넘기기, 첫 실행과 튜토리얼, 화면 설명, 자주 막히는 곳.
 >
